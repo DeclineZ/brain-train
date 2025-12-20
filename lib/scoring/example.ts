@@ -26,13 +26,13 @@ export function calculateClinicalStats(stats: CardGameRawStats) {
   // Formula: 100 - (RepeatedErrors * 10)
   const rawLogic = 100 - (stats.repeatedErrors * 10);
 
-  // Normalize all to max 100 [cite: 191]
+  // Normalize all to max 100 
   return {
     stat_memory: Math.min(Math.round(rawMemory), 100),
     stat_speed: Math.min(Math.round(rawSpeed), 100),
-    stat_visual: Math.min(Math.round(rawSpeed), 100), // Same as speed for this game
+    stat_visual: Math.min(Math.round(rawSpeed), 100),
     stat_focus: Math.min(Math.round(rawFocus), 100),
     stat_planning: Math.min(Math.round(rawLogic), 100),
-    stat_emotion: null // This game doesn't measure emotion
+    stat_emotion: null 
   };
 }

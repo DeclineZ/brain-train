@@ -57,7 +57,7 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
       gameInstance.current?.destroy(true);
       gameInstance.current = null;
     };
-  }, [gameId, level, onGameOver]); // <--- 3. Now 'level' is valid here
+  }, [gameId, level, onGameOver]);
 
   return (
     <div 

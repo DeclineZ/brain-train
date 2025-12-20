@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react'; // <--- 1. Import 'use'
+import { use, useState } from 'react';
 import { useGameSession } from '@/hooks/useGameSession';
 import GameCanvas from '@/components/game/GameCanvas';
 import { useSearchParams } from 'next/navigation';
@@ -12,17 +12,15 @@ interface PageProps {
 
 export default function GamePage({ params }: PageProps) {
   // 3. Unwrap the Promise using 'use()'
-  // This extracts the actual string "game-05-memory" from the promise
   const { gameId } = use(params); 
 
   const { submitSession } = useGameSession();
   const [result, setResult] = useState<any>(null);
 
-  const searchParams = useSearchParams(); // <--- YOU MISSING THIS LINE
+  const searchParams = useSearchParams(); 
   const level = Number(searchParams.get('level')) || 1;
 
   const handleGameOver = async (rawData: any) => {
-    // Now 'gameId' is a valid string, so this will work
     const stats = await submitSession(gameId, rawData);
     setResult(stats);
   };

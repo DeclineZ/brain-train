@@ -1,10 +1,10 @@
 import { Types } from 'phaser';
-import { MemoryGameScene } from './GameScene'; // Make sure this matches your file name
+import { MemoryGameScene } from './GameScene'; 
 
 export const MemoryGameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  backgroundColor: '#FDF6E3', // Matches your beige theme
+  backgroundColor: '#FDF6E3',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -17,5 +17,5 @@ export const MemoryGameConfig: Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [MemoryGameScene], // <--- Loads the scene we wrote
+  scene: [MemoryGameScene],
 };

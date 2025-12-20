@@ -33,10 +33,6 @@ export const useGameSession = () => {
     const { data: { user } } = await supabase.auth.getUser();
     const userIdToSave = user ? user.id : 'd58f1e3b-f35c-4a0e-9a30-4a312cad0f5a';
 
-    // 2. Save to Supabase
-    // Now TypeScript knows 'clinicalStats' definitely exists
-    // ... inside useGameSession.ts
-
     const { error } = await supabase.from('game_sessions').insert({
       game_id: gameId,
       user_id: userIdToSave,
@@ -52,11 +48,6 @@ export const useGameSession = () => {
       // 2. The Universal Time (Keep this, it's useful for sorting)
       duration_seconds: rawData.userTimeMs ? rawData.userTimeMs / 1000 : 0,
 
-      // 3. THE MAGIC BACKPACK (JSON)
-      // We take EVERYTHING else Phaser sent us and save it here.
-      // Game 5 saves: { "wrongFlips": 2, "pairs": 6 }
-      // Game 2 saves: { "moves": 15, "tubes": 4 }
-      // ALL IN THE SAME COLUMN.
       raw_data: rawData 
     });
 
