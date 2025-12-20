@@ -1,10 +1,15 @@
+"use client";
+
 import { User } from "lucide-react";
+import { useState } from "react";
+import ProfilePopup from "./ProfilePopup";
 
 export default function TopCard() {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const weekDays = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
   const today = 4; // Friday
 
-  return (
+  return (<>
     <div className="bg-[#EADFD6] rounded-2xl p-6 shadow-sm">
       {/* Header with welcome and user icon */}
       <div className="flex justify-between items-center mb-4">
@@ -12,9 +17,12 @@ export default function TopCard() {
           <h1 className="text-2xl font-bold text-[#3C2924]">ยินดีต้อนรับ!</h1>
           <p className="text-[#51433A] mt-1">เริ่มฝึกสมองของคุณวันนี้</p>
         </div>
-        <div className="w-12 h-12 bg-[#C3A37F] rounded-full flex items-center justify-center">
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="w-12 h-12 bg-[#C3A37F] rounded-full flex items-center justify-center hover:bg-[#B39370] transition-colors cursor-pointer"
+        >
           <User className="w-6 h-6 text-white" />
-        </div>
+        </button>
       </div>
 
       {/* Week row */}
@@ -38,5 +46,11 @@ export default function TopCard() {
         <div className="h-full bg-gradient-to-r from-[#D75931] to-[#E67E5A] rounded-full" style={{ width: "65%" }}></div>
       </div>
     </div>
+    
+    {/* Profile Popup */}
+    <ProfilePopup 
+      isOpen={isProfileOpen} 
+      onClose={() => setIsProfileOpen(false)} 
+    /></>
   );
 }
