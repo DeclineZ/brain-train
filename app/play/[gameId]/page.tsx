@@ -31,7 +31,7 @@ export default function GamePage({ params }: PageProps) {
     <div className="w-full h-screen relative bg-[#FDF6E3]">
        {/* Header with Back Button (Optional) */}
        <div className="absolute top-4 left-4 z-10">
-         <a href="/dashboard" className="bg-white/80 p-2 rounded-full shadow hover:bg-white">
+         <a href="/" className="bg-white/80 p-2 rounded-full shadow hover:bg-white">
            ⬅ Back
          </a>
        </div>
