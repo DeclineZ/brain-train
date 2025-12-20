@@ -10,6 +10,8 @@ interface PageProps {
   params: Promise<{ gameId: string }>;
 }
 
+// Test
+
 export default function GamePage({ params }: PageProps) {
   // 3. Unwrap the Promise using 'use()'
   const { gameId } = use(params); 
