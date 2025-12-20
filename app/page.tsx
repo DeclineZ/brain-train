@@ -1,65 +1,50 @@
-import Image from "next/image";
+import { getGames } from "@/lib/api";
+import TopCard from "@/components/TopCard";
+import MainGameCard from "@/components/MainGameCard";
+import BottomNav from "@/components/BottomNav";
+import Link from "next/link";
 
-export default function Home() {
+export default async function Home() {
+  const games = await getGames();
+  // Filter games that have GIFs for the main page (featured games)
+  const featuredGames = games.filter(game =>game.featured);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Testinggggg{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-[#FFFDF7] pb-24">
+      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
+        {/* TopCard */}
+        <TopCard />
+
+        {/* Today's Games Section */}
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-[#3C2924]">ภารกิจวันนี้</h2>
+            <Link 
+              href="#"
+              className="bg-[#D75931] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#C74A21] transition-colors"
             >
-              What Templatess hello
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learn
-            </a>{" "}
-            center.
-          </p>
+              เล่นทั้งหมด
+            </Link>
+          </div>
+
+          {/* Game Cards Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {featuredGames.map((game, index) => (
+              <MainGameCard
+                key={game.id}
+                gameName={game.title}
+                gif={game.gif!}
+                index={index}
+                durationMin={game.durationMin}
+                gameId={game.gameId}
+              />
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={20}
-            />
-            Deploy showky Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav active="home" />
     </div>
   );
 }
