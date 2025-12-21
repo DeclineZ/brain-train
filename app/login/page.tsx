@@ -63,7 +63,7 @@ export default function LoginPage() {
                 <LogoHeader className="absolute top-8 left-8 z-20" variant="desktop" />
                 <h1 className="absolute z-20 top-24 left-8 text-3xl font-bold">สมองฟิต ความคิดคม เริ่มต้นที่ความสนุก</h1>
                 {/* Placeholder for future image */}
-                <Image src="/banner-3-no.png" layout="fill" objectFit="cover" alt="banner" />
+                <Image src="/bannera-no.png" layout="fill" objectFit="cover" alt="banner" />
             </section>
 
             {/* Right Pane - Login Form */}
