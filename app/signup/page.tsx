@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import LogoHeader from "@/components/LogoHeader";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -66,12 +67,19 @@ export default function SignupPage() {
 
             {/* Desktop Left - Editorial Image Card */}
             <section className="hidden md:flex flex-1 bg-[#C8A27A] rounded-[2.5rem] relative overflow-hidden flex-col justify-end p-12 lg:p-16 text-white">
+                <div className="absolute top-0 left-0 w-full h-38 bg-gradient-to-b from-black/50 to-transparent z-10" />
+                <LogoHeader className="absolute top-8 left-8 z-20" variant="desktop" />
                 {/* Placeholder for future image */}
                 <Image src="/banner-3.png" layout="fill" objectFit="cover" alt="banner" />
             </section>
 
             {/* Right Pane - Signup Form */}
             <section className="flex-1 min-h-screen md:min-h-0 relative flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-[#FFFDF6]">
+
+                {/* Mobile Header */}
+                <div className="md:hidden w-full absolute top-0 left-0 p-6 flex justify-center">
+                    <LogoHeader variant="mobile" />
+                </div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}

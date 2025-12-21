@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronRight, Check, User, ChevronLeft } from "lucide-react";
 
 import Image from "next/image";
+import LogoHeader from "@/components/LogoHeader";
 
 // Placeholder Avatar Options (In real app, these would be image URLs)
 const AVATAR_OPTIONS = [
@@ -73,13 +74,49 @@ export default function OnboardingPage() {
     };
 
     return (
-        <main className="min-h-screen bg-cream flex flex-col items-center justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
+        <main className="h-screen bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
             {/* Clean Background - No Animations */}
 
-            <div className="w-full h-full md:h-auto md:max-w-lg relative flex flex-col items-center justify-center z-10">
+            {/* --- Mobile Header Layout (Visible < md) --- */}
+            <div className="md:hidden w-full flex-none bg-cream z-50 px-6 pt-6 pb-2 shadow-sm border-b border-brown-900/5">
+                <div className="flex items-center justify-between mb-4 relative">
+                    {/* Back Button (Mobile) */}
+                    <div className="w-10">
+                        {step > 1 && (
+                            <button
+                                onClick={handleBack}
+                                className="text-brown-400 hover:text-brown-600 transition-colors"
+                            >
+                                <ChevronLeft className="w-8 h-8" />
+                            </button>
+                        )}
+                    </div>
 
-                {/* Progress Bar (Floating on Desktop, Top on Mobile) */}
-                <div className="w-[80%] md:w-full h-2 bg-brown-900/10 rounded-full overflow-hidden absolute top-8 md:-top-12 left-1/2 -translate-x-1/2 z-20">
+                    {/* Logo (Center) */}
+                    <div className="flex justify-center">
+                        <LogoHeader className="transform scale-90" variant="mobile" />
+                    </div>
+
+                    {/* Spacer for balance */}
+                    <div className="w-10"></div>
+                </div>
+
+                {/* Progress Bar (Mobile) */}
+                <div className="w-full h-1.5 bg-brown-900/10 rounded-full overflow-hidden">
+                    <motion.div
+                        className="h-full bg-orange-action"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${(step / 3) * 100}%` }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                    />
+                </div>
+            </div>
+
+            {/* --- Desktop Layout Container --- */}
+            <div className="w-full flex-1 md:flex-none md:h-auto md:max-w-lg relative flex flex-col items-center justify-center z-10">
+
+                {/* Desktop Progress Bar (Hidden on Mobile) */}
+                <div className="hidden md:block w-full h-2 bg-brown-900/10 rounded-full overflow-hidden absolute -top-12 left-1/2 -translate-x-1/2 z-20">
                     <motion.div
                         className="h-full bg-orange-action shadow-[0_0_10px_rgba(234,88,12,0.5)]"
                         initial={{ width: "0%" }}
@@ -96,7 +133,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full min-h-screen md:min-h-0 md:h-auto p-6 pt-24 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
                         >
                             <h2 className="text-3xl md:text-4xl font-bold text-brown-900 mb-4 text-center">
                                 วันเกิดของคุณ
@@ -136,11 +173,11 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full min-h-screen md:min-h-0 md:h-auto p-6 pt-24 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
-                                className="absolute top-12 md:top-6 left-6 text-brown-400 hover:text-brown-600 transition-colors p-2 -ml-2"
+                                className="hidden md:block absolute top-6 left-6 text-brown-400 hover:text-brown-600 transition-colors p-2 -ml-2"
                             >
                                 <ChevronLeft className="w-8 h-8" />
                             </button>
@@ -191,11 +228,11 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full min-h-screen md:min-h-0 md:h-auto p-6 pt-24 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
-                                className="absolute top-18 md:top-6 left-6 text-brown-400 hover:text-brown-600 transition-colors p-2 -ml-2"
+                                className="hidden md:block absolute top-6 left-6 text-brown-400 hover:text-brown-600 transition-colors p-2 -ml-2"
                             >
                                 <ChevronLeft className="w-8 h-8" />
                             </button>
