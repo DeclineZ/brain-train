@@ -32,7 +32,7 @@ export default function LogoHeader({ className, variant }: LogoHeaderProps) {
             <span
                 className={clsx(
                     "font-bold text-4xl tracking-tight font-nunito",
-                    isDesktop ? "text-white" : "text-slate-800"
+                    isDesktop ? "text-brown-900" : "text-slate-800"
                 )}
             >
                 NameArai
