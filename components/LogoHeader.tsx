@@ -20,18 +20,18 @@ export default function LogoHeader({ className, variant }: LogoHeaderProps) {
             {/* 40x40px circle */}
             <div
                 className={clsx(
-                    "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
+                    "w-13 h-13 rounded-full flex items-center justify-center shadow-sm",
                     isDesktop ? "bg-white text-orange-500" : "bg-orange-500 text-white"
                 )}
             >
                 {/* Using a placeholder icon or Zap for energy/brain connection temporarily */}
-                <Zap className="w-6 h-6 fill-current" />
+                <Zap className="w-8 h-8 fill-current" />
             </div>
 
             {/* Brand Name */}
             <span
                 className={clsx(
-                    "font-bold text-2xl tracking-tight font-nunito",
+                    "font-bold text-4xl tracking-tight font-nunito",
                     isDesktop ? "text-white" : "text-slate-800"
                 )}
             >
