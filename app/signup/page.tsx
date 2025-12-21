@@ -63,12 +63,11 @@ export default function SignupPage() {
     };
 
     return (
-        <main className="min-h-screen bg-[#FFFDF6] md:p-4 flex md:gap-4 font-sans text-[#5D4037]">
+        <main className="min-h-screen bg-[#FFFDF6] flex md:gap-4 font-sans text-[#5D4037]">
 
             {/* Desktop Left - Editorial Image Card */}
-            <section className="hidden md:flex flex-1 bg-[#C8A27A] rounded-[2.5rem] relative overflow-hidden flex-col justify-end p-12 lg:p-16 text-white">
-                <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-black/70 to-transparent z-10" />
-                <h1 className="absolute z-20 top-24 left-8 text-3xl font-bold">สมองฟิต ความคิดคม เริ่มต้นที่ความสนุก</h1>
+            <section className="hidden md:flex flex-1 bg-[#C8A27A] rounded-r-[2.5rem] relative overflow-hidden flex-col justify-end p-12 lg:p-16 text-white">
+                <h1 className="absolute z-20 top-24 left-8 text-3xl font-bold text-brown-900">สมองฟิต ความคิดคม เริ่มต้นที่ความสนุก</h1>
                 <LogoHeader className="absolute top-8 left-8 z-20" variant="desktop" />
                 {/* Placeholder for future image */}
                 <Image src="/bannera-no.png" layout="fill" objectFit="cover" alt="banner" />
