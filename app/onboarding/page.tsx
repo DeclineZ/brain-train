@@ -11,9 +11,9 @@ import LogoHeader from "@/components/LogoHeader";
 
 // Placeholder Avatar Options (In real app, these would be image URLs)
 const AVATAR_OPTIONS = [
-    { id: 'avatar-1', src: '/avatars/avatar-11.png', label: 'หมาป่า ยอดนักไหวพริบ' },
-    { id: 'avatar-2', src: '/avatars/avatar-2.png', label: 'ปลาหมึก จอมวางแผน' },
-    { id: 'avatar-3', src: '/avatars/avatar-3.png', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
+    { id: 'avatar-1', src: '/avatars/avatar-1-2.png', label: 'หมาป่า ยอดนักไหวพริบ' },
+    { id: 'avatar-2', src: '/avatars/avatar-2-2.png', label: 'ปลาหมึก จอมวางแผน' },
+    { id: 'avatar-3', src: '/avatars/avatar-3-2.png', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
 ];
 
 export default function OnboardingPage() {
@@ -74,11 +74,26 @@ export default function OnboardingPage() {
     };
 
     return (
-        <main className="h-screen bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
+        <main className="h-screen bg-[#FFFDF6] md:bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
             {/* Clean Background - No Animations */}
 
+            {/* Desktop Logo */}
+            <div className="hidden md:block absolute top-10 left-10 z-50">
+                <LogoHeader variant="desktop" />
+            </div>
+
+            {/* Desktop Progress Bar (Fixed Top) */}
+            <div className="hidden md:block absolute top-19 left-1/2 -translate-x-1/2 z-50 w-64 lg:w-96 h-2 bg-brown-900/10 rounded-full overflow-hidden">
+                <motion.div
+                    className="h-full bg-orange-action shadow-[0_0_10px_rgba(234,88,12,0.5)]"
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${(step / 3) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                />
+            </div>
+
             {/* --- Mobile Header Layout (Visible < md) --- */}
-            <div className="md:hidden w-full flex-none bg-cream z-50 px-6 pt-6 pb-2 shadow-sm border-b border-brown-900/5">
+            <div className="md:hidden w-full flex-none bg-white z-50 px-6 pt-6 pb-2 shadow-sm border-b border-brown-900/5">
                 <div className="flex items-center justify-between mb-4 relative">
                     {/* Back Button (Mobile) */}
                     <div className="w-10">
@@ -113,17 +128,9 @@ export default function OnboardingPage() {
             </div>
 
             {/* --- Desktop Layout Container --- */}
-            <div className="w-full flex-1 md:flex-none md:h-auto md:max-w-lg relative flex flex-col items-center justify-center z-10">
+            <div className="w-full flex-1 md:flex-none md:h-auto md:max-w-2xl relative flex flex-col items-center justify-center z-10">
 
-                {/* Desktop Progress Bar (Hidden on Mobile) */}
-                <div className="hidden md:block w-full h-2 bg-brown-900/10 rounded-full overflow-hidden absolute -top-12 left-1/2 -translate-x-1/2 z-20">
-                    <motion.div
-                        className="h-full bg-orange-action shadow-[0_0_10px_rgba(234,88,12,0.5)]"
-                        initial={{ width: "0%" }}
-                        animate={{ width: `${(step / 3) * 100}%` }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
-                    />
-                </div>
+
 
                 <AnimatePresence mode="wait">
                     {step === 1 && (
@@ -133,7 +140,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <h2 className="text-3xl md:text-4xl font-bold text-brown-900 mb-4 text-center">
                                 วันเกิดของคุณ
@@ -158,7 +165,7 @@ export default function OnboardingPage() {
                                 <button
                                     onClick={handleNext}
                                     disabled={!dob}
-                                    className="w-full h-14 bg-brown-900 hover:bg-brown-800 disabled:bg-brown-100 disabled:text-brown-400 disabled:cursor-not-allowed text-white text-xl font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+                                    className="w-full h-14 bg-brown-900 hover:bg-brown-800 disabled:bg-brown-100 disabled:text-brown-400 disabled:cursor-not-allowed text-white text-xl font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 flex-none"
                                 >
                                     ถัดไป <ChevronRight className="h-6 w-6" />
                                 </button>
@@ -173,7 +180,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
@@ -189,24 +196,36 @@ export default function OnboardingPage() {
                                 ข้อมูลนี้จะช่วยในการวิเคราะห์ผลลัพธ์ทางการแพทย์
                             </p>
 
-                            <div className="grid grid-cols-1 gap-4 mb-8">
+                            <div className="flex flex-col gap-4 mb-8">
                                 {['male', 'female', 'other'].map((g) => (
                                     <button
                                         key={g}
                                         onClick={() => setGender(g)}
-                                        className={`h-16 rounded-2xl border-2 text-xl font-bold transition-all flex items-center px-6 gap-4 shadow-sm
+                                        className={`w-full group relative overflow-hidden rounded-2xl border-2 text-left transition-all p-6 hover:shadow-md
                                             ${gender === g
-                                                ? 'border-orange-action bg-orange-50 text-orange-900 shadow-md ring-2 ring-orange-action/20'
-                                                : 'border-brown-200 bg-white text-brown-600 hover:bg-brown-50 hover:border-brown-300'
+                                                ? 'border-orange-action bg-orange-50/50 shadow-md ring-1 ring-orange-action/20'
+                                                : 'border-black/5 bg-gray-50/50 hover:bg-white hover:border-orange-action/30'
                                             }
                                         `}
                                     >
-                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
-                                            ${gender === g ? 'border-orange-action' : 'border-brown-300'}
-                                        `}>
-                                            {gender === g && <div className="w-3 h-3 rounded-full bg-orange-action" />}
+                                        <div className="flex items-center gap-6">
+                                            <div className={`w-8 h-8 rounded-full border-2 flex-none flex items-center justify-center transition-colors
+                                                ${gender === g ? 'border-orange-action bg-white' : 'border-gray-300 group-hover:border-orange-action/50'}
+                                            `}>
+                                                {gender === g && <div className="w-4 h-4 rounded-full bg-orange-action" />}
+                                            </div>
+
+                                            <div className="flex flex-col">
+                                                <span className={`text-xl font-bold transition-colors mb-1
+                                                    ${gender === g ? 'text-orange-900' : 'text-brown-900'}
+                                                `}>
+                                                    {g === 'male' ? 'ชาย' : g === 'female' ? 'หญิง' : 'อื่นๆ'}
+                                                </span>
+                                                <span className="text-sm text-brown-400 group-hover:text-brown-600 transition-colors">
+                                                    {g === 'male' ? 'สำหรับผู้ชาย' : g === 'female' ? 'สำหรับผู้หญิง' : 'ไม่ระบุเพศ'}
+                                                </span>
+                                            </div>
                                         </div>
-                                        {g === 'male' ? 'ชาย' : g === 'female' ? 'หญิง' : 'อื่นๆ'}
                                     </button>
                                 ))}
                             </div>
@@ -214,7 +233,7 @@ export default function OnboardingPage() {
                             <button
                                 onClick={handleNext}
                                 disabled={!gender}
-                                className="w-full h-14 bg-brown-900 hover:bg-brown-800 disabled:bg-brown-100 disabled:text-brown-400 disabled:cursor-not-allowed text-white text-xl font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                className="w-full h-14 bg-brown-900 hover:bg-brown-800 disabled:bg-brown-100 disabled:text-brown-400 disabled:cursor-not-allowed text-white text-xl font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 flex-none"
                             >
                                 ถัดไป <ChevronRight className="h-6 w-6" />
                             </button>
@@ -228,7 +247,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-white md:bg-white/80 md:backdrop-blur-md w-full md:min-h-0 md:h-auto p-6 md:p-12 rounded-none md:rounded-3xl shadow-none md:shadow-2xl border-none md:border md:border-white/50 flex flex-col justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
@@ -262,7 +281,7 @@ export default function OnboardingPage() {
                                                     src={opt.src}
                                                     alt={`Avatar ${opt.label}`}
                                                     fill
-                                                    className="object-cover"
+                                                    className="object-cover scale-108"
                                                 />
                                             </div>
 
@@ -294,3 +313,4 @@ export default function OnboardingPage() {
         </main>
     );
 }
+
