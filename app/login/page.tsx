@@ -45,6 +45,7 @@ export default function LoginPage() {
                 provider,
                 options: {
                     redirectTo: `${location.origin}/auth/callback`,
+                    scopes: provider === 'facebook' ? 'public_profile' : undefined,
                 },
             });
             if (error) throw error;

@@ -53,6 +53,7 @@ export default function SignupPage() {
                 provider,
                 options: {
                     redirectTo: `${location.origin}/auth/callback`,
+                    scopes: provider === 'facebook' ? 'public_profile' : undefined,
                 },
             });
             if (error) throw error;
