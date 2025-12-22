@@ -48,9 +48,9 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
   };
 
   const getDayColor = (day: any) => {
-    if (day.is_future) return "bg-gray-100 text-gray-400";
-    if (day.is_today) return "bg-[#D75931] text-white font-semibold";
+    if (day.is_today) return "bg-[#D75931]/40 text-[#51433A] font-semibold";
     if (day.checked_in) return "bg-[#D4C5B8] text-[#3C2924]";
+    if (day.is_future) return "bg-gray-100 text-gray-400";
     return "bg-white text-[#51433A]";
   };
 
@@ -71,8 +71,8 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
       days.push(<div key={`empty-${i}`} className="aspect-square"></div>);
     }
 
-    // Calendar days
-    calendar.days.forEach((day, index) => (
+    // Calendar days - FIXED: Changed forEach to map and properly return elements
+    const calendarDaysElements = calendar.days.map((day) => (
       <div
         key={day.date}
         className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm cursor-pointer hover:opacity-80 transition-opacity ${getDayColor(day)}`}
@@ -89,11 +89,11 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
       </div>
     ));
 
-    return days;
+    return [...days, ...calendarDaysElements];
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-[#FFFDF7] rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="bg-[#EADFD6] px-6 py-4 flex items-center justify-between">

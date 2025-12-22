@@ -8,6 +8,16 @@ export interface CheckinStatus {
   longest_streak: number;
   total_checkins: number;
   last_checkin_date: string | null;
+  weekly_progress: {
+    days_checked_in: number;
+    total_days: number;
+    week_days: Array<{
+      day_name: string;
+      date: string;
+      checked_in: boolean;
+      is_today: boolean;
+    }>;
+  };
 }
 
 export interface CalendarDay {
@@ -128,12 +138,67 @@ export async function getCheckinStatus(userId: string): Promise<Result<CheckinSt
 
     const checkedInToday = !todayError && todayCheckin !== null;
 
+    // Get weekly progress (current week Sunday to Saturday)
+    const getWeeklyProgress = () => {
+      const now = new Date();
+      const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+      const sunday = new Date(now);
+      sunday.setDate(now.getDate() - currentDay);
+      const saturday = new Date(sunday);
+      saturday.setDate(sunday.getDate() + 6);
+
+      const startDate = sunday.toISOString().split('T')[0];
+      const endDate = saturday.toISOString().split('T')[0];
+
+      const thaiDayNames = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+
+      const weekDays = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(sunday);
+        date.setDate(sunday.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        weekDays.push({
+          day_name: thaiDayNames[i],
+          date: dateStr,
+          checked_in: false,
+          is_today: dateStr === today
+        });
+      }
+
+      return { startDate, endDate, weekDays };
+    };
+
+    const { startDate, endDate, weekDays } = getWeeklyProgress();
+
+    // Get check-ins for the current week
+    const { data: weekCheckins } = await supabase
+      .from('checkin_days')
+      .select('checkin_date')
+      .eq('user_id', userId)
+      .gte('checkin_date', startDate)
+      .lte('checkin_date', endDate);
+
+    const checkedInDates = new Set(weekCheckins?.map(c => c.checkin_date) || []);
+    
+    // Mark checked-in days
+    weekDays.forEach(day => {
+      day.checked_in = checkedInDates.has(day.date);
+    });
+
+    const daysCheckedIn = weekDays.filter(day => day.checked_in).length;
+
     const status: CheckinStatus = {
       checked_in_today: checkedInToday,
       current_streak: summary?.current_streak || 0,
       longest_streak: summary?.longest_streak || 0,
       total_checkins: summary?.total_checkins || 0,
-      last_checkin_date: summary?.last_checkin_date || null
+      last_checkin_date: summary?.last_checkin_date || null,
+      weekly_progress: {
+        days_checked_in: daysCheckedIn,
+        total_days: 7,
+        week_days: weekDays
+      }
     };
 
     return { ok: true, data: status };

@@ -59,7 +59,6 @@ export default function TopCard() {
 
       {/* Streak Badge - replacing week row */}
       {userId && (
-        <div className="mb-4">
           <StreakBadge 
             userId={userId}
             onAutoCheckin={() => {
@@ -67,7 +66,6 @@ export default function TopCard() {
               console.log("Auto check-in triggered from game completion");
             }}
           />
-        </div>
       )}
 
       {/* Original week row - shown if no user */}
@@ -88,10 +86,6 @@ export default function TopCard() {
         </div>
       )}
 
-      {/* Progress bar */}
-      <div className="bg-white/50 rounded-full h-3 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-[#D75931] to-[#E67E5A] rounded-full" style={{ width: "65%" }}></div>
-      </div>
     </div>
     
     {/* Profile Popup */}
