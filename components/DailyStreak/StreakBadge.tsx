@@ -121,7 +121,7 @@ export default function StreakBadge({
     const getFireColor = (streak: number) => {
         if (streak >= 30) return "text-red-600";
         if (streak >= 7) return "text-orange-500";
-        if (streak >= 3) return "text-yellow-600";
+        if (streak >= 1) return "text-yellow-600";
         return "text-gray-600";
     };
 
