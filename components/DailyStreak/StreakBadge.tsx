@@ -13,24 +13,28 @@ import { Button } from "../ui/button";
 interface StreakBadgeProps {
     userId: string;
     onAutoCheckin?: () => void;
+    initialData?: CheckinStatus | null;
 }
 
 export default function StreakBadge({
     userId,
     onAutoCheckin,
+    initialData,
 }: StreakBadgeProps) {
-    const [status, setStatus] = useState<CheckinStatus | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [status, setStatus] = useState<CheckinStatus | null>(initialData || null);
+    const [isLoading, setIsLoading] = useState(!initialData);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [showCalendar, setShowCalendar] = useState(false);
     const [notification, setNotification] = useState<CheckinResult | null>(
         null
     );
 
-    // Fetch check-in status on mount
+    // Fetch check-in status on mount only if no initial data
     useEffect(() => {
-        fetchStatus();
-    }, [userId]);
+        if (!initialData) {
+            fetchStatus();
+        }
+    }, [userId, initialData]);
 
     const fetchStatus = async () => {
         try {
@@ -69,12 +73,19 @@ export default function StreakBadge({
                 setStatus((prev) =>
                     prev
                         ? {
-                              ...prev,
-                              checked_in_today: true,
-                              current_streak: result.data.streak_count,
-                              total_checkins: prev.total_checkins + 1,
-                              last_checkin_date: new Date().toISOString(),
-                          }
+                            ...prev,
+                            checked_in_today: true,
+                            current_streak: result.data.streak_count,
+                            total_checkins: prev.total_checkins + 1,
+                            last_checkin_date: new Date().toISOString(),
+                            weekly_progress: {
+                                ...prev.weekly_progress,
+                                days_checked_in: prev.weekly_progress.days_checked_in + 1,
+                                week_days: prev.weekly_progress.week_days.map(d =>
+                                    d.is_today ? { ...d, checked_in: true } : d
+                                )
+                            }
+                        }
                         : null
                 );
 
@@ -100,7 +111,7 @@ export default function StreakBadge({
 
     if (isLoading) {
         return (
-            <div className="bg-[#EADFD6] rounded-xl p-4 animate-pulse">
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 animate-pulse">
                 <div className="h-6 bg-gray-300 rounded mb-3"></div>
                 <div className="h-4 bg-gray-300 rounded mb-3"></div>
                 <div className="h-8 bg-gray-300 rounded"></div>
@@ -110,7 +121,7 @@ export default function StreakBadge({
 
     if (!status) {
         return (
-            <div className="bg-[#EADFD6] rounded-xl p-4">
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-[#51433A] text-sm">
                     ไม่สามารถโหลดข้อมูลสตรีก
                 </p>
@@ -118,11 +129,9 @@ export default function StreakBadge({
         );
     }
 
-    const getFireColor = (streak: number) => {
-        if (streak >= 30) return "text-red-600";
-        if (streak >= 7) return "text-orange-500";
-        if (streak >= 1) return "text-yellow-600";
-        return "text-gray-600";
+    const getFireColor = (checkedIn: boolean) => {
+        if (checkedIn) return "text-orange-500 fill-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]";
+        return "text-gray-300 fill-gray-200";
     };
 
     const getFireSize = (streak: number) => {
@@ -135,31 +144,35 @@ export default function StreakBadge({
 
     return (
         <>
-            <div className="bg-[#EADFD6] space-y-2">
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 space-y-3 shadow-sm transition-all hover:bg-white/70">
                 {/* TOP SECTION: Daily Status */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Flame
-                            className={`${getFireSize(status.current_streak)} ${getFireColor(status.current_streak)} ${
-                                !status.checked_in_today ? "animate-pulse" : ""
-                            }`}
-                        />
+                    <div className="flex items-center gap-4">
+                        {/* Flame Icon with Wind Animation */}
+                        <div className="w-14 h-14 flex items-center justify-center">
+                            <Flame
+                                className={`transition-all duration-500 ${getFireSize(status.current_streak)} ${getFireColor(status.checked_in_today)} ${status.checked_in_today ? "animate-flame-wind drop-shadow-[0_-5px_10px_rgba(249,115,22,0.4)]" : ""
+                                    }`}
+                            />
+                        </div>
+
                         <div>
-                            <p className="text-[#3C2924] font-bold text-lg">
-                                {status.current_streak} วัน
-                            </p>
-                            <p className="text-[#51433A] text-xs">
-                                สูงสุด {status.longest_streak} วัน
-                            </p>
+                            <div className="text-base text-[#8c7e75] font-bold uppercase tracking-wider mb-0.5">เช็คอินรายวัน</div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-black text-[#3C2924] leading-none drop-shadow-sm">
+                                    {status.current_streak}
+                                </span>
+                                <span className="text-sm font-bold text-[#8c7e75]">วัน</span>
+                            </div>
                         </div>
                     </div>
 
                     <Button
                         variant={"outline"}
                         onClick={() => setShowCalendar(true)}
-                        className="p-4  rounded-lg transition-colors"
+                        className="p-3 h-auto rounded-xl border-2 border-[#EADFD6] hover:bg-[#EADFD6] hover:text-[#3C2924] transition-all text-[#8c7e75]"
                     >
-                        <Calendar className="w-5 h-5 text-[#51433A]" />
+                        <Calendar className="w-5 h-5" />
                     </Button>
                 </div>
 
@@ -169,15 +182,14 @@ export default function StreakBadge({
                         {weeklyProgress.week_days.map((day, index) => (
                             <div
                                 key={index}
-                                className={`flex  items-center justify-center text-xs py-2 gap-1 ${index == 0 ? "rounded-l-lg" : ""} ${index == 6 ? "rounded-r-lg" : ""} ${
-                                    day.is_today
-                                        ? day.checked_in
-                                            ? "bg-[#D75931] text-white"
-                                            : "bg-[#EADFD6] border-2 border-[#D75931] text-[#3C2924]"
-                                        : day.checked_in
-                                          ? "bg-[#D4C5B8] text-white"
-                                          : "bg-white/50 text-[#51433A]"
-                                }`}
+                                className={`flex  items-center justify-center text-xs py-2 gap-1 ${index == 0 ? "rounded-l-lg" : ""} ${index == 6 ? "rounded-r-lg" : ""} ${day.is_today
+                                    ? day.checked_in
+                                        ? "bg-[#D75931] text-white"
+                                        : "bg-[#EADFD6] border-2 border-[#D75931] text-[#3C2924]"
+                                    : day.checked_in
+                                        ? "bg-[#D4C5B8] text-white"
+                                        : "bg-white/50 text-[#51433A]"
+                                    }`}
                             >
                                 <span className="font-semibold text-[15px] leading-none">
                                     {day.day_name}
