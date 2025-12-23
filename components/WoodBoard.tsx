@@ -10,7 +10,7 @@ export default function WoodBoard({ title, action, children }: WoodBoardProps) {
     return (
         <div className="relative mt-8">
             {/* The Board Container */}
-            <div className="bg-wood-pattern rounded-3xl p-6 shadow-[0_8px_0_#C8A27A,0_20px_20px_rgba(0,0,0,0.15)] border-4 border-[#8B5E3C] relative z-10">
+            <div className="bg-wood-pattern rounded-3xl p-6 shadow-sm border-4 border-[#8B5E3C] relative z-10">
 
                 {/* Header Section simulating a nailed-on sign or top section */}
                 <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-[#8B5E3C]/20 border-dashed">
