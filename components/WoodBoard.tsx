@@ -26,9 +26,6 @@ export default function WoodBoard({ title, action, children }: WoodBoardProps) {
                 </div>
             </div>
 
-            {/* Optional: Decorative "Legs" or support if we want it to look like a standing board */}
-            <div className="absolute -bottom-6 left-10 w-4 h-8 bg-[#6B4F3F] rounded-b-lg -z-0 shadow-inner"></div>
-            <div className="absolute -bottom-6 right-10 w-4 h-8 bg-[#6B4F3F] rounded-b-lg -z-0 shadow-inner"></div>
         </div>
     );
 }

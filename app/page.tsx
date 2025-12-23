@@ -18,13 +18,13 @@ export default async function Home() {
 
         {/* Turn "Today's Games" into a Quest Board */}
         <WoodBoard
-          title="ภารกิจวันนี้"
+          title="ภารกิจวันนี้ (3 เกมส์)"
           action={
             <Link
               href="#"
               className="bg-[#D75931] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-[0_4px_0_#9E3C1E] active:shadow-none active:translate-y-1 transition-all"
             >
-              เล่นทั้งหมด
+              เริ่มเลย
             </Link>
           }
         >
