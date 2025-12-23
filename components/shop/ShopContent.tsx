@@ -7,7 +7,6 @@ import CategoryTabs from "@/components/shop/CategoryTabs";
 import type { ShopItem, UserBalance } from "@/lib/server/shopAction";
 import { useState} from "react";
 
-import AddCoinsButton from "./DEL_AddCoinsButton";
 
 export default function ShopContent({ userId, initialBalance, initialItems }: {
   userId: string | null;
@@ -117,17 +116,6 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
         {/* Balance Display */}
         <BalanceDisplay userId={userId} />
 
-        {/* Add Coins Button */}
-        <AddCoinsButton 
-          userId={userId}
-          onBalanceUpdate={(newBalance) => {
-            setUserBalance(prev => ({ 
-              ...prev, 
-              balance: newBalance,
-              updated_at: new Date().toISOString()
-            }));
-          }}
-        />
 
         {/* Category Tabs */}
         <CategoryTabs 
