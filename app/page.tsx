@@ -2,33 +2,35 @@ import { getGames } from "@/lib/api";
 import TopCard from "@/components/TopCard";
 import MainGameCard from "@/components/MainGameCard";
 import BottomNav from "@/components/BottomNav";
+import ModernDashboard from "@/components/ModernDashboard";
 import Link from "next/link";
 
 export default async function Home() {
   const games = await getGames();
   // Filter games that have GIFs for the main page (featured games)
-  const featuredGames = games.filter(game =>game.featured);
+  const featuredGames = games.filter(game => game.featured);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7] pb-24">
+    <div className="min-h-screen bg-[#FFFDF7]">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
         {/* TopCard */}
         <TopCard />
 
-        {/* Today's Games Section */}
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-[#3C2924]">ภารกิจวันนี้</h2>
-            <Link 
-              href="#"
-              className="bg-[#D75931] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#C74A21] transition-colors"
+        <ModernDashboard
+          title="ภารกิจวันนี้"
+          totalGames={3}
+          completedGames={0}
+          action={
+            <Link
+              href="/play/start-daily"
+              className="inline-flex items-center gap-2 bg-[#E84C1C] text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-[#D74215] active:translate-y-0.5 transition-all"
             >
-              เล่นทั้งหมด
+              <span>เริ่มภารกิจ</span>
             </Link>
-          </div>
-
+          }
+        >
           {/* Game Cards Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featuredGames.map((game, index) => (
               <MainGameCard
                 key={game.id}
@@ -40,7 +42,7 @@ export default async function Home() {
               />
             ))}
           </div>
-        </div>
+        </ModernDashboard>
       </div>
 
       {/* Bottom Navigation */}

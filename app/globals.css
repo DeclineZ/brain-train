@@ -139,6 +139,35 @@ body {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes flame-wind {
+
+  0%,
+  100% {
+    transform: rotate(-2deg) scale(1);
+    opacity: 0.9;
+  }
+
+  25% {
+    transform: rotate(2deg) scale(1.05);
+    opacity: 1;
+  }
+
+  50% {
+    transform: rotate(-4deg) scale(0.95);
+    opacity: 0.85;
+  }
+
+  75% {
+    transform: rotate(1deg) scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+.animate-flame-wind {
+  animation: flame-wind 3s infinite ease-in-out;
+  transform-origin: bottom center;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -146,5 +175,25 @@ body {
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-dot-pattern {
+    background-color: #FFFDF7;
+    background-image: radial-gradient(#E5E5E5 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-soft-mesh {
+    background-color: hsla(0, 100%, 50%, 1);
+    background-image:
+      radial-gradient(at 40% 20%, hsla(28, 100%, 74%, 1) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(340, 100%, 76%, 1) 0px, transparent 50%);
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 }

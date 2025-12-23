@@ -1,42 +1,79 @@
 "use client";
 
-import { Grid3X3, Home, BarChart3 } from "lucide-react";
+import { Grid3X3, Home, User, Store } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface BottomNavProps {
-  active?: "all" | "home" | "stats";
+  active?: "all" | "home" | "stats" | "shop";
 }
 
-export default function BottomNav({ active = "home" }: BottomNavProps) {
+export default function BottomNav({ active: propActive }: BottomNavProps) {
+  const pathname = usePathname();
+
+  // Determine active state based on prop or pathname fallback
+  const currentPath = pathname?.split('/')[1] || 'home';
+  const active = propActive || (currentPath === '' ? 'home' : currentPath);
+
   const navItems = [
-    { id: "all", label: "ทุกเกม", icon: Grid3X3 },
-    { id: "home", label: "หน้าหลัก", icon: Home },
-    { id: "stats", label: "สถิติ", icon: BarChart3 },
+    { id: "home", label: "หน้าหลัก", icon: Home, href: "/" },
+    { id: "all", label: "ทุกเกม", icon: Grid3X3, href: "/allgames" },
+    { id: "shop", label: "ร้านค้า", icon: Store, href: "/shop" },
+    { id: "stats", label: "คุณ", icon: User, href: "/stats" },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#C3A37F] px-4 py-2 safe-area-inset-bottom">
-      <div className="max-w-md mx-auto flex justify-around items-center">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = active === item.id;
-          
-          return (
-            <Link 
-              key={item.id}
-              href={item.id === "all" ? "/allgames" : item.id === "stats" ? "/stats" : "/"}
-              className={`flex flex-col items-center text-xs ${
-                isActive
-                  ? "text-[#D75931] font-semibold"
-                  : "text-[#51433A]"
-              }`}
-            >
-              <Icon className="w-6 h-6 mb-1" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+    <>
+      {/* Spacer to prevent content overlap */}
+      <div className="h-24 md:h-28" aria-hidden="true" />
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[#FFFDF7] border-t-2 border-[#E5E5E5] pb-safe pt-2 z-50">
+        <div className="max-w-md mx-auto flex justify-around items-end h-16 pb-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            // simplistic active check: exact match for ID or based on prop
+            const isActive = active === item.id || (item.id === 'home' && pathname === '/') || (item.id === 'all' && pathname === '/allgames');
+
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="group flex flex-col items-center justify-center w-16 relative"
+              >
+                {/* Active Indicator / Icon Container */}
+                <div className={`
+                  transition-all duration-200 ease-out p-1 rounded-xl mb-1
+                  ${isActive ? '-translate-y-1' : 'hover:-translate-y-0.5'}
+                `}>
+                  <Icon
+                    className={`
+                      w-7 h-7 transition-all duration-200
+                      ${isActive
+                        ? "text-[#E84C1C] fill-[#E84C1C]/20 stroke-[2.5px]"
+                        : "text-[#AFAFAF] stroke-2 group-hover:text-[#E84C1C]/70"
+                      }
+                    `}
+                  />
+                </div>
+
+                {/* Label (Hidden on mobile) */}
+                <span className={`
+                  text-[10px] font-bold tracking-wide transition-colors hidden md:block
+                  ${isActive ? "text-[#E84C1C]" : "text-[#AFAFAF] group-hover:text-[#E84C1C]/70"}
+                `}>
+                  {item.label}
+                </span>
+
+                {/* Active underline indicator (Optional, Duolingo doesn't really have this but good for clarity) */}
+                {/* {isActive && (
+                  <div className="absolute -top-2 w-12 h-1 bg-[#1CB0F6] rounded-full mx-auto" />
+                )} */}
+              </Link>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
+

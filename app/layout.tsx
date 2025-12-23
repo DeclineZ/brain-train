@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Sarabun, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import TopBar from "@/components/TopBar";
+import TopBarWrapper from "@/components/TopBarWrapper";
+
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   weight: ["400", "500", "600", "700"],
@@ -28,6 +31,9 @@ export default function RootLayout({
       <body
         className={`${sarabun.variable} ${geistMono.variable} antialiased`}
       >
+        <TopBarWrapper>
+          <TopBar />
+        </TopBarWrapper>
         {children}
       </body>
     </html>
