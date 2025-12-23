@@ -180,7 +180,7 @@ body {
 
 @layer utilities {
   .bg-wood-pattern {
-    background-color: #eecf9d;
+    background-color: #C8A27A;
     background-image:
       repeating-linear-gradient(90deg,
         transparent 0,
