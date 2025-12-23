@@ -164,7 +164,7 @@ body {
 }
 
 .animate-flame-wind {
-  animation: flame-wind 4s infinite ease-in-out;
+  animation: flame-wind 3s infinite ease-in-out;
   transform-origin: bottom center;
 }
 
@@ -179,17 +179,18 @@ body {
 }
 
 @layer utilities {
-  .bg-wood-pattern {
-    background-color: #C8A27A;
+  .bg-dot-pattern {
+    background-color: #FFFDF7;
+    background-image: radial-gradient(#E5E5E5 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-soft-mesh {
+    background-color: hsla(0, 100%, 50%, 1);
     background-image:
-      repeating-linear-gradient(90deg,
-        transparent 0,
-        transparent 40px,
-        rgba(0, 0, 0, 0.03) 40px,
-        rgba(0, 0, 0, 0.03) 41px),
-      linear-gradient(180deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        rgba(0, 0, 0, 0.05) 100%);
+      radial-gradient(at 40% 20%, hsla(28, 100%, 74%, 1) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(340, 100%, 76%, 1) 0px, transparent 50%);
   }
 
   .text-shadow-sm {

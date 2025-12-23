@@ -2,7 +2,7 @@ import { getGames } from "@/lib/api";
 import TopCard from "@/components/TopCard";
 import MainGameCard from "@/components/MainGameCard";
 import BottomNav from "@/components/BottomNav";
-import WoodBoard from "@/components/WoodBoard";
+import ModernDashboard from "@/components/ModernDashboard";
 import Link from "next/link";
 
 export default async function Home() {
@@ -16,19 +16,20 @@ export default async function Home() {
         {/* TopCard */}
         <TopCard />
 
-        {/* Turn "Today's Games" into a Quest Board */}
-        <WoodBoard
-          title="ภารกิจวันนี้ (3 เกมส์)"
+        <ModernDashboard
+          title="ภารกิจวันนี้"
+          totalGames={3}
+          completedGames={0}
           action={
             <Link
-              href="#"
-              className="bg-[#D75931] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-[0_4px_0_#9E3C1E] active:shadow-none active:translate-y-1 transition-all"
+              href="/play/start-daily"
+              className="inline-flex items-center gap-2 bg-[#E84C1C] text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-[#D74215] active:translate-y-0.5 transition-all"
             >
-              เริ่มเลย
+              <span>เริ่มภารกิจ</span>
             </Link>
           }
         >
-          {/* Game Cards Grid - Making it look like cards pinned to the board */}
+          {/* Game Cards Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featuredGames.map((game, index) => (
               <MainGameCard
@@ -41,7 +42,7 @@ export default async function Home() {
               />
             ))}
           </div>
-        </WoodBoard>
+        </ModernDashboard>
       </div>
 
       {/* Bottom Navigation */}

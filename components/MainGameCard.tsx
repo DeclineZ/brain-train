@@ -19,9 +19,9 @@ export default function MainGameCard({ gameName, gif, index, durationMin, gameId
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
-        whileHover={{ scale: 1.05, rotate: -1 }}
+        whileHover={{ scale: 1.05, y: -5 }}
         whileTap={{ scale: 0.98 }}
-        className="relative rounded-2xl shadow-xl overflow-hidden h-48 cursor-pointer border-4 border-white group"
+        className="relative rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-48 cursor-pointer group"
       >
         {/* Background GIF */}
         <div
@@ -29,24 +29,24 @@ export default function MainGameCard({ gameName, gif, index, durationMin, gameId
           style={{ backgroundImage: `url(${gif})` }}
         />
 
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors duration-300" />
+        {/* Modern Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
 
         {/* Content */}
         <div className="relative h-full flex flex-col justify-between p-4">
           {/* Chips at top */}
           <div className="flex gap-2">
-            <span className="bg-[#D75931] text-white text-xs px-2 py-1 rounded-lg font-bold shadow-sm border border-[#fff]/20 backdrop-blur-sm">
+            <span className="bg-orange-500/90 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
               ภารกิจ
             </span>
           </div>
 
           {/* Game name at bottom */}
-          <div className="flex justify-between items-end">
-            <h3 className="text-white font-bold text-xl drop-shadow-md">{gameName}</h3>
-            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md rounded-lg px-2 py-1 border border-white/10">
-              <Clock className="w-3 h-3 text-[#FFC107]" />
-              <span className="text-white text-xs font-medium">{durationMin} น.</span>
+          <div>
+            <h3 className="text-white font-bold text-lg leading-tight mb-1 drop-shadow-sm">{gameName}</h3>
+            <div className="flex items-center gap-1.5 opacity-90">
+              <Clock className="w-3.5 h-3.5 text-white/80" />
+              <span className="text-white/90 text-xs font-medium">{durationMin} นาที</span>
             </div>
           </div>
         </div>
