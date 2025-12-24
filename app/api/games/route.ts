@@ -4,7 +4,7 @@ import type { Game } from "@/types/game";
 const games: Game[] = [
   {
     id: "1",
-    gameId: "game-00-example",
+    gameId: "game-01-cardmatch",
     title: "จับคู่การ์ด",
     category: "การใช้เหตุผล",
     image: "https://picsum.photos/400/300?random=11",

@@ -17,7 +17,7 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
       // Dynamic imports to avoid SSR issues
       const Phaser = await import('phaser');
       const { GameRegistry } = await import('@/games/registry');
-      
+
       const selectedConfig = GameRegistry[gameId];
 
       if (!selectedConfig) {
@@ -37,13 +37,13 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
           postBoot: (game) => {
             // 1. Pass the React Callback to the Registry
             game.registry.set('onGameOver', onGameOver);
-            
+
             // 2. Restart the Scene with the Specific Level Data
             // We get the active scene key (e.g., 'MemoryGameScene')
             const sceneKey = game.scene.getScenes(false)[0].sys.settings.key;
-            
+
             // We force start it again, passing the 'level' variable you fixed
-            game.scene.start(sceneKey, { level: level }); 
+            game.scene.start(sceneKey, { level: level });
           }
         }
       });
@@ -60,10 +60,10 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
   }, [gameId, level, onGameOver]);
 
   return (
-    <div 
-      id="game-container" 
-      ref={gameRef} 
-      className="w-full h-full rounded-xl overflow-hidden shadow-2xl" 
+    <div
+      id="game-container"
+      ref={gameRef}
+      className="w-full h-full rounded-xl overflow-hidden shadow-2xl"
     />
   );
 }
