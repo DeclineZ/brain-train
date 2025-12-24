@@ -74,7 +74,7 @@ export default function OnboardingPage() {
     };
 
     return (
-        <main className="h-screen bg-[#FFFDF6] md:bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
+        <main className="h-screen bg-cream md:bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
             {/* Clean Background - No Animations */}
 
             {/* Desktop Logo */}

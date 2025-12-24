@@ -56,10 +56,10 @@ export default function LoginPage() {
     };
 
     return (
-        <main className="min-h-screen bg-[#FFFDF6] flex md:gap-4 font-sans text-[#5D4037]">
+        <main className="min-h-screen bg-cream flex md:gap-4 font-sans text-brown-800">
 
             {/* Desktop Left - Editorial Image Card */}
-            <section className="hidden md:flex flex-1 bg-[#C8A27A] rounded-r-[2.5rem] relative overflow-hidden flex-col justify-end p-12 lg:p-16 text-white">
+            <section className="hidden md:flex flex-1 bg-tan rounded-r-[2.5rem] relative overflow-hidden flex-col justify-end p-12 lg:p-16 text-white">
                 <LogoHeader className="absolute top-8 left-8 z-20" variant="desktop" />
                 <h1 className="absolute z-20 top-24 left-8 text-3xl font-bold text-brown-900">สมองฟิต ความคิดคม เริ่มต้นที่ความสนุก</h1>
                 {/* Placeholder for future image */}
@@ -67,7 +67,7 @@ export default function LoginPage() {
             </section>
 
             {/* Right Pane - Login Form */}
-            <section className="flex-1 min-h-screen md:min-h-0 relative flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-[#FFFDF6]">
+            <section className="flex-1 min-h-screen md:min-h-0 relative flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-cream">
 
                 {/* Mobile Header */}
                 <div className="md:hidden w-full absolute top-0 left-0 p-6 flex justify-center">
@@ -87,10 +87,10 @@ export default function LoginPage() {
                             BrainTrain
                         </div> */}
 
-                        <h2 className="font-sans text-4xl md:text-5xl text-[#5D4037] mb-3 tracking-tight font-bold">
+                        <h2 className="font-sans text-4xl md:text-5xl text-brown-800 mb-3 tracking-tight font-bold">
                             ยินดีต้อนรับกลับ
                         </h2>
-                        <p className="text-[#6B4F3F] text-base">
+                        <p className="text-brown-medium text-base">
                             กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งาน
                         </p>
                     </div>
@@ -98,7 +98,7 @@ export default function LoginPage() {
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-5">
                             <div className="space-y-1.5">
-                                <label className="block text-sm font-bold text-[#5D4037] ml-1">
+                                <label className="block text-sm font-bold text-brown-800 ml-1">
                                     อีเมล
                                 </label>
                                 <input
@@ -106,13 +106,13 @@ export default function LoginPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full h-14 px-5 rounded-xl border-2 border-[#E0D8C0] bg-white text-[#5D4037] placeholder:text-[#A08D85] focus:border-[#E84C1C] focus:ring-4 focus:ring-[#E84C1C]/10 outline-none transition-all font-medium text-lg"
+                                    className="w-full h-14 px-5 rounded-xl border-2 border-brown-border bg-white text-brown-800 placeholder:text-brown-light focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all font-medium text-lg"
                                     placeholder="กรอกอีเมลของคุณ"
                                 />
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="block text-sm font-bold text-[#5D4037] ml-1">
+                                <label className="block text-sm font-bold text-brown-800 ml-1">
                                     รหัสผ่าน
                                 </label>
                                 <input
@@ -120,18 +120,18 @@ export default function LoginPage() {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full h-14 px-5 rounded-xl border-2 border-[#E0D8C0] bg-white text-[#5D4037] placeholder:text-[#A08D85] focus:border-[#E84C1C] focus:ring-4 focus:ring-[#E84C1C]/10 outline-none transition-all font-medium text-lg"
+                                    className="w-full h-14 px-5 rounded-xl border-2 border-brown-border bg-white text-brown-800 placeholder:text-brown-light focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all font-medium text-lg"
                                     placeholder="กรอกรหัสผ่านของคุณ"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm font-medium text-[#6B4F3F] px-1">
-                            <label className="flex items-center gap-2 cursor-pointer hover:text-[#5D4037] transition-colors">
-                                <input type="checkbox" className="w-5 h-5 rounded border-[#E0D8C0] text-[#E84C1C] focus:ring-[#E84C1C]/20 cursor-pointer" />
+                        <div className="flex items-center justify-between text-sm font-medium text-brown-medium px-1">
+                            <label className="flex items-center gap-2 cursor-pointer hover:text-brown-800 transition-colors">
+                                <input type="checkbox" className="w-5 h-5 rounded border-brown-border text-orange-action focus:ring-orange-action/20 cursor-pointer" />
                                 <span>จดจำฉัน</span>
                             </label>
-                            <button type="button" className="hover:text-[#E84C1C] transition-colors font-bold">
+                            <button type="button" className="hover:text-orange-action transition-colors font-bold">
                                 ลืมรหัสผ่าน?
                             </button>
                         </div>
@@ -146,7 +146,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full h-14 bg-[#E84C1C] hover:bg-[#D43F15] text-white text-lg font-bold rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 tracking-wide"
+                            className="w-full h-14 bg-orange-action hover:bg-orange-hover text-white text-lg font-bold rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 tracking-wide"
                         >
                             {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : "เข้าสู่ระบบ"}
                         </button>
@@ -158,7 +158,7 @@ export default function LoginPage() {
                                 type="button"
                                 onClick={() => handleOAuth("google")}
                                 disabled={loading}
-                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-[#E0D8C0] bg-white hover:bg-[#FFFDF6] hover:border-[#E84C1C] text-[#5D4037] text-sm font-bold transition-all"
+                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-brown-border bg-white hover:bg-cream hover:border-orange-action text-brown-800 text-sm font-bold transition-all"
                             >
                                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                                     <path
@@ -184,9 +184,9 @@ export default function LoginPage() {
                                 type="button"
                                 onClick={() => handleOAuth("facebook")}
                                 disabled={loading}
-                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-[#E0D8C0] bg-white hover:bg-[#FFFDF6] hover:border-[#1877F2] text-[#5D4037] text-sm font-bold transition-all"
+                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-brown-border bg-white hover:bg-cream hover:border-blue text-brown-800 text-sm font-bold transition-all"
                             >
-                                <svg className="h-5 w-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+                                <svg className="h-5 w-5 text-blue" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v2.225l-.333.006c-2.769 0-3.853 1.18-3.853 3.845v1.185h4.8l-.673 3.667h-4.127v7.98h-2.738z" />
                                 </svg>
                                 Facebook
@@ -195,9 +195,9 @@ export default function LoginPage() {
                     </div>
 
                     <div className="text-center pt-4">
-                        <p className="text-sm text-[#6B4F3F] font-medium">
+                        <p className="text-sm text-brown-medium font-medium">
                             ยังไม่มีบัญชี?{' '}
-                            <a href="/signup" className="text-[#E84C1C] font-bold hover:text-[#D43F15] hover:underline transition-all text-base">
+                            <a href="/signup" className="text-orange-action font-bold hover:text-orange-hover hover:underline transition-all text-base">
                                 สมัครสมาชิกใหม่
                             </a>
                         </p>

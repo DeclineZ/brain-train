@@ -122,7 +122,7 @@ export default function StreakBadge({
     if (!status) {
         return (
             <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4">
-                <p className="text-[#51433A] text-sm">
+                <p className="text-brown-medium text-sm">
                     ไม่สามารถโหลดข้อมูลสตรีก
                 </p>
             </div>
@@ -157,12 +157,12 @@ export default function StreakBadge({
                         </div>
 
                         <div>
-                            <div className="text-base text-[#8c7e75] font-bold uppercase tracking-wider mb-0.5">เช็คอินรายวัน</div>
+                            <div className="text-base text-brown-mute font-bold uppercase tracking-wider mb-0.5">เช็คอินรายวัน</div>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-black text-[#3C2924] leading-none drop-shadow-sm">
+                                <span className="text-3xl font-black text-brown-darkest leading-none drop-shadow-sm">
                                     {status.current_streak}
                                 </span>
-                                <span className="text-sm font-bold text-[#8c7e75]">วัน</span>
+                                <span className="text-sm font-bold text-brown-mute">วัน</span>
                             </div>
                         </div>
                     </div>
@@ -170,7 +170,7 @@ export default function StreakBadge({
                     <Button
                         variant={"outline"}
                         onClick={() => setShowCalendar(true)}
-                        className="p-3 h-auto rounded-xl border-2 border-[#EADFD6] hover:bg-[#EADFD6] hover:text-[#3C2924] transition-all text-[#8c7e75]"
+                        className="p-3 h-auto rounded-xl border-2 border-tan-light hover:bg-tan-light hover:text-brown-darkest transition-all text-brown-mute"
                     >
                         <Calendar className="w-5 h-5" />
                     </Button>
@@ -184,11 +184,11 @@ export default function StreakBadge({
                                 key={index}
                                 className={`flex  items-center justify-center text-xs py-2 gap-1 ${index == 0 ? "rounded-l-lg" : ""} ${index == 6 ? "rounded-r-lg" : ""} ${day.is_today
                                     ? day.checked_in
-                                        ? "bg-[#D75931] text-white"
-                                        : "bg-[#EADFD6] border-2 border-[#D75931] text-[#3C2924]"
+                                        ? "bg-orange-dark text-white"
+                                        : "bg-tan-light border-2 border-orange-dark text-brown-darkest"
                                     : day.checked_in
-                                        ? "bg-[#D4C5B8] text-white"
-                                        : "bg-white/50 text-[#51433A]"
+                                        ? "bg-brown-lightest text-white"
+                                        : "bg-white/50 text-brown-medium"
                                     }`}
                             >
                                 <span className="font-semibold text-[15px] leading-none">
@@ -203,7 +203,7 @@ export default function StreakBadge({
                 <div className="space-y-3">
                     {/* Check-in Status and Button */}
                     <div className="flex items-center justify-between">
-                        <p className="text-[#51433A] text-sm pt-2">
+                        <p className="text-brown-medium text-sm pt-2">
                             {status.checked_in_today
                                 ? "✓ เช็คอินแล้ววันนี้"
                                 : "ยังไม่ได้เช็คอินวันนี้"}
@@ -213,7 +213,7 @@ export default function StreakBadge({
                             <button
                                 onClick={handleManualCheckin}
                                 disabled={isCheckingIn}
-                                className="bg-[#D75931] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#C74A21] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-orange-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isCheckingIn ? "กำลังเช็คอิน..." : "เช็คอิน"}
                             </button>
@@ -222,7 +222,7 @@ export default function StreakBadge({
 
                     {/* Auto check-in indicator */}
                     {!status.checked_in_today && onAutoCheckin && (
-                        <p className="text-[#51433A] text-xs italic">
+                        <p className="text-brown-medium text-xs italic">
                             หรือเล่นเกมเพื่อเช็คอินอัตโนมัติ
                         </p>
                     )}

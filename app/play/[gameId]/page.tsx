@@ -28,7 +28,7 @@ export default function GamePage({ params }: PageProps) {
   };
 
   return (
-    <div className="w-full h-screen relative bg-[#FDF6E3]">
+    <div className="w-full h-screen relative bg-cream">
        {/* Header with Back Button (Optional) */}
        <div className="absolute top-4 left-4 z-10">
          <a href="/" className="bg-white/80 p-2 rounded-full shadow hover:bg-white">
@@ -43,11 +43,11 @@ export default function GamePage({ params }: PageProps) {
        {/* The Result Popup Overlay */}
        {result && (
          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-[#FFF8E7] p-8 rounded-2xl text-center shadow-2xl border-4 border-[#8B4513]">
-               <h1 className="text-3xl font-bold text-[#8B4513] mb-2">เยี่ยมมาก!</h1>
+            <div className="bg-cream p-8 rounded-2xl text-center shadow-2xl border-4 border-brown-900">
+               <h1 className="text-3xl font-bold text-brown-900 mb-2">เยี่ยมมาก!</h1>
                <div className="text-6xl my-4">⭐⭐⭐</div>
                
-               <div className="text-left bg-white/50 p-4 rounded-lg mt-4 text-sm font-mono text-[#5A3E2B]">
+               <div className="text-left bg-white/50 p-4 rounded-lg mt-4 text-sm font-mono text-brown-900">
                   <p>Memory: {result.stat_memory}</p>
                   <p>Speed: {result.stat_speed}</p>
                   <p>Focus: {result.stat_focus}</p>
@@ -56,7 +56,7 @@ export default function GamePage({ params }: PageProps) {
                
                <button 
                  onClick={() => window.location.reload()} 
-                 className="mt-6 bg-[#E86A33] hover:bg-[#D65A22] text-white px-8 py-3 rounded-full text-xl font-bold transition-transform active:scale-95"
+                 className="mt-6 bg-orange-action hover:bg-orange-hover text-white px-8 py-3 rounded-full text-xl font-bold transition-transform active:scale-95"
                >
                  เล่นอีกครั้ง
                </button>

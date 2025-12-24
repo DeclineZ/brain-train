@@ -50,9 +50,9 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden hover:shadow-md transition-all duration-200 hover:-translate-y-1">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-medium overflow-hidden hover:shadow-md transition-all duration-200 hover:-translate-y-1">
       {/* Item Header */}
-      <div className="bg-gradient-to-r from-[#EADFD6] to-[#D4C4B0] p-3">
+      <div className="bg-gradient-to-r from-tan-light to-yellow-light p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="text-4xl">{getItemIcon(item.type)}</div>
           <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${categoryColors[item.type]}`}>
@@ -60,17 +60,17 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
           </span>
         </div>
         
-        <h3 className="text-xl font-bold text-[#3E2723] mb-1">{item.name}</h3>
-        <p className="text-[#5D4037] text-sm leading-relaxed">{item.description}</p>
+        <h3 className="text-xl font-bold text-brown-900 mb-1">{item.name}</h3>
+        <p className="text-brown-800 text-sm leading-relaxed">{item.description}</p>
       </div>
 
       {/* Price and Purchase Section */}
       <div className="p-3 bg-white">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Coins className="w-5 h-5 text-[#E84C1C]" />
-            <span className="text-2xl font-bold text-[#E84C1C]">{item.price}</span>
-            <span className="text-[#8B5E3C] text-sm">เหรียญ</span>
+            <Coins className="w-5 h-5 text-orange-action" />
+            <span className="text-2xl font-bold text-orange-action">{item.price}</span>
+            <span className="text-brown-light text-sm">เหรียญ</span>
           </div>
         </div>
 
@@ -84,7 +84,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
             ${isDisabled
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
               : canAfford
-                ? "bg-[#E84C1C] hover:bg-[#D64515] text-white shadow-md hover:shadow-lg active:scale-95"
+                ? "bg-orange-action hover:bg-orange-hover text-white shadow-md hover:shadow-lg active:scale-95"
                 : "bg-gray-200 text-gray-500 cursor-not-allowed"
             }
           `}

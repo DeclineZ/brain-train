@@ -27,7 +27,7 @@ export default function BottomNav({ active: propActive }: BottomNavProps) {
       {/* Spacer to prevent content overlap */}
       <div className="h-24 md:h-28" aria-hidden="true" />
 
-      <div className="fixed bottom-0 left-0 right-0 bg-[#FFFDF7] border-t-2 border-[#E5E5E5] pb-safe pt-2 z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-cream border-t-2 border-gray-medium pb-safe pt-2 z-50">
         <div className="max-w-md mx-auto flex justify-around items-end h-16 pb-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -49,8 +49,8 @@ export default function BottomNav({ active: propActive }: BottomNavProps) {
                     className={`
                       w-7 h-7 transition-all duration-200
                       ${isActive
-                        ? "text-[#E84C1C] fill-[#E84C1C]/20 stroke-[2.5px]"
-                        : "text-[#AFAFAF] stroke-2 group-hover:text-[#E84C1C]/70"
+                        ? "text-orange-action fill-orange-action/20 stroke-[2.5px]"
+                        : "text-gray-text stroke-2 group-hover:text-orange-action/70"
                       }
                     `}
                   />
@@ -59,14 +59,14 @@ export default function BottomNav({ active: propActive }: BottomNavProps) {
                 {/* Label (Hidden on mobile) */}
                 <span className={`
                   text-[10px] font-bold tracking-wide transition-colors hidden md:block
-                  ${isActive ? "text-[#E84C1C]" : "text-[#AFAFAF] group-hover:text-[#E84C1C]/70"}
+                  ${isActive ? "text-orange-action" : "text-gray-text group-hover:text-orange-action/70"}
                 `}>
                   {item.label}
                 </span>
 
                 {/* Active underline indicator (Optional, Duolingo doesn't really have this but good for clarity) */}
                 {/* {isActive && (
-                  <div className="absolute -top-2 w-12 h-1 bg-[#1CB0F6] rounded-full mx-auto" />
+                  <div className="absolute -top-2 w-12 h-1 bg-blue rounded-full mx-auto" />
                 )} */}
               </Link>
             );
@@ -76,4 +76,3 @@ export default function BottomNav({ active: propActive }: BottomNavProps) {
     </>
   );
 }
-

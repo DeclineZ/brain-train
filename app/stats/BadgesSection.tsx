@@ -32,7 +32,7 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
         // Let's map based on the `icon` char (emoji) or `id` from the badge object passed in.
         // Accessing `id` is better.
 
-        const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-[#AFAFAF]'}`;
+        const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-gray-text'}`;
 
         switch (iconChar) { // Or we can use Badge ID if we pass it down. Let's assume we use the Badge object fully.
             // Fallback mapping if we only have the emoji string
@@ -51,7 +51,7 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
     // It has `id`, `name`, `description`, `icon`, `threshold`, `unlocked`.
 
     const getIconById = (id: string, unlocked: boolean) => {
-        const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-[#AFAFAF]'}`;
+        const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-gray-text'}`;
         switch (id) {
             case 'first_checkin': return <Award className={className} />;
             case 'week_streak': return <Flame className={className} />;
@@ -67,11 +67,11 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
     return (
         <section>
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#5D4037]">เหรียญรางวัล</h2>
+                <h2 className="text-xl font-bold text-brown-800">เหรียญรางวัล</h2>
                 {badges.length > 3 && (
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="text-[#E84C1C] font-bold text-sm uppercase tracking-wide hover:text-[#D74215] flex items-center gap-1"
+                        className="text-orange-action font-bold text-sm uppercase tracking-wide hover:text-orange-hover-2 flex items-center gap-1"
                     >
                         {isExpanded ? "ย่อมุมมอง" : "ดูทั้งหมด"}
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -85,7 +85,7 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
                         key={badge.id}
                         className={`
               relative overflow-hidden group
-              border-2 ${badge.unlocked ? 'border-[#FFC800] bg-[#FFF9E5]' : 'border-[#E5E5E5] bg-white'} 
+              border-2 ${badge.unlocked ? 'border-yellow bg-cream' : 'border-gray-medium bg-white'} 
               rounded-2xl p-4 flex flex-col items-center text-center transition-all shadow-sm
               ${!badge.unlocked && 'opacity-75 grayscale hover:grayscale-0 hover:opacity-100'}
             `}
@@ -94,29 +94,29 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
                         <div className={`
                 w-16 h-16 rounded-full flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110
                 ${badge.unlocked
-                                ? 'bg-gradient-to-br from-[#FFC800] to-[#FF9600] ring-4 ring-[#FFC800]/30'
-                                : 'bg-[#F0F0F0] ring-4 ring-[#E5E5E5]'
+                                ? 'bg-gradient-to-br from-yellow to-yellow-highlight ring-4 ring-yellow/30'
+                                : 'bg-gray-lightest ring-4 ring-gray-medium'
                             }
             `}>
                             {getIconById(badge.id, badge.unlocked)}
                         </div>
 
-                        <h3 className={`font-bold text-sm mb-1 line-clamp-1 ${badge.unlocked ? 'text-[#D39100]' : 'text-[#8B5E3C]'}`}>
+                        <h3 className={`font-bold text-sm mb-1 line-clamp-1 ${badge.unlocked ? 'text-yellow-highlight' : 'text-brown-light'}`}>
                             {badge.name}
                         </h3>
-                        <p className="text-xs text-[#8B5E3C]/80 line-clamp-2">
+                        <p className="text-xs text-brown-light/80 line-clamp-2">
                             {badge.description}
                         </p>
 
                         {/* Locked overlay icon */}
                         {!badge.unlocked && (
-                            <div className="absolute top-2 right-2 text-[#C3A37F]">
+                            <div className="absolute top-2 right-2 text-brown-lightest">
                                 <Lock className="w-4 h-4" />
                             </div>
                         )}
 
                         {/* Level Indicator (Mock) */}
-                        <div className={`mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.unlocked ? 'bg-[#FFC800]/20 text-[#D39100]' : 'bg-[#8B5E3C]/10 text-[#8B5E3C]'}`}>
+                        <div className={`mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.unlocked ? 'bg-yellow/20 text-yellow-highlight' : 'bg-brown-light/10 text-brown-light'}`}>
                             {badge.unlocked ? 'LEVEL 1' : 'LOCKED'}
                         </div>
                     </div>
