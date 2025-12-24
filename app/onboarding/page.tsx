@@ -11,9 +11,9 @@ import LogoHeader from "@/components/LogoHeader";
 
 // Placeholder Avatar Options (In real app, these would be image URLs)
 const AVATAR_OPTIONS = [
-    { id: 'avatar-1', src: '/avatars/avatar-1-2.png', label: 'หมาป่า ยอดนักไหวพริบ' },
-    { id: 'avatar-2', src: '/avatars/avatar-2-2.png', label: 'ปลาหมึก จอมวางแผน' },
-    { id: 'avatar-3', src: '/avatars/avatar-3-2.png', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
+    { id: 'avatar-1', src: '/avatars/avatar-1.png', label: 'หมาป่า ยอดนักไหวพริบ' },
+    { id: 'avatar-2', src: '/avatars/avatar-2.png', label: 'ปลาหมึก จอมวางแผน' },
+    { id: 'avatar-3', src: '/avatars/avatar-3.png', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
 ];
 
 export default function OnboardingPage() {

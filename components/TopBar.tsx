@@ -1,26 +1,43 @@
-import { createClient } from "@/utils/supabase/server";
-import { getCheckinStatus } from "@/lib/server/dailystreakAction";
+"use client";
+
 import { Flame, Star, Coins, Zap } from "lucide-react";
 import clsx from "clsx";
-
+import { useEffect, useState } from "react";
 import TopBarMenu from "./TopBarMenu";
 
-export default async function TopBar() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+export default function TopBar() {
+    const [streak, setStreak] = useState(0);
+    const [coinBalance, setCoinBalance] = useState(0);
+    const [stars, setStars] = useState(12); // Mocked - could be fetched from user profile later
 
-    let streak = 0;
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                // Fetch user data via API
+                const response = await fetch('/api/user/stats');
+                const result = await response.json();
+                
+                if (result.streak !== undefined) setStreak(result.streak);
+                if (result.balance !== undefined) setCoinBalance(result.balance);
+                if (result.stars !== undefined) setStars(result.stars);
+            } catch (error) {
+                console.error('Failed to fetch user stats:', error);
+            }
+        };
 
-    if (user) {
-        const result = await getCheckinStatus(user.id);
-        if (result.ok) {
-            streak = result.data.current_streak;
-        }
-    }
+        fetchUserData();
 
-    // Mock data for now
-    const gems = 33;
-    const stars = 12; // Mocked
+        // Listen for balance updates
+        const handleBalanceUpdate = () => {
+            fetchUserData();
+        };
+
+        window.addEventListener('balanceUpdate', handleBalanceUpdate);
+        
+        return () => {
+            window.removeEventListener('balanceUpdate', handleBalanceUpdate);
+        };
+    }, []);
 
     return (
         <div className="w-full bg-[#C8A27A] h-16 flex items-center justify-between px-4 sticky top-0 z-50 border-b border-[#a68b6c]">
@@ -44,16 +61,16 @@ export default async function TopBar() {
                     <span className="font-bold text-lg text-white drop-shadow-sm">{streak}</span>
                 </div>
 
-                {/* Gems/Coins */}
-                <div className="flex items-center gap-1.5">
-                    <Coins className="w-6 h-6 text-yellow-500 fill-yellow-400" />
-                    <span className="font-bold text-lg text-white drop-shadow-sm">{gems}</span>
-                </div>
-
                 {/* Stars */}
                 <div className="flex items-center gap-1.5">
                     <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
                     <span className="font-bold text-lg text-white drop-shadow-sm">{stars}</span>
+                </div>
+
+                {/* Coins */}
+                <div className="flex items-center gap-1.5">
+                    <Coins className="w-6 h-6 text-yellow-500 fill-yellow-400" />
+                    <span className="font-bold text-lg text-white drop-shadow-sm">{coinBalance}</span>
                 </div>
             </div>
 

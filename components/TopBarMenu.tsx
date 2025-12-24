@@ -5,11 +5,17 @@ import { Settings, LogOut, MoreHorizontal } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 
-export default function TopBarMenu() {
+interface TopBarMenuProps {
+    variant?: "default" | "dark";
+}
+
+export default function TopBarMenu({ variant = "default" }: TopBarMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const supabase = createClient();
+
+    // ... (rest of hook logic unchanged)
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -34,13 +40,19 @@ export default function TopBarMenu() {
         }
     };
 
+    const isDark = variant === "dark";
+
     return (
         <div className="relative" ref={menuRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-8 h-8 rounded-full border-2 border-white/40 bg-black/5 flex items-center justify-center hover:bg-black/10 transition-colors cursor-pointer"
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer
+                    ${isDark
+                        ? "border-[#5D4037]/20 bg-[#5D4037]/5 hover:bg-[#5D4037]/10"
+                        : "border-white/40 bg-black/5 hover:bg-black/10"
+                    }`}
             >
-                <MoreHorizontal className="w-5 h-5 text-white" />
+                <MoreHorizontal className={`w-5 h-5 ${isDark ? "text-[#5D4037]" : "text-white"}`} />
             </button>
 
             {isOpen && (

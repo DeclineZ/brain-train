@@ -1,0 +1,365 @@
+import { createClient } from "@/utils/supabase/server";
+import type { Result } from "@/types/result";
+
+// Type definitions for shop system
+export interface ShopItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlayerInventory {
+  player_id: string;
+  item_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseResult {
+  success: boolean;
+  new_balance: number;
+  item_purchased: ShopItem;
+  transaction_id: string;
+  message: string;
+}
+
+export interface TransactionHistory {
+  id: string;
+  item_name: string;
+  item_price: number;
+  balance_after: number;
+  action_key: string;
+  created_at: string;
+  metadata?: any;
+}
+
+export interface UserBalance {
+  balance: number;
+  updated_at: string;
+}
+
+/**
+ * Gets the user's current coin balance
+ */
+export async function getUserBalance(userId: string): Promise<Result<UserBalance>> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("wallets")
+      .select("balance, updated_at")
+      .eq("user_id", userId)
+      .single();
+
+    if (error) {
+      // If no wallet exists, return 0 balance
+      if (error.code === 'PGRST116') {
+        return { 
+          ok: true, 
+          data: { balance: 0, updated_at: new Date().toISOString() } 
+        };
+      }
+      console.error('Balance fetch error:', error);
+      return { ok: false, error: error.message };
+    }
+
+    return { ok: true, data: data as UserBalance };
+  } catch (error) {
+    console.error('Balance error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets all available shop items from database
+ */
+export async function getShopItems(): Promise<Result<ShopItem[]>> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error('Shop items fetch error:', error);
+      return { ok: false, error: error.message };
+    }
+
+    // Add display properties for UI compatibility
+    const itemsWithDisplay = data?.map(item => ({
+      ...item,
+      icon: getItemIcon(item.type),
+      category: item.type,
+      available: true,
+    })) || [];
+
+    return { ok: true, data: itemsWithDisplay };
+  } catch (error) {
+    console.error('Shop items error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Get icon based on item type
+ */
+function getItemIcon(type: string): string {
+  const iconMap: { [key: string]: string } = {
+    powerup: "💡",
+    theme: "🎨",
+    avatar: "👤",
+    bonus: "🎁",
+    weapon: "⚔️",
+    consumable: "🧪",
+    default: "📦"
+  };
+  return iconMap[type] || iconMap.default;
+}
+
+/**
+ * Adds item to player inventory
+ */
+export async function addItemToInventory(userId: string, itemId: string, quantity: number = 1): Promise<Result<PlayerInventory>> {
+  try {
+    const supabase = await createClient();
+    
+    // Check if item already exists in inventory
+    const { data: existingItem, error: fetchError } = await supabase
+      .from("player_inventory")
+      .select("*")
+      .eq("player_id", userId)
+      .eq("item_id", itemId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Inventory fetch error:', fetchError);
+      return { ok: false, error: fetchError.message };
+    }
+
+    if (existingItem) {
+      // Update existing item quantity
+      const { data, error } = await supabase
+        .from("player_inventory")
+        .update({ 
+          quantity: existingItem.quantity + quantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq("player_id", userId)
+        .eq("item_id", itemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Inventory update error:', error);
+        return { ok: false, error: error.message };
+      }
+
+      return { ok: true, data: data as PlayerInventory };
+    } else {
+      // Insert new item
+      const { data, error } = await supabase
+        .from("player_inventory")
+        .insert({
+          player_id: userId,
+          item_id: itemId,
+          quantity: quantity,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Inventory insert error:', error);
+        return { ok: false, error: error.message };
+      }
+
+      return { ok: true, data: data as PlayerInventory };
+    }
+  } catch (error) {
+    console.error('Add to inventory error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Purchases an item from shop
+ */
+export async function purchaseItem(userId: string, itemId: string): Promise<Result<PurchaseResult>> {
+  try {
+    const supabase = await createClient();
+    
+    // Get shop item details
+    const itemsResult = await getShopItems();
+    if (!itemsResult.ok) {
+      return { ok: false, error: "ไม่สามารถดึงข้อมูลสินค้าได้" };
+    }
+
+    const item = itemsResult.data.find(i => i.id === itemId);
+    if (!item) {
+      return { ok: false, error: "ไม่พบสินค้านี้" };
+    }
+
+    // Generate unique order ID and idempotency key
+    const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const idempotencyKey = `${userId}_${itemId}_${orderId}`;
+
+    // Apply coin delta using the provided RPC function
+    const { data, error } = await supabase.rpc("apply_coin_delta", {
+      p_user_id: userId,
+      p_delta: -item.price, // Subtract coins
+      p_action_key: "purchase_item",
+      p_ref_id: orderId,
+      p_metadata: { 
+        itemId: item.id,
+        itemName: item.name,
+        itemCategory: item.type
+      },
+      p_idempotency_key: idempotencyKey,
+      p_allow_negative: false // Don't allow overdraft
+    });
+
+    if (error) {
+      console.error('Purchase RPC error:', error);
+      
+      if (error.message.includes('insufficient') || error.message.includes('negative')) {
+        return { ok: false, error: "เหรียญของคุณไม่พอสำหรับซื้อสินค้านี้" };
+      }
+      
+      return { ok: false, error: "เกิดข้อผิดพลาดในการทำรายการ กรุณาลองใหม่" };
+    }
+
+    const newBalance = data;
+
+    // Add item to inventory after successful payment
+    const inventoryResult = await addItemToInventory(userId, itemId, 1);
+    if (!inventoryResult.ok) {
+      console.error('Failed to add item to inventory:', inventoryResult.error);
+      // Note: In a production system, you might want to refund the coins here
+      return { ok: false, error: "เกิดข้อผิดพลาดในการเพิ่มไอเทมลงในกระเป๋า" };
+    }
+
+    const result: PurchaseResult = {
+      success: true,
+      new_balance: newBalance,
+      item_purchased: item,
+      transaction_id: orderId,
+      message: `ซื้อ ${item.name} สำเร็จ! คงเหลือ ${newBalance} เหรียญ`
+    };
+
+    return { ok: true, data: result };
+  } catch (error) {
+    console.error('Purchase error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets user's transaction history
+ */
+export async function getTransactionHistory(userId: string): Promise<Result<TransactionHistory[]>> {
+  try {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("coin_transactions")
+      .select("id, delta, balance_after, action_key, ref_id, metadata, created_at")
+      .eq("user_id", userId)
+      .eq("action_key", "purchase_item")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Transaction history error:', error);
+      return { ok: false, error: error.message };
+    }
+
+    const history: TransactionHistory[] = data?.map(transaction => ({
+      id: transaction.id,
+      item_name: transaction.metadata?.itemName || "สินค้า",
+      item_price: Math.abs(transaction.delta),
+      balance_after: transaction.balance_after,
+      action_key: transaction.action_key,
+      created_at: transaction.created_at,
+      metadata: transaction.metadata
+    })) || [];
+
+    return { ok: true, data: history };
+  } catch (error) {
+    console.error('Transaction history error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Adds coins to user's wallet (admin function)
+ */
+export async function addCoins(
+  userId: string, 
+  amount: number, 
+  reason: string = "bonus"
+): Promise<Result<{ new_balance: number }>> {
+  try {
+    const supabase = await createClient();
+    
+    if (amount <= 0) {
+      return { ok: false, error: "จำนวนเหรียญต้องมากกว่า 0" };
+    }
+
+    const orderId = `bonus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const idempotencyKey = `${userId}_bonus_${orderId}`;
+
+    const { data, error } = await supabase.rpc("apply_coin_delta", {
+      p_user_id: userId,
+      p_delta: amount,
+      p_action_key: "add_coins",
+      p_ref_id: orderId,
+      p_metadata: { 
+        reason: reason,
+        amount: amount
+      },
+      p_idempotency_key: idempotencyKey,
+      p_allow_negative: true
+    });
+
+    if (error) {
+      console.error('Add coins RPC error:', error);
+      return { ok: false, error: "เกิดข้อผิดพลาดในการเพิ่มเหรียญ" };
+    }
+
+    return { ok: true, data: { new_balance: data } };
+  } catch (error) {
+    console.error('Add coins error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets shop items by category
+ */
+export async function getShopItemsByCategory(category?: string): Promise<Result<ShopItem[]>> {
+  try {
+    const itemsResult = await getShopItems();
+    if (!itemsResult.ok) {
+      return itemsResult;
+    }
+
+    let filteredItems = itemsResult.data;
+    
+    if (category && category !== "all") {
+      filteredItems = itemsResult.data.filter(item => item.type === category);
+    }
+
+    return { ok: true, data: filteredItems };
+  } catch (error) {
+    console.error('Category items error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
