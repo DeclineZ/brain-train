@@ -29,17 +29,25 @@ export default function GamePage({ params }: PageProps) {
   }, [level]);
 
   const handleGameOver = async (rawData: any) => {
-    // 1. Submit Game Stats
+    // 1. Optimistic UI: Show popup IMMEDIATELY with partial data
+    setResult({
+      stars: rawData.stars,
+      stat_memory: null, // Loading indicators
+      stat_speed: null,
+      stat_focus: null,
+      stat_planning: null
+    });
+
+    // 2. Submit Game Stats (Async)
     const stats = await submitSession(gameId, rawData);
 
-    // 2. Perform Daily Check-in & Get Streak & Count Today's Plays
+    // 3. Perform Daily Check-in & Get Streak
     setLoadingStreak(true);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // Check-in
         const res = await fetch('/api/daily-streak', {
           method: 'POST',
           body: JSON.stringify({ userId: user.id, action: 'checkin' })
@@ -49,7 +57,6 @@ export default function GamePage({ params }: PageProps) {
           setStreakInfo(streakData.data);
         }
 
-        // Count plays today (for 1/3 progress bar)
         const todayStr = new Date().toISOString().split('T')[0];
         const { count, error } = await supabase
           .from('game_sessions')
@@ -61,7 +68,6 @@ export default function GamePage({ params }: PageProps) {
         if (!error && count !== null) {
           setDailyCount(count);
         } else {
-          // Fallback if query fails, at least we just played 1
           setDailyCount(prev => prev + 1);
         }
       }
@@ -71,7 +77,8 @@ export default function GamePage({ params }: PageProps) {
       setLoadingStreak(false);
     }
 
-    setResult({ ...stats, stars: rawData.stars });
+    // 4. Update Popup with REAL stats
+    setResult((prev: any) => ({ ...prev, ...stats }));
   };
 
   const handleNextLevel = () => {
@@ -101,7 +108,8 @@ export default function GamePage({ params }: PageProps) {
       </div>
 
       {/* The Game */}
-      <GameCanvas gameId={gameId} onGameOver={handleGameOver} level={level} />
+      {/* The Game - Force remount on level change */}
+      <GameCanvas key={level} gameId={gameId} onGameOver={handleGameOver} level={level} />
 
       {/* The Result Popup Overlay */}
       {result && (
@@ -126,6 +134,11 @@ export default function GamePage({ params }: PageProps) {
             {/* Stats Box */}
             <div className="bg-[#FFF4E0] w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
               <div className="flex flex-wrap justify-center gap-2">
+                {/* Loading State */}
+                {result.stat_memory === null && (
+                  <div className="text-[#8B4513] animate-pulse font-bold text-sm">กำลังคำนวณคะแนน...</div>
+                )}
+
                 {result.stat_memory !== null && (
                   <div className="bg-[#A8E6CF] text-[#1B5E20] px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                     ^ ความจำ

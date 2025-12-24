@@ -13,6 +13,22 @@ export class MatchingGameScene extends Phaser.Scene {
     private startTime = 0;
     private timerEvent!: Phaser.Time.TimerEvent;
 
+    // Asset Mapping
+    private emojiToAsset: { [key: string]: string } = {
+        "🐙": "octopus",
+        "⭐": "star",
+        "🦫": "beaver",
+        "🐤": "bird",
+        "🐘": "elephant",
+        "🐌": "snail",
+        "🐢": "turtle",
+        "🐳": "whale",
+        "🦊": "fox",
+        "🐼": "panda",
+        "🦁": "lion",
+        "🐸": "frog"
+    };
+
     // Stats Tracking
     private attempts = 0;
     private wrongFlips = 0;
@@ -32,7 +48,10 @@ export class MatchingGameScene extends Phaser.Scene {
     constructor() { super({ key: 'MatchingGameScene' }); }
 
     init(data: { level: number }) {
-        const level = data.level || 1;
+        // Priority: Data Passed > Registry > Default
+        const regLevel = this.registry.get('level');
+        console.log(`[MatchingGameScene] init data=${JSON.stringify(data)} registry=${regLevel}`);
+        const level = data.level || regLevel || 1;
         this.currentLevelConfig = MATCHING_LEVELS[level] || MATCHING_LEVELS[1];
         this.totalPairs = this.currentLevelConfig.totalPairs;
 
@@ -49,6 +68,15 @@ export class MatchingGameScene extends Phaser.Scene {
         this.cards = [];
         this.openedCards = [];
         this.isLocked = true;
+    }
+
+    preload() {
+        // Load Assets
+        // Expects files in /public/assets/images/cardmatch/
+        // e.g. octopus.png, star.png
+        Object.values(this.emojiToAsset).forEach(assetName => {
+            this.load.image(assetName, `/assets/images/cardmatch/${assetName}.png`);
+        });
     }
 
     create() {
@@ -101,8 +129,8 @@ export class MatchingGameScene extends Phaser.Scene {
         };
 
         // Grid Metrics - Responsive
-        const maxCardW = 90;
-        const maxCardH = 120;
+        const maxCardW = 140; // Increased from 90
+        const maxCardH = 180; // Increased from 120
         const baseGap = 15;
 
         // Calculate maximum available width per card
@@ -111,7 +139,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // Allow 90% of screen width and height
         const availableW = this.scale.width * 0.95;
-        const availableH = this.scale.height * 0.7; // Leave space for header
+        const availableH = this.scale.height * 0.75; // Increased from 0.7
 
         // Calculate scaled dimensions
         let cardW = Math.min(maxCardW, (availableW - (maxCols - 1) * baseGap) / maxCols);
@@ -342,24 +370,55 @@ export class MatchingGameScene extends Phaser.Scene {
         face.visible = false;
         face.scaleX = 0;
 
-        // Icon - Responsive Font Size
-        const fontSize = Math.floor(Math.min(w, h) * 0.5);
-        const icon = this.add.text(0, 0, emoji, { fontSize: `${fontSize}px` }).setOrigin(0.5);
-        icon.visible = false;
-        icon.scaleX = 0;
+        // Icon - Responsive Image
+        const assetName = this.emojiToAsset[emoji];
+        let icon: any;
+
+        // Safety check: if image loaded, use it. Else text.
+        // Safety check: if image loaded, use it. Else text.
+        if (this.textures.exists(assetName)) {
+            icon = this.add.image(0, 0, assetName).setOrigin(0.5);
+
+            // 1. Get REAL dimensions from Texture Manager (safer than GameObject)
+            const texture = this.textures.get(assetName);
+            const frame = texture.get();
+            const realW = frame.width || 0;
+            const realH = frame.height || 0;
+
+            const maxW = w * 0.75; // 75% of card width
+            const maxH = h * 0.75; // 75% of card height
+
+            if (realW > 0 && realH > 0) {
+                // Valid texture found
+                const scaleX = maxW / realW;
+                const scaleY = maxH / realH;
+                const scale = Math.min(scaleX, scaleY);
+                icon.setScale(scale);
+            } else {
+                // Fallback: Texture valid key but 0 dimensions? Force visual size.
+                // This prevents the "Giant Image" bug if dimensions are missing.
+                icon.setDisplaySize(maxW, maxH);
+            }
+        } else {
+            // Fallback to text if missing
+            const fontSize = Math.floor(Math.min(w, h) * 0.5);
+            icon = this.add.text(0, 0, emoji, { fontSize: `${fontSize}px` }).setOrigin(0.5);
+        }
 
         container.add([shadow, back, face, icon]);
         container.setSize(w, h);
         container.setInteractive({ useHandCursor: true });
 
-        const cardObj = { container, back, face, icon, emoji, id, isFlipped: true, isMatched: false };
+        const cardObj = { container, back, face, icon, emoji, id, isFlipped: true, isMatched: false, baseScale: icon.scale };
 
         // Initial state is Face UP (for preview)
         back.visible = false;
         face.visible = true;
         face.scaleX = 1;
         icon.visible = true;
-        icon.scaleX = 1;
+
+        // Initial scale must be set correctly
+        icon.scaleX = cardObj.baseScale;
 
         container.on('pointerdown', () => this.handleCardClick(cardObj));
 
@@ -371,6 +430,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const duration = 150;
 
+        // Tween 1: Scale to 0 (Flip halfway)
         this.tweens.add({
             targets: [card.back, card.face, card.icon],
             scaleX: 0,
@@ -388,9 +448,19 @@ export class MatchingGameScene extends Phaser.Scene {
                     card.icon.visible = false;
                 }
 
+                // Tween 2: Scale back up (Finish flip)
+
+                // We need separate tweens because icon has different target scale than back/face
                 this.tweens.add({
-                    targets: [card.back, card.face, card.icon],
+                    targets: [card.back, card.face],
                     scaleX: 1,
+                    duration: duration,
+                    ease: 'Linear'
+                });
+
+                this.tweens.add({
+                    targets: [card.icon],
+                    scaleX: card.baseScale, // Restore to correct scale
                     duration: duration,
                     ease: 'Linear'
                 });

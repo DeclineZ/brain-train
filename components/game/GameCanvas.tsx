@@ -34,16 +34,13 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
         ...selectedConfig,
         parent: gameRef.current || 'game-container',
         callbacks: {
-          postBoot: (game) => {
+          preBoot: (game) => {
             // 1. Pass the React Callback to the Registry
             game.registry.set('onGameOver', onGameOver);
 
-            // 2. Restart the Scene with the Specific Level Data
-            // We get the active scene key (e.g., 'MemoryGameScene')
-            const sceneKey = game.scene.getScenes(false)[0].sys.settings.key;
-
-            // We force start it again, passing the 'level' variable you fixed
-            game.scene.start(sceneKey, { level: level });
+            // 2. Set Level in Registry (Most reliable way to pass config)
+            game.registry.set('level', level);
+            console.log("Game initialized with level:", level);
           }
         }
       });
