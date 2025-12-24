@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/client';
 import { calculateClinicalStats, CardGameRawStats } from '@/lib/scoring/example';
+import { calculateMatchingStats, MatchingGameRawStats } from '@/lib/scoring/matching';
 
 type ClinicalStats = {
   stat_memory: number | null;
@@ -14,7 +15,7 @@ export const useGameSession = () => {
   const supabase = createClient();
 
   const submitSession = async (gameId: string, rawData: any) => {
-    
+
     let clinicalStats: ClinicalStats = {
       stat_memory: null,
       stat_speed: null,
@@ -26,8 +27,10 @@ export const useGameSession = () => {
 
     // 1. Calculate stats based on Game ID
     if (gameId === 'game-00-example') {
-       clinicalStats = calculateClinicalStats(rawData as CardGameRawStats);
-    } 
+      clinicalStats = calculateClinicalStats(rawData as CardGameRawStats);
+    } else if (gameId === 'game-01-cardmatch') {
+      clinicalStats = calculateMatchingStats(rawData as MatchingGameRawStats);
+    }
     // Add 'else if' for other games here later...
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +39,7 @@ export const useGameSession = () => {
     const { error } = await supabase.from('game_sessions').insert({
       game_id: gameId,
       user_id: userIdToSave,
-      
+
       // 1. The Clinical Stats (Structured for easy graphing)
       stat_memory: clinicalStats.stat_memory,
       stat_speed: clinicalStats.stat_speed,
@@ -44,15 +47,15 @@ export const useGameSession = () => {
       stat_visual: clinicalStats.stat_visual,
       stat_planning: clinicalStats.stat_planning,
       stat_emotion: clinicalStats.stat_emotion,
-      
+
       // 2. The Universal Time (Keep this, it's useful for sorting)
       duration_seconds: rawData.userTimeMs ? rawData.userTimeMs / 1000 : 0,
 
-      raw_data: rawData 
+      raw_data: rawData
     });
 
     if (error) console.error("Error saving:", error);
-    
+
     return clinicalStats;
   };
 
