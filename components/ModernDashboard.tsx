@@ -69,8 +69,8 @@ export default function ModernDashboard({ title, totalGames, completedGames, act
                 </div>
 
                 {/* Feet/Support visual (Optional, subtle) */}
-                <div className="absolute -bottom-3 left-8 w-3 h-6 bg-[#5D4037] rounded-b-md -z-10 shadow-sm" />
-                <div className="absolute -bottom-3 right-8 w-3 h-6 bg-[#5D4037] rounded-b-md -z-10 shadow-sm" />
+                {/*<div className="absolute -bottom-3 left-8 w-3 h-6 bg-[#5D4037] rounded-b-md -z-10 shadow-sm" />
+                <div className="absolute -bottom-3 right-8 w-3 h-6 bg-[#5D4037] rounded-b-md -z-10 shadow-sm" />*/}
             </div>
         </div>
     );
