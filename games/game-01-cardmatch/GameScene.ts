@@ -13,6 +13,8 @@ export class MatchingGameScene extends Phaser.Scene {
     private isLocked = true; // Start locked for preview
     private startTime = 0;
     private timerEvent!: Phaser.Time.TimerEvent;
+    private customTimerBar!: Phaser.GameObjects.Graphics;
+    private lastTimerPct: number = 100; // Store for redraw handling
 
     // Asset Mapping
     private emojiToAsset: { [key: string]: string } = {
@@ -99,6 +101,8 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // 4. UI Layer
         this.createUI();
+        this.customTimerBar = this.add.graphics();
+        this.customTimerBar.setVisible(false); // Hide initially
 
         // 5. Start Sequence (Preview)
         this.startPreviewPhase();
@@ -107,6 +111,9 @@ export class MatchingGameScene extends Phaser.Scene {
         this.scale.on('resize', () => {
             this.layoutGrid();
             this.layoutUI(); // We'll add this helper too
+            if (this.customTimerBar.visible) {
+                this.drawTimerBar(this.lastTimerPct);
+            }
         });
     }
 
@@ -200,32 +207,20 @@ export class MatchingGameScene extends Phaser.Scene {
             // Update container position
             cardObj.container.setPosition(x, y);
 
-            // Update Size/Scale of elements inside
-            // We need to resize the container parts physically or scale the container?
-            // Scaling container is easier but might distort strokes if not careful.
-            // Let's resize the children parts for crisper look.
-
-            // Shadow
+            // Children Logic
             const shadow = cardObj.container.list[0] as Phaser.GameObjects.Rectangle;
             shadow.setSize(cardW, cardH);
-
-            // Back
             const back = cardObj.container.list[1] as Phaser.GameObjects.Rectangle;
             back.setSize(cardW, cardH);
-
-            // Face
             const face = cardObj.container.list[2] as Phaser.GameObjects.Rectangle;
             face.setSize(cardW, cardH);
+            const icon = cardObj.container.list[3];
 
-            // Icon
-            const icon = cardObj.container.list[3]; // Image or Text
             if (icon instanceof Phaser.GameObjects.Image) {
-                // Logic from createCard, adapted for resize
                 const realW = icon.frame.width;
                 const realH = icon.frame.height;
                 const maxIconW = cardW * 0.75;
                 const maxIconH = cardH * 0.75;
-
                 if (realW > 0 && realH > 0) {
                     const scaleX = maxIconW / realW;
                     const scaleY = maxIconH / realH;
@@ -238,15 +233,10 @@ export class MatchingGameScene extends Phaser.Scene {
                 const fontSize = Math.floor(Math.min(cardW, cardH) * 0.5);
                 icon.setFontSize(fontSize);
             }
-
-            // Update hitbox
             cardObj.container.setSize(cardW, cardH);
-
-            // Update HitZone size
             const hitZone = cardObj.container.list[4] as Phaser.GameObjects.Rectangle;
             if (hitZone && hitZone instanceof Phaser.GameObjects.Rectangle) {
                 hitZone.setSize(cardW, cardH);
-
                 if (hitZone.input) {
                     const hitArea = hitZone.input.hitArea as Phaser.Geom.Rectangle;
                     hitArea.setSize(cardW, cardH);
@@ -254,13 +244,10 @@ export class MatchingGameScene extends Phaser.Scene {
                     hitZone.setInteractive({ useHandCursor: true });
                 }
             }
-
-            // Update stored baseScale for the flip animation
             cardObj.baseScale = icon.scaleX;
         });
 
-        // Re-center background if needed (optional since we draw fullscreen rect)
-        // Check if background rect needs resize
+        // Re-center background
         const bg = this.children.list.find(c => c instanceof Phaser.GameObjects.Rectangle && c.fillColor === 0xFDF6E3) as Phaser.GameObjects.Rectangle;
         if (bg) {
             bg.setPosition(width / 2, height / 2);
@@ -269,28 +256,25 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     startPreviewPhase() {
-        // Show stats initially? No, just "Memorize!"
         this.messageText.setText("จำตำแหน่งให้ดีนะ...");
         this.messageText.setVisible(true);
         this.messageText.setScale(0);
 
-        // Pop in text
         this.tweens.add({
             targets: this.messageText,
             scale: 1,
-            y: this.scale.height * 0.15, // Move UP to 15% of height
+            y: this.scale.height * 0.15,
             duration: 500,
             ease: 'Back.out'
         });
 
-        // Progress Bar for Preview
         const barW = 300;
         const barH = 10;
         const barX = this.scale.width / 2 - barW / 2;
         const barY = this.scale.height - 100;
 
         const barBg = this.add.rectangle(this.scale.width / 2, barY, barW, barH, 0x000000, 0.1).setOrigin(0.5);
-        const barFill = this.add.rectangle(barX, barY - barH / 2, 0, barH, 0x58CC02, 1).setOrigin(0, 0); // Green
+        const barFill = this.add.rectangle(barX, barY - barH / 2, 0, barH, 0x58CC02, 1).setOrigin(0, 0);
 
         this.tweens.add({
             targets: barFill,
@@ -304,7 +288,6 @@ export class MatchingGameScene extends Phaser.Scene {
             }
         });
 
-        // Ensure all cards are Face UP
         this.cards.forEach(c => {
             if (!c.isFlipped) this.flipCard(c, true);
         });
@@ -320,7 +303,6 @@ export class MatchingGameScene extends Phaser.Scene {
             }
         });
 
-        // Flip all cards down
         this.cards.forEach((card, index) => {
             this.time.delayedCall(index * 50, () => {
                 this.flipCard(card, false);
@@ -335,15 +317,86 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     startTimer() {
+        this.customTimerBar.setVisible(true);
+        this.drawTimerBar(100);
+
         this.timerEvent = this.time.addEvent({
             delay: 100,
             callback: () => {
                 const elapsed = Date.now() - this.startTime;
-                const seconds = Math.floor(elapsed / 1000);
-                this.game.events.emit('timer-update', seconds);
+                const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
+                const remainingMs = Math.max(0, limitMs - elapsed);
+                const remainingSeconds = Math.ceil(remainingMs / 1000);
+                const pct = Math.max(0, (remainingMs / limitMs) * 100);
+                this.lastTimerPct = pct;
+
+                this.drawTimerBar(pct);
+
+                this.game.events.emit('timer-update', {
+                    remaining: remainingSeconds,
+                    total: this.currentLevelConfig.timeLimitSeconds
+                });
+
+                if (remainingMs <= 0) {
+                    this.failLevel();
+                }
             },
             loop: true
         });
+    }
+
+    drawTimerBar(pct: number) {
+        if (!this.customTimerBar) return;
+        this.customTimerBar.clear();
+
+        const { width, height } = this.scale;
+
+        // Dynamic Positioning: Use the last calculated grid metrics or fallback
+        // Since we don't store grid bounds globally in a clean way, let's estimate based on center.
+        // Or better: Call layoutGrid() to get the bounds? No, that's heavy.
+        // Let's rely on valid "Below Grid" placement.
+        // Safe bet: Bottom 10-15% of screen, or below center + half grid.
+        // Given 'layoutGrid' centers the grid, let's assume the grid takes ~75% H max.
+        // So putting it at 90% Height is safe, OR we can make logic more robust later.
+        // User asked "Below Card".
+
+        const barW = Math.min(width * 0.8, 400);
+        const barH = 16;
+        const x = (width - barW) / 2;
+        const y = height * 0.9; // Position at 90% height
+
+        // Bg
+        this.customTimerBar.fillStyle(0x8B4513, 0.2);
+        this.customTimerBar.fillRoundedRect(x, y, barW, barH, 8);
+        this.customTimerBar.lineStyle(2, 0x8B4513, 1);
+        this.customTimerBar.strokeRoundedRect(x, y, barW, barH, 8);
+
+        // Fill
+        const isWarning = pct < 25;
+        const color = isWarning ? 0xFF4444 : 0x76D13D;
+
+        this.customTimerBar.fillStyle(color, 1);
+        if (pct > 0) {
+            this.customTimerBar.fillRoundedRect(x, y, barW * (pct / 100), barH, 8);
+        }
+    }
+
+    failLevel() {
+        this.input.enabled = false;
+        if (this.timerEvent) this.timerEvent.remove();
+        if (this.customTimerBar) {
+            this.customTimerBar.setVisible(false); // Hide the timer bar on failure
+        }
+
+        // Play failure sound or effect if available (optional)
+
+        const onGameOver = this.registry.get('onGameOver');
+        if (onGameOver) {
+            onGameOver({
+                success: false,
+                level: this.currentLevelConfig.level
+            });
+        }
     }
 
     // --- CORE GAMEPLAY ---
@@ -433,7 +486,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 userTimeMs: duration,
                 parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
                 attempts: this.attempts,
-                stars: this.calculateStars(duration)
+                stars: this.calculateStars(duration),
+                success: true // <--- Added success flag
             });
         }
     }

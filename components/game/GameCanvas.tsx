@@ -14,13 +14,13 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
   const gameInstance = useRef<any>(null);
 
   // React State for UI Overlay
-  const [timerValue, setTimerValue] = useState(0);
+  const [timerData, setTimerData] = useState<any>(0); // number or { remaining, total }
   const [currentLevel, setCurrentLevel] = useState(level);
 
   useEffect(() => {
     // Reset state on new level/game
     setCurrentLevel(level);
-    setTimerValue(0);
+    setTimerData(0);
 
     async function initGame() {
       // Dynamic imports to avoid SSR issues
@@ -65,8 +65,8 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
 
       // Listen for Timer Updates from Phaser
       // We expect the scene to emit: this.game.events.emit('timer-update', seconds);
-      newGame.events.on('timer-update', (seconds: number) => {
-        setTimerValue(seconds);
+      newGame.events.on('timer-update', (data: any) => {
+        setTimerData(data);
       });
     }
 
@@ -83,19 +83,38 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
     };
   }, [gameId, level, onGameOver]);
 
+  const renderTimer = () => {
+    if (typeof timerData === 'number') {
+      return null;
+    }
+
+    // Progress Bar Mode
+    const pct = Math.max(0, Math.min(100, (timerData.remaining / timerData.total) * 100));
+    const isWarning = pct < 25;
+
+    return { pct, isWarning };
+  };
+
+  const timerState = renderTimer();
+
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl">
+
+      {/* GLOBAL WARNING FLASH OVERLAY */}
+      {timerState && timerState.isWarning && (
+        <div className="absolute inset-0 z-0 pointer-events-none bg-red-500/20 animate-pulse" />
+      )}
+
       {/* React UI Overlay */}
-      <div className="absolute top-0 left-0 w-full p-8 pointer-events-none z-10 flex justify-center items-center gap-16">
-        {/* Level Indicator */}
-        <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm">
+      <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
+
+        {/* Top: Level Indicator (Centered) */}
+        <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
           LEVEL {currentLevel}
         </div>
 
-        {/* Timer Indicator */}
-        <div className="text-[#E86A33] font-bold text-4xl font-sans drop-shadow-sm">
-          {timerValue}s
-        </div>
+        {/* Bottom: Timer Bar - MOVED TO PHASER */}
+        {/* Placeholder if needed for spacing, but removing for now */}
       </div>
 
       {/* Phaser Container */}

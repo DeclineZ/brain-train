@@ -4,6 +4,7 @@ export interface MatchingLevelConfig {
     totalPairs: number; // 3, 4, 5
     previewTimeMs: number;
     parTimeSeconds: number; // For star calculation
+    timeLimitSeconds: number; // <--- NEW: Countdown limit
     difficultyMultiplier: number;
 }
 
@@ -14,6 +15,7 @@ export const MATCHING_LEVELS: { [key: number]: MatchingLevelConfig } = {
         totalPairs: 3,
         previewTimeMs: 3000,
         parTimeSeconds: 15,
+        timeLimitSeconds: 25,
         difficultyMultiplier: 1.0
     },
     2: {
@@ -22,6 +24,7 @@ export const MATCHING_LEVELS: { [key: number]: MatchingLevelConfig } = {
         totalPairs: 4,
         previewTimeMs: 4000,
         parTimeSeconds: 20,
+        timeLimitSeconds: 45,
         difficultyMultiplier: 1.2
     },
     3: {
@@ -30,6 +33,7 @@ export const MATCHING_LEVELS: { [key: number]: MatchingLevelConfig } = {
         totalPairs: 5,
         previewTimeMs: 5000,
         parTimeSeconds: 25,
+        timeLimitSeconds: 60,
         difficultyMultiplier: 1.5
     }
 };
