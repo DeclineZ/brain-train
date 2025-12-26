@@ -246,9 +246,13 @@ export class MatchingGameScene extends Phaser.Scene {
             const hitZone = cardObj.container.list[4] as Phaser.GameObjects.Rectangle;
             if (hitZone && hitZone instanceof Phaser.GameObjects.Rectangle) {
                 hitZone.setSize(cardW, cardH);
-                // Re-calcs hit area
-                hitZone.removeInteractive();
-                hitZone.setInteractive({ useHandCursor: true });
+
+                if (hitZone.input) {
+                    const hitArea = hitZone.input.hitArea as Phaser.Geom.Rectangle;
+                    hitArea.setSize(cardW, cardH);
+                } else {
+                    hitZone.setInteractive({ useHandCursor: true });
+                }
             }
 
             // Update stored baseScale for the flip animation
@@ -274,7 +278,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.tweens.add({
             targets: this.messageText,
             scale: 1,
-            y: this.scale.height / 2 - 250, // Move UP above cards
+            y: this.scale.height * 0.15, // Move UP to 15% of height
             duration: 500,
             ease: 'Back.out'
         });
@@ -611,7 +615,7 @@ export class MatchingGameScene extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(100).setPadding(10, 14, 10, 18);
 
-        this.streakText = this.add.text(0, 100, '', {
+        this.streakText = this.add.text(0, 250, '', {
             fontFamily: 'Sarabun, sans-serif',
             fontSize: '32px',
             color: '#FFD700',
@@ -628,7 +632,9 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // Position UI elements relative to new size
         this.messageText.setPosition(width / 2, height / 2);
-        this.streakText.setPosition(width / 2, 100);
+
+        // Responsive Streak Text (e.g., 20% from top)
+        this.streakText.setPosition(width / 2, height * 0.15);
 
         // Center alignment adjustments if screen is very narrow
 

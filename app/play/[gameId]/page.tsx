@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from 'react';
 import { useGameSession } from '@/hooks/useGameSession';
 import GameCanvas from '@/components/game/GameCanvas';
+import StarIcon from '@/components/game/StarIcon';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
@@ -128,8 +129,8 @@ export default function GamePage({ params }: PageProps) {
             {/* Stars */}
             <div className="flex justify-center gap-2 mb-6">
               {[1, 2, 3].map((star) => (
-                <div key={star} className={`text-6xl filter drop-shadow-md transition-all duration-500 transform ${star <= (result.stars || 0) ? 'scale-100 opacity-100' : 'scale-90 opacity-30 grayscale'}`}>
-                  ⭐
+                <div key={star} className={`transition-all duration-500 transform ${star <= (result.stars || 0) ? 'scale-100 opacity-100' : 'scale-90 opacity-50 grayscale brightness-75'}`}>
+                  <StarIcon className="w-24 h-24" />
                 </div>
               ))}
             </div>
