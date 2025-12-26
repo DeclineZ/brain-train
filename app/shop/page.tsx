@@ -40,7 +40,7 @@ export default async function Shop() {
   const { balance, items } = await getShopData(user?.id || null);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7]">
+    <div className="min-h-screen bg-cream">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
         
 
@@ -48,7 +48,7 @@ export default async function Shop() {
         <Suspense fallback={
           <div className="text-center py-12">
             <div className="text-6xl mb-4">⏳</div>
-            <h3 className="text-xl font-bold text-[#5D4037]">กำลังโหลด...</h3>
+            <h3 className="text-xl font-bold text-brown-800">กำลังโหลด...</h3>
           </div>
         }>
           <ShopContent 

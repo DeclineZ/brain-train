@@ -4,6 +4,7 @@ import { User } from "lucide-react";
 import StreakBadge from "./DailyStreak/StreakBadge";
 import Image from "next/image";
 import type { CheckinStatus } from "@/lib/server/dailystreakAction";
+import Link from "next/link";
 
 interface TopCardClientProps {
     userProfile: {
@@ -24,30 +25,32 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
 
     return (
         <>
-            <div className="bg-[#EADFD6] rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-tan-light rounded-2xl p-6 shadow-sm relative overflow-hidden">
                 {/* Background Decorative Elements (Optional for 'fun') */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -mr-10 -mt-10 blur-xl pointer-events-none" />
 
                 {/* Header with welcome and user icon */}
                 <div className="flex justify-between items-start mb-6 relative z-10">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#3C2924]">
+                        <h1 className="text-2xl font-bold text-brown-darkest">
                             ยินดีต้อนรับคุณ, {name}
                         </h1>
-                        <p className="text-[#51433A] mt-1 text-base font-medium">เล่นเกมส์เพื่อเช็คอินรายวัน</p>
+                        <p className="text-brown-medium mt-1 text-base font-medium">เล่นเกมส์เพื่อเช็คอินรายวัน</p>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <div className="relative group">
-                            <div className="w-14 h-14 rounded-full bg-[#C3A37F] border-4 border-white shadow-md overflow-hidden flex items-center justify-center">
+                            <div className="w-14 h-14 rounded-full bg-brown-lightest border-4 border-white shadow-md overflow-hidden flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer">
                                 {avatarUrl ? (
-                                    <Image
-                                        src={avatarUrl}
-                                        alt="Profile"
-                                        width={56}
-                                        height={56}
-                                        className="object-cover w-full h-full"
-                                    />
+                                    <Link href="/stats">
+                                        <Image
+                                            src={avatarUrl}
+                                            alt="Stats"
+                                            width={56}
+                                            height={56}
+                                            className="object-cover w-full h-full"
+                                        />
+                                    </Link>
                                 ) : (
                                     <User className="w-7 h-7 text-white" />
                                 )}
@@ -66,8 +69,8 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
                             <div
                                 key={index}
                                 className={`flex-1 text-center py-2 rounded-lg text-sm ${index === today
-                                    ? "bg-[#D75931] text-white font-semibold shadow-md"
-                                    : "bg-white/50 text-[#51433A]"
+                                    ? "bg-orange-dark text-white font-semibold shadow-md"
+                                    : "bg-white/50 text-brown-medium"
                                     }`}
                             >
                                 {day}

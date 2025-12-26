@@ -48,10 +48,10 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
   };
 
   const getDayColor = (day: any) => {
-    if (day.is_today) return "bg-[#D75931]/40 text-[#51433A] font-semibold";
-    if (day.checked_in) return "bg-[#D4C5B8] text-[#3C2924]";
+    if (day.is_today) return "bg-orange-dark/40 text-brown-medium font-semibold";
+    if (day.checked_in) return "bg-brown-lightest text-brown-darkest";
     if (day.is_future) return "bg-gray-100 text-gray-400";
-    return "bg-white text-[#51433A]";
+    return "bg-white text-brown-medium";
   };
 
   const getFirstDayOfMonth = (year: number, month: number) => {
@@ -94,17 +94,17 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#FFFDF7] rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className="bg-cream rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-[#EADFD6] px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[#3C2924]">
+        <div className="bg-tan-light px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-brown-darkest">
             ปฏิทินเช็คอิน
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-[#D4C5B8] rounded-lg transition-colors"
+            className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-[#51433A]" />
+            <X className="w-5 h-5 text-brown-medium" />
           </button>
         </div>
 
@@ -125,20 +125,20 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => navigateMonth(-1)}
-                  className="p-2 hover:bg-[#D4C5B8] rounded-lg transition-colors"
+                  className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5 text-[#51433A]" />
+                  <ChevronLeft className="w-5 h-5 text-brown-medium" />
                 </button>
                 
-                <h3 className="text-lg font-semibold text-[#3C2924]">
+                <h3 className="text-lg font-semibold text-brown-darkest">
                   {calendar.month_name} {calendar.year}
                 </h3>
                 
                 <button
                   onClick={() => navigateMonth(1)}
-                  className="p-2 hover:bg-[#D4C5B8] rounded-lg transition-colors"
+                  className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
                 >
-                  <ChevronRight className="w-5 h-5 text-[#51433A]" />
+                  <ChevronRight className="w-5 h-5 text-brown-medium" />
                 </button>
               </div>
 
@@ -147,7 +147,7 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
                 {getThaiDayNames().map((day) => (
                   <div
                     key={day}
-                    className="text-center text-xs font-semibold text-[#51433A] py-2"
+                    className="text-center text-xs font-semibold text-brown-medium py-2"
                   >
                     {day}
                   </div>
@@ -161,35 +161,35 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
 
               {/* Legend */}
               <div className="border-t pt-4 space-y-2">
-                <p className="text-sm font-semibold text-[#3C2924] mb-2">
+                <p className="text-sm font-semibold text-brown-darkest mb-2">
                   คำอธิบาย:
                 </p>
                 <div className="flex flex-wrap gap-4 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#D75931] rounded"></div>
-                    <span className="text-[#51433A]">วันนี้</span>
+                    <div className="w-4 h-4 bg-orange-dark rounded"></div>
+                    <span className="text-brown-medium">วันนี้</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#D4C5B8] rounded"></div>
-                    <span className="text-[#51433A]">เช็คอินแล้ว</span>
+                    <div className="w-4 h-4 bg-brown-lightest rounded"></div>
+                    <span className="text-brown-medium">เช็คอินแล้ว</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Flame className="w-4 h-4 text-orange-500" />
-                    <span className="text-[#51433A]">มีสตรีก</span>
+                    <span className="text-brown-medium">มีสตรีก</span>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-[#51433A]">ไม่สามารถโหลดข้อมูลปฏิทิน</p>
+              <p className="text-brown-medium">ไม่สามารถโหลดข้อมูลปฏิทิน</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="bg-[#EADFD6] px-6 py-3 border-t">
-          <p className="text-xs text-[#51433A] text-center">
+        <div className="bg-tan-light px-6 py-3 border-t">
+          <p className="text-xs text-brown-medium text-center">
             🔥 เช็คอินติดต่อกันเพื่อรักษาสตรีกของคุณ!
           </p>
         </div>

@@ -19,14 +19,14 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   return (
     <div className="relative">
       <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-        <Search className="w-5 h-5 text-[#51433A]" />
+        <Search className="w-5 h-5 text-brown-medium" />
       </div>
       <input
         type="text"
         placeholder="อยากเล่นเกมอะไร?"
         value={query}
         onChange={handleChange}
-        className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-[#EADFD6] focus:outline-none focus:ring-2 focus:ring-[#D75931] focus:border-transparent text-[#3C2924] placeholder-[#51433A]"
+        className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border border-tan-light focus:outline-none focus:ring-2 focus:ring-orange-dark focus:border-transparent text-brown-darkest placeholder-brown-medium"
       />
     </div>
   );

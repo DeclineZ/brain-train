@@ -11,7 +11,7 @@ export default async function Home() {
   const featuredGames = games.filter(game => game.featured);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7]">
+    <div className="min-h-screen bg-cream">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
         {/* TopCard */}
         <TopCard />
@@ -23,14 +23,14 @@ export default async function Home() {
           action={
             <Link
               href="/play/start-daily"
-              className="inline-flex items-center gap-2 bg-[#E84C1C] text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-[#D74215] active:translate-y-0.5 transition-all"
+              className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
             >
               <span>เริ่มภารกิจ</span>
             </Link>
           }
         >
           {/* Game Cards Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 grid-cols-1">
             {featuredGames.map((game, index) => (
               <MainGameCard
                 key={game.id}

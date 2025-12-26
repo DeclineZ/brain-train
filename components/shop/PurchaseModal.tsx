@@ -84,17 +84,17 @@ export default function PurchaseModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-[#E5E5E5]">
+        <div className="p-6 border-b border-gray-medium">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-[#3E2723]">
+            <h2 className="text-2xl font-bold text-brown-900">
               {result ? "การซื้อสำเร็จ!" : "ยืนยันการซื้อ"}
             </h2>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-[#F5F5F5] rounded-full transition-colors"
+              className="p-2 hover:bg-gray-lighter rounded-full transition-colors"
               disabled={isProcessing}
             >
-              <X className="w-6 h-6 text-[#5D4037]" />
+              <X className="w-6 h-6 text-brown-800" />
             </button>
           </div>
         </div>
@@ -105,29 +105,29 @@ export default function PurchaseModal({
             // Confirmation View
             <div className="space-y-6">
               {/* Item Details */}
-              <div className="flex items-center gap-4 p-4 bg-[#FFFDF7] rounded-xl">
+              <div className="flex items-center gap-4 p-4 bg-cream rounded-xl">
                 <div className="text-5xl">{getItemIcon(item.type)}</div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-[#3E2723]">{item.name}</h3>
-                  <p className="text-[#5D4037] text-sm">{item.description}</p>
+                  <h3 className="text-xl font-bold text-brown-900">{item.name}</h3>
+                  <p className="text-brown-800 text-sm">{item.description}</p>
                 </div>
               </div>
 
               {/* Price Breakdown */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                  <span className="text-[#5D4037] font-medium">ราคาสินค้า</span>
+                <div className="flex items-center justify-between p-3 bg-gray-lighter rounded-lg">
+                  <span className="text-brown-800 font-medium">ราคาสินค้า</span>
                   <div className="flex items-center gap-1">
-                    <Coins className="w-4 h-4 text-[#E84C1C]" />
-                    <span className="text-lg font-bold text-[#E84C1C]">{item.price}</span>
+                    <Coins className="w-4 h-4 text-orange-action" />
+                    <span className="text-lg font-bold text-orange-action">{item.price}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg">
-                  <span className="text-[#5D4037] font-medium">เหรียญคงเหลือหลังซื้อ</span>
+                <div className="flex items-center justify-between p-3 bg-gray-lighter rounded-lg">
+                  <span className="text-brown-800 font-medium">เหรียญคงเหลือหลังซื้อ</span>
                   <div className="flex items-center gap-1">
-                    <Coins className="w-4 h-4 text-[#E84C1C]" />
-                    <span className="text-lg font-bold text-[#E84C1C]">
+                    <Coins className="w-4 h-4 text-orange-action" />
+                    <span className="text-lg font-bold text-orange-action">
                       {userBalance - item.price}
                     </span>
                   </div>
@@ -161,10 +161,10 @@ export default function PurchaseModal({
                   <CheckCircle className="w-12 h-12 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-[#3E2723] mb-2">
+                  <h3 className="text-xl font-bold text-brown-900 mb-2">
                     {result.message}
                   </h3>
-                  <p className="text-[#5D4037]">
+                  <p className="text-brown-800">
                     คุณได้รับ {item.name} แล้ว!
                   </p>
                 </div>
@@ -185,21 +185,21 @@ export default function PurchaseModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[#E5E5E5]">
+        <div className="p-6 border-t border-gray-medium">
           <div className="flex gap-3">
             {!result ? (
               <>
                 <button
                   onClick={handleClose}
                   disabled={isProcessing}
-                  className="flex-1 py-3 px-4 border-2 border-[#E5E5E5] text-[#5D4037] rounded-xl font-semibold hover:bg-[#F5F5F5] transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 px-4 border-2 border-gray-medium text-brown-800 rounded-xl font-semibold hover:bg-gray-lighter transition-colors disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   onClick={handleConfirm}
                   disabled={isProcessing || !canAfford}
-                  className="flex-1 py-3 px-4 bg-[#E84C1C] text-white rounded-xl font-semibold hover:bg-[#D64515] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 px-4 bg-orange-action text-white rounded-xl font-semibold hover:bg-orange-hover transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (
                     <div className="flex items-center justify-center gap-2">
@@ -214,7 +214,7 @@ export default function PurchaseModal({
             ) : (
               <button
                 onClick={handleClose}
-                className="w-full py-3 px-4 bg-[#2E7D32] text-white rounded-xl font-semibold hover:bg-[#1B5E20] transition-colors"
+                className="w-full py-3 px-4 bg-green-success text-white rounded-xl font-semibold hover:bg-green-success transition-colors"
               >
                 ตกลง
               </button>
