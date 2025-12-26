@@ -141,8 +141,8 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
         {filteredItems.length === 0 && (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-xl font-bold text-[#5D4037] mb-2">ไม่มีสินค้าในหมวดหมู่นี้</h3>
-            <p className="text-[#8B5E3C]">ลองเลือกหมวดหมู่อื่นดูนะครับ</p>
+            <h3 className="text-xl font-bold text-brown-800 mb-2">ไม่มีสินค้าในหมวดหมู่นี้</h3>
+            <p className="text-brown-light">ลองเลือกหมวดหมู่อื่นดูนะครับ</p>
           </div>
         )}
       </div>

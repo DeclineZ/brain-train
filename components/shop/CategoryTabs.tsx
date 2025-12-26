@@ -38,7 +38,7 @@ export default function CategoryTabs({ activeCategory, onCategoryChange, items =
         id: "all",
         name: "ทั้งหมด",
         icon: Grid3X3,
-        color: "text-[#5D4037] border-[#5D4037]"
+        color: "text-brown-800 border-brown-800"
       },
       ...uniqueTypes.map(type => ({
         id: type,
@@ -67,7 +67,7 @@ export default function CategoryTabs({ activeCategory, onCategoryChange, items =
               border-2
               ${isActive
                 ? `${category.color} bg-white shadow-md`
-                : "text-[#8B5E3C] border-[#E5E5E5] bg-[#F9F9F9] hover:bg-[#F0F0F0]"
+                : "text-brown-light border-gray-medium bg-gray-light hover:bg-gray-lightest"
               }
             `}
           >

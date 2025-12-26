@@ -14,10 +14,10 @@ export default async function StatsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#FFFDF7] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-cream flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#4B4B4B] mb-4">กรุณาเข้าสู่ระบบ</h1>
-          <Link href="/login" className="inline-block bg-[#58CC02] text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#46A302] active:shadow-none active:translate-y-[4px] transition-all">
+          <h1 className="text-2xl font-bold text-gray-dark mb-4">กรุณาเข้าสู่ระบบ</h1>
+          <Link href="/login" className="inline-block bg-green text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#46A302] active:shadow-none active:translate-y-[4px] transition-all">
             เข้าสู่ระบบ
           </Link>
         </div>
@@ -43,12 +43,12 @@ export default async function StatsPage() {
   // Using stars/XP placeholder for now as per user request to refer to top bar context
   // We can calculate "Total Score" from the cognitive stats for now
   const cognitiveStats = [
-    { key: "global_planning", label: "การวางแผน", color: "bg-[#58CC02]", icon: Map, val: profile?.global_planning || 0 },
-    { key: "global_memory", label: "ความจำ", color: "bg-[#FFC800]", icon: Brain, val: profile?.global_memory || 0 },
-    { key: "global_visual", label: "มิติสัมพันธ์", color: "bg-[#1CB0F6]", icon: Eye, val: profile?.global_visual || 0 },
-    { key: "global_focus", label: "สมาธิ", color: "bg-[#FF4B4B]", icon: Target, val: profile?.global_focus || 0 },
-    { key: "global_speed", label: "ความเร็ว", color: "bg-[#2B70C9]", icon: Zap, val: profile?.global_speed || 0 },
-    { key: "global_emotion", label: "การควบคุมอารมณ์", color: "bg-[#CE82FF]", icon: Heart, val: profile?.global_emotion || 0 },
+    { key: "global_planning", label: "การวางแผน", color: "bg-green", icon: Map, val: profile?.global_planning || 0 },
+    { key: "global_memory", label: "ความจำ", color: "bg-yellow", icon: Brain, val: profile?.global_memory || 0 },
+    { key: "global_visual", label: "มิติสัมพันธ์", color: "bg-blue", icon: Eye, val: profile?.global_visual || 0 },
+    { key: "global_focus", label: "สมาธิ", color: "bg-red", icon: Target, val: profile?.global_focus || 0 },
+    { key: "global_speed", label: "ความเร็ว", color: "bg-blue-dark", icon: Zap, val: profile?.global_speed || 0 },
+    { key: "global_emotion", label: "การควบคุมอารมณ์", color: "bg-purple", icon: Heart, val: profile?.global_emotion || 0 },
   ]
 
   // Helper to format join date
@@ -72,11 +72,11 @@ export default async function StatsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7] pb-32">
+    <div className="min-h-screen bg-cream pb-32">
       {/* Rustic Header Section - Matches TopCard style */}
-      <div className="bg-[#EADFD6] border-b-4 border-[#C3A37F] pt-8 pb-10 px-4 rounded-b-[40px] shadow-sm">
+      <div className="bg-tan-light border-b-4 border-brown-lightest pt-8 pb-10 px-4 rounded-b-[40px] shadow-sm">
         <div className="max-w-2xl mx-auto flex items-start gap-6">
-          <div className="w-24 h-24 relative rounded-full border-4 border-white shadow-md overflow-hidden bg-[#C3A37F] flex-shrink-0">
+          <div className="w-24 h-24 relative rounded-full border-4 border-white shadow-md overflow-hidden bg-brown-lightest flex-shrink-0">
             {profile?.avatar_url ? (
               <Image
                 src={getAvatarSrc(profile.avatar_url)}
@@ -92,8 +92,8 @@ export default async function StatsPage() {
           </div>
 
           <div className="flex-1 pt-1">
-            <h1 className="text-2xl font-bold text-[#3C2924] mb-1 drop-shadow-sm">{profile?.full_name || "Guest User"}</h1>
-            <p className="text-[#51433A] font-medium flex items-center gap-2 text-sm">
+            <h1 className="text-2xl font-bold text-brown-darkest mb-1 drop-shadow-sm">{profile?.full_name || "Guest User"}</h1>
+            <p className="text-brown-medium font-medium flex items-center gap-2 text-sm">
               <span>เข้าร่วมเมื่อ {formatDate(profile?.created_at)}</span>
             </p>
             <div className="mt-2 flex items-center gap-2">
@@ -111,45 +111,45 @@ export default async function StatsPage() {
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-8">
         {/* Quick Stats Grid - Rustic Board */}
         <section className="relative">
-          <div className="bg-[#8B5E3C] rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
-            <div className="bg-[#FFFDF7] rounded-[20px] p-5 relative z-10">
-              <h2 className="text-xl font-bold text-[#5D4037] mb-4 flex items-center gap-2">
+          <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
+            <div className="bg-cream rounded-[20px] p-5 relative z-10">
+              <h2 className="text-xl font-bold text-brown-800 mb-4 flex items-center gap-2">
                 สถิติการฝึก
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {/* Streak */}
-                <div className="border-2 border-[#E5E5E5] rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
                   <Flame className="w-8 h-8 text-orange-600 fill-orange-500" />
                   <div>
-                    <div className="text-xl font-bold text-[#3C2924]">{checkinStatus?.current_streak || 0}</div>
-                    <div className="text-xs text-[#8B5E3C] font-bold uppercase">สตรีกวัน</div>
+                    <div className="text-xl font-bold text-brown-darkest">{checkinStatus?.current_streak || 0}</div>
+                    <div className="text-xs text-brown-light font-bold uppercase">สตรีกวัน</div>
                   </div>
                 </div>
 
                 {/* Total XP / Stars */}
-                <div className="border-2 border-[#E5E5E5] rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
                   <Star className="w-8 h-8 text-yellow-400 fill-yellow-400" />
                   <div>
-                    <div className="text-xl font-bold text-[#3C2924]">{balance}</div>
-                    <div className="text-xs text-[#8B5E3C] font-bold uppercase">คะแนนสะสม</div>
+                    <div className="text-xl font-bold text-brown-darkest">{balance}</div>
+                    <div className="text-xs text-brown-light font-bold uppercase">คะแนนสะสม</div>
                   </div>
                 </div>
 
                 {/* Coins */}
-                <div className="border-2 border-[#E5E5E5] rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
                   <Coins className="w-8 h-8 text-yellow-500 fill-yellow-400" />
                   <div>
-                    <div className="text-xl font-bold text-[#3C2924]">{balance}</div>
-                    <div className="text-xs text-[#8B5E3C] font-bold uppercase">เหรียญ</div>
+                    <div className="text-xl font-bold text-brown-darkest">{balance}</div>
+                    <div className="text-xs text-brown-light font-bold uppercase">เหรียญ</div>
                   </div>
                 </div>
 
                 {/* Top League */}
-                <div className="border-2 border-[#E5E5E5] rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
                   <Trophy className="w-8 h-8 text-yellow-500 fill-yellow-400" />
                   <div>
-                    <div className="text-xl font-bold text-[#3C2924]">-</div>
-                    <div className="text-xs text-[#8B5E3C] font-bold uppercase">ลีกสูงสุด</div>
+                    <div className="text-xl font-bold text-brown-darkest">-</div>
+                    <div className="text-xs text-brown-light font-bold uppercase">ลีกสูงสุด</div>
                   </div>
                 </div>
               </div>
@@ -159,24 +159,24 @@ export default async function StatsPage() {
 
         {/* Cognitive Stats Chart - Rustic Board */}
         <section className="relative">
-          <div className="bg-[#8B5E3C] rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
-            <div className="bg-[#FFFDF7] rounded-[20px] p-5 relative z-10">
+          <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
+            <div className="bg-cream rounded-[20px] p-5 relative z-10">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-[#5D4037]">ทักษะสมอง</h2>
+                <h2 className="text-xl font-bold text-brown-800">ทักษะสมอง</h2>
               </div>
 
               <div className="space-y-4">
                 {cognitiveStats.map((stat) => (
                   <div key={stat.key} className="group">
-                    <div className="flex justify-between items-end text-sm font-bold text-[#8B5E3C] mb-1">
+                    <div className="flex justify-between items-end text-sm font-bold text-brown-light mb-1">
                       <div className="flex items-center gap-2">
-                        <stat.icon className="w-5 h-5 text-[#C3A37F]" />
+                        <stat.icon className="w-5 h-5 text-brown-lightest" />
                         <span>{stat.label}</span>
                       </div>
-                      <span className="text-[#3C2924]">{getScaledScore(stat.val)}</span>
+                      <span className="text-brown-darkest">{getScaledScore(stat.val)}</span>
                     </div>
                     {/* Progress Bar Container */}
-                    <div className="h-4 w-full bg-[#E5E5E5] rounded-full overflow-hidden relative shadow-inner">
+                    <div className="h-4 w-full bg-gray-medium rounded-full overflow-hidden relative shadow-inner">
                       {/* Progress Bar Fill */}
                       <div
                         className={`h-full ${stat.color} rounded-full transition-all duration-1000 ease-out`}
@@ -199,8 +199,8 @@ export default async function StatsPage() {
                  Ideally, we refactor BadgesSection to accept a "Rustic" mode, 
                  but wrapping it here gives us the board container. */}
 
-          <div className="bg-[#8B5E3C] rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
-            <div className="bg-[#FFFDF7] rounded-[20px] p-5 relative z-10">
+          <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_#5D4037] relative z-0">
+            <div className="bg-cream rounded-[20px] p-5 relative z-10">
               <BadgesSection badges={badges} />
             </div>
           </div>

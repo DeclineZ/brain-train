@@ -47,9 +47,9 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
         isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
       }`}
     >
-      <div className="bg-white rounded-xl shadow-2xl border-2 border-[#D75931] max-w-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl border-2 border-orange-dark max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#D75931] to-[#E67E5A] px-4 py-3 text-white">
+        <div className="bg-gradient-to-r from-orange-dark to-orange-dark-2 px-4 py-3 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5" />
@@ -69,23 +69,23 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
           {/* Main message */}
           <div className="text-center">
             <div className="text-3xl mb-2">{milestone.icon}</div>
-            <h3 className="font-bold text-[#3C2924] text-lg">
+            <h3 className="font-bold text-brown-900 text-lg">
               {milestone.message}
             </h3>
-            <p className="text-[#51433A] text-sm mt-1">
+            <p className="text-brown-medium text-sm mt-1">
               {notification.message}
             </p>
           </div>
 
           {/* Streak info */}
-          <div className="bg-[#EADFD6] rounded-lg p-3 flex items-center justify-between">
+          <div className="bg-tan-light rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-orange-500" />
-              <span className="text-sm font-medium text-[#3C2924]">
+              <Flame className="w-5 h-5 text-orange-action" />
+              <span className="text-sm font-medium text-brown-900">
                 สตรีกปัจจุบัน
               </span>
             </div>
-            <span className="text-xl font-bold text-[#D75931]">
+            <span className="text-xl font-bold text-orange-dark">
               {notification.streak_count}
             </span>
           </div>
@@ -93,8 +93,8 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
           {/* New badges */}
           {notification.new_badges.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-[#3C2924] flex items-center gap-1">
-                <Star className="w-4 h-4 text-yellow-500" />
+              <p className="text-sm font-semibold text-brown-900 flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-highlight" />
                 ปลดล็อคเครื่องหมายใหม่!
               </p>
               <div className="space-y-1">
@@ -105,10 +105,10 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
                   >
                     <span className="text-lg">{badge.icon}</span>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-[#3C2924]">
+                      <p className="text-sm font-medium text-brown-900">
                         {badge.name}
                       </p>
-                      <p className="text-xs text-[#51433A]">
+                      <p className="text-xs text-brown-medium">
                         {badge.description}
                       </p>
                     </div>
@@ -120,7 +120,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
 
           {/* Keep going message */}
           <div className="text-center pt-2 border-t">
-            <p className="text-xs text-[#51433A] italic">
+            <p className="text-xs text-brown-medium italic">
               {notification.streak_count < 7 
                 ? "อีกไม่กี่วันจะถึงสัปดาห์แห่งความมุ่งมั่น!"
                 : notification.streak_count < 30
@@ -132,7 +132,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
         </div>
 
         {/* Progress bar animation */}
-        <div className="h-1 bg-gradient-to-r from-transparent via-[#D75931] to-transparent animate-pulse"></div>
+        <div className="h-1 bg-gradient-to-r from-transparent via-orange-dark to-transparent animate-pulse"></div>
       </div>
     </div>
   );

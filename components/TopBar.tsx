@@ -40,12 +40,12 @@ export default function TopBar() {
     }, []);
 
     return (
-        <div className="w-full bg-[#C8A27A] h-16 flex items-center justify-between px-4 sticky top-0 z-50 border-b border-[#a68b6c]">
+        <div className="w-full bg-tan h-16 flex items-center justify-between px-4 sticky top-0 z-50 border-b border-brown-600">
             {/* Left side: Logo (Desktop only) */}
             <div className="flex-1 flex items-center">
                 <div className="hidden md:flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
-                        <Zap className="w-5 h-5 text-orange-500 fill-orange-500" />
+                        <Zap className="w-5 h-5 text-orange-action fill-orange-action" />
                     </div>
                     <span className="font-bold text-xl tracking-tight text-white font-sans">
                         NameArai
@@ -57,19 +57,19 @@ export default function TopBar() {
             <div className="flex items-center gap-6">
                 {/* Streak */}
                 <div className="flex items-center gap-1.5">
-                    <Flame className="w-6 h-6 text-orange-600 fill-orange-500" />
+                    <Flame className="w-6 h-6 text-orange-action fill-orange-action" />
                     <span className="font-bold text-lg text-white drop-shadow-sm">{streak}</span>
                 </div>
 
                 {/* Stars */}
                 <div className="flex items-center gap-1.5">
-                    <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                    <Star className="w-6 h-6 text-yellow-highlight fill-yellow-highlight" />
                     <span className="font-bold text-lg text-white drop-shadow-sm">{stars}</span>
                 </div>
 
                 {/* Coins */}
                 <div className="flex items-center gap-1.5">
-                    <Coins className="w-6 h-6 text-yellow-500 fill-yellow-400" />
+                    <Coins className="w-6 h-6 text-yellow-highlight fill-yellow-highlight" />
                     <span className="font-bold text-lg text-white drop-shadow-sm">{coinBalance}</span>
                 </div>
             </div>
