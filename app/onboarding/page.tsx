@@ -11,9 +11,9 @@ import LogoHeader from "@/components/LogoHeader";
 
 // Placeholder Avatar Options (In real app, these would be image URLs)
 const AVATAR_OPTIONS = [
-    { id: 'avatar-1', src: '/avatars/avatar-1.png', label: 'หมาป่า ยอดนักไหวพริบ' },
-    { id: 'avatar-2', src: '/avatars/avatar-2.png', label: 'ปลาหมึก จอมวางแผน' },
-    { id: 'avatar-3', src: '/avatars/avatar-3.png', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
+    { id: 'avatar-1', src: '/avatars/avatar-1.webp', label: 'หมาป่า ยอดนักไหวพริบ' },
+    { id: 'avatar-2', src: '/avatars/avatar-2.webp', label: 'ปลาหมึก จอมวางแผน' },
+    { id: 'avatar-3', src: '/avatars/avatar-3.webp', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
 ];
 
 export default function OnboardingPage() {
@@ -150,21 +150,93 @@ export default function OnboardingPage() {
                             </p>
 
                             <div className="space-y-6">
-                                <div className="relative">
-                                    <label className="block text-sm font-semibold text-brown-600 mb-2 ml-1">
-                                        เลือกวันที่
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-brown-600 ml-1">
+                                        วัน / เดือน / ปีเกิด
                                     </label>
-                                    <input
-                                        type="date"
-                                        value={dob}
-                                        onChange={(e) => setDob(e.target.value)}
-                                        className="w-full h-16 pl-4 pr-4 text-xl font-medium rounded-2xl border-2 border-brown-200 bg-white text-brown-900 focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all cursor-pointer shadow-sm"
-                                    />
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {/* Day Selector */}
+                                        <div className="relative">
+                                            <select
+                                                value={dob ? dob.split("-")[2] : ""}
+                                                onChange={(e) => {
+                                                    const d = e.target.value;
+                                                    const m = dob ? dob.split("-")[1] : "01";
+                                                    const y = dob ? dob.split("-")[0] : new Date().getFullYear().toString();
+                                                    setDob(`${y}-${m}-${d}`);
+                                                }}
+                                                className="w-full h-14 pl-3 pr-8 text-lg font-medium rounded-2xl border-2 border-brown-200 bg-white text-brown-900 focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all cursor-pointer shadow-sm appearance-none"
+                                            >
+                                                <option value="" disabled>วัน</option>
+                                                {(() => {
+                                                    // Dynamic Max Days Logic
+                                                    const currentY = dob ? parseInt(dob.split("-")[0]) : new Date().getFullYear();
+                                                    const currentM = dob ? parseInt(dob.split("-")[1]) : 1;
+                                                    const daysInMonth = new Date(currentY, currentM, 0).getDate();
+
+                                                    return Array.from({ length: daysInMonth }, (_, i) => {
+                                                        const day = (i + 1).toString().padStart(2, "0");
+                                                        return <option key={day} value={day}>{parseInt(day)}</option>;
+                                                    });
+                                                })()}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-brown-400">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </div>
+
+                                        {/* Month Selector */}
+                                        <div className="relative">
+                                            <select
+                                                value={dob ? dob.split("-")[1] : ""}
+                                                onChange={(e) => {
+                                                    const m = e.target.value;
+                                                    const d = dob ? dob.split("-")[2] : "01";
+                                                    const y = dob ? dob.split("-")[0] : new Date().getFullYear().toString();
+                                                    setDob(`${y}-${m}-${d}`);
+                                                }}
+                                                className="w-full h-14 pl-3 pr-8 text-lg font-medium rounded-2xl border-2 border-brown-200 bg-white text-brown-900 focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all cursor-pointer shadow-sm appearance-none"
+                                            >
+                                                <option value="" disabled>เดือน</option>
+                                                {["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."].map((month, index) => {
+                                                    const value = (index + 1).toString().padStart(2, "0");
+                                                    return <option key={value} value={value}>{month}</option>;
+                                                })}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-brown-400">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </div>
+
+                                        {/* Year Selector */}
+                                        <div className="relative">
+                                            <select
+                                                value={dob ? dob.split("-")[0] : ""}
+                                                onChange={(e) => {
+                                                    const y = e.target.value;
+                                                    const m = dob ? dob.split("-")[1] : "01";
+                                                    const d = dob ? dob.split("-")[2] : "01";
+                                                    setDob(`${y}-${m}-${d}`);
+                                                }}
+                                                className="w-full h-14 pl-3 pr-8 text-lg font-medium rounded-2xl border-2 border-brown-200 bg-white text-brown-900 focus:border-orange-action focus:ring-4 focus:ring-orange-action/10 outline-none transition-all cursor-pointer shadow-sm appearance-none"
+                                            >
+                                                <option value="" disabled>ปี</option>
+                                                {Array.from({ length: 100 }, (_, i) => {
+                                                    const adYear = new Date().getFullYear() - i;
+                                                    const beYear = adYear + 543;
+                                                    return <option key={adYear} value={adYear}>{beYear}</option>;
+                                                })}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-brown-400">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <button
                                     onClick={handleNext}
-                                    disabled={!dob}
+                                    disabled={!dob || dob.split("-").length < 3}
                                     className="w-full h-14 bg-brown-900 hover:bg-brown-800 disabled:bg-brown-100 disabled:text-brown-400 disabled:cursor-not-allowed text-white text-xl font-bold rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 flex-none"
                                 >
                                     ถัดไป <ChevronRight className="h-6 w-6" />

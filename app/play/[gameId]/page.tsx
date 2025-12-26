@@ -48,6 +48,7 @@ export default function GamePage({ params }: PageProps) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+
         const res = await fetch('/api/daily-streak', {
           method: 'POST',
           body: JSON.stringify({ userId: user.id, action: 'checkin' })
@@ -56,6 +57,7 @@ export default function GamePage({ params }: PageProps) {
         if (streakData.ok) {
           setStreakInfo(streakData.data);
         }
+
 
         const todayStr = new Date().toISOString().split('T')[0];
         const { count, error } = await supabase
@@ -68,6 +70,7 @@ export default function GamePage({ params }: PageProps) {
         if (!error && count !== null) {
           setDailyCount(count);
         } else {
+
           setDailyCount(prev => prev + 1);
         }
       }
@@ -220,7 +223,6 @@ export default function GamePage({ params }: PageProps) {
                 {level >= 3 ? 'กลับหน้าหลัก' : 'เกมถัดไป'}
               </button>
             </div>
-
           </div>
         </div>
       )}

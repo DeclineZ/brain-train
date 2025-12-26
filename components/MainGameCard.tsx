@@ -6,27 +6,27 @@ import Link from "next/link";
 
 interface MainGameCardProps {
   gameName: string;
-  gif: string;
+  image: string;
   index: number;
   durationMin: number;
   gameId: string;
 }
 
-export default function MainGameCard({ gameName, gif, index, durationMin, gameId }: MainGameCardProps) {
+export default function MainGameCard({ gameName, image, index, durationMin, gameId }: MainGameCardProps) {
   return (
     <Link href={`/play/${gameId}`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
-        whileHover={{ scale: 1.05, y: -5 }}
+        whileHover={{ scale: 1.01, y: -5 }}
         whileTap={{ scale: 0.98 }}
         className="relative rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-48 cursor-pointer group"
       >
-        {/* Background GIF */}
+        {/* Background Image */}
         <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-          style={{ backgroundImage: `url(${gif})` }}
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+          style={{ backgroundImage: `url(${image})` }}
         />
 
         {/* Modern Gradient Overlay */}

@@ -35,7 +35,7 @@ export default async function Home() {
               <MainGameCard
                 key={game.id}
                 gameName={game.title}
-                gif={game.gif!}
+                image={game.image!}
                 index={index}
                 durationMin={game.durationMin}
                 gameId={game.gameId}

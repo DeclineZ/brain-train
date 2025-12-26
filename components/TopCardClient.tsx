@@ -25,7 +25,7 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
 
     return (
         <>
-            <div className="bg-tan-light rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-tan-light rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden">
                 {/* Background Decorative Elements (Optional for 'fun') */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -mr-10 -mt-10 blur-xl pointer-events-none" />
 
@@ -35,7 +35,9 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
                         <h1 className="text-2xl font-bold text-brown-darkest">
                             ยินดีต้อนรับคุณ, {name}
                         </h1>
-                        <p className="text-brown-medium mt-1 text-base font-medium">เล่นเกมส์เพื่อเช็คอินรายวัน</p>
+                        <p className="text-brown-medium mt-1 text-base font-medium">
+                            เล่นเกมส์เพื่อเช็คอินรายวัน
+                        </p>
                     </div>
 
                     <div className="flex items-center gap-3">
