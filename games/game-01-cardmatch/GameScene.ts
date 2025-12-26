@@ -40,10 +40,8 @@ export class MatchingGameScene extends Phaser.Scene {
     private seenCards = new Set<number>();
 
     // UI Elements
-    private timerText!: Phaser.GameObjects.Text;
-    private levelText!: Phaser.GameObjects.Text;
-    private messageText!: Phaser.GameObjects.Text;
-    private streakText!: Phaser.GameObjects.Text;
+    private messageText!: any; // Phaser.GameObjects.Text
+    private streakText!: any; // Phaser.GameObjects.Text
 
     constructor() { super({ key: 'MatchingGameScene' }); }
 
@@ -93,19 +91,28 @@ export class MatchingGameScene extends Phaser.Scene {
         graphics.strokePath();
 
         // 2. Setup Grid Cards
-        this.setupGrid();
+        this.createCards();
 
-        // 3. UI Layer
+        // 3. Initial Layout
+        this.layoutGrid();
+
+        // 4. UI Layer
         this.createUI();
 
-        // 4. Start Sequence (Preview)
+        // 5. Start Sequence (Preview)
         this.startPreviewPhase();
+
+        // 6. Handle Resize
+        this.scale.on('resize', () => {
+            this.layoutGrid();
+            this.layoutUI(); // We'll add this helper too
+        });
     }
 
     // --- GAME FLOW ---
 
-    setupGrid() {
-        const { gridCols, totalPairs } = this.currentLevelConfig;
+    createCards() {
+        const { totalPairs } = this.currentLevelConfig;
         // Prepare Emoji Deck
         const emojis = ["🐙", "⭐", "🦫", "🐤", "🐘", "🐌", "🐢", "🐳", "🦊", "🐼", "🦁", "🐸"];
         const selectedEmojis = emojis.slice(0, totalPairs);
@@ -128,21 +135,41 @@ export class MatchingGameScene extends Phaser.Scene {
             "🐸": 0xC1E1C1  // Tea Green
         };
 
+        deck.forEach((emoji, i) => {
+            const color = colorMap[emoji] || 0xFFFFFF;
+            // Create off-screen initially
+            const card = this.createCard(-1000, -1000, 100, 100, emoji, i, color);
+            this.cards.push(card);
+        });
+    }
+
+    layoutGrid() {
+        const { width, height } = this.scale;
+        const isPortrait = height > width;
+
+        // Determine Columns based on orientation
+        let cols = this.currentLevelConfig.gridCols;
+        if (isPortrait) {
+            // In portrait, we usually want fewer columns (e.g. 2 or 3)
+            // For small levels (6 cards), 2 cols is good.
+            // For larger levels (10 cards), 2 cols is still safely readable on phones.
+            cols = 2;
+        }
+
+        const totalCards = this.cards.length;
+        const rows = Math.ceil(totalCards / cols);
+
         // Grid Metrics - Responsive
-        const maxCardW = 140; // Increased from 90
-        const maxCardH = 180; // Increased from 120
+        const maxCardW = 140;
+        const maxCardH = 180;
         const baseGap = 15;
 
-        // Calculate maximum available width per card
-        const maxCols = gridCols;
-        const rows = Math.ceil(deck.length / maxCols);
-
-        // Allow 90% of screen width and height
-        const availableW = this.scale.width * 0.95;
-        const availableH = this.scale.height * 0.75; // Increased from 0.7
+        // Allow 90% of screen width and 75% height
+        const availableW = width * 0.95;
+        const availableH = height * 0.75;
 
         // Calculate scaled dimensions
-        let cardW = Math.min(maxCardW, (availableW - (maxCols - 1) * baseGap) / maxCols);
+        let cardW = Math.min(maxCardW, (availableW - (cols - 1) * baseGap) / cols);
         let cardH = (cardW / maxCardW) * maxCardH; // Maintain aspect ratio
         let gap = baseGap * (cardW / maxCardW);
 
@@ -155,23 +182,85 @@ export class MatchingGameScene extends Phaser.Scene {
             gap *= scale;
         }
 
-        const gridWidth = (maxCols * cardW) + ((maxCols - 1) * gap);
+        const gridWidth = (cols * cardW) + ((cols - 1) * gap);
         const gridHeight = (rows * cardH) + ((rows - 1) * gap);
 
-        const startX = (this.scale.width - gridWidth) / 2 + cardW / 2;
-        const startY = (this.scale.height - gridHeight) / 2 + cardH / 2 + 50; // Offset for header
+        const startX = (width - gridWidth) / 2 + cardW / 2;
+        const startY = (height - gridHeight) / 2 + cardH / 2 + 30; // Small offset
 
-        deck.forEach((emoji, i) => {
-            const col = i % maxCols;
-            const row = Math.floor(i / maxCols);
+        // Position Cards
+        this.cards.forEach((cardObj, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
 
             const x = startX + col * (cardW + gap);
             const y = startY + row * (cardH + gap);
 
-            const color = colorMap[emoji] || 0xFFFFFF;
-            const card = this.createCard(x, y, cardW, cardH, emoji, i, color);
-            this.cards.push(card);
+            // Update container position
+            cardObj.container.setPosition(x, y);
+
+            // Update Size/Scale of elements inside
+            // We need to resize the container parts physically or scale the container?
+            // Scaling container is easier but might distort strokes if not careful.
+            // Let's resize the children parts for crisper look.
+
+            // Shadow
+            const shadow = cardObj.container.list[0] as Phaser.GameObjects.Rectangle;
+            shadow.setSize(cardW, cardH);
+
+            // Back
+            const back = cardObj.container.list[1] as Phaser.GameObjects.Rectangle;
+            back.setSize(cardW, cardH);
+
+            // Face
+            const face = cardObj.container.list[2] as Phaser.GameObjects.Rectangle;
+            face.setSize(cardW, cardH);
+
+            // Icon
+            const icon = cardObj.container.list[3]; // Image or Text
+            if (icon instanceof Phaser.GameObjects.Image) {
+                // Logic from createCard, adapted for resize
+                const realW = icon.frame.width;
+                const realH = icon.frame.height;
+                const maxIconW = cardW * 0.75;
+                const maxIconH = cardH * 0.75;
+
+                if (realW > 0 && realH > 0) {
+                    const scaleX = maxIconW / realW;
+                    const scaleY = maxIconH / realH;
+                    const scale = Math.min(scaleX, scaleY);
+                    icon.setScale(scale);
+                } else {
+                    icon.setDisplaySize(maxIconW, maxIconH);
+                }
+            } else if (icon instanceof Phaser.GameObjects.Text) {
+                const fontSize = Math.floor(Math.min(cardW, cardH) * 0.5);
+                icon.setFontSize(fontSize);
+            }
+
+            // Update hitbox
+            cardObj.container.setSize(cardW, cardH);
+
+            // Update HitZone size
+            const hitZone = cardObj.container.list[4] as Phaser.GameObjects.Rectangle;
+            if (hitZone && hitZone instanceof Phaser.GameObjects.Rectangle) {
+                hitZone.setSize(cardW, cardH);
+                // Re-calcs hit area
+                hitZone.removeInteractive();
+                hitZone.setInteractive({ useHandCursor: true });
+            }
+
+            // Update stored baseScale for the flip animation
+            cardObj.baseScale = icon.scaleX;
         });
+
+        // Re-center background if needed (optional since we draw fullscreen rect)
+        // Check if background rect needs resize
+        const bg = this.children.list.find(c => c instanceof Phaser.GameObjects.Rectangle && c.fillColor === 0xFDF6E3) as Phaser.GameObjects.Rectangle;
+        if (bg) {
+            bg.setPosition(width / 2, height / 2);
+            bg.setSize(width, height);
+        }
     }
 
     startPreviewPhase() {
@@ -246,7 +335,7 @@ export class MatchingGameScene extends Phaser.Scene {
             callback: () => {
                 const elapsed = Date.now() - this.startTime;
                 const seconds = Math.floor(elapsed / 1000);
-                this.timerText.setText(`${seconds}s`);
+                this.game.events.emit('timer-update', seconds);
             },
             loop: true
         });
@@ -405,11 +494,14 @@ export class MatchingGameScene extends Phaser.Scene {
             icon = this.add.text(0, 0, emoji, { fontSize: `${fontSize}px` }).setOrigin(0.5);
         }
 
-        container.add([shadow, back, face, icon]);
-        container.setSize(w, h);
-        container.setInteractive({ useHandCursor: true });
+        // HITZONE: Transparent Interactive Layer
+        const hitZone = this.add.rectangle(0, 0, w, h, 0x000000, 0).setOrigin(0.5);
+        hitZone.setInteractive({ useHandCursor: true });
 
-        const cardObj = { container, back, face, icon, emoji, id, isFlipped: true, isMatched: false, baseScale: icon.scale };
+        container.add([shadow, back, face, icon, hitZone]);
+        container.setSize(w, h); // Size for layout calc, not interaction
+
+        const cardObj = { container, back, face, icon, hitZone, emoji, id, isFlipped: true, isMatched: false, baseScale: icon.scale };
 
         // Initial state is Face UP (for preview)
         back.visible = false;
@@ -420,7 +512,8 @@ export class MatchingGameScene extends Phaser.Scene {
         // Initial scale must be set correctly
         icon.scaleX = cardObj.baseScale;
 
-        container.on('pointerdown', () => this.handleCardClick(cardObj));
+        // Listen on HitZone, not Container
+        hitZone.on('pointerdown', () => this.handleCardClick(cardObj));
 
         return cardObj;
     }
@@ -506,23 +599,9 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     createUI() {
-        const { width } = this.scale;
 
-        this.levelText = this.add.text(width / 2 - 140, 40, `LEVEL ${this.currentLevelConfig.level}`, {
-            fontFamily: 'Sarabun, sans-serif',
-            fontSize: '28px',
-            color: '#8B4513',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
 
-        this.timerText = this.add.text(width / 2 + 140, 40, '0s', {
-            fontFamily: 'Sarabun, sans-serif',
-            fontSize: '32px',
-            color: '#E86A33',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        this.messageText = this.add.text(width / 2, this.scale.height / 2, '', {
+        this.messageText = this.add.text(0, 0, '', {
             fontFamily: 'Sarabun, sans-serif',
             fontSize: '40px',
             color: '#2B2115',
@@ -531,7 +610,7 @@ export class MatchingGameScene extends Phaser.Scene {
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(100).setPadding(10, 14, 10, 18);
 
-        this.streakText = this.add.text(width / 2, 100, '', {
+        this.streakText = this.add.text(0, 100, '', {
             fontFamily: 'Sarabun, sans-serif',
             fontSize: '32px',
             color: '#FFD700',
@@ -539,6 +618,19 @@ export class MatchingGameScene extends Phaser.Scene {
             strokeThickness: 4,
             fontStyle: 'bold'
         }).setOrigin(0.5).setVisible(false).setPadding(10, 14, 10, 18);
+
+        this.layoutUI();
+    }
+
+    layoutUI() {
+        const { width, height } = this.scale;
+
+        // Position UI elements relative to new size
+        this.messageText.setPosition(width / 2, height / 2);
+        this.streakText.setPosition(width / 2, 100);
+
+        // Center alignment adjustments if screen is very narrow
+
     }
 
     updateStreakUI(isMatch: boolean) {
