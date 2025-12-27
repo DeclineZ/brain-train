@@ -6,6 +6,7 @@ import GameCanvas from '@/components/game/GameCanvas';
 import StarIcon from '@/components/game/StarIcon';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { Home } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ gameId: string }>;
@@ -118,7 +119,7 @@ export default function GamePage({ params }: PageProps) {
       {/* Header with Back Button */}
       <div className="absolute top-4 left-4 z-10 transition-transform hover:scale-105 active:scale-95">
         <a href="/" className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center">
-          <span className="text-xl">🏠</span>
+          <Home className="w-6 h-6 text-brown-primary" />
         </a>
       </div>
 
