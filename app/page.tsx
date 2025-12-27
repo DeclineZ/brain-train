@@ -11,7 +11,7 @@ export default async function Home() {
   const featuredGames = games.filter(game => game.featured);
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="bg-cream overflow-hidden">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
         {/* TopCard */}
         <TopCard />

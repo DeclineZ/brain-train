@@ -144,30 +144,29 @@ export default function StreakBadge({
 
     return (
         <>
-            {/* Desktop View (Unchanged) */}
-            <div className="hidden md:block bg-white/60 backdrop-blur-sm rounded-xl p-4 space-y-3 shadow-sm transition-all hover:bg-white/70">
-                {/* TOP SECTION: Daily Status */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {/* Flame Icon with Wind Animation */}
-                        <div className="w-14 h-14 flex items-center justify-center">
+            {/* Desktop View (Mobile-style) */}
+            <div className="hidden md:block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-white/70">
+                {/* Header with Streak Info and Calendar Button */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        {/* Flame Icon */}
+                        <div className="w-10 h-10 flex items-center justify-center">
                             <Flame
                                 className={`transition-all duration-500 ${getFireSize(status.current_streak)} ${getFireColor(status.checked_in_today)} ${status.checked_in_today ? "animate-flame-wind drop-shadow-[0_-5px_10px_rgba(249,115,22,0.4)]" : ""
                                     }`}
                             />
                         </div>
-
-                        <div>
-                            <div className="text-base text-brown-mute font-bold uppercase tracking-wider mb-0.5">เช็คอินรายวัน</div>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-black text-brown-darkest leading-none drop-shadow-sm">
-                                    {status.current_streak}
-                                </span>
-                                <span className="text-sm font-bold text-brown-mute">วัน</span>
-                            </div>
+                        
+                        {/* Streak Number */}
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-black text-brown-darkest leading-none drop-shadow-sm">
+                                {status.current_streak}
+                            </span>
+                            <span className="text-sm font-bold text-brown-mute">วัน</span>
                         </div>
                     </div>
 
+                    {/* Calendar Button */}
                     <Button
                         variant={"outline"}
                         onClick={() => setShowCalendar(true)}
@@ -177,60 +176,96 @@ export default function StreakBadge({
                     </Button>
                 </div>
 
-                {/* MIDDLE SECTION: Weekly Progress Bar */}
-                <div className="space-y-2">
-                    <div className="grid grid-cols-7">
-                        {weeklyProgress.week_days.map((day, index) => (
+                {/* Mobile-style Weekly Progress */}
+                <div className="flex w-full items-center mb-4">
+                    {weeklyProgress.week_days.map((day, index) => {
+                        const isCompleted = day.checked_in;
+                        const isToday = day.is_today;
+                        const nextDay = weeklyProgress.week_days[index + 1];
+                        const isNextCompleted = nextDay?.checked_in;
+
+                        // Logic for connection line color:
+                        // Connect if BOTH current and next are checked in.
+                        const isConnected = isCompleted && isNextCompleted;
+
+                        return (
                             <div
                                 key={index}
-                                className={`flex  items-center justify-center text-xs py-2 gap-1 ${index == 0 ? "rounded-l-lg" : ""} ${index == 6 ? "rounded-r-lg" : ""} ${day.is_today
-                                    ? day.checked_in
-                                        ? "bg-orange-dark text-white"
-                                        : "bg-tan-light border-2 border-orange-dark text-brown-darkest"
-                                    : day.checked_in
-                                        ? "bg-brown-lightest text-white"
-                                        : "bg-white/50 text-brown-medium"
-                                    }`}
+                                className="flex-1 relative flex flex-col items-center gap-1 group"
+                                onClick={(e) => {
+                                    if (isToday && !isCompleted) {
+                                        e.stopPropagation();
+                                        handleManualCheckin();
+                                    }
+                                }}
                             >
-                                <span className="font-semibold text-[15px] leading-none">
+                                {/* Connection Line (To the right, except for last item) */}
+                                {index < weeklyProgress.week_days.length - 1 && (
+                                    <div
+                                        className={`absolute top-[36px] left-[50%] w-full h-1 rounded-full -z-10
+                                            ${isConnected ? "bg-orange-dark/80" : "bg-brown-border/30"}
+                                        `}
+                                    />
+                                )}
+
+                                {/* Today Indicator */}
+                                {isToday && (
+                                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-brown-darkest text-white text-[9px] px-1.5 py-0.5 rounded-full whitespace-nowrap opacity-90 font-bold tracking-wide">
+                                        วันนี้
+                                    </div>
+                                )}
+
+                                <span className={`h-4 flex items-center text-[10px] font-bold uppercase tracking-wider ${isToday ? "text-orange-dark" : "text-brown-mute/70"}`}>
                                     {day.day_name}
                                 </span>
+
+                                <div className={`h-8 w-8 flex items-center justify-center transition-all duration-300 relative z-10 ${isToday && !isCompleted ? "cursor-pointer hover:scale-110" : ""}`}
+                                >
+                                    {isCompleted ? (
+                                        <div className="w-8 h-8 flex items-center justify-center">
+                                            <Flame className="w-full h-full text-orange-500 fill-orange-500 drop-shadow-sm animate-flame-wind" />
+                                        </div>
+                                    ) : isToday ? (
+                                        <div className="w-7 h-7 bg-tan-light border-2 border-orange-dark rounded-full shadow-md animate-pulse flex items-center justify-center">
+                                            <div className="w-2.5 h-2.5 bg-orange-dark rounded-full" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-4 h-4 bg-white/80 rounded-full border border-brown-border flex items-center justify-center">
+                                            <div className="w-1.5 h-1.5 bg-brown-border/50 rounded-full" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
 
-                {/* BOTTOM SECTION: Action and Summary */}
-                <div className="space-y-3">
-                    {/* Check-in Status and Button */}
-                    <div className="flex items-center justify-between">
-                        <p className="text-brown-medium text-sm pt-2">
-                            {status.checked_in_today
-                                ? "✓ เช็คอินแล้ววันนี้"
-                                : "ยังไม่ได้เช็คอินวันนี้"}
-                        </p>
+                {/* Bottom Section: Action and Status */}
+                <div className="flex items-center justify-between pt-2 border-t border-brown-border/20">
+                    <p className="text-brown-medium text-sm">
+                        {status.checked_in_today
+                            ? "✓ เช็คอินแล้ววันนี้"
+                            : "ยังไม่ได้เช็คอินวันนี้"}
+                    </p>
 
-                        {!status.checked_in_today && (
-                            <button
-                                onClick={handleManualCheckin}
-                                disabled={isCheckingIn}
-                                className="bg-orange-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isCheckingIn ? "กำลังเช็คอิน..." : "เช็คอิน"}
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Auto check-in indicator */}
-                    {!status.checked_in_today && onAutoCheckin && (
-                        <p className="text-brown-medium text-xs italic">
-                            หรือเล่นเกมเพื่อเช็คอินอัตโนมัติ
-                        </p>
+                    {!status.checked_in_today && (
+                        <button
+                            onClick={handleManualCheckin}
+                            disabled={isCheckingIn}
+                            className="bg-orange-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isCheckingIn ? "กำลังเช็คอิน..." : "เช็คอิน"}
+                        </button>
                     )}
                 </div>
-            </div>
 
-            {/* Mobile View (Compact Mode) */}
+                {/* Auto check-in indicator */}
+                {!status.checked_in_today && onAutoCheckin && (
+                    <p className="text-brown-medium text-xs italic text-center mt-2">
+                        หรือเล่นเกมเพื่อเช็คอินอัตโนมัติ
+                    </p>
+                )}
+            </div>
             {/* Mobile View (Compact Mode) */}
             <div
                 className="md:hidden block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-white/70 active:scale-[0.99] cursor-pointer"

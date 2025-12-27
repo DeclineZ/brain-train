@@ -1,6 +1,15 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+    return twMerge(clsx(inputs));
 }
+
+// Avatar lookup similar to onboarding
+export const getAvatarSrc = (url: string | null) => {
+    if (!url) return "/avatars/avatar1.webp";
+    if (url === "avatar-1") return "/avatars/avatar1.webp";
+    if (url === "avatar-2") return "/avatars/avatar2.webp";
+    if (url === "avatar-3") return "/avatars/avatar3.webp";
+    return url || "/avatars/avatar1.webp";
+};

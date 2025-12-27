@@ -5,6 +5,7 @@ import StreakBadge from "./DailyStreak/StreakBadge";
 import Image from "next/image";
 import type { CheckinStatus } from "@/lib/server/dailystreakAction";
 import Link from "next/link";
+import { getAvatarSrc } from "@/lib/utils";
 
 interface TopCardClientProps {
     userProfile: {
@@ -21,7 +22,7 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
 
     // Default values
     const name = userProfile?.full_name || "Guest";
-    const avatarUrl = userProfile?.avatar_url ? `/avatars/${userProfile.avatar_url}.png` : null;
+    const avatarUrl = getAvatarSrc(userProfile?.avatar_url ?? null)
 
     return (
         <>

@@ -1,13 +1,12 @@
-export type GameCategory = "การใช้เหตุผล" | "การประมวลผลข้อมูล";
+export type GameCategory = "reasoning" | "data_processing" | "matching" | "pattern_recognition" | "logic" | "calculation";
 
 export interface Game {
   id: string;
   gameId: string;        // for navigation to /play/gameId
   title: string;
   category: GameCategory;
-  image?: string;        // for AllGames tiles
-  gif?: string;          // for Main cards
-  durationMin: number;   // display "5 นาที"
+  image: string;         // cover image URL or path (NOT NULL in database)
+  durationMin: number;    // must be > 0
   locked?: boolean;
-  featured?: boolean;    // for "เกมวันนี้"
+  featured?: boolean;      // for "เกมวันนี้"
 }
