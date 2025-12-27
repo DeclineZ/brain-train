@@ -1,41 +1,22 @@
 "use client";
 
-import { Coins, ShoppingCart } from "lucide-react";
+import { Coins, Lock, Check } from "lucide-react";
 import { useState } from "react";
-import type { ShopItem } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership } from "@/lib/server/shopAction";
 
 interface ShopItemCardProps {
-  item: ShopItem;
+  item: ShopItemWithOwnership;
   userBalance: number;
-  onPurchase: (item: ShopItem) => void;
+  onPurchase: (item: ShopItemWithOwnership) => void;
   isLoading?: boolean;
 }
 
 export default function ShopItemCard({ item, userBalance, onPurchase, isLoading = false }: ShopItemCardProps) {
   const canAfford = userBalance >= item.price;
-  const isDisabled = !canAfford || isLoading;
+  const isLocked = !item.isOwned;
+  const isDisabled = !canAfford || isLoading || item.isOwned;
 
-  const categoryColors: Record<string, string> = {
-    powerup: "bg-blue-100 text-blue-800 border-blue-200",
-    theme: "bg-purple-100 text-purple-800 border-purple-200",
-    avatar: "bg-pink-100 text-pink-800 border-pink-200",
-    bonus: "bg-green-100 text-green-800 border-green-200",
-    weapon: "bg-red-100 text-red-800 border-red-200",
-    consumable: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    default: "bg-gray-100 text-gray-800 border-gray-200"
-  };
-
-  const categoryNames: Record<string, string> = {
-    powerup: "พาวเวอร์อัพ",
-    theme: "ธีม",
-    avatar: "อวาตาร์",
-    bonus: "โบนัส",
-    weapon: "อาวุธ",
-    consumable: "สิ่งของ",
-    default: "อื่นๆ"
-  };
-
-  // Get icon based on item type
+  // Get icon based on item type (fallback when no image is available)
   const getItemIcon = (type: string): string => {
     const iconMap: Record<string, string> = {
       powerup: "💡",
@@ -49,57 +30,125 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
     return iconMap[type] || iconMap.default;
   };
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-medium overflow-hidden hover:shadow-md transition-all duration-200 hover:-translate-y-1">
-      {/* Item Header */}
-      <div className="bg-gradient-to-r from-tan-light to-yellow-light p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-4xl">{getItemIcon(item.type)}</div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${categoryColors[item.type]}`}>
-            {categoryNames[item.type] || categoryNames.default}
-          </span>
-        </div>
-        
-        <h3 className="text-xl font-bold text-brown-900 mb-1">{item.name}</h3>
-        <p className="text-brown-800 text-sm leading-relaxed">{item.description}</p>
-      </div>
+  // Check if item has an image and use it, otherwise fallback to emoji
+  const itemImage = item.image;
+  const hasImage = itemImage && itemImage.trim() !== '';
 
-      {/* Price and Purchase Section */}
-      <div className="p-3 bg-white">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Coins className="w-5 h-5 text-orange-action" />
-            <span className="text-2xl font-bold text-orange-action">{item.price}</span>
-            <span className="text-brown-light text-sm">เหรียญ</span>
+  const handleCardClick = () => {
+    if (!isDisabled && isLocked) {
+      onPurchase(item);
+    }
+  };
+
+  return (
+    <div 
+      className={`
+        bg-white border border-brown-border rounded-2xl shadow-sm overflow-hidden 
+        transition-all duration-200 hover:shadow-md active:scale-98
+        ${isLocked && !isDisabled ? 'cursor-pointer' : 'cursor-default'}
+      `}
+      onClick={handleCardClick}
+    >
+      {/* Preview Area */}
+      <div className="relative h-32 bg-gradient-to-br from-tan-light to-yellow-light p-4">
+        {/* Subtle highlight gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none"></div>
+        
+        {/* Item Icon/Image */}
+        <div className="relative z-10 flex items-center justify-center h-full">
+          {hasImage ? (
+            <img 
+              src={`/${itemImage}`}
+              alt={item.name}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onError={(e) => {
+                // Fallback to emoji if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = target.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'block';
+              }}
+            />
+          ) : null}
+          <div 
+            className={`text-5xl filter drop-shadow-sm ${hasImage ? 'hidden' : 'block'}`}
+          >
+            {getItemIcon(item.type)}
           </div>
         </div>
 
-        {/* Purchase Button */}
+        {/* Lock Badge for Locked Items */}
+        {isLocked && (
+          <div className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full border border-brown-border flex items-center justify-center shadow-sm">
+            <Lock className="w-4 h-4 text-brown-800" />
+          </div>
+        )}
+      </div>
+
+      {/* Content Area */}
+      <div className="p-4 space-y-3">
+        {/* Title */}
+        <div>
+          <h3 className="font-bold text-brown-900 text-base leading-tight line-clamp-2">
+            {item.name}
+          </h3>
+          {item.description && (
+            <p className="text-brown-light text-sm leading-relaxed line-clamp-2 mt-1">
+              {item.description}
+            </p>
+          )}
+        </div>
+
+        {/* Meta Row */}
+        <div className="flex items-center justify-between">
+          {isLocked ? (
+            // Price for locked items
+            <div className="flex items-center gap-2">
+              <Coins className="w-4 h-4 text-orange-action" />
+              <span className="text-lg font-bold text-orange-action">{item.price}</span>
+            </div>
+          ) : (
+            // Ownership status for owned items
+            <div className="flex items-center gap-2 text-green-success">
+              <Check className="w-4 h-4" />
+              <span className="text-sm font-medium">เป็นเจ้าของแล้ว</span>
+            </div>
+          )}
+        </div>
+
+        {/* CTA Button */}
         <button
-          onClick={() => onPurchase(item)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDisabled && isLocked) {
+              onPurchase(item);
+            }
+          }}
           disabled={isDisabled}
           className={`
-            w-full py-2 px-4 rounded-xl font-semibold text-lg transition-all duration-200
-            flex items-center justify-center gap-2 min-h-[44px]
-            ${isDisabled
-              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-              : canAfford
-                ? "bg-orange-action hover:bg-orange-hover text-white shadow-md hover:shadow-lg active:scale-95"
-                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+            w-full py-2.5 px-4 rounded-xl font-semibold text-base transition-all duration-200
+            flex items-center justify-center gap-2 min-h-[44px] focus:outline-none 
+            focus:ring-2 focus:ring-orange-action/50 focus:ring-offset-2
+            ${isLocked && !isDisabled
+              ? "bg-orange-action hover:bg-orange-hover text-white shadow-sm hover:shadow-md active:scale-95"
+              : item.isOwned
+                ? "bg-brown-light hover:bg-brown-medium text-white border border-brown-light hover:border-brown-medium"
+                : "bg-gray-medium text-gray-text cursor-not-allowed"
             }
           `}
         >
           {isLoading ? (
             <>
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <span>กำลังดำเนินการ...</span>
+            </>
+          ) : isLocked ? (
+            <>
+              <span>{!canAfford ? "เหรียญไม่พอ" : "ซื้อเลย"}</span>
             </>
           ) : (
             <>
-              <ShoppingCart className="w-5 h-5" />
-              <span>
-                {!canAfford ? "เหรียญไม่พอ" : "ซื้อเลย"}
-              </span>
+              <span>ใช้</span>
             </>
           )}
         </button>

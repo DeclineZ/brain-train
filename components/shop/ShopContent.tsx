@@ -4,20 +4,20 @@ import BalanceDisplay from "@/components/shop/BalanceDisplay";
 import ShopItemCard from "@/components/shop/ShopItemCard";
 import PurchaseModal from "@/components/shop/PurchaseModal";
 import CategoryTabs from "@/components/shop/CategoryTabs";
-import type { ShopItem, UserBalance } from "@/lib/server/shopAction";
-import { useState} from "react";
+import type { ShopItemWithOwnership, UserBalance } from "@/lib/server/shopAction";
+import { useState } from "react";
 
 
 export default function ShopContent({ userId, initialBalance, initialItems }: {
   userId: string | null;
   initialBalance: UserBalance;
-  initialItems: ShopItem[];
+  initialItems: ShopItemWithOwnership[];
 }) {
   const [userBalance, setUserBalance] = useState<UserBalance>(initialBalance);
-  const [items, setItems] = useState<ShopItem[]>(initialItems);
-  const [filteredItems, setFilteredItems] = useState<ShopItem[]>(initialItems);
-  const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
+  const [items, setItems] = useState<ShopItemWithOwnership[]>(initialItems);
+  const [filteredItems, setFilteredItems] = useState<ShopItemWithOwnership[]>(initialItems.filter(item => item.type === "theme"));
+  const [activeCategory, setActiveCategory] = useState<string>("theme");
+  const [selectedItem, setSelectedItem] = useState<ShopItemWithOwnership | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -25,26 +25,13 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   const handleCategoryChange = async (category: string) => {
     setActiveCategory(category);
     
-    if (category === "all") {
-      setFilteredItems(items);
-    } else if (userId) {
-      try {
-        const response = await fetch(`/api/shop?userId=${userId}&category=${category}`);
-        const result = await response.json();
-        
-        if (result.items) {
-          setFilteredItems(result.items);
-        } else {
-          showToast(result.error || "เกิดข้อผิดพลาด", "error");
-        }
-      } catch (error) {
-        showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
-      }
-    }
+    // Filter locally since we already have ownership data
+    const filtered = items.filter(item => item.type === category);
+    setFilteredItems(filtered);
   };
 
   // Handle purchase
-  const handlePurchase = async (item: ShopItem) => {
+  const handlePurchase = async (item: ShopItemWithOwnership) => {
     if (!userId) return;
 
     setIsProcessing(true);
@@ -64,23 +51,28 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
       const result = await response.json();
       
       if (response.ok) {
-        // Update balance and trigger refresh
+        // Update balance
         setUserBalance(prev => ({ 
           ...prev, 
           balance: result.new_balance,
           updated_at: new Date().toISOString()
         }));
         
-        // Show success in modal
-        setIsModalOpen(false);
+        // Update item ownership status locally
+        const updatedItems = items.map(i => 
+          i.id === item.id ? { ...i, isOwned: true } : i
+        );
+        setItems(updatedItems);
+        setFilteredItems(updatedItems.filter(i => i.type === activeCategory));
+ 
         
-        // Show success toast
+        // Close modal and show success
+        setIsModalOpen(false);
         showToast(result.message || "ซื้อสำเร็จ!", "success");
         
         // Trigger balance update for other components
         window.dispatchEvent(new Event('balanceUpdate'));
       } else {
-        // Show error toast
         showToast(result.error || "เกิดข้อผิดพลาด", "error");
       }
     } catch (error) {
@@ -94,7 +86,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   const showToast = (message: string, type: "success" | "error") => {
     const toast = document.createElement('div');
     toast.className = `fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg text-white font-medium ${
-      type === 'success' ? 'bg-green-600' : 'bg-red-600'
+      type === 'success' ? 'bg-green-success' : 'bg-red-600'
     }`;
     toast.textContent = message;
     document.body.appendChild(toast);
@@ -105,7 +97,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   };
 
   // Handle purchase button click
-  const handlePurchaseClick = (item: ShopItem) => {
+  const handlePurchaseClick = (item: ShopItemWithOwnership) => {
     setSelectedItem(item);
     setIsModalOpen(true);
   };
@@ -116,7 +108,6 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
         {/* Balance Display */}
         <BalanceDisplay userId={userId} />
 
-
         {/* Category Tabs */}
         <CategoryTabs 
           activeCategory={activeCategory} 
@@ -124,8 +115,8 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
           items={items}
         />
 
-        {/* Shop Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Shop Items Grid - 2-column mobile-first layout */}
+        <div className="grid grid-cols-2 gap-3">
           {filteredItems.map((item) => (
             <ShopItemCard
               key={item.id}

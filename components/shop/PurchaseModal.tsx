@@ -2,14 +2,14 @@
 
 import { Coins, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { ShopItem, PurchaseResult } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership, PurchaseResult } from "@/lib/server/shopAction";
 
 interface PurchaseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: ShopItem | null;
+  item: ShopItemWithOwnership | null;
   userBalance: number;
-  onConfirm: (item: ShopItem) => Promise<void>;
+  onConfirm: (item: ShopItemWithOwnership) => Promise<void>;
 }
 
 export default function PurchaseModal({ 
@@ -53,9 +53,9 @@ export default function PurchaseModal({
     setError(null);
 
     try {
-      // This will be handled by the parent component
+      // This will be handled by parent component
       await onConfirm(item);
-      // If successful, the parent will call showResult
+      // If successful, parent will call showResult
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -226,7 +226,7 @@ export default function PurchaseModal({
   );
 }
 
-// Export a method to update the result from parent
+// Export a method to update result from parent
 export function createPurchaseModalRef() {
   let modalRef: ((result: PurchaseResult) => void) | null = null;
   

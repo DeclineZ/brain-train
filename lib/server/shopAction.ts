@@ -8,8 +8,14 @@ export interface ShopItem {
   description: string;
   price: number;
   type: string;
+  image?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ShopItemWithOwnership extends ShopItem {
+  isOwned: boolean;
+  quantity?: number;
 }
 
 export interface PlayerInventory {
@@ -103,6 +109,91 @@ export async function getShopItems(): Promise<Result<ShopItem[]>> {
     return { ok: true, data: itemsWithDisplay };
   } catch (error) {
     console.error('Shop items error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets shop items with ownership status for a specific user
+ */
+export async function getShopItemsWithOwnership(userId: string | null): Promise<Result<ShopItemWithOwnership[]>> {
+  try {
+    const supabase = await createClient();
+    
+    if (!userId) {
+      // If no user, return items without ownership
+      const itemsResult = await getShopItems();
+      if (!itemsResult.ok) return itemsResult;
+      
+      const itemsWithoutOwnership: ShopItemWithOwnership[] = itemsResult.data.map(item => ({
+        ...item,
+        isOwned: false
+      }));
+      
+      return { ok: true, data: itemsWithoutOwnership };
+    }
+
+    // Get all items and user's inventory in parallel
+    const [itemsResult, inventoryResult] = await Promise.all([
+      supabase.from("items").select("*").order("created_at", { ascending: false }),
+      supabase.from("player_inventory").select("item_id, quantity").eq("player_id", userId)
+    ]);
+
+    if (itemsResult.error) {
+      console.error('Shop items fetch error:', itemsResult.error);
+      return { ok: false, error: itemsResult.error.message };
+    }
+
+    if (inventoryResult.error) {
+      console.error('Inventory fetch error:', inventoryResult.error);
+      return { ok: false, error: inventoryResult.error.message };
+    }
+
+    // Create ownership map from inventory
+    const ownershipMap = new Map();
+    inventoryResult.data?.forEach(inv => {
+      ownershipMap.set(inv.item_id, { isOwned: true, quantity: inv.quantity });
+    });
+
+    // Combine items with ownership status
+    const itemsWithOwnership: ShopItemWithOwnership[] = itemsResult.data?.map(item => {
+      const ownership = ownershipMap.get(item.id);
+      return {
+        ...item,
+        icon: getItemIcon(item.type),
+        category: item.type,
+        available: true,
+        isOwned: !!ownership,
+        quantity: ownership?.quantity
+      };
+    }) || [];
+
+    return { ok: true, data: itemsWithOwnership };
+  } catch (error) {
+    console.error('Shop items with ownership error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets shop items by category with ownership status
+ */
+export async function getShopItemsByCategoryWithOwnership(category?: string, userId?: string | null): Promise<Result<ShopItemWithOwnership[]>> {
+  try {
+    const itemsResult = await getShopItemsWithOwnership(userId || null);
+    if (!itemsResult.ok) {
+      return itemsResult;
+    }
+
+    let filteredItems = itemsResult.data;
+    
+    if (category && category !== "all") {
+      filteredItems = itemsResult.data.filter(item => item.type === category);
+    }
+
+    return { ok: true, data: filteredItems };
+  } catch (error) {
+    console.error('Category items with ownership error:', error);
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
   }
 }

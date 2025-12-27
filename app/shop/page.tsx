@@ -1,8 +1,8 @@
 import BottomNav from "@/components/BottomNav";
 import ShopContent from "@/components/shop/ShopContent";
 import { createClient } from "@/utils/supabase/server";
-import { getUserBalance, getShopItemsByCategory } from "@/lib/server/shopAction";
-import type { UserBalance, ShopItem } from "@/lib/server/shopAction";
+import { getUserBalance, getShopItemsByCategoryWithOwnership } from "@/lib/server/shopAction";
+import type { UserBalance, ShopItemWithOwnership } from "@/lib/server/shopAction";
 import { Suspense } from "react";
 
 // Server Component to get initial data
@@ -17,7 +17,7 @@ async function getShopData(userId: string | null) {
   try {
     const [balanceResult, itemsResult] = await Promise.all([
       getUserBalance(userId),
-      getShopItemsByCategory("all")
+      getShopItemsByCategoryWithOwnership("all", userId)
     ]);
 
     return {
