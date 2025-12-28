@@ -713,6 +713,10 @@ export class MatchingGameScene extends Phaser.Scene {
     flipCard(card: any, toFace: boolean, playSound: boolean = true) {
         if (card.isFlipped === toFace) return;
 
+        if (playSound) {
+            this.sound.play('card-flip');
+        }
+
         const duration = 150;
 
         // Tween 1: Scale to 0 (Flip halfway)
