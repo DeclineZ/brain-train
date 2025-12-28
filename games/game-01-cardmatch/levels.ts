@@ -68,7 +68,7 @@ export const MATCHING_LEVELS: { [key: number]: MatchingLevelConfig } = {
         level: 7,
         gridCols: 4, // 4x2
         totalPairs: 4,
-        previewTimeMs: 800, // Minimal
+        previewTimeMs: 1200, // Minimal
         parTimeSeconds: 8,
         timeLimitSeconds: 8, // Extremely tight
         difficultyMultiplier: 2.0
