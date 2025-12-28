@@ -126,6 +126,17 @@ export class MatchingGameScene extends Phaser.Scene {
         });
     }
 
+    update() {
+        if (!this.customTimerBar || !this.customTimerBar.visible || this.isPaused || this.continuedAfterTimeout || this.startTime === 0) return;
+
+        const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
+        const elapsed = Date.now() - this.startTime;
+        const remainingMs = Math.max(0, limitMs - elapsed);
+        const pct = Math.max(0, (remainingMs / limitMs) * 100);
+
+        this.drawTimerBar(pct);
+    }
+
     // --- GAME FLOW ---
 
     createCards() {
@@ -351,7 +362,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 const pct = Math.max(0, (remainingMs / limitMs) * 100);
                 this.lastTimerPct = pct;
 
-                this.drawTimerBar(pct);
+                // Drawing handled in update() for smoothness
 
                 this.game.events.emit('timer-update', {
                     remaining: remainingSeconds,
@@ -393,10 +404,17 @@ export class MatchingGameScene extends Phaser.Scene {
         this.customTimerBar.strokeRoundedRect(x, y, barW, barH, 8);
 
         // Fill
+        // Fill
         const isWarning = pct < 25;
         const color = isWarning ? 0xFF4444 : 0x76D13D;
 
-        this.customTimerBar.fillStyle(color, 1);
+        let alpha = 1;
+        if (isWarning) {
+            // Flash effect: oscillate alpha between 0.3 and 1
+            alpha = 0.65 + 0.35 * Math.sin(this.time.now / 150);
+        }
+
+        this.customTimerBar.fillStyle(color, alpha);
         if (pct > 0) {
             this.customTimerBar.fillRoundedRect(x, y, barW * (pct / 100), barH, 8);
         }

@@ -137,10 +137,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl">
 
-      {/* GLOBAL WARNING FLASH OVERLAY */}
-      {timerState && timerState.isWarning && (
-        <div className="absolute inset-0 z-0 pointer-events-none bg-red-500/20 animate-pulse" />
-      )}
+
 
       {/* React UI Overlay */}
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
