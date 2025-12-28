@@ -37,7 +37,7 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
                             ยินดีต้อนรับคุณ, {name}
                         </h1>
                         <p className="text-brown-medium mt-1 text-base font-medium">
-                            เล่นเกมส์เพื่อเช็คอินรายวัน
+                            เล่นเกมเพื่อเช็คอินรายวัน
                         </p>
                     </div>
 

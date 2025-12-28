@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/BottomNav";
-import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart } from "lucide-react";
+import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart, Award } from "lucide-react";
 import Image from "next/image";
 import BadgesSection from "./BadgesSection";
 import TopBarMenu from "@/components/TopBarMenu";
@@ -264,12 +264,14 @@ export default function StatsPageClient({
                   </div>
                 </div>
 
-                {/* Top League */}
+                {/* Total Badges - Replaced League */}
                 <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
-                  <Trophy className="w-8 h-8 text-yellow-500 fill-yellow-400" />
+                  <Award className="w-8 h-8 text-[var(--color-yellow-highlight2)] fill-[var(--color-yellow-highlight)]" />
                   <div>
-                    <div className="text-xl font-bold text-brown-darkest">-</div>
-                    <div className="text-xs text-brown-light font-bold uppercase">ลีกสูงสุด</div>
+                    <div className="text-xl font-bold text-brown-darkest">
+                      {badges.filter(b => b.unlocked).length}
+                    </div>
+                    <div className="text-xs text-brown-light font-bold uppercase">เหรียญรางวัล</div>
                   </div>
                 </div>
               </div>
