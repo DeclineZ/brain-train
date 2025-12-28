@@ -168,6 +168,7 @@ export default function StreakBadge({
 
                     {/* Calendar Button */}
                     <div className="flex gap-2">
+
                         <Button
                             variant={"outline"}
                             onClick={() => setShowCalendar(true)}
