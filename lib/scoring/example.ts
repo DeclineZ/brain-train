@@ -1,12 +1,4 @@
-export type CardGameRawStats = {
-  totalPairs: number;        // e.g. 6
-  wrongFlips: number;        // Total mistakes
-  consecutiveErrors: number; // Max mistakes in a row
-  repeatedErrors: number;    // Mistakes on cards already seen
-  userTimeMs: number;        // Time taken in milliseconds
-  parTimeMs: number;         // Target time (e.g. 60000ms)
-  difficultyMultiplier: number; // e.g. 1.1
-};
+import type { CardGameRawStats } from '@/types';
 
 export function calculateClinicalStats(stats: CardGameRawStats) {
   // 1. MEMORY (ความจำ) [cite: 170]

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
-import { MEMORY_LEVELS, MemoryLevelConfig } from './levels';
+import { MEMORY_LEVELS } from './levels';
+import type { MemoryLevelConfig } from '@/types';
 
 export class MemoryGameScene extends Phaser.Scene {
   private currentLevelConfig: MemoryLevelConfig = MEMORY_LEVELS[1];

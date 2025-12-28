@@ -2,7 +2,7 @@
 
 import { Lock, Award, Zap, Calendar, Target, Trophy, Flame, ChevronDown, ChevronUp, Sprout } from "lucide-react";
 import { useState } from "react";
-import { StreakBadge } from "@/lib/server/dailystreakAction";
+import { StreakBadge } from "@/types";
 
 interface BadgesSectionProps {
     badges: StreakBadge[];

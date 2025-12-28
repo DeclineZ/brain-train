@@ -2,7 +2,7 @@
 
 import { Coins, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { ShopItemWithOwnership, PurchaseResult } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership, PurchaseResult } from "@/types";
 
 interface PurchaseModalProps {
   isOpen: boolean;

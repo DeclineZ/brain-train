@@ -2,7 +2,7 @@
 
 import { Coins } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { UserBalance } from "@/lib/server/shopAction";
+import type { UserBalance } from "@/types";
 
 interface BalanceDisplayProps {
   userId: string | null;

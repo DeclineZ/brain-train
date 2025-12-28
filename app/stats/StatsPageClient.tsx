@@ -30,14 +30,15 @@ interface StatsPageClientProps {
   balance: number;
   checkinStatus: any;
   badges: any[];
+  userId: string;
   ownedThemes: ShopItemWithOwnership[];
 }
 
-export default function StatsPageClient({
-  profile,
-  balance,
-  checkinStatus,
-  badges,
+export default function StatsPageClient({ 
+  profile, 
+  balance, 
+  checkinStatus, 
+  badges ,
   ownedThemes
 }: StatsPageClientProps) {
   const { theme, setTheme } = useTheme();
@@ -414,6 +415,7 @@ export default function StatsPageClient({
         currentAvatar={currentAvatar}
         onAvatarSelect={handleAvatarSelect}
         isLoading={isUpdatingAvatar}
+        userId={userId}
       />
     </div>
   );

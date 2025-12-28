@@ -1,4 +1,4 @@
-import type { Game } from "@/types/game";
+import type { Game } from "@/types";
 
 export async function getGames(): Promise<Game[]> {
   try {

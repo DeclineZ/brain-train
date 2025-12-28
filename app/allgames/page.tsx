@@ -5,7 +5,7 @@ import GameTile from "@/components/GameTile";
 import SearchBar from "@/components/SearchBar";
 import BottomNav from "@/components/BottomNav";
 import { Flame, Zap, Settings } from "lucide-react";
-import type { Game } from "@/types/game";
+import type { Game } from "@/types";
 
 export default function AllGamesPage() {
   const [games, setGames] = useState<Game[]>([]);

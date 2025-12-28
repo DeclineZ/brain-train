@@ -1,12 +1,4 @@
-export interface MatchingLevelConfig {
-    level: number;
-    gridCols: number;
-    totalPairs: number; // 3, 4, 5
-    previewTimeMs: number;
-    parTimeSeconds: number; // For star calculation
-    timeLimitSeconds: number; // <--- NEW: Countdown limit
-    difficultyMultiplier: number;
-}
+import type { MatchingLevelConfig } from '@/types';
 
 // Level | Pairs | Preview Time | Countdown Time  | Focus
 // 1     | 2     | Long         | Very generous   | Learning

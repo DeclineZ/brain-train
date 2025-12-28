@@ -4,8 +4,8 @@ import BalanceDisplay from "@/components/shop/BalanceDisplay";
 import ShopItemCard from "@/components/shop/ShopItemCard";
 import PurchaseModal from "@/components/shop/PurchaseModal";
 import CategoryTabs from "@/components/shop/CategoryTabs";
-import type { ShopItemWithOwnership, UserBalance } from "@/lib/server/shopAction";
-import { useState } from "react";
+import type { ShopItemWithOwnership, UserBalance } from "@/types";
+import { useState, useEffect } from "react";
 import { useTheme } from "@/app/providers/ThemeProvider";
 
 
@@ -16,11 +16,33 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
 }) {
   const [userBalance, setUserBalance] = useState<UserBalance>(initialBalance);
   const [items, setItems] = useState<ShopItemWithOwnership[]>(initialItems);
-  const [filteredItems, setFilteredItems] = useState<ShopItemWithOwnership[]>(initialItems.filter(item => item.type === "theme"));
-  const [activeCategory, setActiveCategory] = useState<string>("theme");
+  const [filteredItems, setFilteredItems] = useState<ShopItemWithOwnership[]>(initialItems.filter(item => item.type === "avatar"));
+  const [activeCategory, setActiveCategory] = useState<string>("avatar");
   const [selectedItem, setSelectedItem] = useState<ShopItemWithOwnership | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingItemId, setProcessingItemId] = useState<string | null>(null);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
+
+  // Fetch current avatar on component mount
+  useEffect(() => {
+    const fetchCurrentAvatar = async () => {
+      if (!userId) return;
+      
+      try {
+        const response = await fetch('/api/user/avatar');
+        const result = await response.json();
+        
+        if (response.ok && result.data?.avatar_url) {
+          setCurrentAvatar(result.data.avatar_url);
+        }
+      } catch (error) {
+        console.error('Failed to fetch current avatar:', error);
+      }
+    };
+
+    fetchCurrentAvatar();
+  }, [userId]);
 
   // Filter items when category changes
   const handleCategoryChange = async (category: string) => {
@@ -102,6 +124,43 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     setIsModalOpen(true);
   };
 
+  // Handle avatar usage
+  const handleUseAvatar = async (item: ShopItemWithOwnership) => {
+    if (!userId) return;
+
+    setProcessingItemId(item.id);
+    
+    try {
+      const response = await fetch('/api/user/avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          avatarUrl: item.item_key
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ!`, "success");
+        
+        // Update current avatar state
+        setCurrentAvatar(item.item_key);
+        
+        // Trigger profile update for other components
+        window.dispatchEvent(new Event('profileUpdate'));
+      } else {
+        showToast(result.error || "เกิดข้อผิดพลาดในการใช้อวาตาร์", "error");
+      }
+    } catch (error) {
+      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
+    } finally {
+      setProcessingItemId(null);
+    }
+  };
+
   const { theme, setTheme } = useTheme();
 
   const handleEquip = async (item: ShopItemWithOwnership) => {
@@ -153,8 +212,10 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
               item={item}
               userBalance={userBalance.balance}
               onPurchase={handlePurchaseClick}
+              onUseAvatar={handleUseAvatar}
               onEquip={handleEquip}
-              isLoading={isProcessing}
+              isLoading={processingItemId === item.id}
+              currentAvatar={currentAvatar}
             />
           ))}
         </div>

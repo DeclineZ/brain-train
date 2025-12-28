@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Trophy, Flame, Star } from "lucide-react";
-import type { CheckinResult } from "@/lib/server/dailystreakAction";
+import type { CheckinResult } from "@/types";
 
 interface StreakNotificationProps {
   notification: CheckinResult;

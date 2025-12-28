@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import type { Game } from "@/types/game";
+import type { Game } from "@/types";
 
 interface GameTileProps {
   game: Game;

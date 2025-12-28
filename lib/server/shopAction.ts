@@ -1,57 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
-import type { Result } from "@/types/result";
+import type { Result, UserBalance, ShopItem, ShopItemWithOwnership, PlayerInventory, PurchaseResult, TransactionHistory } from "@/types";
 
-// Type definitions for shop system
-export interface ShopItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  type: string;
-  image?: string;
-  created_at: string;
-  updated_at: string;
-  // Runtime properties
-  icon?: string;
-  category?: string;
-  available?: boolean;
-}
-
-export interface ShopItemWithOwnership extends ShopItem {
-  isOwned: boolean;
-  quantity?: number;
-}
-
-export interface PlayerInventory {
-  player_id: string;
-  item_id: string;
-  quantity: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PurchaseResult {
-  success: boolean;
-  new_balance: number;
-  item_purchased: ShopItem;
-  transaction_id: string;
-  message: string;
-}
-
-export interface TransactionHistory {
-  id: string;
-  item_name: string;
-  item_price: number;
-  balance_after: number;
-  action_key: string;
-  created_at: string;
-  metadata?: any;
-}
-
-export interface UserBalance {
-  balance: number;
-  updated_at: string;
-}
 
 /**
  * Gets the user's current coin balance
@@ -455,6 +404,81 @@ export async function getShopItemsByCategory(category?: string): Promise<Result<
     return { ok: true, data: filteredItems };
   } catch (error) {
     console.error('Category items error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Grants free avatar to user during signup or selection
+ */
+export async function grantFreeAvatar(userId: string, avatarId: string): Promise<Result<PlayerInventory>> {
+  try {
+    // First verify this is a valid avatar item
+    const itemsResult = await getShopItems();
+    if (!itemsResult.ok) {
+      return { ok: false, error: "ไม่สามารถตรวจสอบข้อมูลอวาตาร์ได้" };
+    }
+
+    const avatarItem = itemsResult.data.find(item => item.id === avatarId && item.type === 'avatar');
+    if (!avatarItem) {
+      return { ok: false, error: "อวาตาร์ไม่ถูกต้อง" };
+    }
+
+    // Only allow free avatars (price = 0) for signup
+    if (avatarItem.price !== 0) {
+      return { ok: false, error: "อวาตาร์นี้ไม่ใช่อวาตาร์ฟรีสำหรับการลงทะเบียน" };
+    }
+
+    // Add to user's inventory
+    const inventoryResult = await addItemToInventory(userId, avatarId, 1);
+    if (!inventoryResult.ok) {
+      return inventoryResult;
+    }
+
+    // Also set as user's default avatar and mark free avatar as claimed
+    const supabase = await createClient();
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .upsert({ 
+        user_id: userId,
+        avatar_url: avatarId,
+        claimed_free_avatar: true,
+        last_updated: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (profileError) {
+      console.error('Profile update error:', profileError);
+      return { ok: false, error: "ไม่สามารถตั้งค่าอวาตาร์เริ่มต้นได้" };
+    }
+
+    return inventoryResult;
+  } catch (error) {
+    console.error('Grant free avatar error:', error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+  }
+}
+
+/**
+ * Gets free avatar items available for signup
+ */
+export async function getFreeAvatars(): Promise<Result<ShopItem[]>> {
+  try {
+    const itemsResult = await getShopItems();
+    if (!itemsResult.ok) {
+      return itemsResult;
+    }
+
+    // Return only the 3 specific free avatars for onboarding
+    const freeAvatarIds = ['avatar-1', 'avatar-2', 'avatar-3'];
+    const freeAvatars = itemsResult.data.filter(item => 
+      freeAvatarIds.includes(item.item_key)
+    );
+
+    return { ok: true, data: freeAvatars };
+  } catch (error) {
+    console.error('Get free avatars error:', error);
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
   }
 }

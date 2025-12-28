@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateAvatar, getProfileSettings } from '@/lib/server/settingsAction';
+import { grantFreeAvatar, getFreeAvatars } from '@/lib/server/shopAction';
 import { createClient } from '@/utils/supabase/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Get user from session
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { ok: false, error: 'ไม่ได้เข้าสู่ระบบ' },
-        { status: 401 }
-      );
-    }
-
-    // Get current profile settings
-    const result = await getProfileSettings(user.id);
+    const result = await getFreeAvatars();
     
     if (!result.ok) {
       return NextResponse.json(
@@ -27,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ ok: true, data: result.data });
   } catch (error) {
-    console.error('Avatar fetch API error:', error);
+    console.error('Get free avatars API error:', error);
     return NextResponse.json(
       { ok: false, error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' },
       { status: 500 }
@@ -37,9 +25,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { avatarUrl } = await request.json();
+    const { avatarId } = await request.json();
     
-    if (!avatarUrl) {
+    if (!avatarId) {
       return NextResponse.json(
         { ok: false, error: 'จำเป็นต้องระบุอวาตาร์' },
         { status: 400 }
@@ -57,8 +45,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update avatar
-    const result = await updateAvatar(user.id, avatarUrl);
+    // Grant free avatar to user
+    const result = await grantFreeAvatar(user.id, avatarId);
     
     if (!result.ok) {
       return NextResponse.json(
@@ -67,9 +55,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, data: result.data });
+    return NextResponse.json({ 
+      ok: true, 
+      data: { 
+        message: 'รับอวาตาร์ฟรีสำเร็จ!',
+        avatar: result.data 
+      } 
+    });
   } catch (error) {
-    console.error('Avatar update API error:', error);
+    console.error('Grant free avatar API error:', error);
     return NextResponse.json(
       { ok: false, error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' },
       { status: 500 }
