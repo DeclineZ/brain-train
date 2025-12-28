@@ -9,7 +9,7 @@ import TopBarMenu from "@/components/TopBarMenu";
 import AvatarEditModal from "@/components/AvatarEditModal";
 import { getAvatarSrc } from "@/lib/utils";
 import { useTheme } from "@/app/providers/ThemeProvider";
-import { ShopItemWithOwnership } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership } from "@/types";
 import { Palette } from "lucide-react";
 
 interface ProfileData {
@@ -39,7 +39,9 @@ export default function StatsPageClient({
   balance, 
   checkinStatus, 
   badges ,
+  userId,
   ownedThemes
+  
 }: StatsPageClientProps) {
   const { theme, setTheme } = useTheme();
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -386,7 +388,7 @@ export default function StatsPageClient({
                             <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
                           </>
                         ) : (
-                          <div className="flex items-center justify-center h-full text-2xl">{item.icon || "🎨"}</div>
+                          <div className="flex items-center justify-center h-full text-2xl">{item.image || "🎨"}</div>
                         )}
                       </div>
                       <span className={`text-sm font-bold ${isEquipped ? 'text-brown-900' : 'text-brown-medium'}`}>
