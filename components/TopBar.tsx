@@ -8,7 +8,7 @@ import TopBarMenu from "./TopBarMenu";
 export default function TopBar() {
     const [streak, setStreak] = useState(0);
     const [coinBalance, setCoinBalance] = useState(0);
-    const [stars, setStars] = useState(12); // Mocked - could be fetched from user profile later
+    const [stars, setStars] = useState(0); // Fetched from user profile later
 
     useEffect(() => {
         const fetchUserData = async () => {

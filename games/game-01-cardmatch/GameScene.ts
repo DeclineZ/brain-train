@@ -90,7 +90,6 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         // Load Audio
-        // Load Audio
         this.load.audio('card-flip', '/assets/sounds/card-flip.mp3');
         this.load.audio('match-success', '/assets/sounds/match-success.mp3');
         this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
@@ -518,8 +517,11 @@ export class MatchingGameScene extends Phaser.Scene {
         // Logic: Only play 'card-flip' for the first card.
         // For the second card, we suppress 'card-flip' because 'match-success' or 'match-fail' 
         // will be played in checkForMatch immediately after.
-        const isFirstCard = this.openedCards.length === 0;
-        this.flipCard(card, true, isFirstCard);
+        const openedCount = this.openedCards.length;
+        const isFirstCard = openedCount === 0;
+        const shouldPlayFlipSound = isFirstCard;
+
+        this.flipCard(card, true, shouldPlayFlipSound);
 
         this.openedCards.push(card);
 
@@ -576,8 +578,8 @@ export class MatchingGameScene extends Phaser.Scene {
             this.playShakeEffect(c2);
 
             this.time.delayedCall(800, () => {
-                this.flipCard(c1, false, true);
-                this.flipCard(c2, false, true);
+                this.flipCard(c1, false, false);
+                this.flipCard(c2, false, false);
                 this.openedCards = [];
                 this.isLocked = false;
             });
@@ -657,7 +659,6 @@ export class MatchingGameScene extends Phaser.Scene {
         let icon: any;
 
         // Safety check: if image loaded, use it. Else text.
-        // Safety check: if image loaded, use it. Else text.
         if (this.textures.exists(assetName)) {
             icon = this.add.image(0, 0, assetName).setOrigin(0.5);
 
@@ -714,7 +715,7 @@ export class MatchingGameScene extends Phaser.Scene {
     flipCard(card: any, toFace: boolean, playSound: boolean = true) {
         if (card.isFlipped === toFace) return;
 
-        if (playSound) {
+        if (playSound === true) {
             this.sound.play('card-flip');
         }
 

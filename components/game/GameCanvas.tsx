@@ -8,11 +8,12 @@ export interface GameCanvasHandle {
 interface GameCanvasProps {
   gameId: string;
   level?: number;
+  stars?: Record<string, number>; // level_X_stars
   onGameOver?: (data: any) => void;
   onTimeout?: (data: any) => void;
 }
 
-const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, onGameOver, onTimeout }, ref) => {
+const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, stars = {}, onGameOver, onTimeout }, ref) => {
   const gameRef = useRef<HTMLDivElement>(null);
   const gameInstance = useRef<any>(null);
 
@@ -83,9 +84,11 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
               }
             });
 
-            // 2. Set Level in Registry (Most reliable way to pass config)
+            // 2. Set Level in Registry
             game.registry.set('level', level);
-            console.log("Game initialized with level:", level);
+            // 3. Set Stars in Registry
+            game.registry.set('stars', stars);
+            console.log("Game initialized with level:", level, "stars:", stars);
           }
         }
       } as any);
@@ -118,7 +121,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current = null;
       }
     };
-  }, [gameId, level]); // CRITICAL: Removed onGameOver/onTimeout from dependencies
+  }, [gameId, level, stars]); // CRITICAL: Removed onGameOver/onTimeout from dependencies
 
   const renderTimer = () => {
     if (typeof timerData === 'number') {
