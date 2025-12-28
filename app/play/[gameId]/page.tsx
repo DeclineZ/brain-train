@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect, useRef } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSession } from '@/hooks/useGameSession';
 import GameCanvas from '@/components/game/GameCanvas';
 import StarIcon from '@/components/game/StarIcon';
@@ -84,23 +84,29 @@ export default function GamePage({ params }: PageProps) {
     setIsTimeout(false);
   }, [activeLevel]);
 
-  const handleTimeout = (data: { level: number }) => {
-    setIsTimeout(true);
-  };
+  /* 
+   * CRITICAL: These handlers must be memoized with useCallback.
+   * If they are recreated on every render, GameCanvas useEffect will fire,
+   * destroying and recreating the Phaser game instance, causing a full reset.
+   */
 
-  const handleContinue = () => {
+  const handleTimeout = useCallback((data: { level: number }) => {
+    setIsTimeout(true);
+  }, []);
+
+  const handleContinue = useCallback(() => {
     setIsTimeout(false);
     // Resume game with penalty
     if (gameRef.current) {
       gameRef.current.resumeGame(true);
     }
-  };
+  }, []);
 
-  const handleRestartLevel = () => {
+  const handleRestartLevel = useCallback(() => {
     window.location.reload();
-  };
+  }, []);
 
-  const handleGameOver = async (rawData: any) => {
+  const handleGameOver = useCallback(async (rawData: any) => {
     // 0. Handle Failure Case (but now "Timeout" handles the soft fail)
     // If we get here with success=false, it means a HARD fail or restart
     if (rawData.success === false) {
@@ -166,7 +172,7 @@ export default function GamePage({ params }: PageProps) {
 
     // 4. Update Popup with REAL stats
     setResult((prev: any) => ({ ...prev, ...stats }));
-  };
+  }, [activeLevel, gameId, submitSession, dailyCount]);
 
   const handleNextLevel = () => {
     setResult(null); // Explicitly clear before push

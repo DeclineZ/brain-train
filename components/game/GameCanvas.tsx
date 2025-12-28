@@ -29,6 +29,18 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   const [timerData, setTimerData] = useState<any>(0); // number or { remaining, total }
   const [currentLevel, setCurrentLevel] = useState(level);
 
+  // Latest Ref Pattern to prevent game re-initialization when handlers change
+  const onGameOverRef = useRef(onGameOver);
+  const onTimeoutRef = useRef(onTimeout);
+
+  useEffect(() => {
+    onGameOverRef.current = onGameOver;
+  }, [onGameOver]);
+
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
+
   useEffect(() => {
     // Reset state on new level/game
     setCurrentLevel(level);
@@ -63,8 +75,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         },
         callbacks: {
           preBoot: (game: Game) => {
-            // 1. Pass the React Callback to the Registry
-            game.registry.set('onGameOver', onGameOver);
+            // 1. Pass a STABLE wrapper to the Registry
+            // This allows onGameOverRef to update without needing to set registry again
+            game.registry.set('onGameOver', (data: any) => {
+              if (onGameOverRef.current) {
+                onGameOverRef.current(data);
+              }
+            });
 
             // 2. Set Level in Registry (Most reliable way to pass config)
             game.registry.set('level', level);
@@ -83,7 +100,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
       // Listen for Timeout Event
       newGame.events.on('game-timeout', (data: any) => {
-        if (onTimeout) onTimeout(data);
+        if (onTimeoutRef.current) {
+          onTimeoutRef.current(data);
+        }
       });
     }
 
@@ -99,7 +118,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current = null;
       }
     };
-  }, [gameId, level, onGameOver, onTimeout]);
+  }, [gameId, level]); // CRITICAL: Removed onGameOver/onTimeout from dependencies
 
   const renderTimer = () => {
     if (typeof timerData === 'number') {

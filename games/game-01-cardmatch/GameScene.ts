@@ -326,6 +326,8 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     startTimer() {
+        if (this.continuedAfterTimeout) return; // Should not happen given logic, but safe guard
+
         this.customTimerBar.setVisible(true);
         this.drawTimerBar(100);
 
@@ -337,11 +339,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 const elapsed = Date.now() - this.startTime;
                 const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
 
-                // If we continued, we might want to handle "extra time" or "no time limit"
-                // Req: "Either grant extra time Or remove timer entirely"
-                // Let's remove timer visual logic if continued, OR just add a huge buffer.
-                // Simpler: If continued, we stop enforcing the limit event, but maybe keep tracking time?
-                // Actually, let's just STOP the timer enforcement if we continue.
+                // If we are in "continued" mode, we shouldn't be here (timerEvent should be removed), 
+                // but if we somehow are, exit.
                 if (this.continuedAfterTimeout) {
                     this.customTimerBar.setVisible(false);
                     return;
@@ -406,7 +405,7 @@ export class MatchingGameScene extends Phaser.Scene {
     handleTimeout() {
         this.isPaused = true;
         this.input.enabled = false;
-        if (this.timerEvent) this.timerEvent.paused = true; // Pause the tick
+        if (this.timerEvent) this.timerEvent.paused = true;
 
         // Signal React to show the timeout popup
         this.game.events.emit('game-timeout', {
@@ -420,28 +419,31 @@ export class MatchingGameScene extends Phaser.Scene {
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;
-        }
 
-        // Option 1: Grant extra time? 
-        // Option 2: Remove timer? Reference says "Either grant extra time Or remove timer entirely".
-        // Let's remove the timer constraint for the rest of this run.
-        if (this.customTimerBar) {
-            this.customTimerBar.setVisible(false);
-        }
+            // PENALTY & FREE PLAY MODE
+            // 1. Remove visual timer bar
+            if (this.customTimerBar) {
+                this.customTimerBar.setVisible(false);
+            }
 
-        // We do NOT resume the timerEvent loop for checking limits
-        // But we DO want to keep tracking total time for stats if we wanted.
-        // For now, just unpause logic.
+            // 2. Stop the timer event completely (No more ticks)
+            if (this.timerEvent) {
+                this.timerEvent.remove();
+            }
 
-        if (this.timerEvent) {
-            // actually, if we "remove timer entirely", we just stop the event check.
-            this.timerEvent.remove();
+            // 3. Emit a "Safe" timer update to React to clear any red flash/warnings
+            // Sending matching remaining/total implies 100% or just safe state.
+            this.game.events.emit('timer-update', {
+                remaining: this.currentLevelConfig.timeLimitSeconds,
+                total: this.currentLevelConfig.timeLimitSeconds
+            });
+        } else {
+            // If we were just paused for some reason without penalty (rare in this spec but safe to handle)
+            if (this.timerEvent) this.timerEvent.paused = false;
         }
     }
 
     failLevel() {
-        // Legacy fail helper, mostly unused now handled by timeout popup choices
-        // But if we wanted a hard fail condition (e.g. anti-cheat), keep it.
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.remove();
         if (this.customTimerBar) {
@@ -552,6 +554,12 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     calculateStars(duration: number): number {
+        // PERMANENT PENALTY: specific requirement "Always receive worse rewards"
+        // If they continued after timeout, Max Stars = 1
+        if (this.continuedAfterTimeout) {
+            return 1;
+        }
+
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
 
         if (!parExceeded && this.wrongFlips <= 1) return 3;
