@@ -58,14 +58,16 @@ export default function GamePage({ params }: PageProps) {
 
       try {
         const { data, error } = await supabase
-          .from('user_game_progress')
-          .select('current_level')
+          .from('game_sessions')
+          .select('current_played')
           .eq('user_id', user.id)
           .eq('game_id', gameId)
+          .order('current_played', { ascending: false })
+          .limit(1)
           .single();
 
-        if (data && data.current_level) {
-          setActiveLevel(data.current_level);
+        if (data && data.current_played) {
+          setActiveLevel(data.current_played + 1);
         }
       } catch (err) {
         console.warn("Could not fetch level, defaulting to 1", err);
@@ -131,19 +133,7 @@ export default function GamePage({ params }: PageProps) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // Save Progress
-        try {
-          await supabase
-            .from('user_game_progress')
-            .upsert({
-              user_id: user.id,
-              game_id: gameId,
-              current_level: nextLvl,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id, game_id' });
-        } catch (saveErr) {
-          console.warn("Could not save to user_game_progress (Table might be missing)", saveErr);
-        }
+        // No explicit save to users table needed, relying on game_sessions history now.
 
         const res = await fetch('/api/daily-streak', {
           method: 'POST',

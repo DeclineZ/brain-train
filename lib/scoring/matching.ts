@@ -11,7 +11,7 @@ export interface MatchingGameStats {
 }
 
 export interface MatchingGameStats {
-    levelPlayed: number;
+    current_played: number;
     difficultyMultiplier: number;
     totalPairs: number;
     wrongFlips: number;

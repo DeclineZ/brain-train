@@ -51,6 +51,8 @@ export const useGameSession = () => {
       // 2. The Universal Time (Keep this, it's useful for sorting)
       duration_seconds: rawData.userTimeMs ? rawData.userTimeMs / 1000 : 0,
 
+      current_played: rawData.current_played ?? rawData.levelPlayed ?? 1,
+
       raw_data: rawData
     });
 

@@ -535,7 +535,7 @@ export class MatchingGameScene extends Phaser.Scene {
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
-                levelPlayed: this.currentLevelConfig.level,
+                current_played: this.currentLevelConfig.level,
                 difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
                 totalPairs: this.totalPairs,
                 wrongFlips: this.wrongFlips,
