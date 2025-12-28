@@ -103,6 +103,7 @@ export interface CheckinCalendar {
 export interface StreakBadge {
   id: string;
   name: string;
+  metric: string;
   description: string;
   icon: string;
   threshold: number;
