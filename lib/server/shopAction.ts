@@ -409,7 +409,7 @@ export async function getShopItemsByCategory(category?: string): Promise<Result<
 }
 
 /**
- * Grants free avatar to user during signup
+ * Grants free avatar to user during signup or selection
  */
 export async function grantFreeAvatar(userId: string, avatarId: string): Promise<Result<PlayerInventory>> {
   try {
@@ -435,13 +435,14 @@ export async function grantFreeAvatar(userId: string, avatarId: string): Promise
       return inventoryResult;
     }
 
-    // Also set as user's default avatar
+    // Also set as user's default avatar and mark free avatar as claimed
     const supabase = await createClient();
     const { error: profileError } = await supabase
       .from('user_profiles')
       .upsert({ 
         user_id: userId,
         avatar_url: avatarId,
+        claimed_free_avatar: true,
         last_updated: new Date().toISOString()
       }, {
         onConflict: 'user_id'
@@ -469,8 +470,10 @@ export async function getFreeAvatars(): Promise<Result<ShopItem[]>> {
       return itemsResult;
     }
 
+    // Return only the 3 specific free avatars for onboarding
+    const freeAvatarIds = ['avatar-1', 'avatar-2', 'avatar-3'];
     const freeAvatars = itemsResult.data.filter(item => 
-      item.type === 'avatar' && item.price === 0
+      freeAvatarIds.includes(item.item_key)
     );
 
     return { ok: true, data: freeAvatars };

@@ -5,7 +5,7 @@ import ShopItemCard from "@/components/shop/ShopItemCard";
 import PurchaseModal from "@/components/shop/PurchaseModal";
 import CategoryTabs from "@/components/shop/CategoryTabs";
 import type { ShopItemWithOwnership, UserBalance } from "@/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 
 export default function ShopContent({ userId, initialBalance, initialItems }: {
@@ -20,6 +20,28 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   const [selectedItem, setSelectedItem] = useState<ShopItemWithOwnership | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingItemId, setProcessingItemId] = useState<string | null>(null);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
+
+  // Fetch current avatar on component mount
+  useEffect(() => {
+    const fetchCurrentAvatar = async () => {
+      if (!userId) return;
+      
+      try {
+        const response = await fetch('/api/user/avatar');
+        const result = await response.json();
+        
+        if (response.ok && result.data?.avatar_url) {
+          setCurrentAvatar(result.data.avatar_url);
+        }
+      } catch (error) {
+        console.error('Failed to fetch current avatar:', error);
+      }
+    };
+
+    fetchCurrentAvatar();
+  }, [userId]);
 
   // Filter items when category changes
   const handleCategoryChange = async (category: string) => {
@@ -106,7 +128,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   const handleUseAvatar = async (item: ShopItemWithOwnership) => {
     if (!userId) return;
 
-    setIsProcessing(true);
+    setProcessingItemId(item.id);
     
     try {
       const response = await fetch('/api/user/avatar', {
@@ -124,6 +146,9 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
       if (response.ok) {
         showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ!`, "success");
         
+        // Update current avatar state
+        setCurrentAvatar(item.item_key);
+        
         // Trigger profile update for other components
         window.dispatchEvent(new Event('profileUpdate'));
       } else {
@@ -132,7 +157,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     } catch (error) {
       showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
     } finally {
-      setIsProcessing(false);
+      setProcessingItemId(null);
     }
   };
 
@@ -158,7 +183,8 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
               userBalance={userBalance.balance}
               onPurchase={handlePurchaseClick}
               onUseAvatar={handleUseAvatar}
-              isLoading={isProcessing}
+              isLoading={processingItemId === item.id}
+              currentAvatar={currentAvatar}
             />
           ))}
         </div>

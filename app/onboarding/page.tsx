@@ -34,37 +34,41 @@ export default function OnboardingPage() {
     };
 
     const handleFinish = async () => {
+        if (!avatar) {
+            alert("กรุณาเลือกอวาตาร์ก่อน");
+            return;
+        }
+
         setLoading(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const response = await fetch('/api/onboarding/avatar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ avatarId: avatar }),
+            });
+            
+            const result = await response.json();
+            
+            if (!result.ok) {
+                alert(result.error || 'ไม่สามารถเลือกอวาตาร์ได้');
+                return;
+            }
 
-            if (!user) throw new Error("No user found");
-
-            // 1. Update Profile in DB
-            const { error: profileError } = await supabase
-                .from('user_profiles')
-                .update({
-                    dob: dob,
-                    gender: gender,
-                    avatar_url: avatar
-                })
-                .eq('user_id', user.id);
-
-            if (profileError) throw profileError;
-
-            // 2. Update Auth Metadata to flag onboarding as complete
+            // 1. Update Auth Metadata to flag onboarding as complete
             const { error: metaError } = await supabase.auth.updateUser({
                 data: { onboarding_complete: true }
             });
 
             if (metaError) throw metaError;
 
-            // 3. Redirect to dashboard
+            // 2. Redirect to dashboard
             router.refresh();
             router.push("/");
 
         } catch (error: any) {
-            console.error("Error updating profile object:", JSON.stringify(error, null, 2));
+            console.error("Error in onboarding avatar selection:", JSON.stringify(error, null, 2));
             console.error("Error message:", error?.message);
             console.error("Error details:", error?.details);
             alert(`เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${error?.message || "Unknown error"}`);
@@ -385,4 +389,3 @@ export default function OnboardingPage() {
         </main>
     );
 }
-
