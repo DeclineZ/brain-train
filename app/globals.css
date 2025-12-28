@@ -45,6 +45,8 @@
   --color-orange-dark-2: var(--color-orange-dark-2);
   --color-gray-light-bg: var(--color-gray-light-bg);
 
+
+  /* Game Theme */
   --color-game-bg: var(--color-game-bg);
   --color-popup-bg: var(--color-popup-bg);
   --color-brown-primary: var(--color-brown-primary);
@@ -71,6 +73,8 @@
   --color-btn-warning-bg: var(--color-btn-warning-bg);
   --color-btn-warning-hover: var(--color-btn-warning-hover);
   --color-btn-warning-border: var(--color-btn-warning-border);
+
+
   --color-overlay: var(--color-overlay);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
