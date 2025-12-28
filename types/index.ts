@@ -36,6 +36,7 @@ export interface MatchingGameStats {
   userTimeMs: number;
   parTimeMs: number;
   attempts: number;
+  continuedAfterTimeout: boolean;
 }
 
 export interface ClinicalStats {

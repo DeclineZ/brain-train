@@ -48,10 +48,10 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
   };
 
   const getDayColor = (day: any) => {
-    if (day.is_today) return "bg-orange-dark/40 text-brown-medium font-semibold";
-    if (day.checked_in) return "bg-brown-lightest text-brown-darkest";
-    if (day.is_future) return "bg-gray-100 text-gray-400";
-    return "bg-white text-brown-medium";
+    if (day.is_today) return "bg-orange-action text-white shadow-md ring-2 ring-orange-200";
+    if (day.checked_in) return "bg-green-success/20 text-green-success border border-green-success/30 font-medium";
+    if (day.is_future) return "bg-transparent text-gray-300";
+    return "bg-white/50 text-brown-medium hover:bg-tan-light/50 border border-transparent";
   };
 
   const getFirstDayOfMonth = (year: number, month: number) => {
@@ -71,20 +71,20 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
       days.push(<div key={`empty-${i}`} className="aspect-square"></div>);
     }
 
-    // Calendar days - FIXED: Changed forEach to map and properly return elements
+    // Calendar days
     const calendarDaysElements = calendar.days.map((day) => (
       <div
         key={day.date}
-        className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm cursor-pointer hover:opacity-80 transition-opacity ${getDayColor(day)}`}
+        className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm transition-all duration-200 ${getDayColor(day)}`}
       >
-        <span className="text-xs font-medium">
+        <span className={`text-xs ${day.is_today ? 'font-bold' : 'font-medium'}`}>
           {new Date(day.date).getDate()}
         </span>
         {day.checked_in && (
-          <Flame className="w-3 h-3 text-orange-500 mt-1" />
+          <Flame className="w-3.5 h-3.5 fill-current mt-0.5" />
         )}
         {day.is_today && (
-          <span className="text-xs mt-1">วันนี้</span>
+          <span className="text-[10px] leading-none mt-0.5 font-medium">วันนี้</span>
         )}
       </div>
     ));
@@ -93,61 +93,61 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-cream rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-cream rounded-3xl max-w-sm w-full max-h-[90vh] overflow-hidden shadow-2xl border-4 border-tan-light scale-100 animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-tan-light px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-brown-darkest">
+        <div className="px-6 py-5 flex items-center justify-between bg-cream pb-2">
+          <h2 className="text-2xl font-bold text-brown-900">
             ปฏิทินเช็คอิน
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
+            className="p-2 bg-tan-light hover:bg-brown-lightest text-brown-800 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-brown-medium" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Calendar Content */}
-        <div className="p-6">
+        <div className="px-6 pb-6 pt-2">
           {isLoading ? (
             <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 rounded"></div>
+              <div className="h-8 bg-gray-200 rounded-lg w-1/2 mx-auto"></div>
               <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 35 }).map((_, i) => (
-                  <div key={i} className="aspect-square bg-gray-200 rounded"></div>
+                  <div key={i} className="aspect-square bg-gray-200 rounded-xl"></div>
                 ))}
               </div>
             </div>
           ) : calendar ? (
             <div className="space-y-4">
               {/* Month Navigation */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between bg-tan-light/30 p-2 rounded-2xl">
                 <button
                   onClick={() => navigateMonth(-1)}
-                  className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
+                  className="p-2 bg-white hover:bg-white/80 text-brown-800 rounded-xl shadow-sm transition-all active:scale-95"
                 >
-                  <ChevronLeft className="w-5 h-5 text-brown-medium" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                
-                <h3 className="text-lg font-semibold text-brown-darkest">
+
+                <h3 className="text-lg font-bold text-brown-800">
                   {calendar.month_name} {calendar.year}
                 </h3>
-                
+
                 <button
                   onClick={() => navigateMonth(1)}
-                  className="p-2 hover:bg-brown-lightest rounded-lg transition-colors"
+                  className="p-2 bg-white hover:bg-white/80 text-brown-800 rounded-xl shadow-sm transition-all active:scale-95"
                 >
-                  <ChevronRight className="w-5 h-5 text-brown-medium" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-2 mb-2">
                 {getThaiDayNames().map((day) => (
                   <div
                     key={day}
-                    className="text-center text-xs font-semibold text-brown-medium py-2"
+                    className="text-center text-xs font-bold text-brown-medium/70"
                   >
                     {day}
                   </div>
@@ -159,39 +159,23 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
                 {renderCalendarDays()}
               </div>
 
-              {/* Legend */}
-              <div className="border-t pt-4 space-y-2">
-                <p className="text-sm font-semibold text-brown-darkest mb-2">
-                  คำอธิบาย:
-                </p>
-                <div className="flex flex-wrap gap-4 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-orange-dark rounded"></div>
-                    <span className="text-brown-medium">วันนี้</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-brown-lightest rounded"></div>
-                    <span className="text-brown-medium">เช็คอินแล้ว</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-orange-500" />
-                    <span className="text-brown-medium">มีสตรีก</span>
-                  </div>
+              {/* Legend - Simplified and Clean */}
+              <div className="pt-4 flex justify-center gap-4 text-xs font-medium border-t border-tan-light/50">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-orange-action ring-1 ring-orange-200"></div>
+                  <span className="text-brown-800">วันนี้</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-green-success/20 border border-green-success/50"></div>
+                  <span className="text-brown-800">เช็คอินแล้ว</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <p className="text-brown-medium">ไม่สามารถโหลดข้อมูลปฏิทิน</p>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-tan-light px-6 py-3 border-t">
-          <p className="text-xs text-brown-medium text-center">
-            🔥 เช็คอินติดต่อกันเพื่อรักษาสตรีกของคุณ!
-          </p>
         </div>
       </div>
     </div>

@@ -28,11 +28,11 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   useEffect(() => {
     const fetchCurrentAvatar = async () => {
       if (!userId) return;
-      
+
       try {
         const response = await fetch('/api/user/avatar');
         const result = await response.json();
-        
+
         if (response.ok && result.data?.avatar_url) {
           setCurrentAvatar(result.data.avatar_url);
         }
@@ -129,7 +129,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     if (!userId) return;
 
     setProcessingItemId(item.id);
-    
+
     try {
       const response = await fetch('/api/user/avatar', {
         method: 'POST',
@@ -140,15 +140,15 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
           avatarUrl: item.item_key
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok) {
         showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ!`, "success");
-        
+
         // Update current avatar state
         setCurrentAvatar(item.item_key);
-        
+
         // Trigger profile update for other components
         window.dispatchEvent(new Event('profileUpdate'));
       } else {
@@ -216,6 +216,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
               onEquip={handleEquip}
               isLoading={processingItemId === item.id}
               currentAvatar={currentAvatar}
+              currentTheme={theme}
             />
           ))}
         </div>
