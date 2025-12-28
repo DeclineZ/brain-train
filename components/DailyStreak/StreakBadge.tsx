@@ -169,52 +169,6 @@ export default function StreakBadge({
                     {/* Calendar Button */}
                     <div className="flex gap-2">
                         <Button
-                            variant="ghost"
-                            size="sm"
-                            className="bg-red-100 text-red-500 hover:bg-red-200 text-xs px-2"
-                            onClick={() => {
-                                setNotification({
-                                    success: true,
-                                    streak_count: 3,
-                                    new_badges: [{
-                                        id: 'three_day_streak',
-                                        name: 'เครื่องร้อน',
-                                        description: 'เช็คอินติดต่อกัน 3 วัน',
-                                        icon: '🔥',
-                                        threshold: 3,
-                                        metric: 'STREAK',
-                                        unlocked: true
-                                    }],
-                                    message: 'ทดสอบ: เช็คอินสำเร็จ! สตรีกปัจจุบัน 3 วัน 🔥'
-                                });
-                            }}
-                        >
-                            Test 3d
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="bg-green-100 text-green-600 hover:bg-green-200 text-xs px-2"
-                            onClick={() => {
-                                setNotification({
-                                    success: true, // Should logic be modified for strictness? Mock payload assumes valid
-                                    streak_count: 1,
-                                    new_badges: [{
-                                        id: 'first_checkin',
-                                        name: 'การเริ่มต้น',
-                                        description: 'เช็คอินครั้งแรก',
-                                        icon: '🌱',
-                                        threshold: 1,
-                                        metric: 'TOTAL',
-                                        unlocked: true
-                                    }],
-                                    message: 'ทดสอบ: เริ่มต้นได้เยี่ยม!'
-                                });
-                            }}
-                        >
-                            Test 1st
-                        </Button>
-                        <Button
                             variant={"outline"}
                             onClick={() => setShowCalendar(true)}
                             className="p-3 h-auto rounded-xl border-2 border-tan-light hover:bg-tan-light hover:text-brown-darkest transition-all text-brown-mute"
