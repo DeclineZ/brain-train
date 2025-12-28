@@ -40,6 +40,7 @@ export interface StreakBadge {
   description: string;
   icon: string;
   threshold: number;
+  metric: 'STREAK' | 'TOTAL';
   unlocked: boolean;
   unlocked_at?: string;
 }
@@ -57,7 +58,7 @@ export interface CheckinResult {
 export async function performDailyCheckin(userId: string): Promise<Result<CheckinResult>> {
   try {
     const supabase = await createClient();
-    
+
     // Call the existing RPC checkin_today() function
     const { data, error } = await supabase.rpc('checkin_today');
 
@@ -72,20 +73,96 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
       return { ok: false, error: "Failed to get updated status" };
     }
 
-    const status = statusResult.data;
-    
-    // Check for new badges
-    const badgesResult = await getStreakBadges(userId);
-    if (!badgesResult.ok) {
-      return { ok: false, error: "Failed to get badges" };
+    let status = statusResult.data;
+
+    // PATCH: If we just checked in successfully, ensure counts are at least 1
+    // This handles potential read-after-write consistency delays
+    if (status.total_checkins === 0) {
+      status.total_checkins = 1;
+    }
+    if (status.current_streak === 0) {
+      status.current_streak = 1;
+      status.longest_streak = Math.max(status.longest_streak, 1);
     }
 
-    const newBadges = badgesResult.data.filter((badge: StreakBadge) => badge.unlocked && !badge.unlocked_at);
-    
+    // Fetch currently owned badges from DB to avoid duplicates
+    const { data: ownedBadgesData, error: ownedBadgesError } = await supabase
+      .from('user_badges')
+      .select('badge_id')
+      .eq('user_id', userId);
+
+    if (ownedBadgesError) {
+      console.error('Failed to fetch owned badges:', ownedBadgesError);
+      // Continue anyway, unique constraint will handle duplicates
+    }
+
+    const ownedBadgeIds = new Set(ownedBadgesData?.map(b => b.badge_id) || []);
+
+    // Define badges logic locally to check for NEW unlocks
+    const allBadgesDef: StreakBadge[] = [
+      { id: 'first_checkin', threshold: 1, metric: 'TOTAL' } as any,
+      { id: 'three_day_streak', threshold: 3, metric: 'STREAK' } as any,
+      { id: 'week_streak', threshold: 7, metric: 'STREAK' } as any,
+      { id: 'month_streak', threshold: 30, metric: 'STREAK' } as any,
+      { id: 'hundred_days', threshold: 100, metric: 'STREAK' } as any,
+      { id: 'fifty_total', threshold: 50, metric: 'TOTAL' } as any,
+      { id: 'hundred_total', threshold: 100, metric: 'TOTAL' } as any
+    ];
+
+    const newUnlockedBadges: StreakBadge[] = [];
+
+    // Check which badges should be unlocked based on CURRENT status
+    const badgesToInsert: { user_id: string, badge_id: string }[] = [];
+
+    for (const badge of allBadgesDef) {
+      let isEligible = false;
+      if (badge.metric === 'TOTAL') {
+        isEligible = status.total_checkins >= badge.threshold;
+      } else if (badge.metric === 'STREAK') {
+        isEligible = status.longest_streak >= badge.threshold;
+      }
+
+      // If eligible but NOT owned, it's a new unlock
+      if (isEligible && !ownedBadgeIds.has(badge.id)) {
+        badgesToInsert.push({ user_id: userId, badge_id: badge.id });
+
+        // Re-construct full badge object for UI
+        // We need to fetch the full definition from getStreakBadges or duplicate it.
+        // Let's call getStreakBadges later or just use a helper.
+        // For now, I will use a simple mapping since I don't have the full objects here easily without duplication.
+        // Actually, let's just grab the full list first.
+      }
+    }
+
+    if (badgesToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('user_badges')
+        .insert(badgesToInsert);
+
+      if (insertError) {
+        console.error('Failed to insert new badges:', insertError);
+        // Don't fail the checkin, just log error
+      }
+    }
+
+    // Now get the final list of badges to return to UI (including the newly unlocked ones)
+    // pass providedStatus to avoid re-fetching
+    const finalBadgesResult = await getStreakBadges(userId, status);
+
+    // Filter to find the ones we just unlocked for the "Popup"
+    // The "new_badges" in the result should be the ones we just inserted.
+    // Logic: ID is in badgesToInsert.
+    const justUnlockedIds = new Set(badgesToInsert.map(b => b.badge_id));
+    const finalNewBadges = finalBadgesResult.ok
+      ? finalBadgesResult.data.filter(b => justUnlockedIds.has(b.id))
+      : [];
+
+    console.log('[Checkin] New Badges Inserted:', finalNewBadges);
+
     const result: CheckinResult = {
       success: true,
       streak_count: status.current_streak,
-      new_badges: newBadges,
+      new_badges: finalNewBadges,
       message: `เช็คอินสำเร็จ! สตรีกปัจจุบัน ${status.current_streak} วัน 🔥`
     };
 
@@ -102,7 +179,7 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
 export async function getCheckinStatus(userId: string): Promise<Result<CheckinStatus>> {
   try {
     const supabase = await createClient();
-    
+
     // Get user profile data
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
@@ -157,7 +234,7 @@ export async function getCheckinStatus(userId: string): Promise<Result<CheckinSt
         const date = new Date(sunday);
         date.setDate(sunday.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
-        
+
         weekDays.push({
           day_name: thaiDayNames[i],
           date: dateStr,
@@ -180,7 +257,7 @@ export async function getCheckinStatus(userId: string): Promise<Result<CheckinSt
       .lte('checkin_date', endDate);
 
     const checkedInDates = new Set(weekCheckins?.map(c => c.checkin_date) || []);
-    
+
     // Mark checked-in days
     weekDays.forEach(day => {
       day.checked_in = checkedInDates.has(day.date);
@@ -214,11 +291,11 @@ export async function getCheckinStatus(userId: string): Promise<Result<CheckinSt
 export async function getCheckinCalendar(userId: string, year: number, month: number): Promise<Result<CheckinCalendar>> {
   try {
     const supabase = await createClient();
-    
+
     // Get all check-ins for the specified month
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
-    
+
     const { data: checkins, error } = await supabase
       .from('checkin_days')
       .select('checkin_date')
@@ -233,7 +310,7 @@ export async function getCheckinCalendar(userId: string, year: number, month: nu
 
     const checkedInDates = new Set(checkins?.map(c => c.checkin_date) || []);
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Generate calendar days
     const daysInMonth = new Date(year, month, 0).getDate();
     const days: CalendarDay[] = [];
@@ -241,7 +318,7 @@ export async function getCheckinCalendar(userId: string, year: number, month: nu
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month - 1, day);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       days.push({
         date: dateStr,
         checked_in: checkedInDates.has(dateStr),
@@ -273,18 +350,27 @@ export async function getCheckinCalendar(userId: string, year: number, month: nu
 /**
  * Gets user's streak badges and achievements
  */
-export async function getStreakBadges(userId: string): Promise<Result<StreakBadge[]>> {
+export async function getStreakBadges(userId: string, providedStatus?: CheckinStatus): Promise<Result<StreakBadge[]>> {
   try {
-    // Get user's current streak to determine unlocked badges
-    const statusResult = await getCheckinStatus(userId);
-    if (!statusResult.ok) {
-      return { ok: false, error: "Failed to get user status" };
+    const supabase = await createClient();
+
+    // 1. Fetch unlocked badges from DB
+    const { data: unlockedBadgesData, error: dbError } = await supabase
+      .from('user_badges')
+      .select('badge_id, earned_at')
+      .eq('user_id', userId);
+
+    if (dbError) {
+      console.error('Error fetching user badges:', dbError);
+      return { ok: false, error: dbError.message };
     }
 
-    const currentStreak = statusResult.data.current_streak;
-    const totalCheckins = statusResult.data.total_checkins;
+    const unlockedBadgeMap = new Map<string, string>(); // badge_id -> earned_at
+    unlockedBadgesData?.forEach(row => {
+      unlockedBadgeMap.set(row.badge_id, row.earned_at);
+    });
 
-    // Define all possible badges
+    // 2. Define all possible badges (Static Definition)
     const allBadges: StreakBadge[] = [
       {
         id: 'first_checkin',
@@ -292,7 +378,17 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินครั้งแรก',
         icon: '🌱',
         threshold: 1,
-        unlocked: totalCheckins >= 1
+        metric: 'TOTAL',
+        unlocked: false // default, will overwrite
+      },
+      {
+        id: 'three_day_streak',
+        name: 'เครื่องร้อน',
+        description: 'เช็คอินติดต่อกัน 3 วัน',
+        icon: '🔥',
+        threshold: 3,
+        metric: 'STREAK',
+        unlocked: false
       },
       {
         id: 'week_streak',
@@ -300,7 +396,8 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินติดต่อกัน 7 วัน',
         icon: '🔥',
         threshold: 7,
-        unlocked: currentStreak >= 7
+        metric: 'STREAK',
+        unlocked: false
       },
       {
         id: 'month_streak',
@@ -308,7 +405,8 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินติดต่อกัน 30 วัน',
         icon: '💪',
         threshold: 30,
-        unlocked: currentStreak >= 30
+        metric: 'STREAK',
+        unlocked: false
       },
       {
         id: 'hundred_days',
@@ -316,7 +414,8 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินติดต่อกัน 100 วัน',
         icon: '👑',
         threshold: 100,
-        unlocked: currentStreak >= 100
+        metric: 'STREAK',
+        unlocked: false
       },
       {
         id: 'fifty_total',
@@ -324,7 +423,8 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินรวม 50 ครั้ง',
         icon: '⭐',
         threshold: 50,
-        unlocked: totalCheckins >= 50
+        metric: 'TOTAL',
+        unlocked: false
       },
       {
         id: 'hundred_total',
@@ -332,13 +432,28 @@ export async function getStreakBadges(userId: string): Promise<Result<StreakBadg
         description: 'เช็คอินรวม 100 ครั้ง',
         icon: '🏆',
         threshold: 100,
-        unlocked: totalCheckins >= 100
+        metric: 'TOTAL',
+        unlocked: false
       }
     ];
 
-    return { ok: true, data: allBadges };
+    // 3. Map DB status to Badge Objects
+    // Note: We no longer calculate based on current streak derived from 'providedStatus' 
+    // because the DB is the source of truth for "Unlocked".
+
+    const finalBadges = allBadges.map(badge => {
+      const isUnlocked = unlockedBadgeMap.has(badge.id);
+      return {
+        ...badge,
+        unlocked: isUnlocked,
+        unlocked_at: isUnlocked ? unlockedBadgeMap.get(badge.id) : undefined
+      };
+    });
+
+    return { ok: true, data: finalBadges };
   } catch (error) {
     console.error('Badges error:', error);
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
   }
 }
+

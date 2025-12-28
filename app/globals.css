@@ -118,8 +118,8 @@
   --color-brown-600: #6B4F00;
   --color-tan: #C8A27A;
   --color-orange-action: #E84C1C;
-  --color-yellow-highlight: #FFC107;
-  --color-yellow-highlight2: #d98602;
+  --color-yellow-highlight: #f09f3c;
+  --color-yellow-highlight2: #fccd34;
   --color-green-success: #2E7D32;
   --color-tan-light: #EADFD6;
   --color-orange-dark: #D75931;
@@ -270,7 +270,7 @@
   /* Darker Pastel Blue */
   --color-purple: #CE93D8;
   /* Pastel Purple */
-  --color-yellow: #FFF59D;
+  --color-yellow: #fff067;
   /* Pastel Yellow */
 
   /* UI Accents overridden to Pastels */
@@ -278,8 +278,10 @@
   /* Pink (Bottom card) */
   --color-orange-dark: #F06292;
 
-  --color-yellow-highlight: #FFF59D;
-  --color-yellow-highlight2: #FFF176;
+  --color-yellow-highlight: #ffe657;
+  /* Light Yellow (Reverted for Coins/Banner) */
+  --color-yellow-highlight2: #beb02a;
+  /* Deep Gold (Readable Text) */
 
   --color-green-success: #AED581;
   /* Light Green (2nd card) */

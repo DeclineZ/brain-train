@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Award, Zap, Calendar, Target, Trophy, Flame, ChevronDown, ChevronUp } from "lucide-react";
+import { Lock, Award, Zap, Calendar, Target, Trophy, Flame, ChevronDown, ChevronUp, Sprout } from "lucide-react";
 import { useState } from "react";
 import { StreakBadge } from "@/lib/server/dailystreakAction";
 
@@ -15,47 +15,16 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
     // but sticking to user request to add "expand" capability.
     // Let's show first 3 by default, or 6 if expanded.
 
-    // Since we might have more badges in the future, let's treat the grid dynamic.
-    // Wait, user asked: "We should also add an expand button for the achievements since they will add up when we add more overtime."
-
     const displayedBadges = isExpanded ? badges : badges.slice(0, 3);
-    const hasMore = badges.length > 3;
 
-    const getBadgeIcon = (iconChar: string, unlocked: boolean) => {
-        // Map emoji chars from backend to Lucide icons for a "custom" look
-        // Or just ignore the char and map by ID if possible.
-        // The backend `getStreakBadges` returns emojis in `icon` field.
-        // We can map loosely or just fallback to generic icons. Since I can't easily change the backend *just* to change the icon field (I could, but this is safer).
-
-        // Mapping strategy: Use the ID if possible, else random.
-        // Actually, I should probably update the backend to valid icon names or just map here. 
-        // Let's map based on the `icon` char (emoji) or `id` from the badge object passed in.
-        // Accessing `id` is better.
-
-        const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-gray-text'}`;
-
-        switch (iconChar) { // Or we can use Badge ID if we pass it down. Let's assume we use the Badge object fully.
-            // Fallback mapping if we only have the emoji string
-            case '🌱': return <Award className={className} />;
-            case '🔥': return <Flame className={className} />;
-            case '💪': return <Zap className={className} />;
-            case '👑': return <Trophy className={className} />;
-            case '⭐': return <Target className={className} />;
-            case '🏆': return <Award className={className} />;
-            default: return <Award className={className} />;
-        }
-    };
-
-    // Better mapping using IDs if available in the props.
-    // I need to check `StreakBadge` interface from the previous file view. 
-    // It has `id`, `name`, `description`, `icon`, `threshold`, `unlocked`.
-
+    // Helper function to map badge IDs to icons
     const getIconById = (id: string, unlocked: boolean) => {
         const className = `w-8 h-8 ${unlocked ? 'text-white' : 'text-gray-text'}`;
         switch (id) {
-            case 'first_checkin': return <Award className={className} />;
+            case 'first_checkin': return <Sprout className={className} />;
+            case 'three_day_streak': return <Flame className={className} />;
             case 'week_streak': return <Flame className={className} />;
-            case 'month_streak': return <Calendar className={className} />; // Month streak
+            case 'month_streak': return <Calendar className={className} />;
             case 'hundred_days': return <Trophy className={className} />;
             case 'fifty_total': return <Target className={className} />;
             case 'hundred_total': return <Zap className={className} />;
@@ -63,11 +32,15 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
         }
     }
 
+    const unlockedCount = badges.filter(b => b.unlocked).length;
+    const totalCount = badges.length;
 
     return (
         <section>
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-brown-800">เหรียญรางวัล</h2>
+                <h2 className="text-xl font-bold text-brown-800">
+                    เหรียญรางวัล <span className="text-base font-normal opacity-80">({unlockedCount}/{totalCount})</span>
+                </h2>
                 {badges.length > 3 && (
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
@@ -101,7 +74,7 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
                             {getIconById(badge.id, badge.unlocked)}
                         </div>
 
-                        <h3 className={`font-bold text-sm mb-1 line-clamp-1 ${badge.unlocked ? 'text-yellow-highlight' : 'text-brown-light'}`}>
+                        <h3 className={`font-bold text-sm mb-1 line-clamp-1 ${badge.unlocked ? 'text-yellow-highlight2' : 'text-brown-light'}`}>
                             {badge.name}
                         </h3>
                         <p className="text-xs text-brown-light/80 line-clamp-2">
@@ -114,11 +87,6 @@ export default function BadgesSection({ badges }: BadgesSectionProps) {
                                 <Lock className="w-4 h-4" />
                             </div>
                         )}
-
-                        {/* Level Indicator (Mock) */}
-                        <div className={`mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.unlocked ? 'bg-yellow/20 text-yellow-highlight' : 'bg-brown-light/10 text-brown-light'}`}>
-                            {badge.unlocked ? 'LEVEL 1' : 'LOCKED'}
-                        </div>
                     </div>
                 ))}
             </div>
