@@ -2,6 +2,7 @@ import Link from "next/link"
 import BottomNav from "@/components/BottomNav"
 import { createClient } from "@/utils/supabase/server"
 import { getCheckinStatus, getStreakBadges } from "@/lib/server/dailystreakAction"
+import { getShopItemsWithOwnership } from "@/lib/server/shopAction"
 import StatsPageClient from "./StatsPageClient"
 
 export default async function StatsPage() {
@@ -23,17 +24,21 @@ export default async function StatsPage() {
   }
 
   // Parallel data fetching
-  const [profileResult, walletResult, checkinResult, badgesResult] = await Promise.all([
+  const [profileResult, walletResult, checkinResult, badgesResult, itemsResult] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", user.id).single(),
     supabase.from("wallets").select("balance").eq("user_id", user.id).single(),
     getCheckinStatus(user.id),
-    getStreakBadges(user.id)
+    getStreakBadges(user.id),
+    getShopItemsWithOwnership(user.id)
   ])
 
   const profile = profileResult.data
   const balance = walletResult.data?.balance || 0
   const checkinStatus = checkinResult.ok ? checkinResult.data : null
   const badges = badgesResult.ok ? badgesResult.data : []
+  const ownedThemes = itemsResult.ok ? itemsResult.data.filter(item => item.type === "theme" && item.isOwned) : []
+  // Wait, array destructuring is cleaner, let's fix that below.
+
 
   return (
     <StatsPageClient
@@ -41,6 +46,7 @@ export default async function StatsPage() {
       balance={balance}
       checkinStatus={checkinStatus}
       badges={badges}
+      ownedThemes={ownedThemes}
     />
   )
 }

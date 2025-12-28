@@ -23,7 +23,7 @@ export default function BalanceDisplay({ userId, className = "" }: BalanceDispla
     try {
       const response = await fetch(`/api/shop?userId=${userId}`);
       const result = await response.json();
-      
+
       if (result.balance) {
         setBalance(result.balance);
       } else {
@@ -69,17 +69,17 @@ export default function BalanceDisplay({ userId, className = "" }: BalanceDispla
     <div className={`bg-gradient-to-r from-yellow-highlight2 to-yellow-highlight rounded-2xl p-6 shadow-lg ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-3 rounded-full">
-            <Coins className="w-8 h-8 text-white" />
+          <div className="bg-[var(--color-balance-icon-bg)] p-3 rounded-full">
+            <Coins className="w-8 h-8 text-[var(--color-balance-icon)]" />
           </div>
           <div>
-            <p className="text-white/90 text-lg font-medium">เหรียญของคุณ</p>
-            <p className="text-white text-3xl font-bold">
+            <p className="text-[var(--color-balance-label)] text-lg font-medium">เหรียญของคุณ</p>
+            <p className="text-[var(--color-balance-text)] text-3xl font-bold">
               {balance?.balance.toLocaleString('th-TH') || 0}
             </p>
           </div>
         </div>
-        
+
       </div>
     </div>
   );
