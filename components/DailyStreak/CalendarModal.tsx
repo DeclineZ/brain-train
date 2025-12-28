@@ -93,8 +93,14 @@ export default function CalendarModal({ userId, onClose }: CalendarModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-cream rounded-3xl max-w-sm w-full max-h-[90vh] overflow-hidden shadow-2xl border-4 border-tan-light scale-100 animate-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-cream rounded-3xl max-w-sm w-full max-h-[90vh] overflow-hidden shadow-2xl border-4 border-tan-light scale-100 animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between bg-cream pb-2">
           <h2 className="text-2xl font-bold text-brown-900">
