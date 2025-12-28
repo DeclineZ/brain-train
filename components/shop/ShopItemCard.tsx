@@ -11,15 +11,29 @@ interface ShopItemCardProps {
   onEquip?: (item: ShopItemWithOwnership) => void;
   isLoading?: boolean;
   currentAvatar?: string | null;
+  currentTheme?: string;
 }
 
-export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvatar, onEquip, isLoading = false, currentAvatar }: ShopItemCardProps) {
+export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvatar, onEquip, isLoading = false, currentAvatar, currentTheme }: ShopItemCardProps) {
   const canAfford = userBalance >= item.price;
   const isLocked = !item.isOwned;
   const isAvatar = item.type === 'avatar';
-  const isCurrentlyEquipped = isAvatar && currentAvatar === item.item_key;
+  const isTheme = item.type === 'theme';
+
+  // Check if item is currently equipped (Avatar or Theme)
+  const isEquippedAvatar = isAvatar && currentAvatar === item.item_key;
+
+  // NOTE: This logic mirrors ShopContent.tsx's handleEquip logic.
+  // Ideally, we should have a robust way to map item ID/Keys to theme names.
+  const themeKey = item.name.toLowerCase().includes("pastel") ? "pastel" : "default";
+  const isEquippedTheme = isTheme && currentTheme === themeKey;
+
+  const isCurrentlyEquipped = isEquippedAvatar || isEquippedTheme;
+
   const canUseAvatar = isAvatar && !isLocked && !!onUseAvatar && !isCurrentlyEquipped;
-  const isDisabled = isLoading || ((isLocked && !canAfford) || (!isLocked && !onEquip) && !canUseAvatar);
+  const canEquipTheme = isTheme && !isLocked && !!onEquip && !isCurrentlyEquipped;
+
+  const isDisabled = isLoading || ((isLocked && !canAfford) || (!isLocked && !canUseAvatar && !canEquipTheme && !isCurrentlyEquipped));
 
   // Get icon based on item type (fallback when no image is available)
   const getItemIcon = (type: string): string => {
@@ -113,7 +127,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
 
         {/* Equipped Badge for Currently Equipped Avatar */}
         {isCurrentlyEquipped && (
-          <div className="absolute top-3 right-3 w-8 h-8 bg-blue-500 rounded-full border border-blue-600 flex items-center justify-center shadow-sm">
+          <div className="absolute top-3 right-3 w-8 h-8 bg-blue-500 rounded-full border border-blue-600 flex items-center justify-center shadow-sm z-100">
             <Check className="w-4 h-4 text-white" />
           </div>
         )}
@@ -143,7 +157,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
             </div>
           ) : (
             // Ownership status for owned items
-            <div className="flex items-center gap-2 text-green-success">
+            <div className="flex items-center gap-2 text-green-success z-100">
               <Check className="w-4 h-4" />
               <span className="text-sm font-medium">เป็นเจ้าของแล้ว</span>
             </div>
@@ -160,7 +174,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
               onPurchase(item);
             } else if (canUseAvatar) {
               handleUseClick(e);
-            } else if (item.isOwned && onEquip) {
+            } else if (canEquipTheme && onEquip) {
               onEquip(item);
             }
           }}
@@ -171,7 +185,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
             focus:ring-2 focus:ring-orange-action/50 focus:ring-offset-2
             ${isLocked && !isDisabled
               ? "bg-orange-action hover:bg-orange-hover text-white shadow-sm hover:shadow-md active:scale-95"
-              : canUseAvatar
+              : (canUseAvatar || canEquipTheme)
                 ? "bg-green-success hover:bg-green-600 text-white shadow-sm hover:shadow-md active:scale-95"
                 : isCurrentlyEquipped
                   ? "bg-blue-500 text-white border border-blue-600 cursor-default"
@@ -190,7 +204,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
             <>
               <span>{!canAfford ? "เหรียญไม่พอ" : "ซื้อเลย"}</span>
             </>
-          ) : canUseAvatar ? (
+          ) : (canUseAvatar || canEquipTheme) ? (
             <>
               <span>ใช้</span>
             </>
