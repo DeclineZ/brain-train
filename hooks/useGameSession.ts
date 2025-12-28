@@ -1,15 +1,7 @@
 import { createClient } from '@/utils/supabase/client';
-import { calculateClinicalStats, CardGameRawStats } from '@/lib/scoring/example';
-import { calculateMatchingStats, MatchingGameStats } from '@/lib/scoring/matching';
-
-type ClinicalStats = {
-  stat_memory: number | null;
-  stat_speed: number | null;
-  stat_visual: number | null;
-  stat_focus: number | null;
-  stat_planning: number | null;
-  stat_emotion: number | null;
-};
+import { calculateClinicalStats } from '@/lib/scoring/example';
+import { calculateMatchingStats } from '@/lib/scoring/matching';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats } from '@/types';
 
 export const useGameSession = () => {
   const supabase = createClient();

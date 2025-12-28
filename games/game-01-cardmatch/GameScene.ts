@@ -1,6 +1,7 @@
 //latest update 1
 import * as Phaser from 'phaser';
-import { MATCHING_LEVELS, MatchingLevelConfig } from './levels';
+import { MATCHING_LEVELS } from './levels';
+import type { MatchingLevelConfig } from '@/types';
 
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;

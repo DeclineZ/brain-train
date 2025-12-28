@@ -2,19 +2,22 @@
 
 import { Coins, Lock, Check } from "lucide-react";
 import { useState } from "react";
-import type { ShopItemWithOwnership } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership } from "@/types";
 
 interface ShopItemCardProps {
   item: ShopItemWithOwnership;
   userBalance: number;
   onPurchase: (item: ShopItemWithOwnership) => void;
+  onUseAvatar?: (item: ShopItemWithOwnership) => void;
   isLoading?: boolean;
 }
 
-export default function ShopItemCard({ item, userBalance, onPurchase, isLoading = false }: ShopItemCardProps) {
+export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvatar, isLoading = false }: ShopItemCardProps) {
   const canAfford = userBalance >= item.price;
   const isLocked = !item.isOwned;
-  const isDisabled = !canAfford || isLoading || item.isOwned;
+  const isAvatar = item.type === 'avatar';
+  const canUseAvatar = isAvatar && !isLocked && !!onUseAvatar;
+  const isDisabled = !canAfford || isLoading || (item.isOwned && !canUseAvatar);
 
   // Get icon based on item type (fallback when no image is available)
   const getItemIcon = (type: string): string => {
@@ -37,6 +40,13 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
   const handleCardClick = () => {
     if (!isDisabled && isLocked) {
       onPurchase(item);
+    }
+  };
+
+  const handleUseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (canUseAvatar && onUseAvatar) {
+      onUseAvatar(item);
     }
   };
 
@@ -122,6 +132,8 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
             e.stopPropagation();
             if (!isDisabled && isLocked) {
               onPurchase(item);
+            } else if (canUseAvatar) {
+              handleUseClick(e);
             }
           }}
           disabled={isDisabled}
@@ -131,9 +143,11 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
             focus:ring-2 focus:ring-orange-action/50 focus:ring-offset-2
             ${isLocked && !isDisabled
               ? "bg-orange-action hover:bg-orange-hover text-white shadow-sm hover:shadow-md active:scale-95"
-              : item.isOwned
-                ? "bg-brown-light hover:bg-brown-medium text-white border border-brown-light hover:border-brown-medium"
-                : "bg-gray-medium text-gray-text cursor-not-allowed"
+              : canUseAvatar
+                ? "bg-green-success hover:bg-green-600 text-white shadow-sm hover:shadow-md active:scale-95"
+                : item.isOwned
+                  ? "bg-brown-light hover:bg-brown-medium text-white border border-brown-light hover:border-brown-medium"
+                  : "bg-gray-medium text-gray-text cursor-not-allowed"
             }
           `}
         >
@@ -146,9 +160,13 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
             <>
               <span>{!canAfford ? "เหรียญไม่พอ" : "ซื้อเลย"}</span>
             </>
-          ) : (
+          ) : canUseAvatar ? (
             <>
               <span>ใช้</span>
+            </>
+          ) : (
+            <>
+              <span>เป็นเจ้าของแล้ว</span>
             </>
           )}
         </button>

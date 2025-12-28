@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Flame } from "lucide-react";
-import type { CheckinCalendar } from "@/lib/server/dailystreakAction";
+import type { CheckinCalendar } from "@/types";
 
 interface CalendarModalProps {
   userId: string;

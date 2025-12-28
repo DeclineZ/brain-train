@@ -5,7 +5,7 @@ import { Flame, Calendar, CheckCircle } from "lucide-react";
 import type {
     CheckinStatus,
     CheckinResult,
-} from "@/lib/server/dailystreakAction";
+} from "@/types";
 import CalendarModal from "./CalendarModal";
 import StreakNotification from "./StreakNotification";
 import { Button } from "../ui/button";

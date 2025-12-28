@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import type { Result } from "@/types/result";
+import type { Result } from "@/types";
+
+import { getShopItemsByCategoryWithOwnership } from "./shopAction";
 
 /**
  * Updates user's avatar URL
@@ -8,10 +10,16 @@ export async function updateAvatar(userId: string, avatarUrl: string): Promise<R
   try {
     const supabase = await createClient();
     
-    // Validate avatar URL (only allow predefined avatars)
-    const allowedAvatars = ['avatar-1', 'avatar-2', 'avatar-3'];
-    if (!allowedAvatars.includes(avatarUrl)) {
-      return { ok: false, error: "อวาตาร์ไม่ถูกต้อง" };
+    // Validate avatar URL by checking if user owns this avatar
+    const avatarResult = await getShopItemsByCategoryWithOwnership("avatar", userId);
+    if (!avatarResult.ok) {
+      return { ok: false, error: "ไม่สามารถตรวจสอบข้อมูลอวาตาร์ได้" };
+    }
+
+    // Check if avatar exists and user owns it
+    const ownedAvatar = avatarResult.data.find(item => item.item_key === avatarUrl && item.isOwned);
+    if (!ownedAvatar) {
+      return { ok: false, error: "คุณไม่มีอวาตาร์นี้ในครอบครอง" };
     }
     
     const { data, error } = await supabase

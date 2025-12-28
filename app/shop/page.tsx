@@ -2,7 +2,7 @@ import BottomNav from "@/components/BottomNav";
 import ShopContent from "@/components/shop/ShopContent";
 import { createClient } from "@/utils/supabase/server";
 import { getUserBalance, getShopItemsByCategoryWithOwnership } from "@/lib/server/shopAction";
-import type { UserBalance, ShopItemWithOwnership } from "@/lib/server/shopAction";
+import type { UserBalance, ShopItemWithOwnership } from "@/types";
 import { Suspense } from "react";
 
 // Server Component to get initial data

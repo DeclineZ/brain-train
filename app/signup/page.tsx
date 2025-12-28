@@ -7,6 +7,7 @@ import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
+import AvatarSelection from "@/components/AvatarSelection";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -17,6 +18,7 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [showAvatarSelection, setShowAvatarSelection] = useState(false);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,6 +40,12 @@ export default function SignupPage() {
             if (error) throw error;
             if (!error) {
                 setSuccess(true);
+                // For OAuth users, we can show avatar selection immediately
+                // For email users, we need to wait for email verification first
+                // For now, show avatar selection for all users
+                setTimeout(() => {
+                    setShowAvatarSelection(true);
+                }, 2000);
             }
         } catch (err: any) {
             setError(err.message || "เกิดข้อผิดพลาดในการลงทะเบียน");
@@ -61,6 +69,16 @@ export default function SignupPage() {
             setError(err.message);
             setLoading(false);
         }
+    };
+
+    const handleAvatarSelected = (avatarId: string) => {
+        // Redirect to dashboard after avatar selection
+        router.push('/');
+    };
+
+    const skipAvatarSelection = () => {
+        // Redirect to dashboard without avatar selection
+        router.push('/');
     };
 
     return (
@@ -158,6 +176,12 @@ export default function SignupPage() {
                                 {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : "ลงทะเบียน"}
                             </button>
                         </form>
+                    ) : showAvatarSelection ? (
+                        <AvatarSelection
+                            onAvatarSelected={handleAvatarSelected}
+                            onSkip={skipAvatarSelection}
+                            isLoading={loading}
+                        />
                     ) : (
                         <div className="p-8 rounded-3xl bg-green-50 border border-green-200 text-center">
                             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">

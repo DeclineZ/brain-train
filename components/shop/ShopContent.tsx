@@ -4,7 +4,7 @@ import BalanceDisplay from "@/components/shop/BalanceDisplay";
 import ShopItemCard from "@/components/shop/ShopItemCard";
 import PurchaseModal from "@/components/shop/PurchaseModal";
 import CategoryTabs from "@/components/shop/CategoryTabs";
-import type { ShopItemWithOwnership, UserBalance } from "@/lib/server/shopAction";
+import type { ShopItemWithOwnership, UserBalance } from "@/types";
 import { useState } from "react";
 
 
@@ -15,8 +15,8 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
 }) {
   const [userBalance, setUserBalance] = useState<UserBalance>(initialBalance);
   const [items, setItems] = useState<ShopItemWithOwnership[]>(initialItems);
-  const [filteredItems, setFilteredItems] = useState<ShopItemWithOwnership[]>(initialItems.filter(item => item.type === "theme"));
-  const [activeCategory, setActiveCategory] = useState<string>("theme");
+  const [filteredItems, setFilteredItems] = useState<ShopItemWithOwnership[]>(initialItems.filter(item => item.type === "avatar"));
+  const [activeCategory, setActiveCategory] = useState<string>("avatar");
   const [selectedItem, setSelectedItem] = useState<ShopItemWithOwnership | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -102,6 +102,40 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     setIsModalOpen(true);
   };
 
+  // Handle avatar usage
+  const handleUseAvatar = async (item: ShopItemWithOwnership) => {
+    if (!userId) return;
+
+    setIsProcessing(true);
+    
+    try {
+      const response = await fetch('/api/user/avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          avatarUrl: item.item_key
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ!`, "success");
+        
+        // Trigger profile update for other components
+        window.dispatchEvent(new Event('profileUpdate'));
+      } else {
+        showToast(result.error || "เกิดข้อผิดพลาดในการใช้อวาตาร์", "error");
+      }
+    } catch (error) {
+      showToast("เกิดข้อผิดพลาด กรุณาลองใหม่", "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -123,6 +157,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
               item={item}
               userBalance={userBalance.balance}
               onPurchase={handlePurchaseClick}
+              onUseAvatar={handleUseAvatar}
               isLoading={isProcessing}
             />
           ))}

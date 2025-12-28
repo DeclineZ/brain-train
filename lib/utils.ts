@@ -8,8 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 // Avatar lookup similar to onboarding
 export const getAvatarSrc = (url: string | null) => {
     if (!url) return "/avatars/avatar1.webp";
-    if (url === "avatar-1") return "/avatars/avatar1.webp";
-    if (url === "avatar-2") return "/avatars/avatar2.webp";
-    if (url === "avatar-3") return "/avatars/avatar3.webp";
-    return url || "/avatars/avatar1.webp";
+    if (url === "avatar-1") return "/avatars/avatar-1.webp";
+    if (url === "avatar-2") return "/avatars/avatar-2.webp";
+    if (url === "avatar-3") return "/avatars/avatar-3.webp";
+    return url || "/avatars/avatar-1.webp";
 };

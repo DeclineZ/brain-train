@@ -1,7 +1,7 @@
 "use client";
 
 import { Palette, User } from "lucide-react";
-import type { ShopItem } from "@/lib/server/shopAction";
+import type { ShopItem } from "@/types";
 
 interface CategoryTabsProps {
   activeCategory: string;
@@ -13,14 +13,14 @@ export default function CategoryTabs({ activeCategory, onCategoryChange }: Categ
   // Fixed categories for avatar and theme only
   const categories = [
     {
-      id: "theme",
-      name: "ธีมสี",
-      icon: Palette,
-    },
-    {
       id: "avatar",
       name: "รูปโปรไฟล์",
       icon: User,
+    },
+    {
+      id: "theme",
+      name: "ธีมสี",
+      icon: Palette,
     }
   ];
 

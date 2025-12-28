@@ -1,55 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
-import type { Result } from "@/types/result";
+import type { Result, CheckinResult, StreakBadge, CheckinStatus, CheckinCalendar, CalendarDay } from "@/types";
 
-// Type definitions for our daily streak system
-export interface CheckinStatus {
-  checked_in_today: boolean;
-  current_streak: number;
-  longest_streak: number;
-  total_checkins: number;
-  last_checkin_date: string | null;
-  weekly_progress: {
-    days_checked_in: number;
-    total_days: number;
-    week_days: Array<{
-      day_name: string;
-      date: string;
-      checked_in: boolean;
-      is_today: boolean;
-    }>;
-  };
-}
-
-export interface CalendarDay {
-  date: string;
-  checked_in: boolean;
-  is_today: boolean;
-  is_future: boolean;
-}
-
-export interface CheckinCalendar {
-  year: number;
-  month: number;
-  days: CalendarDay[];
-  month_name: string;
-}
-
-export interface StreakBadge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  threshold: number;
-  unlocked: boolean;
-  unlocked_at?: string;
-}
-
-export interface CheckinResult {
-  success: boolean;
-  streak_count: number;
-  new_badges: StreakBadge[];
-  message: string;
-}
 
 /**
  * Performs daily check-in using the existing RPC function

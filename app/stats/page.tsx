@@ -41,6 +41,7 @@ export default async function StatsPage() {
       balance={balance}
       checkinStatus={checkinStatus}
       badges={badges}
+      userId={user.id}
     />
   )
 }

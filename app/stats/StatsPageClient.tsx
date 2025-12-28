@@ -26,13 +26,15 @@ interface StatsPageClientProps {
   balance: number;
   checkinStatus: any;
   badges: any[];
+  userId: string;
 }
 
 export default function StatsPageClient({ 
   profile, 
   balance, 
   checkinStatus, 
-  badges 
+  badges,
+  userId
 }: StatsPageClientProps) {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
@@ -246,6 +248,7 @@ export default function StatsPageClient({
         currentAvatar={currentAvatar}
         onAvatarSelect={handleAvatarSelect}
         isLoading={isUpdatingAvatar}
+        userId={userId}
       />
     </div>
   );

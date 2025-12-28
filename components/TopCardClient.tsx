@@ -3,7 +3,7 @@
 import { User } from "lucide-react";
 import StreakBadge from "./DailyStreak/StreakBadge";
 import Image from "next/image";
-import type { CheckinStatus } from "@/lib/server/dailystreakAction";
+import type { CheckinStatus } from "@/types";
 import Link from "next/link";
 import { getAvatarSrc } from "@/lib/utils";
 
@@ -23,7 +23,6 @@ export default function TopCardClient({ userProfile, checkinStatus, userId }: To
     // Default values
     const name = userProfile?.full_name || "Guest";
     const avatarUrl = getAvatarSrc(userProfile?.avatar_url ?? null)
-
     return (
         <>
             <div className="bg-tan-light rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden">
