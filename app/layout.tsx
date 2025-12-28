@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Sarabun, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { cookies } from "next/headers";
+import { ThemeProvider } from "@/app/providers/ThemeProvider";
 
 import TopBar from "@/components/TopBar";
 import TopBarWrapper from "@/components/TopBarWrapper";
@@ -21,11 +23,14 @@ export const metadata: Metadata = {
   description: "เกมฝึกสมองเพื่อพัฒนาทักษะการใช้เหตุผลและการประมวลผลข้อมูล",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const themeCookie = cookieStore.get("theme");
+
   return (
     <html lang="th">
       <body
@@ -34,7 +39,9 @@ export default function RootLayout({
         <TopBarWrapper>
           <TopBar />
         </TopBarWrapper>
-        {children}
+        <ThemeProvider initialTheme={(themeCookie?.value as "default" | "pastel") || "default"}>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

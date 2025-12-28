@@ -6,6 +6,7 @@ import PurchaseModal from "@/components/shop/PurchaseModal";
 import CategoryTabs from "@/components/shop/CategoryTabs";
 import type { ShopItemWithOwnership, UserBalance } from "@/lib/server/shopAction";
 import { useState } from "react";
+import { useTheme } from "@/app/providers/ThemeProvider";
 
 
 export default function ShopContent({ userId, initialBalance, initialItems }: {
@@ -24,7 +25,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   // Filter items when category changes
   const handleCategoryChange = async (category: string) => {
     setActiveCategory(category);
-    
+
     // Filter locally since we already have ownership data
     const filtered = items.filter(item => item.type === category);
     setFilteredItems(filtered);
@@ -35,7 +36,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     if (!userId) return;
 
     setIsProcessing(true);
-    
+
     try {
       const response = await fetch('/api/shop', {
         method: 'POST',
@@ -47,29 +48,29 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
           itemId: item.id
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok) {
         // Update balance
-        setUserBalance(prev => ({ 
-          ...prev, 
+        setUserBalance(prev => ({
+          ...prev,
           balance: result.new_balance,
           updated_at: new Date().toISOString()
         }));
-        
+
         // Update item ownership status locally
-        const updatedItems = items.map(i => 
+        const updatedItems = items.map(i =>
           i.id === item.id ? { ...i, isOwned: true } : i
         );
         setItems(updatedItems);
         setFilteredItems(updatedItems.filter(i => i.type === activeCategory));
- 
-        
+
+
         // Close modal and show success
         setIsModalOpen(false);
         showToast(result.message || "ซื้อสำเร็จ!", "success");
-        
+
         // Trigger balance update for other components
         window.dispatchEvent(new Event('balanceUpdate'));
       } else {
@@ -85,12 +86,11 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
   // Simple toast function
   const showToast = (message: string, type: "success" | "error") => {
     const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg text-white font-medium ${
-      type === 'success' ? 'bg-green-success' : 'bg-red-600'
-    }`;
+    toast.className = `fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg text-white font-medium ${type === 'success' ? 'bg-green-success' : 'bg-red-600'
+      }`;
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
       toast.remove();
     }, 3000);
@@ -102,6 +102,36 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
     setIsModalOpen(true);
   };
 
+  const { theme, setTheme } = useTheme();
+
+  const handleEquip = async (item: ShopItemWithOwnership) => {
+    if (item.type === "theme") {
+      setIsProcessing(true);
+      try {
+        const response = await fetch('/api/user/theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ themeId: item.id }),
+        });
+
+        if (response.ok) {
+          // Helper to map ID to visual key (simplified logic from StatsPage)
+          const visualKey = item.name.toLowerCase().includes("pastel") ? "pastel" : "default";
+          setTheme(visualKey);
+          showToast(`เปลี่ยนธีมเป็น ${item.name} แล้ว!`, "success");
+        } else {
+          showToast("ไม่สามารถเปลี่ยนธีมได้", "error");
+        }
+      } catch (error) {
+        showToast("เกิดข้อผิดพลาด", "error");
+      } finally {
+        setIsProcessing(false);
+      }
+    } else {
+      showToast("ยังไม่สามารถใช้งานไอเทมนี้ได้ในขณะนี้", "error");
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -109,8 +139,8 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
         <BalanceDisplay userId={userId} />
 
         {/* Category Tabs */}
-        <CategoryTabs 
-          activeCategory={activeCategory} 
+        <CategoryTabs
+          activeCategory={activeCategory}
           onCategoryChange={handleCategoryChange}
           items={items}
         />
@@ -123,6 +153,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
               item={item}
               userBalance={userBalance.balance}
               onPurchase={handlePurchaseClick}
+              onEquip={handleEquip}
               isLoading={isProcessing}
             />
           ))}

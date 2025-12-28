@@ -16,7 +16,7 @@ export default function TopBar() {
                 // Fetch user data via API
                 const response = await fetch('/api/user/stats');
                 const result = await response.json();
-                
+
                 if (result.streak !== undefined) setStreak(result.streak);
                 if (result.balance !== undefined) setCoinBalance(result.balance);
                 if (result.stars !== undefined) setStars(result.stars);
@@ -33,7 +33,7 @@ export default function TopBar() {
         };
 
         window.addEventListener('balanceUpdate', handleBalanceUpdate);
-        
+
         return () => {
             window.removeEventListener('balanceUpdate', handleBalanceUpdate);
         };
@@ -45,9 +45,9 @@ export default function TopBar() {
             <div className="flex-1 flex items-center">
                 <div className="hidden md:flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
-                        <Zap className="w-5 h-5 text-orange-action fill-orange-action" />
+                        <Zap className="w-5 h-5 text-[var(--icon-primary-stroke)] fill-[var(--icon-primary-fill)]" />
                     </div>
-                    <span className="font-bold text-xl tracking-tight text-white font-sans">
+                    <span className="font-bold text-xl tracking-tight text-[var(--color-topbar-text)] font-sans">
                         NameArai
                     </span>
                 </div>
@@ -57,20 +57,20 @@ export default function TopBar() {
             <div className="flex items-center gap-6">
                 {/* Streak */}
                 <div className="flex items-center gap-1.5">
-                    <Flame className="w-6 h-6 text-orange-action fill-orange-action" />
-                    <span className="font-bold text-lg text-white drop-shadow-sm">{streak}</span>
+                    <Flame className="w-6 h-6 text-[var(--icon-primary-stroke)] fill-[var(--icon-primary-fill)]" />
+                    <span className="font-bold text-lg text-[var(--color-topbar-text,#FFFFFF)] drop-shadow-sm">{streak}</span>
                 </div>
 
                 {/* Stars */}
                 <div className="flex items-center gap-1.5">
-                    <Star className="w-6 h-6 text-yellow-highlight fill-yellow-highlight" />
-                    <span className="font-bold text-lg text-white drop-shadow-sm">{stars}</span>
+                    <Star className="w-6 h-6 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
+                    <span className="font-bold text-lg text-[var(--color-topbar-text,#FFFFFF)] drop-shadow-sm">{stars}</span>
                 </div>
 
                 {/* Coins */}
                 <div className="flex items-center gap-1.5">
-                    <Coins className="w-6 h-6 text-yellow-highlight fill-yellow-highlight" />
-                    <span className="font-bold text-lg text-white drop-shadow-sm">{coinBalance}</span>
+                    <Coins className="w-6 h-6 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
+                    <span className="font-bold text-lg text-[var(--color-topbar-text,#FFFFFF)] drop-shadow-sm">{coinBalance}</span>
                 </div>
             </div>
 

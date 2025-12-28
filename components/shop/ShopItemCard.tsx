@@ -8,13 +8,14 @@ interface ShopItemCardProps {
   item: ShopItemWithOwnership;
   userBalance: number;
   onPurchase: (item: ShopItemWithOwnership) => void;
+  onEquip?: (item: ShopItemWithOwnership) => void;
   isLoading?: boolean;
 }
 
-export default function ShopItemCard({ item, userBalance, onPurchase, isLoading = false }: ShopItemCardProps) {
+export default function ShopItemCard({ item, userBalance, onPurchase, onEquip, isLoading = false }: ShopItemCardProps) {
   const canAfford = userBalance >= item.price;
   const isLocked = !item.isOwned;
-  const isDisabled = !canAfford || isLoading || item.isOwned;
+  const isDisabled = isLoading || (isLocked && !canAfford) || (!isLocked && !onEquip);
 
   // Get icon based on item type (fallback when no image is available)
   const getItemIcon = (type: string): string => {
@@ -35,13 +36,17 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
   const hasImage = itemImage && itemImage.trim() !== '';
 
   const handleCardClick = () => {
-    if (!isDisabled && isLocked) {
+    if (isDisabled) return;
+
+    if (isLocked) {
       onPurchase(item);
+    } else if (item.isOwned && onEquip) {
+      onEquip(item);
     }
   };
 
   return (
-    <div 
+    <div
       className={`
         bg-white border border-brown-border rounded-2xl shadow-sm overflow-hidden 
         transition-all duration-200 hover:shadow-md active:scale-98
@@ -53,11 +58,17 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
       <div className="relative h-32 bg-gradient-to-br from-tan-light to-yellow-light p-4">
         {/* Subtle highlight gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none"></div>
-        
+
         {/* Item Icon/Image */}
-        <div className="relative z-10 flex items-center justify-center h-full">
-          {hasImage ? (
-            <img 
+        <div className="relative z-10 flex items-center justify-center h-full w-full px-4">
+          {item.name.toLowerCase().includes("pastel") && item.type === "theme" ? (
+            <div className="w-full h-20 rounded-lg bg-[#F0F0F0] border border-gray-200 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1/3 bg-[#FFF9C4]"></div>
+              <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#AED581]"></div>
+              <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
+            </div>
+          ) : hasImage ? (
+            <img
               src={`/${itemImage}`}
               alt={item.name}
               className="max-w-full max-h-full object-contain rounded-lg"
@@ -69,12 +80,17 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
                 if (fallback) fallback.style.display = 'block';
               }}
             />
-          ) : null}
-          <div 
-            className={`text-5xl filter drop-shadow-sm ${hasImage ? 'hidden' : 'block'}`}
-          >
-            {getItemIcon(item.type)}
-          </div>
+          ) : (
+            <div className="text-5xl filter drop-shadow-sm">
+              {getItemIcon(item.type)}
+            </div>
+          )}
+          {/* Hidden Fallback for Image Error */}
+          {hasImage && (
+            <div className="hidden text-5xl filter drop-shadow-sm">
+              {getItemIcon(item.type)}
+            </div>
+          )}
         </div>
 
         {/* Lock Badge for Locked Items */}
@@ -120,8 +136,12 @@ export default function ShopItemCard({ item, userBalance, onPurchase, isLoading 
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (!isDisabled && isLocked) {
+            if (isDisabled) return;
+
+            if (isLocked) {
               onPurchase(item);
+            } else if (item.isOwned && onEquip) {
+              onEquip(item);
             }
           }}
           disabled={isDisabled}

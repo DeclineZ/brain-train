@@ -16,7 +16,7 @@ export default function ModernDashboard({ title, totalGames, completedGames, act
     return (
         <div className="relative mt-8 px-1">
             {/* Brown Backboard / Frame */}
-            <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--color-brown-800)] relative z-0 mx-auto">
+            <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0 mx-auto">
                 {/* Inner Clean Board */}
                 <div className="bg-cream rounded-[20px] p-5 relative z-10 h-full">
 
