@@ -44,7 +44,7 @@ export async function submitGameSession(
         // 2. Fetch Current User Profile Stats
         const { data: currentProfile, error: profileError } = await supabase
             .from("user_profiles")
-            .select("stat_memory, stat_speed, stat_visual, stat_focus, stat_planning, stat_emotion")
+            .select("global_memory, global_speed, global_visual, global_focus, global_planning, global_emotion")
             .eq("user_id", user.id)
             .single()
 
@@ -58,7 +58,16 @@ export async function submitGameSession(
         // Formula: Current + ((GameResult - Current) * LearningRate)
         // If Current is null, New = GameResult
         // If GameResult is null, Skip
-        const newStats: Partial<ClinicalStats> = {}
+        const newStats: any = {}
+        const statToGlobal: Record<string, string> = {
+            stat_memory: "global_memory",
+            stat_speed: "global_speed",
+            stat_visual: "global_visual",
+            stat_focus: "global_focus",
+            stat_planning: "global_planning",
+            stat_emotion: "global_emotion",
+        }
+
         const statKeys: (keyof ClinicalStats)[] = [
             "stat_memory",
             "stat_speed",
@@ -70,21 +79,24 @@ export async function submitGameSession(
 
         statKeys.forEach((key) => {
             const gameResult = clinicalStats[key]
-            const currentVal = currentProfile ? currentProfile[key] : null
+            const dbKey = statToGlobal[key]
+            // @ts-ignore
+            const currentVal = currentProfile ? currentProfile[dbKey] : null
 
             if (gameResult !== null && gameResult !== undefined) {
                 if (currentVal === null || currentVal === undefined) {
                     // First time this stat is recorded -> Set to Game Result
-                    newStats[key] = gameResult
+                    newStats[dbKey] = gameResult
                 } else {
                     // Standard update formula
                     // New = Current + ((GameResult - Current) * LearningRate)
                     const delta = gameResult - currentVal
                     const change = delta * learningRate
-                    newStats[key] = currentVal + change
+                    // Ensure we stay within 0-100 and send integers (assuming DB is integer keys)
+                    newStats[dbKey] = Math.max(0, Math.min(100, Math.round(currentVal + change)))
                 }
             }
-            // If gameResult is null, we leave newStats[key] undefined, so it won't be updated.
+            // If gameResult is null, we leave newStats[dbKey] undefined, so it won't be updated.
         })
 
         // 4. Update User Profile (if there are changes)
@@ -96,7 +108,7 @@ export async function submitGameSession(
 
             if (updateError) {
                 console.error("Error updating profile stats:", updateError)
-                return { ok: false, error: "Failed to update profile stats" }
+                return { ok: false, error: `Failed to update profile stats: ${JSON.stringify(updateError)}` }
             }
         }
 

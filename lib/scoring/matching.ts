@@ -1,17 +1,5 @@
 import type { MatchingGameStats } from '@/types';
 
-export interface MatchingGameStats {
-    current_played: number;
-    difficultyMultiplier: number;
-    totalPairs: number;
-    wrongFlips: number;
-    consecutiveErrors: number;
-    repeatedErrors: number;
-    userTimeMs: number;
-    parTimeMs: number;
-    attempts: number;
-    continuedAfterTimeout: boolean;
-}
 
 export function calculateMatchingStats(data: MatchingGameStats) {
     const {
