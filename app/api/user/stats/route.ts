@@ -1,15 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCheckinStatus } from "@/lib/server/dailystreakAction";
 import { getUserBalance } from "@/lib/server/shopAction";
+import { getGlobalStarCount } from "@/lib/db/stars";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
+
     // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Not authenticated" },
@@ -18,14 +19,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user stats in parallel
-    const [streakResult, balanceResult] = await Promise.all([
+    const [streakResult, balanceResult, stars] = await Promise.all([
       getCheckinStatus(user.id),
-      getUserBalance(user.id)
+      getUserBalance(user.id),
+      getGlobalStarCount(user.id)
     ]);
 
     let streak = 0;
     let balance = 0;
-    let stars = 12; // Mocked - could be fetched from user profile later
+    // Stars is already a number from getGlobalStarCount
 
     if (streakResult.ok) {
       streak = streakResult.data.current_streak;

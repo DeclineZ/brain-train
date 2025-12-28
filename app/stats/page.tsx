@@ -3,6 +3,7 @@ import BottomNav from "@/components/BottomNav"
 import { createClient } from "@/utils/supabase/server"
 import { getCheckinStatus, getStreakBadges } from "@/lib/server/dailystreakAction"
 import { getShopItemsWithOwnership } from "@/lib/server/shopAction"
+import { getGlobalStarCount } from "@/lib/db/stars"
 import StatsPageClient from "./StatsPageClient"
 
 export default async function StatsPage() {
@@ -24,12 +25,13 @@ export default async function StatsPage() {
   }
 
   // Parallel data fetching
-  const [profileResult, walletResult, checkinResult, badgesResult, itemsResult] = await Promise.all([
+  const [profileResult, walletResult, checkinResult, badgesResult, itemsResult, stars] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", user.id).single(),
     supabase.from("wallets").select("balance").eq("user_id", user.id).single(),
     getCheckinStatus(user.id),
     getStreakBadges(user.id),
-    getShopItemsWithOwnership(user.id)
+    getShopItemsWithOwnership(user.id),
+    getGlobalStarCount(user.id)
   ])
 
   const profile = profileResult.data
@@ -44,6 +46,7 @@ export default async function StatsPage() {
     <StatsPageClient
       profile={profile}
       balance={balance}
+      stars={stars}
       checkinStatus={checkinStatus}
       badges={badges}
       userId={user.id}

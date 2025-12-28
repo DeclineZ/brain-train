@@ -28,20 +28,22 @@ interface ProfileData {
 interface StatsPageClientProps {
   profile: ProfileData;
   balance: number;
+  stars: number;
   checkinStatus: any;
   badges: any[];
   userId: string;
   ownedThemes: ShopItemWithOwnership[];
 }
 
-export default function StatsPageClient({ 
-  profile, 
-  balance, 
-  checkinStatus, 
-  badges ,
+export default function StatsPageClient({
+  profile,
+  balance,
+  stars,
+  checkinStatus,
+  badges,
   userId,
   ownedThemes
-  
+
 }: StatsPageClientProps) {
   const { theme, setTheme } = useTheme();
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -253,7 +255,7 @@ export default function StatsPageClient({
                 <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
                   <Star className="w-8 h-8 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
                   <div>
-                    <div className="text-xl font-bold text-brown-darkest">{balance}</div>
+                    <div className="text-xl font-bold text-brown-darkest">{stars}</div>
                     <div className="text-xs text-brown-light font-bold uppercase">คะแนนสะสม</div>
                   </div>
                 </div>

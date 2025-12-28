@@ -24,6 +24,7 @@ export default function GamePage({ params }: PageProps) {
   const [dailyCount, setDailyCount] = useState(0);
   const [loadingStreak, setLoadingStreak] = useState(false);
   const [isLoadingLevel, setIsLoadingLevel] = useState(true);
+  const [gameStars, setGameStars] = useState<any>({});
 
   // Ref for imperative game control
   const gameRef = useRef<any>(null);
@@ -72,6 +73,19 @@ export default function GamePage({ params }: PageProps) {
           const nextLevel = data.current_played + 1;
           setActiveLevel(nextLevel > 7 ? 7 : nextLevel);
         }
+
+        // Also fetch stars
+        const { data: starData } = await supabase
+          .from('user_game_stars')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('game_id', gameId)
+          .single();
+
+        if (starData) {
+          setGameStars(starData);
+        }
+
       } catch (err) {
         console.warn("Could not fetch level, defaulting to 1", err);
       } finally {
@@ -175,6 +189,10 @@ export default function GamePage({ params }: PageProps) {
 
     // 4. Update Popup with REAL stats
     setResult((prev: any) => ({ ...prev, ...stats }));
+
+    // 5. Trigger TopBar Refresh
+    // This event name 'balanceUpdate' is listened to by TopBar to refetch user stats (including stars)
+    window.dispatchEvent(new Event('balanceUpdate'));
   }, [activeLevel, gameId, submitSession, dailyCount]);
 
   const handleNextLevel = () => {
@@ -218,6 +236,7 @@ export default function GamePage({ params }: PageProps) {
         onGameOver={handleGameOver}
         onTimeout={handleTimeout}
         level={activeLevel}
+        stars={gameStars}
       />
 
       {/* TIMEOUT POPUP */}

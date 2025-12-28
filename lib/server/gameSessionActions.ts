@@ -3,6 +3,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { ClinicalStats } from "@/types"
+import { upsertLevelStars } from "@/lib/db/stars"
+import { addCoins } from "@/lib/server/shopAction"
 
 export async function submitGameSession(
     gameId: string,
@@ -137,8 +139,38 @@ export async function submitGameSession(
             return { ok: false, error: "Failed to save game session" }
         }
 
+        // 6. Update Star Progression
+        let starInfo = null;
+
+        if (rawData.stars !== undefined) {
+            try {
+                const starsEarned = Number(rawData.stars);
+                if (!isNaN(starsEarned)) {
+                    starInfo = await upsertLevelStars(user.id, gameId, levelPlayed, starsEarned);
+                } else {
+                    console.warn(`[submitGameSession] Stars is NaN: ${rawData.stars}`);
+                }
+            } catch (starErr) {
+                console.error("Error updating stars:", starErr);
+            }
+        } else {
+            console.warn(`[submitGameSession] rawData.stars is undefined`);
+        }
+
+        // 7. Add Coin Reward (+20 coins)
+        // We only add coins if it's a valid session.
+        // The user specifically requested +20 coins per level play.
+        const rewardAmount = 20
+        const rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
+
+        const coinResult = await addCoins(user.id, rewardAmount, rewardReason)
+        if (!coinResult.ok) {
+            console.error("Failed to add coin reward:", coinResult.error)
+            // We don't fail the entire session if coin add fails, but we log it.
+        }
+
         revalidatePath("/stats")
-        return { ok: true, newStats, isReplay, learningRate }
+        return { ok: true, newStats, isReplay, learningRate, starInfo, newBalance: coinResult.ok ? coinResult.data.new_balance : undefined }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)
         return { ok: false, error: "Internal server error" }
