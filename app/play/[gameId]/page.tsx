@@ -4,6 +4,7 @@ import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { useGameSession } from '@/hooks/useGameSession';
 import GameCanvas from '@/components/game/GameCanvas';
 import StarIcon from '@/components/game/StarIcon';
+import ConfettiEffect from '@/components/game/ConfettiEffect';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Home } from 'lucide-react';
@@ -67,7 +68,9 @@ export default function GamePage({ params }: PageProps) {
           .single();
 
         if (data && data.current_played) {
-          setActiveLevel(data.current_played + 1);
+          // Prevent going beyond max level (7)
+          const nextLevel = data.current_played + 1;
+          setActiveLevel(nextLevel > 7 ? 7 : nextLevel);
         }
       } catch (err) {
         console.warn("Could not fetch level, defaulting to 1", err);
@@ -251,7 +254,7 @@ export default function GamePage({ params }: PageProps) {
                   onClick={handlePreviousLevel}
                   className="w-full bg-white border-4 border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 rounded-2xl py-3 font-bold text-lg shadow-sm active:translate-y-1 transition-all"
                 >
-                  ย้อนกลับด่าน {activeLevel - 1}
+                  ย้อนกลับด่านที่ {activeLevel - 1}
                 </button>
               )}
             </div>
@@ -262,8 +265,11 @@ export default function GamePage({ params }: PageProps) {
       {/* The Result Popup Overlay */}
       {result && (
         <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
+          {/* Celebration Effect */}
+          {result.success !== false && <ConfettiEffect />}
+
           {/* Main Card */}
-          <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
+          <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
             {/* ... Only keeping Success content here essentially since Failure is handled by Timeout mostly, 
                 but keeping structure for generic GameOver if needed ... */}
 

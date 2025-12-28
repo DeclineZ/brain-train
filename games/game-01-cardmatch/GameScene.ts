@@ -45,6 +45,7 @@ export class MatchingGameScene extends Phaser.Scene {
     // New status flags
     private continuedAfterTimeout = false;
     private isPaused = false;
+    private hasPlayedLowTimeWarning = false;
 
     // UI Elements
     private messageText!: any; // Phaser.GameObjects.Text
@@ -59,6 +60,10 @@ export class MatchingGameScene extends Phaser.Scene {
         const level = data.level || regLevel || 1;
         this.currentLevelConfig = MATCHING_LEVELS[level] || MATCHING_LEVELS[1];
         this.totalPairs = this.currentLevelConfig.totalPairs;
+
+        // Reset Sound Flags
+        this.hasPlayedLowTimeWarning = false;
+        this.stopWarningSound();
 
         // Reset stats
         this.matchedPairs = 0;
@@ -82,6 +87,15 @@ export class MatchingGameScene extends Phaser.Scene {
         Object.values(this.emojiToAsset).forEach(assetName => {
             this.load.image(assetName, `/assets/images/cardmatch/${assetName}.png`);
         });
+
+        // Load Audio
+        // Load Audio
+        this.load.audio('card-flip', '/assets/sounds/card-flip.mp3');
+        this.load.audio('match-success', '/assets/sounds/match-success.mp3');
+        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
+        this.load.audio('timer-warning', '/assets/sounds/timer-warning.mp3');
+        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
+        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
     }
 
     create() {
@@ -309,7 +323,7 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         this.cards.forEach(c => {
-            if (!c.isFlipped) this.flipCard(c, true);
+            if (!c.isFlipped) this.flipCard(c, true, false); // Silent flip for preview
         });
     }
 
@@ -325,7 +339,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         this.cards.forEach((card, index) => {
             this.time.delayedCall(index * 50, () => {
-                this.flipCard(card, false);
+                this.flipCard(card, false, false); // Silent flip back
             });
         });
 
@@ -368,6 +382,16 @@ export class MatchingGameScene extends Phaser.Scene {
                     remaining: remainingSeconds,
                     total: this.currentLevelConfig.timeLimitSeconds
                 });
+
+                // Low Time Warning
+                if (pct <= 25 && !this.hasPlayedLowTimeWarning && !this.continuedAfterTimeout) {
+                    this.hasPlayedLowTimeWarning = true;
+                    // Play looped warning or single warning? 
+                    // Requirement: "Play when countdown timer is close to ending"
+                    // Let's play it once or loop? Looping might be annoying if they recover.
+                    // For now, play once when crossing 25%.
+                    this.sound.play('timer-warning');
+                }
 
                 if (remainingMs <= 0) {
                     this.handleTimeout();
@@ -425,6 +449,9 @@ export class MatchingGameScene extends Phaser.Scene {
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.paused = true;
 
+        this.stopWarningSound();
+        this.sound.play('level-fail');
+
         // Signal React to show the timeout popup
         this.game.events.emit('game-timeout', {
             level: this.currentLevelConfig.level
@@ -443,6 +470,8 @@ export class MatchingGameScene extends Phaser.Scene {
             if (this.customTimerBar) {
                 this.customTimerBar.setVisible(false);
             }
+            // Stop warning sound if playing
+            this.stopWarningSound();
 
             // 2. Stop the timer event completely (No more ticks)
             if (this.timerEvent) {
@@ -474,6 +503,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 success: false,
                 level: this.currentLevelConfig.level
             });
+            this.stopWarningSound();
+            this.sound.play('level-fail');
         }
     }
 
@@ -483,7 +514,11 @@ export class MatchingGameScene extends Phaser.Scene {
         if (this.isLocked) return;
         if (card.isFlipped || card.isMatched) return;
 
-        this.flipCard(card, true);
+        // Play sound ONLY if it's the first card being opened.
+        // If it's the second card, we skip this sound and let match-success/fail take over.
+        const isSecondCard = this.openedCards.length > 0;
+        this.flipCard(card, true, !isSecondCard);
+
         this.openedCards.push(card);
 
         if (this.openedCards.length === 2) {
@@ -500,6 +535,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         if (match) {
             // MATCH
+            this.sound.play('match-success');
             this.matchedPairs++;
             this.currentStreak++;
             if (this.currentStreak > this.maxStreak) this.maxStreak = this.currentStreak;
@@ -523,6 +559,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         } else {
             // WRONG
+            this.sound.play('match-fail');
             this.wrongFlips++;
             this.currentStreak = 0;
             this.updateStreakUI(false);
@@ -534,9 +571,11 @@ export class MatchingGameScene extends Phaser.Scene {
             this.playShakeEffect(c1);
             this.playShakeEffect(c2);
 
+            this.playShakeEffect(c2);
+
             this.time.delayedCall(800, () => {
-                this.flipCard(c1, false);
-                this.flipCard(c2, false);
+                this.flipCard(c1, false, true);
+                this.flipCard(c2, false, true);
                 this.openedCards = [];
                 this.isLocked = false;
             });
@@ -568,6 +607,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 success: true,
                 continuedAfterTimeout: this.continuedAfterTimeout
             });
+            this.stopWarningSound();
+            this.sound.play('level-pass');
         }
     }
 
@@ -583,6 +624,12 @@ export class MatchingGameScene extends Phaser.Scene {
         if (!parExceeded && this.wrongFlips <= 1) return 3;
         if (!parExceeded || this.wrongFlips <= 3) return 2;
         return 1;
+    }
+
+    // --- SOUND HELPERS ---
+
+    stopWarningSound() {
+        this.sound.getAll('timer-warning').forEach(sound => sound.stop());
     }
 
     // --- VISUALS & HELPERS ---
@@ -662,10 +709,14 @@ export class MatchingGameScene extends Phaser.Scene {
         return cardObj;
     }
 
-    flipCard(card: any, toFace: boolean) {
+    flipCard(card: any, toFace: boolean, playSound: boolean = true) {
         if (card.isFlipped === toFace) return;
 
         const duration = 150;
+
+        if (toFace && playSound) {
+            this.sound.play('card-flip');
+        }
 
         // Tween 1: Scale to 0 (Flip halfway)
         this.tweens.add({
