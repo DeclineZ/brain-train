@@ -1,17 +1,29 @@
-'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import type { Game } from 'phaser';
+
+export interface GameCanvasHandle {
+  resumeGame: (penalty: boolean) => void;
+}
 
 interface GameCanvasProps {
   gameId: string;
-  level?: number; // <--- 1. We define the type here
+  level?: number;
   onGameOver?: (data: any) => void;
+  onTimeout?: (data: any) => void;
 }
 
-// <--- 2. WE DESTRUCTURE 'level' HERE so it exists in the function
-export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvasProps) {
+const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, onGameOver, onTimeout }, ref) => {
   const gameRef = useRef<HTMLDivElement>(null);
   const gameInstance = useRef<any>(null);
+
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    resumeGame: (penalty: boolean) => {
+      if (gameInstance.current) {
+        gameInstance.current.events.emit('resume-game', { penalty });
+      }
+    }
+  }));
 
   // React State for UI Overlay
   const [timerData, setTimerData] = useState<any>(0); // number or { remaining, total }
@@ -68,6 +80,11 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
       newGame.events.on('timer-update', (data: any) => {
         setTimerData(data);
       });
+
+      // Listen for Timeout Event
+      newGame.events.on('game-timeout', (data: any) => {
+        if (onTimeout) onTimeout(data);
+      });
     }
 
     // Initialize
@@ -77,11 +94,12 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
     return () => {
       if (gameInstance.current) {
         gameInstance.current.events.off('timer-update'); // Clean listener
+        gameInstance.current.events.off('game-timeout');
         gameInstance.current.destroy(true);
         gameInstance.current = null;
       }
     };
-  }, [gameId, level, onGameOver]);
+  }, [gameId, level, onGameOver, onTimeout]);
 
   const renderTimer = () => {
     if (typeof timerData === 'number') {
@@ -125,4 +143,8 @@ export default function GameCanvas({ gameId, level = 1, onGameOver }: GameCanvas
       />
     </div>
   );
-}
+});
+
+GameCanvas.displayName = 'GameCanvas';
+
+export default GameCanvas;

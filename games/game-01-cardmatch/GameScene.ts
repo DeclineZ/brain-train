@@ -42,6 +42,10 @@ export class MatchingGameScene extends Phaser.Scene {
     private repeatedErrors = 0;
     private seenCards = new Set<number>();
 
+    // New status flags
+    private continuedAfterTimeout = false;
+    private isPaused = false;
+
     // UI Elements
     private messageText!: any; // Phaser.GameObjects.Text
     private streakText!: any; // Phaser.GameObjects.Text
@@ -114,6 +118,11 @@ export class MatchingGameScene extends Phaser.Scene {
             if (this.customTimerBar.visible) {
                 this.drawTimerBar(this.lastTimerPct);
             }
+        });
+
+        // Listen for Resume Event from React
+        this.game.events.on('resume-game', (data: { penalty: boolean }) => {
+            this.resumeGame(data.penalty);
         });
     }
 
@@ -323,8 +332,21 @@ export class MatchingGameScene extends Phaser.Scene {
         this.timerEvent = this.time.addEvent({
             delay: 100,
             callback: () => {
+                if (this.isPaused) return;
+
                 const elapsed = Date.now() - this.startTime;
                 const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
+
+                // If we continued, we might want to handle "extra time" or "no time limit"
+                // Req: "Either grant extra time Or remove timer entirely"
+                // Let's remove timer visual logic if continued, OR just add a huge buffer.
+                // Simpler: If continued, we stop enforcing the limit event, but maybe keep tracking time?
+                // Actually, let's just STOP the timer enforcement if we continue.
+                if (this.continuedAfterTimeout) {
+                    this.customTimerBar.setVisible(false);
+                    return;
+                }
+
                 const remainingMs = Math.max(0, limitMs - elapsed);
                 const remainingSeconds = Math.ceil(remainingMs / 1000);
                 const pct = Math.max(0, (remainingMs / limitMs) * 100);
@@ -338,7 +360,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 });
 
                 if (remainingMs <= 0) {
-                    this.failLevel();
+                    this.handleTimeout();
                 }
             },
             loop: true
@@ -381,14 +403,50 @@ export class MatchingGameScene extends Phaser.Scene {
         }
     }
 
+    handleTimeout() {
+        this.isPaused = true;
+        this.input.enabled = false;
+        if (this.timerEvent) this.timerEvent.paused = true; // Pause the tick
+
+        // Signal React to show the timeout popup
+        this.game.events.emit('game-timeout', {
+            level: this.currentLevelConfig.level
+        });
+    }
+
+    resumeGame(applyPenalty: boolean) {
+        this.isPaused = false;
+        this.input.enabled = true;
+
+        if (applyPenalty) {
+            this.continuedAfterTimeout = true;
+        }
+
+        // Option 1: Grant extra time? 
+        // Option 2: Remove timer? Reference says "Either grant extra time Or remove timer entirely".
+        // Let's remove the timer constraint for the rest of this run.
+        if (this.customTimerBar) {
+            this.customTimerBar.setVisible(false);
+        }
+
+        // We do NOT resume the timerEvent loop for checking limits
+        // But we DO want to keep tracking total time for stats if we wanted.
+        // For now, just unpause logic.
+
+        if (this.timerEvent) {
+            // actually, if we "remove timer entirely", we just stop the event check.
+            this.timerEvent.remove();
+        }
+    }
+
     failLevel() {
+        // Legacy fail helper, mostly unused now handled by timeout popup choices
+        // But if we wanted a hard fail condition (e.g. anti-cheat), keep it.
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.remove();
         if (this.customTimerBar) {
-            this.customTimerBar.setVisible(false); // Hide the timer bar on failure
+            this.customTimerBar.setVisible(false);
         }
-
-        // Play failure sound or effect if available (optional)
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
@@ -487,7 +545,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
                 attempts: this.attempts,
                 stars: this.calculateStars(duration),
-                success: true // <--- Added success flag
+                success: true,
+                continuedAfterTimeout: this.continuedAfterTimeout
             });
         }
     }

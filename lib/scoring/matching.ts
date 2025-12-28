@@ -10,9 +10,21 @@ export interface MatchingGameStats {
     attempts: number;
 }
 
+export interface MatchingGameStats {
+    levelPlayed: number;
+    difficultyMultiplier: number;
+    totalPairs: number;
+    wrongFlips: number;
+    consecutiveErrors: number;
+    repeatedErrors: number;
+    userTimeMs: number;
+    parTimeMs: number;
+    attempts: number;
+    continuedAfterTimeout: boolean;
+}
+
 export function calculateMatchingStats(data: MatchingGameStats) {
     const {
-        levelPlayed,
         difficultyMultiplier,
         totalPairs,
         wrongFlips,
@@ -20,41 +32,42 @@ export function calculateMatchingStats(data: MatchingGameStats) {
         repeatedErrors,
         userTimeMs,
         parTimeMs,
-        attempts
+        attempts,
+        continuedAfterTimeout
     } = data;
 
     const clamp = (val: number) => Math.max(0, Math.min(100, val));
 
-    // 1. Memory (Remembering positions)
-    const rawMemory = 100 - (wrongFlips * 5) - (consecutiveErrors * 2) - (repeatedErrors * 10);
-    const stat_memory = clamp(rawMemory * difficultyMultiplier);
+    // Penalty Factor if Continued
+    // Proposing -30% raw score penalty if continued
+    const penaltyFactor = continuedAfterTimeout ? 0.7 : 1.0;
+
+    // 1. Memory
+    // Formula: (totalPairs / (totalPairs + wrongFlips)) * 100 * difficultyMultiplier
+    const rawMemory = (totalPairs / (totalPairs + wrongFlips)) * 100 * difficultyMultiplier;
+    const stat_memory = clamp(rawMemory * penaltyFactor);
 
     // 2. Speed (Reaction time relative to par)
-    // Faster than par = 100. Slower = penalize.
-    const timeRatio = Math.max(0, (parTimeMs - userTimeMs) / parTimeMs); // 0 to 1 if faster? No.
-    // Logic: If userTime < parTime -> Bonus. If userTime > parTime -> Penalty.
-    // Simple linear: 
-    let speedScore = 70; // Base
-    if (userTimeMs <= parTimeMs) {
-        speedScore += 30 * ((parTimeMs - userTimeMs) / parTimeMs);
-    } else {
-        speedScore -= 50 * ((userTimeMs - parTimeMs) / parTimeMs);
-    }
-    const stat_speed = clamp(speedScore * difficultyMultiplier);
+    // Formula: (ParTime / UserTime) * 100 * difficultyMultiplier
+    // Avoid division by zero
+    const safeUserTime = Math.max(userTimeMs, 1000);
+    const rawSpeed = (parTimeMs / safeUserTime) * 100 * difficultyMultiplier;
+    const stat_speed = clamp(rawSpeed * penaltyFactor);
 
-    // 3. Focus (Avoiding mistakes over time)
-    // Related to wrong flips but specifically accumulated error free streaks? 
-    // Let's use accuracy: pairs / attempts.
-    // Perfect = pairs/pairs = 1.0 -> 100.
-    const accuracy = totalPairs / (attempts || 1);
-    const stat_focus = clamp((accuracy * 100) * difficultyMultiplier);
+    // 3. Focus
+    // Formula: 100 - (wrongFlips * 5) - (consecutiveErrors * 2)
+    const rawFocus = 100 - (wrongFlips * 5) - (consecutiveErrors * 2);
+    const stat_focus = clamp(rawFocus * penaltyFactor);
 
-    // 4. Visual (Not heavily tested here, but ability to distinguish cards)
-    // Just map to Memory for now or slightly lower
-    const stat_visual = clamp(stat_memory * 0.9);
+    // 4. Visual
+    // Same as Speed for now, or could vary. 
+    // Spec says "Same as Speed"
+    const stat_visual = stat_speed;
 
-    // 5. Planning (Not heavily used, maybe low)
-    const stat_planning = clamp(50 * difficultyMultiplier);
+    // 5. Planning
+    // Formula: 100 - (totalRepeatedErrors * 10)
+    const rawPlanning = 100 - (repeatedErrors * 10);
+    const stat_planning = clamp(rawPlanning * penaltyFactor);
 
     return {
         stat_memory: Math.round(stat_memory),
