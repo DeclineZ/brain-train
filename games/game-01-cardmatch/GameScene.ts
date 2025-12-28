@@ -515,10 +515,11 @@ export class MatchingGameScene extends Phaser.Scene {
         if (this.isLocked) return;
         if (card.isFlipped || card.isMatched) return;
 
-        // Play sound ONLY if it's the first card being opened.
-        // If it's the second card, we skip this sound and let match-success/fail take over.
-        const isSecondCard = this.openedCards.length > 0;
-        this.flipCard(card, true, !isSecondCard);
+        // Logic: Only play 'card-flip' for the first card.
+        // For the second card, we suppress 'card-flip' because 'match-success' or 'match-fail' 
+        // will be played in checkForMatch immediately after.
+        const isFirstCard = this.openedCards.length === 0;
+        this.flipCard(card, true, isFirstCard);
 
         this.openedCards.push(card);
 
