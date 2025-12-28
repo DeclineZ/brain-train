@@ -715,10 +715,6 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const duration = 150;
 
-        if (toFace && playSound) {
-            this.sound.play('card-flip');
-        }
-
         // Tween 1: Scale to 0 (Flip halfway)
         this.tweens.add({
             targets: [card.back, card.face, card.icon],
