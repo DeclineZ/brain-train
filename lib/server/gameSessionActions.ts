@@ -61,6 +61,7 @@ export async function submitGameSession(
         // If Current is null, New = GameResult
         // If GameResult is null, Skip
         const newStats: any = {}
+        const statChanges: Record<string, number> = {}
         const statToGlobal: Record<string, string> = {
             stat_memory: "global_memory",
             stat_speed: "global_speed",
@@ -89,13 +90,17 @@ export async function submitGameSession(
                 if (currentVal === null || currentVal === undefined) {
                     // First time this stat is recorded -> Set to Game Result
                     newStats[dbKey] = gameResult
+                    // We consider this an "increase" from 0/null
+                    statChanges[key] = gameResult
                 } else {
                     // Standard update formula
                     // New = Current + ((GameResult - Current) * LearningRate)
                     const delta = gameResult - currentVal
                     const change = delta * learningRate
                     // Ensure we stay within 0-100 and send integers (assuming DB is integer keys)
-                    newStats[dbKey] = Math.max(0, Math.min(100, Math.round(currentVal + change)))
+                    const newVal = Math.max(0, Math.min(100, Math.round(currentVal + change)))
+                    newStats[dbKey] = newVal
+                    statChanges[key] = newVal - currentVal
                 }
             }
             // If gameResult is null, we leave newStats[dbKey] undefined, so it won't be updated.
@@ -170,7 +175,7 @@ export async function submitGameSession(
         }
 
         revalidatePath("/stats")
-        return { ok: true, newStats, isReplay, learningRate, starInfo, newBalance: coinResult.ok ? coinResult.data.new_balance : undefined }
+        return { ok: true, newStats, statChanges, isReplay, learningRate, starInfo, newBalance: coinResult.ok ? coinResult.data.new_balance : undefined }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)
         return { ok: false, error: "Internal server error" }
