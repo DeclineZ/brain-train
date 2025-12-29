@@ -11,9 +11,9 @@ import LogoHeader from "@/components/LogoHeader";
 
 // Placeholder Avatar Options (In real app, these would be image URLs)
 const AVATAR_OPTIONS = [
-    { id: 'avatar-1', src: '/avatars/avatar1.webp', label: 'หมาป่า ยอดนักไหวพริบ' },
-    { id: 'avatar-2', src: '/avatars/avatar2.webp', label: 'ปลาหมึก จอมวางแผน' },
-    { id: 'avatar-3', src: '/avatars/avatar3.webp', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
+    { id: 'avatar-1', src: '/avatars/avatar-1.webp', label: 'หมาป่า ยอดนักไหวพริบ' },
+    { id: 'avatar-2', src: '/avatars/avatar-2.webp', label: 'ปลาหมึก จอมวางแผน' },
+    { id: 'avatar-3', src: '/avatars/avatar-3.webp', label: 'ช้าง ผู้เฝ้ารักษาความจำ' },
 ];
 
 export default function OnboardingPage() {
@@ -46,11 +46,15 @@ export default function OnboardingPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ avatarId: avatar }),
+                body: JSON.stringify({
+                    avatarId: avatar,
+                    dob,
+                    gender
+                }),
             });
-            
+
             const result = await response.json();
-            
+
             if (!result.ok) {
                 alert(result.error || 'ไม่สามารถเลือกอวาตาร์ได้');
                 return;
