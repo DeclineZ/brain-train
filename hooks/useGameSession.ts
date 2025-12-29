@@ -34,7 +34,10 @@ export const useGameSession = () => {
       console.log("Game session submitted successfully.", result);
     }
 
-    return clinicalStats;
+    return {
+      ...clinicalStats,
+      statChanges: result.ok ? result.statChanges : null
+    };
   };
 
   return { submitSession };

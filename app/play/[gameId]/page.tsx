@@ -25,6 +25,7 @@ export default function GamePage({ params }: PageProps) {
   const [loadingStreak, setLoadingStreak] = useState(false);
   const [isLoadingLevel, setIsLoadingLevel] = useState(true);
   const [gameStars, setGameStars] = useState<any>({});
+  const [retryCount, setRetryCount] = useState(0);
 
   // Ref for imperative game control
   const gameRef = useRef<any>(null);
@@ -119,9 +120,15 @@ export default function GamePage({ params }: PageProps) {
     }
   }, []);
 
-  const handleRestartLevel = useCallback(() => {
-    window.location.reload();
+  const handleReplay = useCallback(() => {
+    setResult(null);
+    setIsTimeout(false);
+    setRetryCount(prev => prev + 1);
   }, []);
+
+  const handleRestartLevel = useCallback(() => {
+    handleReplay();
+  }, [handleReplay]);
 
   const handleGameOver = useCallback(async (rawData: any) => {
     // 0. Handle Failure Case (but now "Timeout" handles the soft fail)
@@ -233,7 +240,7 @@ export default function GamePage({ params }: PageProps) {
       {/* The Game - Force remount on level change */}
       <GameCanvas
         ref={gameRef}
-        key={activeLevel}
+        key={`${activeLevel}-${retryCount}`}
         gameId={gameId}
         onGameOver={handleGameOver}
         onTimeout={handleTimeout}
@@ -278,6 +285,14 @@ export default function GamePage({ params }: PageProps) {
                   ย้อนกลับด่านที่ {activeLevel - 1}
                 </button>
               )}
+
+              {/* 4. Give Up */}
+              <button
+                onClick={() => router.push('/')}
+                className="w-full bg-[#FF4B4B] hover:bg-[#D43F3F] border-b-4 border-[#D43F3F] text-white rounded-2xl py-3 font-bold text-xl shadow-md active:border-b-0 active:translate-y-1 transition-all"
+              >
+                ยอมแพ้
+              </button>
             </div>
           </div>
         </div>
@@ -317,22 +332,22 @@ export default function GamePage({ params }: PageProps) {
                       <div className="text-brown-primary animate-pulse font-bold text-sm">กำลังคำนวณคะแนน...</div>
                     )}
 
-                    {result.stat_memory !== null && (
+                    {result.statChanges?.stat_memory > 0 && (
                       <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ ความจำ
                       </div>
                     )}
-                    {result.stat_speed !== null && (
+                    {result.statChanges?.stat_speed > 0 && (
                       <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ ความเร็ว
                       </div>
                     )}
-                    {result.stat_focus !== null && (
+                    {result.statChanges?.stat_focus > 0 && (
                       <div className="bg-chip-focus-bg text-chip-focus-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ สมาธิ
                       </div>
                     )}
-                    {result.stat_planning !== null && (
+                    {result.statChanges?.stat_planning > 0 && (
                       <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ การวางแผน
                       </div>
@@ -360,23 +375,34 @@ export default function GamePage({ params }: PageProps) {
                 </div>
 
                 {/* Buttons Row (Success) */}
-                <div className="flex gap-4 w-full justify-center">
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-full h-full">
-                      <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                    </svg>
-                  </button>
+                {/* Buttons Row (Success) - Only show after stats loaded */}
+                {result.stat_memory !== null && (
+                  <div className="flex gap-4 w-full justify-center">
+                    <button
+                      onClick={handleReplay}
+                      className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-full h-full">
+                        <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
+                      </svg>
+                    </button>
 
-                  <button
-                    onClick={handleNextLevel}
-                    className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-2xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
-                  >
-                    {activeLevel >= 7 ? 'กลับหน้าหลัก' : 'เกมถัดไป'}
-                  </button>
-                </div>
+                    {/* Back to Home Button */}
+                    <button
+                      onClick={() => router.push('/')}
+                      className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
+                    >
+                      <Home className="w-8 h-8" />
+                    </button>
+
+                    <button
+                      onClick={handleNextLevel}
+                      className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                    >
+                      {activeLevel >= 7 ? 'จบเกม' : 'เกมถัดไป'}
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
