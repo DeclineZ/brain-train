@@ -1,7 +1,8 @@
 import { calculateClinicalStats } from '@/lib/scoring/example';
 import { calculateMatchingStats } from '@/lib/scoring/matching';
+import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats } from '@/types';
 
 export const useGameSession = () => {
 
@@ -21,6 +22,8 @@ export const useGameSession = () => {
       clinicalStats = calculateClinicalStats(rawData as CardGameRawStats);
     } else if (gameId === 'game-01-cardmatch') {
       clinicalStats = { ...calculateMatchingStats(rawData as MatchingGameStats), stat_emotion: rawData.stat_emotion ?? null };
+    } else if (gameId === 'game-02-sensorlock') {
+      clinicalStats = calculateSensorLockStats(rawData as SensorLockGameStats);
     }
     // Add 'else if' for other games here later...
 
@@ -36,7 +39,8 @@ export const useGameSession = () => {
 
     return {
       ...clinicalStats,
-      statChanges: result.ok ? result.statChanges : null
+      statChanges: result.ok ? result.statChanges : null,
+      dailyPlayedCount: result.ok ? (result as any).dailyPlayedCount : undefined
     };
   };
 

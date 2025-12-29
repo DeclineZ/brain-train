@@ -33,7 +33,10 @@ export default function GamePage({ params }: PageProps) {
   const searchParams = useSearchParams();
   // We prioritize URL param, but if missing, we wait for DB fetch
   const paramLevel = searchParams.get('level');
+  // Endless Mode Check
+  const isEndless = gameId === 'game-02-sensorlock';
   const [activeLevel, setActiveLevel] = useState<number>(1);
+  const [highScore, setHighScore] = useState<number>(0);
 
   // 1. Fetch persistent level on mount if not in URL
   useEffect(() => {
@@ -87,6 +90,22 @@ export default function GamePage({ params }: PageProps) {
           setGameStars(starData);
         }
 
+        if (isEndless) {
+          const { data: sessions } = await supabase
+            .from('game_sessions')
+            .select('score')
+            .eq('user_id', user.id)
+            .eq('game_id', gameId)
+            .not('score', 'is', null) // Filter out null scores from old records
+            .order('score', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (sessions && sessions.score) {
+            setHighScore(sessions.score);
+          }
+        }
+
       } catch (err) {
         console.warn("Could not fetch level, defaulting to 1", err);
       } finally {
@@ -121,10 +140,14 @@ export default function GamePage({ params }: PageProps) {
   }, []);
 
   const handleReplay = useCallback(() => {
+    // Update local high score if the game just played beat it
+    if (result?.score && result.score > highScore) {
+      setHighScore(result.score);
+    }
     setResult(null);
     setIsTimeout(false);
     setRetryCount(prev => prev + 1);
-  }, []);
+  }, [result, highScore]);
 
   const handleRestartLevel = useCallback(() => {
     handleReplay();
@@ -133,7 +156,7 @@ export default function GamePage({ params }: PageProps) {
   const handleGameOver = useCallback(async (rawData: any) => {
     // 0. Handle Failure Case (but now "Timeout" handles the soft fail)
     // If we get here with success=false, it means a HARD fail or restart
-    if (rawData.success === false) {
+    if (rawData.success === false && !isEndless) {
       // Typically shouldn't happen with timeout logic unless forced
       setResult({ success: false });
       return;
@@ -143,10 +166,12 @@ export default function GamePage({ params }: PageProps) {
     setResult({
       success: true,
       stars: rawData.stars,
+      score: rawData.score, // Capture Score
       stat_memory: null, // Loading indicators
       stat_speed: null,
       stat_focus: null,
-      stat_planning: null
+      stat_planning: null,
+      stat_emotion: null
     });
 
     // Save Level Progress (Implementation simplified)
@@ -172,20 +197,14 @@ export default function GamePage({ params }: PageProps) {
         const streakData = await res.json();
         if (streakData.ok) {
           setStreakInfo(streakData.data);
-          // Save for notification on home page
-          sessionStorage.setItem('daily_streak_new_checkin', JSON.stringify(streakData.data));
+          // Save for notification on home page ONLY if it's a new check-in
+          if (streakData.data.new_checkin) {
+            sessionStorage.setItem('daily_streak_new_checkin', JSON.stringify(streakData.data));
+          }
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const { count, error } = await supabase
-          .from('game_sessions')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('created_at', `${todayStr}T00:00:00.000Z`)
-          .lte('created_at', `${todayStr}T23:59:59.999Z`);
-
-        if (!error && count !== null) {
-          setDailyCount(count);
+        if (stats.dailyPlayedCount !== undefined) {
+          setDailyCount(stats.dailyPlayedCount);
         } else {
           setDailyCount(prev => prev + 1);
         }
@@ -315,20 +334,37 @@ export default function GamePage({ params }: PageProps) {
                 <h1 className="text-4xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
                   เยี่ยมมาก!
                 </h1>
-                {/* Stars */}
-                <div className="flex justify-center gap-2 mb-6">
-                  {[1, 2, 3].map((star) => (
-                    <div key={star} className={`transition-all duration-500 transform ${star <= (result.stars || 0) ? 'scale-100 opacity-100' : 'scale-90 opacity-50 grayscale brightness-75'}`}>
-                      <StarIcon className="w-24 h-24" />
+                {/* Stars OR Score */}
+                {!isEndless ? (
+                  <div className="flex justify-center gap-2 mb-6">
+                    {[1, 2, 3].map((star) => (
+                      <div key={star} className={`transition-all duration-500 transform ${star <= (result.stars || 0) ? 'scale-100 opacity-100' : 'scale-90 opacity-50 grayscale brightness-75'}`}>
+                        <StarIcon className="w-24 h-24" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center mb-6">
+                    <div className="text-2xl font-bold text-brown-primary">คะแนนของคุณ</div>
+                    <div className="text-6xl font-black text-[#58CC02] drop-shadow-sm">{result.score || 0}</div>
+
+                    {result.score > highScore && (
+                      <div className="mt-2 bg-[#FFD700] text-brown-primary px-4 py-1 rounded-full text-sm font-bold shadow-md animate-bounce">
+                        ✨ สถิติใหม่!
+                      </div>
+                    )}
+
+                    <div className="text-sm text-brown-primary/60 font-bold mt-1">
+                      สถิติเดิม: {highScore}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
 
                 {/* Stats Box */}
                 <div className="bg-stats-bg w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
                   <div className="flex flex-wrap justify-center gap-2">
                     {/* Loading State */}
-                    {result.stat_memory === null && (
+                    {((!isEndless && result.stat_memory === null) || (isEndless && result.stat_focus === null)) && (
                       <div className="text-brown-primary animate-pulse font-bold text-sm">กำลังคำนวณคะแนน...</div>
                     )}
 
@@ -350,6 +386,11 @@ export default function GamePage({ params }: PageProps) {
                     {result.statChanges?.stat_planning > 0 && (
                       <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ การวางแผน
+                      </div>
+                    )}
+                    {result.statChanges?.stat_emotion > 0 && (
+                      <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                        ^ ควบคุมอารมณ์
                       </div>
                     )}
                   </div>
@@ -376,16 +417,19 @@ export default function GamePage({ params }: PageProps) {
 
                 {/* Buttons Row (Success) */}
                 {/* Buttons Row (Success) - Only show after stats loaded */}
-                {result.stat_memory !== null && (
+                {((!isEndless && result.stat_memory !== null) || (isEndless && result.stat_focus !== null)) && (
                   <div className="flex gap-4 w-full justify-center">
-                    <button
-                      onClick={handleReplay}
-                      className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-full h-full">
-                        <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                      </svg>
-                    </button>
+
+                    {/* Restart Level Button (Only for non-endless games where replaying a specific level matters) */}
+                    {!isEndless && (
+                      <button
+                        onClick={handleRestartLevel}
+                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
+                        title="เล่นอีกครั้ง"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-rotate-ccw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" /><path d="M3 3v9h9" /></svg>
+                      </button>
+                    )}
 
                     {/* Back to Home Button */}
                     <button
@@ -399,7 +443,7 @@ export default function GamePage({ params }: PageProps) {
                       onClick={handleNextLevel}
                       className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
                     >
-                      {activeLevel >= 7 ? 'จบเกม' : 'เกมถัดไป'}
+                      {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                     </button>
                   </div>
                 )}

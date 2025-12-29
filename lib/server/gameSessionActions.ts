@@ -137,6 +137,7 @@ export async function submitGameSession(
             duration_seconds: rawData.userTimeMs ? rawData.userTimeMs / 1000 : 0,
             current_played: levelPlayed,
             raw_data: rawData,
+            score: rawData.score || 0, // Explicitly save score column
         })
 
         if (sessionError) {
@@ -162,11 +163,18 @@ export async function submitGameSession(
             console.warn(`[submitGameSession] rawData.stars is undefined`);
         }
 
-        // 7. Add Coin Reward (+20 coins)
-        // We only add coins if it's a valid session.
-        // The user specifically requested +20 coins per level play.
-        const rewardAmount = 20
-        const rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
+        // 7. Add Coin Reward
+        let rewardAmount = 20
+        let rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
+
+        if (gameId === 'game-02-sensorlock') {
+            // Dynamic Reward: Score / 50.
+            // Example: 1000 score = 20 coins. 2000 score = 40 coins.
+            // Min 1 coin if score > 0.
+            const score = rawData.score || 0
+            rewardAmount = Math.max(1, Math.floor(score / 50))
+            rewardReason = `เล่น Sensor Lock คะแนน ${score}`
+        }
 
         const coinResult = await addCoins(user.id, rewardAmount, rewardReason, "game_session")
         if (!coinResult.ok) {
@@ -174,8 +182,30 @@ export async function submitGameSession(
             // We don't fail the entire session if coin add fails, but we log it.
         }
 
+        // 8. Get Daily Played Count (Fixes 400 Bad Request on client)
+        const todayStr = new Date().toISOString().split('T')[0]
+        const { count: dailyPlayedCount, error: dailyError } = await supabase
+            .from("game_sessions")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .gte("created_at", `${todayStr}T00:00:00.000Z`)
+            .lte("created_at", `${todayStr}T23:59:59.999Z`)
+
+        if (dailyError) {
+            console.error("Error fetching daily count:", dailyError)
+        }
+
         revalidatePath("/stats")
-        return { ok: true, newStats, statChanges, isReplay, learningRate, starInfo, newBalance: coinResult.ok ? coinResult.data.new_balance : undefined }
+        return {
+            ok: true,
+            newStats,
+            statChanges,
+            isReplay,
+            learningRate,
+            starInfo,
+            newBalance: coinResult.ok ? coinResult.data.new_balance : undefined,
+            dailyPlayedCount: dailyPlayedCount || 0
+        }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)
         return { ok: false, error: "Internal server error" }
