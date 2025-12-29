@@ -7,6 +7,7 @@ import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
+import LineLoginButton from "@/components/Login/LineLoginButton";
 
 
 export default function LoginPage() {
@@ -153,6 +154,7 @@ export default function LoginPage() {
                     </form>
 
                     <div className="space-y-4">
+                        <LineLoginButton />
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"

@@ -22,7 +22,7 @@ export default async function Home() {
           completedGames={0}
           action={
             <Link
-              href="/play/start-daily"
+              href="/play/game-01-cardmatch"
               className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
             >
               <span>เริ่มภารกิจ</span>
