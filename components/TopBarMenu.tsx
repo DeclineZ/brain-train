@@ -58,13 +58,13 @@ export default function TopBarMenu({ variant = "default" }: TopBarMenuProps) {
             {isOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-1">
-                        <button
+                        {/* <button
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-lighter transition-colors text-left text-sm font-medium text-brown-darkest"
                             onClick={() => setIsOpen(false)}
                         >
                             <Settings className="w-4 h-4 text-brown-medium" />
                             ตั้งค่า
-                        </button>
+                        </button> */}
 
                         <button
                             onClick={handleLogout}

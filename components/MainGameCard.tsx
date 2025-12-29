@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import Link from "next/link";
+import LevelBadge from "./LevelBadge";
 
 interface MainGameCardProps {
   gameName: string;
@@ -10,9 +11,10 @@ interface MainGameCardProps {
   index: number;
   durationMin: number;
   gameId: string;
+  currentLevel: number;
 }
 
-export default function MainGameCard({ gameName, image, index, durationMin, gameId }: MainGameCardProps) {
+export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel }: MainGameCardProps) {
   return (
     <Link href={`/play/${gameId}`}>
       <motion.div
@@ -31,6 +33,9 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
 
         {/* Modern Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
+
+        {/* Level Badge */}
+        <LevelBadge level={currentLevel} />
 
         {/* Content */}
         <div className="relative h-full flex flex-col justify-between p-4">

@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { Lock } from "lucide-react";
 import Link from "next/link";
-import type { Game } from "@/types";
+import type { Game } from "@/types/game";
+import LevelBadge from "./LevelBadge";
 
 interface GameTileProps {
   game: Game;
@@ -68,6 +69,9 @@ export default function GameTile({ game }: GameTileProps) {
               className="object-cover"
             />
           )}
+          
+          {/* Level Badge */}
+          <LevelBadge level={game.currentLevel || 1} />
         </div>
         
         {/* Game Info */}

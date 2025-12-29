@@ -9,4 +9,5 @@ export interface Game {
   durationMin: number;    // must be > 0
   locked?: boolean;
   featured?: boolean;      // for "เกมวันนี้"
+  currentLevel: number;   // user's current level for this game (default 1)
 }

@@ -9,7 +9,7 @@ export default async function Home() {
   const games = await getGames();
   // Filter games that have GIFs for the main page (featured games)
   const featuredGames = games.filter(game => game.featured);
-
+  
   return (
     <div className="bg-cream overflow-hidden">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
@@ -39,6 +39,7 @@ export default async function Home() {
                 index={index}
                 durationMin={game.durationMin}
                 gameId={game.gameId}
+                currentLevel={game.currentLevel}
               />
             ))}
           </div>
