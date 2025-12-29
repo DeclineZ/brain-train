@@ -4,8 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { avatarId } = await request.json();
-    
+    const { avatarId, dob, gender } = await request.json();
+
     if (!avatarId) {
       return NextResponse.json(
         { ok: false, error: 'จำเป็นต้องระบุอวาตาร์' },
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Get user from session
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json(
         { ok: false, error: 'ไม่ได้เข้าสู่ระบบ' },
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     // Add selected avatar to user's inventory using the correct item_id
     const inventoryResult = await addItemToInventory(user.id, items.id, 1);
-    
+
     if (!inventoryResult.ok) {
       return NextResponse.json(
         { ok: false, error: inventoryResult.error },
@@ -74,9 +74,11 @@ export async function POST(request: NextRequest) {
     // Set as user's avatar and mark free avatar as claimed
     const { error: updateError } = await supabase
       .from('user_profiles')
-      .upsert({ 
+      .upsert({
         user_id: user.id,
         avatar_url: avatarId,
+        dob: dob || null,
+        gender: gender || null,
         claimed_free_avatar: true,
         last_updated: new Date().toISOString()
       }, {
@@ -91,12 +93,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ 
-      ok: true, 
-      data: { 
+    return NextResponse.json({
+      ok: true,
+      data: {
         message: 'เลือกอวาตาร์สำเร็จแล้ว!',
-        avatarId: avatarId 
-      } 
+        avatarId: avatarId
+      }
     });
   } catch (error) {
     console.error('Onboarding avatar API error:', error);

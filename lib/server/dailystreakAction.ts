@@ -166,6 +166,25 @@ export async function getCheckinStatus(userId: string): Promise<Result<CheckinSt
       .single();
 
     if (profileError) {
+      // Graceful fallback: If profile missing, return default status instead of crashing
+      if (profileError.code === 'PGRST116') { // PGRST116 = Not found
+        console.warn('Profile not found for checkin status, returning default.');
+        return {
+          ok: true,
+          data: {
+            checked_in_today: false,
+            current_streak: 0,
+            longest_streak: 0,
+            total_checkins: 0,
+            last_checkin_date: null,
+            weekly_progress: {
+              days_checked_in: 0,
+              total_days: 7,
+              week_days: []
+            }
+          }
+        };
+      }
       console.error('Profile fetch error:', profileError);
       return { ok: false, error: profileError.message };
     }

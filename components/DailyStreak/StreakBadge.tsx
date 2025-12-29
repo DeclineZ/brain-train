@@ -34,6 +34,21 @@ export default function StreakBadge({
         if (!initialData) {
             fetchStatus();
         }
+
+        // Check for delayed notification from game page
+        const savedNotification = sessionStorage.getItem('daily_streak_new_checkin');
+        if (savedNotification) {
+            try {
+                const data = JSON.parse(savedNotification);
+                setNotification(data);
+                sessionStorage.removeItem('daily_streak_new_checkin');
+
+                // Auto close after 4s (matching manual check-in behavior)
+                setTimeout(() => setNotification(null), 4000);
+            } catch (e) {
+                console.error("Failed to parse saved notification", e);
+            }
+        }
     }, [userId, initialData]);
 
     const fetchStatus = async () => {
