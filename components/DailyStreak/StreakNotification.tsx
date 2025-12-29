@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Trophy, Flame, Star } from "lucide-react";
+import { X, Trophy, Flame, Star, Coins } from "lucide-react";
 import type { CheckinResult } from "@/types";
 
 interface StreakNotificationProps {
@@ -20,7 +20,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onClose, 300); // Wait for exit animation
-    }, 4000);
+    }, 10000);
 
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -89,6 +89,35 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
               {notification.streak_count}
             </span>
           </div>
+
+          {/* Coin rewards */}
+          {notification.coins_earned && (
+            <div className="bg-green-50 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-green-900">
+                    รับเหรียญรางวัล!
+                  </span>
+                </div>
+                <span className="text-xl font-bold text-green-600">
+                  +{notification.coins_earned}
+                </span>
+              </div>
+              
+              {notification.base_amount && notification.multiplier && (
+                <div className="text-xs text-green-700 text-center bg-green-100 rounded px-2 py-1">
+                  {notification.base_amount} × {notification.multiplier}x = {notification.coins_earned} เหรียญ
+                </div>
+              )}
+              
+              {notification.new_balance !== undefined && (
+                <div className="text-xs text-green-600 text-center">
+                  ยอดเงินคงเหลือ: {notification.new_balance} เหรียญ
+                </div>
+              )}
+            </div>
+          )}
 
           {/* New badges */}
           {notification.new_badges.length > 0 && (

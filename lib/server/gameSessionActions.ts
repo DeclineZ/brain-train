@@ -163,7 +163,7 @@ export async function submitGameSession(
         const rewardAmount = 20
         const rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
 
-        const coinResult = await addCoins(user.id, rewardAmount, rewardReason)
+        const coinResult = await addCoins(user.id, rewardAmount, rewardReason, "game_session")
         if (!coinResult.ok) {
             console.error("Failed to add coin reward:", coinResult.error)
             // We don't fail the entire session if coin add fails, but we log it.

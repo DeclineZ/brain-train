@@ -1,7 +1,6 @@
 "use client";
 
 import { Flame, Star, Coins, Zap } from "lucide-react";
-import clsx from "clsx";
 import { useEffect, useState } from "react";
 import TopBarMenu from "./TopBarMenu";
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { addCoins } from "./shopAction";
 import type { Result, CheckinResult, StreakBadge, CheckinStatus, CheckinCalendar, CalendarDay } from "@/types";
 
 
@@ -109,11 +110,38 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
 
     console.log('[Checkin] New Badges Inserted:', finalNewBadges);
 
+    // Calculate coin rewards with streak multiplier
+    const baseAmount = 10; // Base coins for daily check-in
+    const rawMultiplier = status.total_checkins * 0.1; // 0.1x per total check-in
+    const multiplier = Math.min(3, Math.max(1, rawMultiplier)); // Min 1x, max 3x
+    const calculatedAmount = baseAmount * multiplier; // Calculate full amount first
+    const coinsEarned = Math.floor(calculatedAmount); // Then floor to integer
+
+    // Add coins to user's wallet
+    const coinResult = await addCoins(userId, coinsEarned, `เช็คอินประจำวัน (สตรีก x${multiplier.toFixed(1)})`,"daily_checkin");
+    
+    let newBalance = 0;
+    if (coinResult.ok) {
+      newBalance = coinResult.data.new_balance;
+      console.log(`[Checkin] Added ${coinsEarned} coins to user ${userId}. New balance: ${newBalance}`);
+      
+      // Trigger coin/stats update event for UI
+      console.log(`[Checkin] Coin reward event triggered: +${coinsEarned} coins, new balance: ${newBalance}`);
+      // Note: window.dispatchEvent would be called on client side, not server side
+    } else {
+      console.error('Failed to add coins:', coinResult.error);
+      // Continue with check-in even if coin reward fails
+    }
+
     const result: CheckinResult = {
       success: true,
       streak_count: status.current_streak,
       new_badges: finalNewBadges,
-      message: `เช็คอินสำเร็จ! สตรีกปัจจุบัน ${status.current_streak} วัน 🔥`
+      message: `เช็คอินสำเร็จ! สตรีกปัจจุบัน ${status.current_streak} วัน 🔥`,
+      coins_earned: coinResult.ok ? coinsEarned : undefined,
+      base_amount: coinResult.ok ? baseAmount : undefined,
+      multiplier: coinResult.ok ? parseFloat(multiplier.toFixed(1)) : undefined,
+      new_balance: coinResult.ok ? newBalance : undefined
     };
 
     return { ok: true, data: result };
@@ -406,4 +434,3 @@ export async function getStreakBadges(userId: string, providedStatus?: CheckinSt
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
   }
 }
-

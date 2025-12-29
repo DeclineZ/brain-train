@@ -55,7 +55,6 @@ export async function getGames(): Promise<Game[]> {
       currentLevel: levelsByGame[game.game_id] || 0, // User's current level or default 1
       gif: "" // No gif field in database
     })) || [];
-    console.log("Transformed games data:", transformedGames);
 
     return transformedGames;
   } catch (error) {

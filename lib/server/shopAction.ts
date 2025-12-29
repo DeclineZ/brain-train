@@ -348,7 +348,8 @@ export async function getTransactionHistory(userId: string): Promise<Result<Tran
 export async function addCoins(
   userId: string,
   amount: number,
-  reason: string = "bonus"
+  reason: string = "bonus",
+  from: string 
 ): Promise<Result<{ new_balance: number }>> {
   try {
     const supabase = await createClient();
@@ -357,7 +358,7 @@ export async function addCoins(
       return { ok: false, error: "จำนวนเหรียญต้องมากกว่า 0" };
     }
 
-    const orderId = `bonus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const orderId = `bonus_${from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const idempotencyKey = `${userId}_bonus_${orderId}`;
 
     const { data, error } = await supabase.rpc("apply_coin_delta", {

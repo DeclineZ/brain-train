@@ -107,6 +107,10 @@ export interface CheckinResult {
   streak_count: number;
   new_badges: StreakBadge[];
   message: string;
+  coins_earned?: number;
+  base_amount?: number;
+  multiplier?: number;
+  new_balance?: number;
 }
 
 // Shop system types

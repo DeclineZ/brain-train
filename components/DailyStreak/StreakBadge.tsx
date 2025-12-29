@@ -92,6 +92,11 @@ export default function StreakBadge({
                 // Show notification for successful check-in
                 setNotification(result.data);
 
+                // Trigger balance update event for UI components
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('balanceUpdate'));
+                }
+
                 // Clear notification after 4 seconds
                 setTimeout(() => setNotification(null), 4000);
             }
