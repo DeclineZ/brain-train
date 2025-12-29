@@ -190,7 +190,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF6B6B)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0xEE5253);
-        const noTextSize = Math.min(btnWidth * 0.35, 60);
+        const noTextSize = Math.min(btnWidth * 0.25, 50);
         const noText = this.add.text(0, 0, "ไม่ตรง", {
             fontFamily: '"Sarabun", "Thai Sarabun New", Inter, sans-serif',
             fontSize: `${noTextSize}px`,
@@ -209,7 +209,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x1DD1A1)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0x10AC84);
-        const yesTextSize = Math.min(btnWidth * 0.35, 60);
+        const yesTextSize = Math.min(btnWidth * 0.25, 50);
         const yesText = this.add.text(0, 0, "ตรง", {
             fontFamily: '"Sarabun", "Thai Sarabun New", Inter, sans-serif',
             fontSize: `${yesTextSize}px`,
@@ -288,7 +288,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Ensure partial cleanup
         if (this.arrowContainer) this.arrowContainer.setVisible(false);
 
-        const countSize = Math.min(width * 0.5, 300); // Max 300, but scale down for mobile
+        const countSize = Math.min(width * 0.3, 180); // Max 180, significantly smaller
         const countText = this.add.text(width / 2, height / 2, '3', {
             fontFamily: 'Inter, "Sarabun", "Thai Sarabun New", sans-serif',
             fontSize: `${countSize}px`,
