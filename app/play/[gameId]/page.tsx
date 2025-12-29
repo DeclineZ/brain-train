@@ -165,6 +165,8 @@ export default function GamePage({ params }: PageProps) {
         const streakData = await res.json();
         if (streakData.ok) {
           setStreakInfo(streakData.data);
+          // Save for notification on home page
+          sessionStorage.setItem('daily_streak_new_checkin', JSON.stringify(streakData.data));
         }
 
         const todayStr = new Date().toISOString().split('T')[0];
