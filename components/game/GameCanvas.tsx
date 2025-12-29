@@ -138,7 +138,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   const timerState = renderTimer();
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl">
+    <div className="relative w-full h-full">
 
 
 
@@ -146,9 +146,11 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
 
         {/* Top: Level Indicator (Centered) */}
-        <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
-          LEVEL {currentLevel}
-        </div>
+        {gameId !== 'game-02-sensorlock' && (
+          <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
+            LEVEL {currentLevel}
+          </div>
+        )}
 
         {/* Bottom: Timer Bar - MOVED TO PHASER */}
         {/* Placeholder if needed for spacing, but removing for now */}

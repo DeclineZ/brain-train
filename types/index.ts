@@ -29,6 +29,18 @@ export interface MatchingGameStats {
   continuedAfterTimeout: boolean;
 }
 
+export interface SensorLockGameStats {
+  score: number;
+  maxStreak: number;
+  totalCorrect: number;
+  totalAttempts: number;
+  reactionTimeAvg: number;
+  difficultyMultiplier: number;
+  // Breakdown for advanced scoring
+  mismatchCorrect: number;
+  mismatchAttempts: number;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;
@@ -111,6 +123,7 @@ export interface CheckinResult {
   base_amount?: number;
   multiplier?: number;
   new_balance?: number;
+  new_checkin?: boolean;
 }
 
 // Shop system types

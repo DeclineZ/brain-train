@@ -10,6 +10,27 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
   try {
     const supabase = await createClient();
 
+    // Check status FIRST to see if we already checked in today
+    const initialStatusResult = await getCheckinStatus(userId);
+    if (!initialStatusResult.ok) {
+      return { ok: false, error: "Failed to get initial status" };
+    }
+
+    // If already checked in, return immediately with "new_checkin: false"
+    // This prevents re-awarding coins or showing notifications multiple times
+    if (initialStatusResult.data.checked_in_today) {
+      return {
+        ok: true,
+        data: {
+          success: true,
+          streak_count: initialStatusResult.data.current_streak,
+          new_badges: [], // No new badges if already checked in
+          message: `เช็คอินสำเร็จ! สตรีกปัจจุบัน ${initialStatusResult.data.current_streak} วัน 🔥`,
+          new_checkin: false // Flag to suppressing notification
+        }
+      };
+    }
+
     // Call the existing RPC checkin_today() function
     const { data, error } = await supabase.rpc('checkin_today');
 
@@ -118,13 +139,13 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
     const coinsEarned = Math.floor(calculatedAmount); // Then floor to integer
 
     // Add coins to user's wallet
-    const coinResult = await addCoins(userId, coinsEarned, `เช็คอินประจำวัน (สตรีก x${multiplier.toFixed(1)})`,"daily_checkin");
-    
+    const coinResult = await addCoins(userId, coinsEarned, `เช็คอินประจำวัน (สตรีก x${multiplier.toFixed(1)})`, "daily_checkin");
+
     let newBalance = 0;
     if (coinResult.ok) {
       newBalance = coinResult.data.new_balance;
       console.log(`[Checkin] Added ${coinsEarned} coins to user ${userId}. New balance: ${newBalance}`);
-      
+
       // Trigger coin/stats update event for UI
       console.log(`[Checkin] Coin reward event triggered: +${coinsEarned} coins, new balance: ${newBalance}`);
       // Note: window.dispatchEvent would be called on client side, not server side
@@ -141,7 +162,8 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
       coins_earned: coinResult.ok ? coinsEarned : undefined,
       base_amount: coinResult.ok ? baseAmount : undefined,
       multiplier: coinResult.ok ? parseFloat(multiplier.toFixed(1)) : undefined,
-      new_balance: coinResult.ok ? newBalance : undefined
+      new_balance: coinResult.ok ? newBalance : undefined,
+      new_checkin: true // Flag for notification
     };
 
     return { ok: true, data: result };
