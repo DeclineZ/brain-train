@@ -1,5 +1,6 @@
 "use server"
 
+import { checkMissionCompletion } from "@/lib/dailyMissions"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { ClinicalStats } from "@/types"
@@ -174,8 +175,28 @@ export async function submitGameSession(
             // We don't fail the entire session if coin add fails, but we log it.
         }
 
+        // 8. Check Daily Mission Completion
+        // We do this last so it doesn't block the main session save, but we include it in the response
+        const { completed: missionCompleted, mission: completedMission } = await checkMissionCompletion(user.id, gameId, levelPlayed)
+
         revalidatePath("/stats")
-        return { ok: true, newStats, statChanges, isReplay, learningRate, starInfo, newBalance: coinResult.ok ? coinResult.data.new_balance : undefined }
+        // Also revalidate home page where missions are shown
+        revalidatePath("/")
+
+        return {
+            ok: true,
+            newStats,
+            statChanges,
+            isReplay,
+            learningRate,
+            starInfo,
+            newBalance: coinResult.ok ? coinResult.data.new_balance : undefined,
+            missionResult: missionCompleted ? {
+                completed: true,
+                label: completedMission?.label,
+                slotIndex: completedMission?.slot_index
+            } : null
+        }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)
         return { ok: false, error: "Internal server error" }

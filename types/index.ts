@@ -161,3 +161,14 @@ export interface UserBalance {
   balance: number;
   updated_at: string;
 }
+
+export interface DailyMission {
+  id: string;
+  user_id: string;
+  date: string;
+  slot_index: number;
+  label: string;
+  game_id: string;
+  completed: boolean;
+  completed_at: string | null;
+}
