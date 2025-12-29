@@ -1,5 +1,6 @@
 "use server"
 
+import { checkMissionCompletion } from "@/lib/dailyMissions"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { ClinicalStats } from "@/types"
@@ -182,20 +183,14 @@ export async function submitGameSession(
             // We don't fail the entire session if coin add fails, but we log it.
         }
 
-        // 8. Get Daily Played Count (Fixes 400 Bad Request on client)
-        const todayStr = new Date().toISOString().split('T')[0]
-        const { count: dailyPlayedCount, error: dailyError } = await supabase
-            .from("game_sessions")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .gte("created_at", `${todayStr}T00:00:00.000Z`)
-            .lte("created_at", `${todayStr}T23:59:59.999Z`)
-
-        if (dailyError) {
-            console.error("Error fetching daily count:", dailyError)
-        }
+        // 8. Check Daily Mission Completion
+        // We do this last so it doesn't block the main session save, but we include it in the response
+        const { completed: missionCompleted, mission: completedMission } = await checkMissionCompletion(user.id, gameId, levelPlayed)
 
         revalidatePath("/stats")
+        // Also revalidate home page where missions are shown
+        revalidatePath("/")
+
         return {
             ok: true,
             newStats,
@@ -204,10 +199,15 @@ export async function submitGameSession(
             learningRate,
             starInfo,
             newBalance: coinResult.ok ? coinResult.data.new_balance : undefined,
-            dailyPlayedCount: dailyPlayedCount || 0
+            missionResult: missionCompleted ? {
+                completed: true,
+                label: completedMission?.label,
+                slotIndex: completedMission?.slot_index
+            } : null
         }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)
         return { ok: false, error: "Internal server error" }
     }
 }
+/*latest*/
