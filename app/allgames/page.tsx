@@ -4,9 +4,6 @@ import BottomNav from "@/components/BottomNav";
 
 export default async function AllGamesPage() {
   const games = await getGames();
-  
-  console.log("All games loaded:", games);
-  
   // Filter by categories
   const reasoningGames = games.filter(game => game.category === "reasoning");
   const dataProcessingGames = games.filter(game => game.category === "data_processing");

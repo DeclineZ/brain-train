@@ -127,7 +127,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
 
         {/* Equipped Badge for Currently Equipped Avatar */}
         {isCurrentlyEquipped && (
-          <div className="absolute top-3 right-3 w-8 h-8 bg-blue-500 rounded-full border border-blue-600 flex items-center justify-center shadow-sm z-100">
+          <div className="absolute top-3 right-3 w-8 h-8 bg-blue-500 rounded-full border border-blue-600 flex items-center justify-center shadow-sm z-10">
             <Check className="w-4 h-4 text-white" />
           </div>
         )}
@@ -157,7 +157,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
             </div>
           ) : (
             // Ownership status for owned items
-            <div className="flex items-center gap-2 text-green-success z-100">
+            <div className="flex items-center gap-2 text-green-success z-10">
               <Check className="w-4 h-4" />
               <span className="text-sm font-medium">เป็นเจ้าของแล้ว</span>
             </div>
