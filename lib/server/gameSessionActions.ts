@@ -26,7 +26,7 @@ export async function submitGameSession(
         // We check if a session already exists for this game and level *before* inserting the new one.
         // The 'level' is usually in rawData.levelPlayed or rawData.current_played.
         // We'll try to find a consistent level indicator.
-        const levelPlayed = rawData.levelPlayed ?? rawData.current_played ?? 1
+        const levelPlayed = rawData.level ?? rawData.levelPlayed ?? rawData.current_played ?? 1
 
         const { count: priorSessionCount, error: countError } = await supabase
             .from("game_sessions")
@@ -164,28 +164,36 @@ export async function submitGameSession(
             console.warn(`[submitGameSession] rawData.stars is undefined`);
         }
 
-        // 7. Add Coin Reward
-        let rewardAmount = 20
-        let rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
+        // 7. Add Coin Reward (Skip if Tutorial / Level 0)
+        let coinResult: { ok: boolean, data?: { new_balance?: number }, error?: any } = { ok: true, data: { new_balance: undefined } }
+        if (levelPlayed > 0) {
+            let rewardAmount = 20
+            let rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
 
-        if (gameId === 'game-02-sensorlock') {
-            // Dynamic Reward: Score / 50.
-            // Example: 1000 score = 20 coins. 2000 score = 40 coins.
-            // Min 1 coin if score > 0.
-            const score = rawData.score || 0
-            rewardAmount = Math.max(1, Math.floor(score / 50))
-            rewardReason = `เล่น Sensor Lock คะแนน ${score}`
+            if (gameId === 'game-02-sensorlock') {
+                // Dynamic Reward: Score / 50.
+                const score = rawData.score || 0
+                rewardAmount = Math.max(1, Math.floor(score / 50))
+                rewardReason = `เล่น Sensor Lock คะแนน ${score}`
+            }
+
+            const res = await addCoins(user.id, rewardAmount, rewardReason, "game_session")
+            if (!res.ok) {
+                console.error("Failed to add coin reward:", res.error)
+            } else {
+                coinResult = res
+            }
         }
 
-        const coinResult = await addCoins(user.id, rewardAmount, rewardReason, "game_session")
-        if (!coinResult.ok) {
-            console.error("Failed to add coin reward:", coinResult.error)
-            // We don't fail the entire session if coin add fails, but we log it.
-        }
+        // 8. Check Daily Mission Completion (Skip if Tutorial / Level 0)
+        let missionCompleted = false
+        let completedMission = null
 
-        // 8. Check Daily Mission Completion
-        // We do this last so it don't block the main session save, but we include it in the response
-        const { completed: missionCompleted, mission: completedMission } = await checkMissionCompletion(user.id, gameId, levelPlayed)
+        if (levelPlayed > 0) {
+            const res = await checkMissionCompletion(user.id, gameId, levelPlayed)
+            missionCompleted = res.completed
+            completedMission = res.mission
+        }
 
         // 9. Get Total Completed Count for Today (for UI update)
         const today = new Date().toISOString().split("T")[0]
@@ -207,7 +215,7 @@ export async function submitGameSession(
             isReplay,
             learningRate,
             starInfo,
-            newBalance: coinResult.ok ? coinResult.data.new_balance : undefined,
+            newBalance: coinResult.ok ? coinResult.data?.new_balance : undefined,
             missionResult: missionCompleted ? {
                 completed: true,
                 label: completedMission?.label,

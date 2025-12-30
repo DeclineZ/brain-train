@@ -168,6 +168,15 @@ export default function GamePage({ params }: PageProps) {
     }
   }, []);
 
+  const handleTutorialComplete = useCallback(async () => {
+    setShowTutorialPopup(true);
+    try {
+      await submitSession(gameId, { level: 0, score: 0, stars: 3, success: true });
+    } catch (e) {
+      console.error("Failed to submit tutorial session", e);
+    }
+  }, [gameId, submitSession]);
+
   const handleReplay = useCallback(() => {
     // Update local high score if the game just played beat it
     if (result?.score && result.score > highScore) {
@@ -191,7 +200,9 @@ export default function GamePage({ params }: PageProps) {
       return;
     }
 
-    if (activeLevel === 0) { // Tutorial Complete
+    // Tutorial Completion is now handled by handleTutorialComplete
+    // But keeping this as safeguard if old logic persists
+    if (activeLevel === 0) {
       setShowTutorialPopup(true);
       await submitSession(gameId, rawData);
       return;
@@ -298,6 +309,8 @@ export default function GamePage({ params }: PageProps) {
         gameId={gameId}
         onGameOver={handleGameOver}
         onTimeout={handleTimeout}
+        onTutorialComplete={handleTutorialComplete}
+        mode={activeLevel === 0 ? 'tutorial' : 'normal'}
         level={activeLevel}
         stars={gameStars}
       />
