@@ -40,7 +40,8 @@ export const useGameSession = () => {
     return {
       ...clinicalStats,
       statChanges: result.ok ? result.statChanges : null,
-      dailyPlayedCount: result.ok ? (result as any).dailyPlayedCount : undefined
+      dailyPlayedCount: result.ok ? (result as any).dailyPlayedCount : undefined,
+      allMissionsCompleted: result.ok ? (result as any).allMissionsCompleted : undefined
     };
   };
 

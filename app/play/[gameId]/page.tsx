@@ -344,7 +344,10 @@ export default function GamePage({ params }: PageProps) {
             </p>
             <div className="flex gap-4 w-full justify-center">
               <button
-                onClick={() => router.push('/')}
+                onClick={() => {
+                  // Tutorial unlikely to trigger all quests complete (since it is level 0), but good practice
+                  router.push('/');
+                }}
                 className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
               >
                 <Home className="w-8 h-8" />
@@ -485,7 +488,10 @@ export default function GamePage({ params }: PageProps) {
 
                       {/* Back to Home Button */}
                       <button
-                        onClick={() => router.push('/')}
+                        onClick={() => {
+                          const query = result.allMissionsCompleted ? '?questComplete=true' : '';
+                          router.push(`/${query}`);
+                        }}
                         className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
                       >
                         <Home className="w-8 h-8" />
