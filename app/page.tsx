@@ -1,6 +1,7 @@
 import { getGames } from "@/lib/api";
 import { createClient } from "@/utils/supabase/server";
 import { getDailyMissions } from "@/lib/dailyMissions";
+import { getMultipleGameTotalStars } from "@/lib/stars";
 import TopCard from "@/components/TopCard";
 import MainGameCard from "@/components/MainGameCard";
 import BottomNav from "@/components/BottomNav";
@@ -21,6 +22,10 @@ export default async function Home() {
 
   // Filter games that have GIFs for the main page (featured games)
   const featuredGames = games.filter(game => game.featured);
+  
+  // Fetch total stars for featured games
+  const featuredGameIds = featuredGames.map(game => game.gameId);
+  const featuredGameStars = await getMultipleGameTotalStars(featuredGameIds);
 
   const completedCount = missions.filter(m => m.completed).length;
   const currentMission = missions.find(m => !m.completed);
@@ -62,6 +67,8 @@ export default async function Home() {
                 durationMin={game.durationMin}
                 gameId={game.gameId}
                 currentLevel={game.currentLevel}
+                haveLevel={game.have_level}
+                totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
               />
             ))}
           </div>

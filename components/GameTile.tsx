@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from "react";
 
 interface GameTileProps {
   game: Game;
+  totalStars?: number;
 }
 
 // Thai translation mapping for game categories
@@ -26,7 +27,7 @@ const getCategoryInThai = (category: string): string => {
   return categoryTranslations[category] || category;
 };
 
-export default function GameTile({ game }: GameTileProps) {
+export default function GameTile({ game, totalStars }: GameTileProps) {
   const isLocked = game.locked;
   
   if (isLocked) {
@@ -112,8 +113,12 @@ export default function GameTile({ game }: GameTileProps) {
           )}
           
           {/* Level Badge */}
-          
-          {game.have_level && (<LevelBadge level={game.currentLevel || 1} />)}
+          <LevelBadge 
+            level={game.currentLevel || 1} 
+            isEndless={!game.have_level}
+            totalStars={game.have_level ? totalStars : undefined}
+            isLoading={false}
+          />
         </div>
         
         {/* Game Info */}
@@ -142,15 +147,12 @@ export default function GameTile({ game }: GameTileProps) {
             </button>)}
             <button
               onClick={handlePlayNow}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className={`bg-green-500 hover:bg-green-600 text-white font-bold ${game.have_level ? 'py-3' : 'py-5'} px-4 rounded-lg transition-colors flex items-center justify-center gap-2`}
             >
               <Play className="w-4 h-4" />
               เล่นเลย
             </button>
           </div>
-          
-          {/* Bottom area - empty for spacing */}
-          <div></div>
         </div>
       )}
     </div>

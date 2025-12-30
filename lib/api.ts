@@ -1,6 +1,6 @@
 import type { Game } from "@/types/game";
 import { createClient } from "@/utils/supabase/server";
-import { console } from "inspector";
+import { getUserStars, getGameStars } from "@/lib/stars";
 
 export interface GameLevel {
   level: number;
@@ -58,7 +58,7 @@ export async function getGames(): Promise<Game[]> {
       have_level: game.have_level,
       image: game.image,
       durationMin: game.duration_min,
-      featured: index === 0, // First game is featured
+      featured: true, // First game is featured
       locked: false, // All games unlocked by default
       currentLevel: levelsByGame[game.game_id] || 0, // User's current level or default 1
       gif: "" // No gif field in database
@@ -105,16 +105,22 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
       userCurrentLevel = session.current_played;
     }
 
-    // Generate levels with mock star data
+    // Fetch user's stars for this game
+    const userStars = await getGameStars(user.id, gameId);
+
+    // Generate levels with real star data
     const levels: GameLevel[] = Array.from({ length: 12 }, (_, i) => {
       const levelNum = i + 1;
       const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
       const isCompleted = levelNum <= userCurrentLevel;
       
+      // Get real stars from database, default to 0 if not found
+      const stars = userStars[`level_${levelNum}_stars`] || 0;
+      
       return {
         level: levelNum,
         unlocked: isUnlocked,
-        stars: isCompleted ? 3 : 0, // Mock: always 3 stars for completed levels
+        stars: stars, // Real star data from user_game_stars table
         completed: isCompleted
       };
     });

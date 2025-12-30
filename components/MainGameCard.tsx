@@ -5,7 +5,7 @@ import { Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LevelBadge from "./LevelBadge";
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 
 interface MainGameCardProps {
   gameName: string;
@@ -14,44 +14,19 @@ interface MainGameCardProps {
   durationMin: number;
   gameId: string;
   currentLevel: number;
+  haveLevel?: boolean;
+  totalStars?: number;
 }
 
-export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel }: MainGameCardProps) {
-  const [showOverlay, setShowOverlay] = useState(false);
+export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel, haveLevel = true, totalStars }: MainGameCardProps) {
   const router = useRouter();
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Close overlay when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (cardRef.current && !cardRef.current.contains(event.target as Node)) {
-        setShowOverlay(false);
-      }
-    };
-
-    if (showOverlay) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showOverlay]);
 
   const handleCardClick = () => {
-    setShowOverlay(true);
-  };
-
-  const handlePlayNow = () => {
     router.push(`/play/${gameId}`);
   };
 
-  const handleSelectLevel = () => {
-    router.push(`/levels/${gameId}`);
-  };
-
   return (
-    <div ref={cardRef} className="relative">
+    <div className="relative">
       <motion.div
         onClick={handleCardClick}
         initial={{ opacity: 0, y: 20 }}
@@ -71,7 +46,11 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
 
         {/* Level Badge */}
-        <LevelBadge level={currentLevel} />
+        <LevelBadge 
+          level={currentLevel} 
+          isEndless={!haveLevel} 
+          totalStars={haveLevel ? totalStars : undefined}
+        />
 
         {/* Content */}
         <div className="relative h-full flex flex-col justify-between p-4">
@@ -92,35 +71,6 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
           </div>
         </div>
       </motion.div>
-
-      {/* Button Overlay */}
-      {showOverlay && (
-        <div className="absolute inset-0 bg-black/80 rounded-2xl flex flex-col justify-between p-4 z-10 animate-in fade-in duration-200">
-          {/* Top area - title */}
-          <div className="text-center pt-8">
-            <h3 className="font-bold text-white text-lg">{gameName}</h3>
-          </div>
-          
-          {/* Middle area - buttons */}
-          <div className="flex flex-col gap-3 px-4">
-            <button
-              onClick={handleSelectLevel}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-              เลือกด่าน
-            </button>
-            <button
-              onClick={handlePlayNow}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-              เล่นเลย
-            </button>
-          </div>
-          
-          {/* Bottom area - empty for spacing */}
-          <div></div>
-        </div>
-      )}
     </div>
   );
 }
