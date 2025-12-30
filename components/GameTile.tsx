@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Lock } from "lucide-react";
+import { Lock, Grid3x3, Play } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Game } from "@/types/game";
@@ -127,22 +127,24 @@ export default function GameTile({ game }: GameTileProps) {
       {showOverlay && (
         <div className="absolute inset-0 bg-black/80 rounded-xl flex flex-col justify-between p-3 z-10 animate-in fade-in duration-200">
           {/* Top area - title */}
-          <div className="text-center pt-8">
+          <div className="text-center py-4">
             <h3 className="font-bold text-white text-lg">{game.title}</h3>
           </div>
           
           {/* Middle area - buttons */}
-          <div className="flex flex-col gap-3 px-4">
+          <div className="flex flex-col gap-3 ">
             {game.have_level && (<button
               onClick={handleSelectLevel}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
+              <Grid3x3 className="w-4 h-4" />
               เลือกด่าน
             </button>)}
             <button
               onClick={handlePlayNow}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
+              <Play className="w-4 h-4" />
               เล่นเลย
             </button>
           </div>
