@@ -2,9 +2,8 @@ import { createClient } from "@/utils/supabase/server";
 import { DailyMission } from "@/types";
 
 const MOCK_MISSIONS = [
-    { slot_index: 0, label: "Memory Boost", game_id: "game-01-cardmatch" },
-    { slot_index: 1, label: "Speed Challenge", game_id: "game-01-cardmatch" },
-    { slot_index: 2, label: "Focus Training", game_id: "game-01-cardmatch" },
+    { slot_index: 0, label: "Card Match", game_id: "game-01-cardmatch" },
+    { slot_index: 1, label: "Sensor Lock", game_id: "game-02-sensorlock" },
 ];
 
 export async function getDailyMissions(userId: string): Promise<DailyMission[]> {
@@ -19,7 +18,7 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
         .eq("date", today)
         .order("slot_index", { ascending: true });
 
-    if (existingMissions && existingMissions.length === 3) {
+    if (existingMissions && existingMissions.length === 2) {
         return existingMissions as DailyMission[];
     }
 
