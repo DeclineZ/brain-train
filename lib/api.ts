@@ -12,10 +12,10 @@ export interface GameLevel {
 export async function getGames(): Promise<Game[]> {
   try {
     const supabase = await createClient();
-    
+
     // Get current user (don't fail if no user, just return empty levels)
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError) {
       console.log("No authenticated user found, using default levels");
     }
@@ -75,10 +75,10 @@ export async function getGames(): Promise<Game[]> {
 export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
   try {
     const supabase = await createClient();
-    
+
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       console.log("No authenticated user found, returning default levels");
       // Return default levels without user progress
@@ -100,7 +100,7 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
       .limit(1)
       .single();
 
-    let userCurrentLevel = 1;
+    let userCurrentLevel = 0;
     if (session && session.current_played) {
       userCurrentLevel = session.current_played;
     }
@@ -113,10 +113,10 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
       const levelNum = i + 1;
       const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
       const isCompleted = levelNum <= userCurrentLevel;
-      
+
       // Get real stars from database, default to 0 if not found
       const stars = userStars[`level_${levelNum}_stars`] || 0;
-      
+
       return {
         level: levelNum,
         unlocked: isUnlocked,
@@ -135,5 +135,35 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
       stars: 0,
       completed: false
     }));
+  }
+}
+
+export async function hasUserPlayed(gameId: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return false;
+
+    // Check game sessions
+    const { count: sessionCount } = await supabase
+      .from('game_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('game_id', gameId);
+
+    if (sessionCount && sessionCount > 0) return true;
+
+    // Check stars (just in case session is missing but stars exist)
+    const { count: starCount } = await supabase
+      .from('user_game_stars')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('game_id', gameId);
+
+    return (starCount || 0) > 0;
+  } catch (error) {
+    console.error("Error checking play status:", error);
+    return false;
   }
 }
