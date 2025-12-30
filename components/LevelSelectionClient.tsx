@@ -178,8 +178,6 @@ export default function LevelSelectionClient({ gameId, levels, game }: LevelSele
           ))}
         </div>
       </footer>
-
-      {/* Home Button */}
     </div>
   );
 }
