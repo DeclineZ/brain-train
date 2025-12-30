@@ -9,7 +9,7 @@ import ModernDashboard from "@/components/ModernDashboard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import QuestNotificationManager from "@/components/QuestNotificationManager";
-import { Trophy } from "lucide-react";
+import { Trophy, Grid3X3 } from "lucide-react";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -52,8 +52,8 @@ export default async function Home() {
                   className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                  <Trophy className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
-                  <span className="drop-shadow-sm relative z-10">เล่นเกมอื่นๆ</span>
+                  <Grid3X3 className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
+                  <span className="drop-shadow-sm relative z-10">ไปที่คลังเกม</span>
                 </Link>
               </div>
             ) : (

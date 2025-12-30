@@ -29,14 +29,13 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
   return (
     <div className="relative">
       <motion.div
-        onClick={!isCompleted ? handleCardClick : undefined}
+        onClick={handleCardClick}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
-        whileHover={!isCompleted ? { scale: 1.01, y: -5 } : {}}
-        whileTap={!isCompleted ? { scale: 0.98 } : {}}
-        className={`relative rounded-2xl shadow-md transition-shadow duration-300 overflow-hidden h-48 group ${isCompleted ? "cursor-default" : "cursor-pointer hover:shadow-xl"
-          }`}
+        whileHover={{ scale: 1.01, y: -5 }}
+        whileTap={{ scale: 0.98 }}
+        className="relative rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-48 cursor-pointer group"
       >
         {/* Background Image */}
         <div
@@ -54,8 +53,8 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
           totalStars={haveLevel ? totalStars : undefined}
         />
 
-        {/* Content */}
-        <div className="relative h-full flex flex-col justify-between p-4">
+        {/* Content - Middle Layer (Pinned to bottom) */}
+        <div className="relative h-full flex flex-col justify-between p-4 z-30 pointer-events-none">
           {/* Chips at top */}
           <div className="flex gap-2">
             <span className="bg-orange-500/90 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
@@ -72,10 +71,11 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
             </div>
           </div>
         </div>
+
         {/* Completed Overlay - Stamp Animation */}
         {isCompleted && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+            {/* Top Layer: Stamp (Shifted UP) */}
             <motion.div
               initial={{ scale: 2, opacity: 0, rotate: -15 }}
               animate={{ scale: 1, opacity: 1, rotate: -10 }}
@@ -85,7 +85,7 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
                 damping: 15,
                 mass: 1
               }}
-              className="relative z-30 border-4 border-orange-action text-orange-action bg-white/90 px-6 py-2 rounded-lg shadow-xl transform -rotate-12 backdrop-blur-sm"
+              className="relative z-40 border-4 border-orange-action text-orange-action bg-white/95 px-6 py-2 rounded-lg shadow-xl transform -rotate-12 backdrop-blur-sm -mt-10"
               style={{
                 boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 0 20px rgba(232, 76, 28, 0.1)"
               }}
@@ -98,6 +98,17 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
                   ภารกิจสำเร็จ
                 </span>
               </div>
+            </motion.div>
+
+            {/* Middle Layer: Play Again Button (Pinned to bottom right) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="absolute bottom-3 right-3 z-30 bg-white text-orange-action px-4 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 group-hover:scale-105 transition-transform auto-pointer-events"
+            >
+              <span>เล่นต่อ</span>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </motion.div>
           </div>
         )}
