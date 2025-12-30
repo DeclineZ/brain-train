@@ -79,15 +79,21 @@ export default function GamePage({ params }: PageProps) {
         }
 
         // Also fetch stars
-        const { data: starData } = await supabase
+        const { data: starRows } = await supabase
           .from('user_game_stars')
-          .select('*')
+          .select('level, star')
           .eq('user_id', user.id)
-          .eq('game_id', gameId)
-          .single();
+          .eq('game_id', gameId);
 
-        if (starData) {
-          setGameStars(starData);
+        if (starRows) {
+          const formattedStars: any = {};
+          let total = 0;
+          starRows.forEach((row: any) => {
+            formattedStars[`level_${row.level}_stars`] = row.star;
+            total += row.star;
+          });
+          formattedStars.total_stars = total;
+          setGameStars(formattedStars);
         }
 
         if (isEndless) {
