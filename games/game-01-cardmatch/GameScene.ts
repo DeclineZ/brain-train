@@ -6,6 +6,11 @@ import type { MatchingLevelConfig } from '@/types';
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;
 
+    // Audio Settings
+    private bgMusic!: Phaser.Sound.BaseSound;
+    private bgMusicVolume = 0.5; // Adjustable volume
+
+
     // Game State
     private cards: any[] = [];
     private openedCards: any[] = [];
@@ -65,6 +70,7 @@ export class MatchingGameScene extends Phaser.Scene {
         // Reset Sound Flags
         this.hasPlayedLowTimeWarning = false;
         this.stopWarningSound();
+        this.sound.getAll('bg-music').forEach(s => s.stop());
 
         // Reset stats
         this.matchedPairs = 0;
@@ -96,6 +102,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.load.audio('timer-warning', '/assets/sounds/timer-warning.mp3');
         this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
         this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
+        this.load.audio('bg-music', '/assets/sounds/bg-music.mp3');
     }
 
     create() {
@@ -138,6 +145,17 @@ export class MatchingGameScene extends Phaser.Scene {
         this.game.events.on('resume-game', (data: { penalty: boolean }) => {
             this.resumeGame(data.penalty);
         });
+
+        // 7. Start BG Music
+        try {
+            this.bgMusic = this.sound.add('bg-music', {
+                volume: this.bgMusicVolume,
+                loop: true
+            });
+            this.bgMusic.play();
+        } catch (e) {
+            console.warn("Audio 'bg-music' failed to play", e);
+        }
     }
 
     update() {
@@ -449,12 +467,37 @@ export class MatchingGameScene extends Phaser.Scene {
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.paused = true;
 
+        if (this.timerEvent) this.timerEvent.paused = true;
+
         this.stopWarningSound();
+        if (this.bgMusic && this.bgMusic.isPlaying) {
+            this.bgMusic.pause();
+        }
+
+        // Show Time's Up Text
+        this.messageText.setText("หมดเวลา!");
+        this.messageText.setColor('#ff4444'); // Red letters
+        this.messageText.setVisible(true);
+        this.messageText.setScale(0);
+        this.messageText.setPosition(this.scale.width / 2, this.scale.height / 2);
+
+        this.tweens.add({
+            targets: this.messageText,
+            scale: 1.5,
+            duration: 500,
+            ease: 'Back.out'
+        });
+
         this.sound.play('level-fail');
 
-        // Signal React to show the timeout popup
-        this.game.events.emit('game-timeout', {
-            level: this.currentLevelConfig.level
+        // Wait 2.5 seconds before showing popup
+        this.time.delayedCall(2500, () => {
+            // Signal React to show the timeout popup
+            this.game.events.emit('game-timeout', {
+                level: this.currentLevelConfig.level
+            });
+
+            this.messageText.setVisible(false);
         });
     }
 
@@ -488,6 +531,11 @@ export class MatchingGameScene extends Phaser.Scene {
             // If we were just paused for some reason without penalty (rare in this spec but safe to handle)
             if (this.timerEvent) this.timerEvent.paused = false;
         }
+
+        // Resume BG Music
+        if (this.bgMusic && this.bgMusic.isPaused) {
+            this.bgMusic.resume();
+        }
     }
 
     failLevel() {
@@ -504,6 +552,9 @@ export class MatchingGameScene extends Phaser.Scene {
                 level: this.currentLevelConfig.level
             });
             this.stopWarningSound();
+            if (this.bgMusic && this.bgMusic.isPlaying) {
+                this.bgMusic.pause();
+            }
             this.sound.play('level-fail');
         }
     }
@@ -612,6 +663,9 @@ export class MatchingGameScene extends Phaser.Scene {
                 continuedAfterTimeout: this.continuedAfterTimeout
             });
             this.stopWarningSound();
+            if (this.bgMusic && this.bgMusic.isPlaying) {
+                this.bgMusic.pause();
+            }
             this.sound.play('level-pass');
         }
     }

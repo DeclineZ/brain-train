@@ -79,15 +79,21 @@ export default function GamePage({ params }: PageProps) {
         }
 
         // Also fetch stars
-        const { data: starData } = await supabase
+        const { data: starRows } = await supabase
           .from('user_game_stars')
-          .select('*')
+          .select('level, star')
           .eq('user_id', user.id)
-          .eq('game_id', gameId)
-          .single();
+          .eq('game_id', gameId);
 
-        if (starData) {
-          setGameStars(starData);
+        if (starRows) {
+          const formattedStars: any = {};
+          let total = 0;
+          starRows.forEach((row: any) => {
+            formattedStars[`level_${row.level}_stars`] = row.star;
+            total += row.star;
+          });
+          formattedStars.total_stars = total;
+          setGameStars(formattedStars);
         }
 
         if (isEndless) {
@@ -104,6 +110,19 @@ export default function GamePage({ params }: PageProps) {
           if (sessions && sessions.score) {
             setHighScore(sessions.score);
           }
+        }
+
+        // Fetch completed daily missions count
+        const today = new Date().toISOString().split('T')[0];
+        const { count: missionCount } = await supabase
+          .from('daily_missions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .eq('completed', true);
+
+        if (missionCount !== null) {
+          setDailyCount(missionCount);
         }
 
       } catch (err) {
@@ -241,7 +260,7 @@ export default function GamePage({ params }: PageProps) {
   };
 
   // Calculate stats progress
-  const targetDaily = 3;
+  const targetDaily = 2;
   const progressPercent = Math.min(100, Math.round((dailyCount / targetDaily) * 100));
 
   if (isLoadingLevel) return <div className="w-full h-screen bg-game-bg flex items-center justify-center text-brown-primary font-bold">Loading...</div>;
@@ -284,7 +303,7 @@ export default function GamePage({ params }: PageProps) {
                 onClick={handleContinue}
                 className="w-full bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl py-3 font-bold text-xl shadow-md active:border-b-0 active:translate-y-1 transition-all"
               >
-                เล่นต่อ (คะแนนลดลง)
+                เล่นต่อ
               </button>
 
               {/* 2. Restart */}
@@ -399,7 +418,7 @@ export default function GamePage({ params }: PageProps) {
                 {/* Streak Progress */}
                 <div className="w-full mb-6 relative">
                   <div className="flex justify-between text-brown-primary font-bold text-sm mb-1 px-2">
-                    <span>วันนี้เล่นไปแล้ว</span>
+                    <span>ภารกิจของวันนี้</span>
                     <span>{dailyCount}/{targetDaily}</span>
                   </div>
                   <div className="w-full h-8 bg-brown-primary/20 rounded-full relative overflow-hidden">
@@ -410,7 +429,7 @@ export default function GamePage({ params }: PageProps) {
                     />
                     {/* Text Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                      {streakInfo ? `Streak ${streakInfo.streak_count} วัน!` : 'กำลังบันทึก...'}
+                      {streakInfo ? `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} เกม` : 'กำลังบันทึก...'}
                     </div>
                   </div>
                 </div>
