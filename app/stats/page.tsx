@@ -3,7 +3,7 @@ import BottomNav from "@/components/BottomNav"
 import { createClient } from "@/utils/supabase/server"
 import { getCheckinStatus, getStreakBadges } from "@/lib/server/dailystreakAction"
 import { getShopItemsWithOwnership } from "@/lib/server/shopAction"
-import { getGlobalStarCount } from "@/lib/db/stars"
+import { getGlobalStarCount } from "@/lib/stars"
 import StatsPageClient from "./StatsPageClient"
 
 export default async function StatsPage() {

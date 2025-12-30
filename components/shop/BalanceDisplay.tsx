@@ -66,7 +66,7 @@ export default function BalanceDisplay({ userId, className = "" }: BalanceDispla
   }
 
   return (
-    <div className={`bg-gradient-to-r from-yellow-highlight2 to-yellow-highlight rounded-2xl p-6 shadow-lg ${className}`}>
+    <div className={`bg-gradient-to-r from-yellow-highlight to-yellow-highlight2 rounded-2xl p-6 shadow-lg ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="bg-[var(--color-balance-icon-bg)] p-3 rounded-full">

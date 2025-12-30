@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCheckinStatus } from "@/lib/server/dailystreakAction";
 import { getUserBalance } from "@/lib/server/shopAction";
-import { getGlobalStarCount } from "@/lib/db/stars";
+import { getGlobalStarCount } from "@/lib/stars";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {

@@ -3,7 +3,9 @@
 import { motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import LevelBadge from "./LevelBadge";
+import { useRef } from "react";
 
 interface MainGameCardProps {
   gameName: string;
@@ -12,12 +14,21 @@ interface MainGameCardProps {
   durationMin: number;
   gameId: string;
   currentLevel: number;
+  haveLevel?: boolean;
+  totalStars?: number;
 }
 
-export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel }: MainGameCardProps) {
+export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel, haveLevel = true, totalStars }: MainGameCardProps) {
+  const router = useRouter();
+
+  const handleCardClick = () => {
+    router.push(`/play/${gameId}`);
+  };
+
   return (
-    <Link href={`/play/${gameId}`}>
+    <div className="relative">
       <motion.div
+        onClick={handleCardClick}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -35,7 +46,11 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
 
         {/* Level Badge */}
-        <LevelBadge level={currentLevel} />
+        <LevelBadge 
+          level={currentLevel} 
+          isEndless={!haveLevel} 
+          totalStars={haveLevel ? totalStars : undefined}
+        />
 
         {/* Content */}
         <div className="relative h-full flex flex-col justify-between p-4">
@@ -56,6 +71,6 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
           </div>
         </div>
       </motion.div>
-    </Link>
+    </div>
   );
 }
