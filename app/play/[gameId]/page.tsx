@@ -213,6 +213,35 @@ export default function GamePage({ params }: PageProps) {
       return;
     }
 
+    // Calculate Earned Coins Optimistically
+    let optimisticCoins = 0;
+    if (activeLevel > 0) {
+      if (gameId === 'game-02-sensorlock') {
+        // Match server logic (800 divisor)
+        optimisticCoins = Math.max(1, Math.floor((rawData.score || 0) / 800));
+      } else {
+        // Card Match / Default
+        const levelMultiplier = 1 + (activeLevel - 1) * 0.1;
+        let baseReward = Math.floor(20 * levelMultiplier);
+
+        // Star Quality Multiplier
+        let starMultiplier = 1.0;
+        const stars = Number(rawData.stars || 0);
+        if (stars === 2) starMultiplier = 0.7;
+        if (stars === 1) starMultiplier = 0.5;
+        if (stars === 0) starMultiplier = 0.0;
+
+        baseReward = Math.floor(baseReward * starMultiplier);
+
+        // Check Replay (using gameStars state)
+        const hasStars = gameStars?.[`level_${activeLevel}_stars`] > 0;
+        if (hasStars) {
+          baseReward = Math.floor(baseReward * 0.9);
+        }
+        optimisticCoins = baseReward;
+      }
+    }
+
     // 1. Optimistic UI: Show popup IMMEDIATELY with partial data
     setResult({
       success: true,
@@ -224,11 +253,10 @@ export default function GamePage({ params }: PageProps) {
       stat_planning: null,
       stat_emotion: null,
       starHint: rawData.starHint, // Capture Hint
-      earnedCoins: activeLevel > 0 ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 600)) : 20) : 0
+      earnedCoins: optimisticCoins
     });
 
     // Save Level Progress (Implementation simplified)
-    const nextLvl = activeLevel + 1;
     // We should save this to DB here.
 
     // 2. Submit Game Stats (Async)
@@ -274,7 +302,7 @@ export default function GamePage({ params }: PageProps) {
     // 5. Trigger TopBar Refresh
     // This event name 'balanceUpdate' is listened to by TopBar to refetch user stats (including stars)
     window.dispatchEvent(new Event('balanceUpdate'));
-  }, [activeLevel, gameId, submitSession, dailyCount]);
+  }, [activeLevel, gameId, submitSession, dailyCount, gameStars, isEndless]);
 
   const handleNextLevel = () => {
     setResult(null); // Explicitly clear before push
