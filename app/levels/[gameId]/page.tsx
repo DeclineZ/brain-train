@@ -1,4 +1,4 @@
-import { getGameLevels } from '@/lib/api';
+import { getGameLevels, hasUserPlayed } from '@/lib/api';
 import { getGames } from '@/lib/api';
 import LevelSelectionClient from '@/components/LevelSelectionClient';
 import { notFound } from 'next/navigation';
@@ -19,7 +19,7 @@ function NoLevelsUI({ game }: { game: any }) {
         <Link href="/allgames" className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white hover:scale-105 transition-all duration-200 active:scale-95">
           <ArrowLeft className="w-5 h-5 text-brown-darkest" />
         </Link>
-        
+
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-brown-darkest mb-2">
             {game?.title || 'เกม'}
@@ -93,10 +93,13 @@ export default async function LevelSelectionPage({ params }: PageProps) {
   try {
     // Load game levels (server-side)
     const levels = await getGameLevels(gameId);
-    
+
     // Load game info (server-side)
     const games = await getGames();
     const game = games.find(g => g.gameId === gameId);
+
+    // Check if user has played before
+    const hasPlayed = await hasUserPlayed(gameId);
 
     if (!game) {
       notFound();
@@ -105,10 +108,11 @@ export default async function LevelSelectionPage({ params }: PageProps) {
     return (
       <>
         {game.have_level ? (
-          <LevelSelectionClient 
+          <LevelSelectionClient
             gameId={gameId}
             levels={levels}
             game={game}
+            hasPlayedBefore={hasPlayed}
           />
         ) : (
           <NoLevelsUI game={game} />
