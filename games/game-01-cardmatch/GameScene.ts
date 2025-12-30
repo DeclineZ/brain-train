@@ -655,6 +655,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
                 attempts: this.attempts,
                 stars: this.calculateStars(duration),
+                starHint: this.calculateStars(duration) < 3 ? this.getStarHint(duration) : null,
                 success: true,
                 continuedAfterTimeout: this.continuedAfterTimeout
             });
@@ -678,6 +679,26 @@ export class MatchingGameScene extends Phaser.Scene {
         if (!parExceeded && this.wrongFlips <= 1) return 3;
         if (!parExceeded || this.wrongFlips <= 3) return 2;
         return 1;
+    }
+
+    getStarHint(duration: number): string | null {
+        if (this.continuedAfterTimeout) {
+            return "จบเกมโดยไม่หมดเวลาเพื่อรับ 3 ดาว";
+        }
+
+        const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
+        const tooManyMistakes = this.wrongFlips > 1;
+
+        if (parExceeded && tooManyMistakes) {
+            return `ลองทำเวลาให้ดีกว่านี้\nและผิดไม่เกิน 1 ครั้ง`;
+        }
+        if (parExceeded) {
+            return `ลองทำเวลาให้ดีกว่านี้`;
+        }
+        if (tooManyMistakes) {
+            return "ลองจับคู่ผิดให้ไม่เกิน 1 ครั้ง";
+        }
+        return null;
     }
 
     // --- SOUND HELPERS ---

@@ -8,7 +8,7 @@ import ConfettiEffect from '@/components/game/ConfettiEffect';
 import TimeoutPopup from '@/components/game/TimeoutPopup';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Home, ArrowLeft } from 'lucide-react';
+import { Home, ArrowLeft, Coins } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ gameId: string }>;
@@ -222,7 +222,10 @@ export default function GamePage({ params }: PageProps) {
       stat_speed: null,
       stat_focus: null,
       stat_planning: null,
-      stat_emotion: null
+      stat_emotion: null,
+      stat_emotion: null,
+      starHint: rawData.starHint, // Capture Hint
+      earnedCoins: activeLevel > 0 ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 50)) : 20) : 0
     });
 
     // Save Level Progress (Implementation simplified)
@@ -414,6 +417,16 @@ export default function GamePage({ params }: PageProps) {
                   </div>
                 )}
 
+                {/* Star Hint Tooltip */}
+                {!isEndless && result.stars < 3 && result.starHint && (
+                  <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-3 mb-4 animate-pulse">
+                    <p className="text-yellow-800 font-bold text-sm text-center leading-relaxed whitespace-pre-line">
+                      <span className="mr-1">ตัวช่วย :</span>
+                      <span>{result.starHint}</span>
+                    </p>
+                  </div>
+                )}
+
                 {/* Stats Box */}
                 <div className="bg-stats-bg w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
                   <div className="flex flex-wrap justify-center gap-2">
@@ -430,6 +443,12 @@ export default function GamePage({ params }: PageProps) {
                     {result.statChanges?.stat_speed > 0 && (
                       <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                         ^ ความเร็ว
+                      </div>
+                    )}
+                    {result.earnedCoins > 0 && (
+                      <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1">
+                        <Coins className="w-5 h-5 text-yellow-600 fill-yellow-600/20" />
+                        <span>+{result.earnedCoins}</span>
                       </div>
                     )}
                     {result.statChanges?.stat_focus > 0 && (
