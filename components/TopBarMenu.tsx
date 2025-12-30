@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Settings, LogOut, MoreHorizontal } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { useTheme } from "@/app/providers/ThemeProvider";
 
 interface TopBarMenuProps {
     variant?: "default" | "dark";
@@ -14,6 +15,7 @@ export default function TopBarMenu({ variant = "default" }: TopBarMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const supabase = createClient();
+    const { setTheme } = useTheme();
 
     // ... (rest of hook logic unchanged)
 
@@ -33,6 +35,7 @@ export default function TopBarMenu({ variant = "default" }: TopBarMenuProps) {
     const handleLogout = async () => {
         try {
             await supabase.auth.signOut();
+            setTheme("default"); // Reset theme to default on logout
             router.push("/login");
             setIsOpen(false);
         } catch (error) {
