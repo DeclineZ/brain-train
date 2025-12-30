@@ -2,6 +2,13 @@ import type { Game } from "@/types/game";
 import { createClient } from "@/utils/supabase/server";
 import { console } from "inspector";
 
+export interface GameLevel {
+  level: number;
+  unlocked: boolean;
+  stars: number; // 0-3 stars
+  completed: boolean;
+}
+
 export async function getGames(): Promise<Game[]> {
   try {
     const supabase = await createClient();
@@ -61,5 +68,65 @@ export async function getGames(): Promise<Game[]> {
     console.error("Games API error:", error);
     // Return empty array as fallback
     return [];
+  }
+}
+
+export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      console.log("No authenticated user found, returning default levels");
+      // Return default levels without user progress
+      return Array.from({ length: 12 }, (_, i) => ({
+        level: i + 1,
+        unlocked: i === 0, // Only first level unlocked
+        stars: 0,
+        completed: false
+      }));
+    }
+
+    // Fetch user's current level for this game
+    const { data: session, error: sessionError } = await supabase
+      .from('game_sessions')
+      .select('current_played')
+      .eq('user_id', user.id)
+      .eq('game_id', gameId)
+      .order('current_played', { ascending: false })
+      .limit(1)
+      .single();
+
+    let userCurrentLevel = 1;
+    if (session && session.current_played) {
+      userCurrentLevel = session.current_played;
+    }
+
+    // Generate levels with mock star data
+    const levels: GameLevel[] = Array.from({ length: 12 }, (_, i) => {
+      const levelNum = i + 1;
+      const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
+      const isCompleted = levelNum <= userCurrentLevel;
+      
+      return {
+        level: levelNum,
+        unlocked: isUnlocked,
+        stars: isCompleted ? 3 : 0, // Mock: always 3 stars for completed levels
+        completed: isCompleted
+      };
+    });
+
+    return levels;
+  } catch (error) {
+    console.error("Game levels API error:", error);
+    // Return default levels as fallback
+    return Array.from({ length: 12 }, (_, i) => ({
+      level: i + 1,
+      unlocked: i === 0, // Only first level unlocked
+      stars: 0,
+      completed: false
+    }));
   }
 }
