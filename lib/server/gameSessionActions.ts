@@ -184,7 +184,7 @@ export async function submitGameSession(
                 // Dynamic Reward: Score / 500.
                 // Typical Score: ~15,000 -> 30 Coins.
                 const score = rawData.score || 0
-                rewardAmount = Math.max(1, Math.floor(score / 600))
+                rewardAmount = Math.max(1, Math.floor(score / 800))
                 rewardReason = `เล่น Sensor Lock คะแนน ${score}`
             }
 
