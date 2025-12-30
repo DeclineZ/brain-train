@@ -248,7 +248,7 @@ export async function submitGameSession(
             learningRate,
             starInfo,
             newBalance: coinResult.ok ? coinResult.data?.new_balance : undefined,
-            earnedCoins: (coinResult.ok && levelPlayed > 0) ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 50)) : 20) : 0,
+            earnedCoins: (coinResult.ok && levelPlayed > 0) ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 600)) : 20) : 0,
             missionResult: missionCompleted ? {
                 completed: true,
                 label: completedMission?.label,
