@@ -10,6 +10,15 @@ import type { MatchingLevelConfig } from '@/types';
 // 7     | 4     | Minimal      | Extremely tight | Mastery
 
 export const MATCHING_LEVELS: { [key: number]: MatchingLevelConfig } = {
+    0: {
+        level: 0,
+        gridCols: 3, // 3x2 (Landscape) or 2x3 (Portrait)
+        totalPairs: 3, // 6 Cards total
+        previewTimeMs: 999999, // Infinite (Manual)
+        parTimeSeconds: 999,
+        timeLimitSeconds: 999,
+        difficultyMultiplier: 1.0
+    },
     1: {
         level: 1,
         gridCols: 2, // 2x2

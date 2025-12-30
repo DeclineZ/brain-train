@@ -26,6 +26,7 @@ export default function GamePage({ params }: PageProps) {
   const [isLoadingLevel, setIsLoadingLevel] = useState(true);
   const [gameStars, setGameStars] = useState<any>({});
   const [retryCount, setRetryCount] = useState(0);
+  const [showTutorialPopup, setShowTutorialPopup] = useState(false);
 
   // Ref for imperative game control
   const gameRef = useRef<any>(null);
@@ -61,6 +62,8 @@ export default function GamePage({ params }: PageProps) {
       // Or just default to 1 for now and note it in Persistence Task.
       // "Task: Integrate current_level fetching/saving". 
       // I will implement the logic assuming a 'user_games' table exists or similar for now.
+      // Modified: If no data found, assume Level 0 (Tutorial) using activeLevel default if 1 is not suitable.
+      // Actually setActiveLevel default is 1. We will override it to 0 if no session found.
 
       try {
         const { data, error } = await supabase
@@ -76,6 +79,12 @@ export default function GamePage({ params }: PageProps) {
           // Prevent going beyond max level (7)
           const nextLevel = data.current_played + 1;
           setActiveLevel(nextLevel > 7 ? 7 : nextLevel);
+        } else {
+          // No history -> Start Tutorial (Level 0)
+          // Only for cardmatch? Valid for all games ideally, but let's stick to spec.
+          if (gameId === 'game-01-cardmatch') {
+            setActiveLevel(0);
+          }
         }
 
         // Also fetch stars
@@ -138,6 +147,7 @@ export default function GamePage({ params }: PageProps) {
   useEffect(() => {
     setResult(null);
     setIsTimeout(false);
+    setShowTutorialPopup(false);
   }, [activeLevel]);
 
   /* 
@@ -178,6 +188,12 @@ export default function GamePage({ params }: PageProps) {
     if (rawData.success === false && !isEndless) {
       // Typically shouldn't happen with timeout logic unless forced
       setResult({ success: false });
+      return;
+    }
+
+    if (activeLevel === 0) { // Tutorial Complete
+      setShowTutorialPopup(true);
+      await submitSession(gameId, rawData);
       return;
     }
 
@@ -337,6 +353,37 @@ export default function GamePage({ params }: PageProps) {
       )}
 
       {/* The Result Popup Overlay */}
+      {showTutorialPopup && (
+        <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
+          <ConfettiEffect />
+          <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
+            <h1 className="text-3xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
+              คุณเก่งมาก!
+            </h1>
+            <p className="text-brown-primary font-bold text-lg mb-6">
+              เราไปเริ่มเล่นเกมจริงกัน
+            </p>
+            <div className="flex gap-4 w-full justify-center">
+              <button
+                onClick={() => router.push('/')}
+                className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
+              >
+                <Home className="w-8 h-8" />
+              </button>
+              <button
+                onClick={() => {
+                  setShowTutorialPopup(false);
+                  setActiveLevel(1);
+                }}
+                className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
+              >
+                เริ่มเลย
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {result && (
         <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
           {/* Celebration Effect */}
@@ -429,7 +476,7 @@ export default function GamePage({ params }: PageProps) {
                     />
                     {/* Text Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                      {streakInfo ? `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} เกม` : 'กำลังบันทึก...'}
+                      {streakInfo ? (Math.max(0, targetDaily - dailyCount) === 0 ? 'ภารกิจวันนี้เสร็จแล้ว' : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} เกม`) : 'กำลังบันทึก...'}
                     </div>
                   </div>
                 </div>
