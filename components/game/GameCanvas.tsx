@@ -183,7 +183,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
         {mode === 'tutorial' && (
           <div className="text-[#58CC02] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#58CC02]/20 backdrop-blur-sm shadow-sm mt-2">
-            TUTORIAL
+            โหมดฝึกสอน
           </div>
         )}
 
@@ -201,7 +201,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
             className="pointer-events-auto bg-[#58CC02] hover:bg-[#46A302] text-white text-2xl font-bold py-3 px-12 rounded-2xl shadow-lg transform transition active:scale-95 border-b-4 border-[#46A302]"
             style={{ fontFamily: "'Noto Sans Thai', sans-serif" }}
           >
-            ไปต่อ
+            จำได้แล้ว
           </button>
         )}
 
