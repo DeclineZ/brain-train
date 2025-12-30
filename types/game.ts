@@ -5,6 +5,7 @@ export interface Game {
   gameId: string;        // for navigation to /play/gameId
   title: string;
   category: GameCategory;
+  have_level: boolean;
   image: string;         // cover image URL or path (NOT NULL in database)
   durationMin: number;    // must be > 0
   locked?: boolean;

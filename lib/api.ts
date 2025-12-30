@@ -23,7 +23,7 @@ export async function getGames(): Promise<Game[]> {
     // Fetch games
     const { data: games, error: gamesError } = await supabase
       .from("games")
-      .select("id,game_id, title, category, image, duration_min")
+      .select("id,game_id, title, category,have_level, image, duration_min")
       .order("id", { ascending: true });
 
     if (gamesError) {
@@ -55,6 +55,7 @@ export async function getGames(): Promise<Game[]> {
       gameId: game.game_id,
       title: game.title,
       category: game.category,
+      have_level: game.have_level,
       image: game.image,
       durationMin: game.duration_min,
       featured: index === 0, // First game is featured

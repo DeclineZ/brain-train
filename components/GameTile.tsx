@@ -112,7 +112,8 @@ export default function GameTile({ game }: GameTileProps) {
           )}
           
           {/* Level Badge */}
-          <LevelBadge level={game.currentLevel || 1} />
+          
+          {game.have_level && (<LevelBadge level={game.currentLevel || 1} />)}
         </div>
         
         {/* Game Info */}
@@ -132,12 +133,12 @@ export default function GameTile({ game }: GameTileProps) {
           
           {/* Middle area - buttons */}
           <div className="flex flex-col gap-3 px-4">
-            <button
+            {game.have_level && (<button
               onClick={handleSelectLevel}
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
             >
               เลือกด่าน
-            </button>
+            </button>)}
             <button
               onClick={handlePlayNow}
               className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
