@@ -42,10 +42,10 @@ export default async function RootLayout({
       <body
         className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >
-        <TopBarWrapper>
-          <TopBar />
-        </TopBarWrapper>
         <ThemeProvider initialTheme={(themeCookie?.value as "default" | "pastel") || "default"}>
+          <TopBarWrapper>
+            <TopBar />
+          </TopBarWrapper>
           {children}
         </ThemeProvider>
       </body>
