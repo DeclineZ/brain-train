@@ -5,9 +5,10 @@ import { useGameSession } from '@/hooks/useGameSession';
 import GameCanvas from '@/components/game/GameCanvas';
 import StarIcon from '@/components/game/StarIcon';
 import ConfettiEffect from '@/components/game/ConfettiEffect';
+import TimeoutPopup from '@/components/game/TimeoutPopup';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Home } from 'lucide-react';
+import { Home, ArrowLeft } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ gameId: string }>;
@@ -34,17 +35,22 @@ export default function GamePage({ params }: PageProps) {
   const searchParams = useSearchParams();
   // We prioritize URL param, but if missing, we wait for DB fetch
   const paramLevel = searchParams.get('level');
+  const tutorialMode = searchParams.get('tutorial_mode');
+
   // Endless Mode Check
   const isEndless = gameId === 'game-02-sensorlock';
   const [activeLevel, setActiveLevel] = useState<number>(1);
+  const [resumeLevel, setResumeLevel] = useState<number>(1);
   const [highScore, setHighScore] = useState<number>(0);
 
-  // 1. Fetch persistent level on mount if not in URL
+  // 1. Fetch persistent level on mount
   useEffect(() => {
+    // If param is present, set it immediately so UI doesn't flicker
     if (paramLevel) {
       setActiveLevel(Number(paramLevel));
+      // If it's not tutorial, we can stop loading. 
+      // If it IS tutorial, we still might want to fetch resumeLevel in background.
       setIsLoadingLevel(false);
-      return;
     }
 
     async function fetchLevel() {
@@ -54,16 +60,6 @@ export default function GamePage({ params }: PageProps) {
         setIsLoadingLevel(false);
         return;
       }
-      // Assuming a table or reusing game_sessions logic to find max level?
-      // Actually spec says "Fetch current_level from Supabase Track: user_id, game_id, current_level"
-      // Let's assume there is a 'game_progress' table or similar. 
-      // If not exists, I should probably create it or use local storage?
-      // Given I cannot run SQL DDL easily, I should check if I can use a simple generic table.
-      // Or just default to 1 for now and note it in Persistence Task.
-      // "Task: Integrate current_level fetching/saving". 
-      // I will implement the logic assuming a 'user_games' table exists or similar for now.
-      // Modified: If no data found, assume Level 0 (Tutorial) using activeLevel default if 1 is not suitable.
-      // Actually setActiveLevel default is 1. We will override it to 0 if no session found.
 
       try {
         const { data, error } = await supabase
@@ -75,15 +71,24 @@ export default function GamePage({ params }: PageProps) {
           .limit(1)
           .single();
 
+        let nextLevel = 1;
         if (data && data.current_played) {
           // Prevent going beyond max level (7)
-          const nextLevel = data.current_played + 1;
-          setActiveLevel(nextLevel > 7 ? 7 : nextLevel);
-        } else {
-          // No history -> Start Tutorial (Level 0)
-          // Valid for game-01 and game-02
-          if (gameId === 'game-01-cardmatch' || gameId === 'game-02-sensorlock') {
-            setActiveLevel(0);
+          nextLevel = data.current_played + 1;
+          if (nextLevel > 7) nextLevel = 7;
+        }
+
+        setResumeLevel(nextLevel);
+
+        // Only override activeLevel if no param was provided
+        if (!paramLevel) {
+          if (data && data.current_played) {
+            setActiveLevel(nextLevel);
+          } else {
+            // No history -> Start Tutorial (Level 0) for cardmatch
+            if (gameId === 'game-01-cardmatch' || gameId === 'game-02-sensorlock') {
+              setActiveLevel(0);
+            }
           }
         }
 
@@ -317,52 +322,13 @@ export default function GamePage({ params }: PageProps) {
 
       {/* TIMEOUT POPUP */}
       {isTimeout && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
-            <h1 className="text-3xl font-extrabold text-[#D95C5C] drop-shadow-sm mt-2 mb-4">
-              หมดเวลา!
-            </h1>
-            <p className="text-brown-primary font-bold text-lg mb-6">
-              จะทำอย่างไรต่อดี?
-            </p>
-
-            <div className="flex flex-col gap-3 w-full">
-              {/* 1. Continue */}
-              <button
-                onClick={handleContinue}
-                className="w-full bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl py-3 font-bold text-xl shadow-md active:border-b-0 active:translate-y-1 transition-all"
-              >
-                เล่นต่อ
-              </button>
-
-              {/* 2. Restart */}
-              <button
-                onClick={handleRestartLevel}
-                className="w-full bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl py-3 font-bold text-xl shadow-md active:border-b-0 active:translate-y-1 transition-all"
-              >
-                เริ่มด่านใหม่
-              </button>
-
-              {/* 3. Previous Level (Conditional) */}
-              {activeLevel > 1 && (
-                <button
-                  onClick={handlePreviousLevel}
-                  className="w-full bg-white border-4 border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 rounded-2xl py-3 font-bold text-lg shadow-sm active:translate-y-1 transition-all"
-                >
-                  ย้อนกลับด่านที่ {activeLevel - 1}
-                </button>
-              )}
-
-              {/* 4. Give Up */}
-              <button
-                onClick={() => router.push('/')}
-                className="w-full bg-[#FF4B4B] hover:bg-[#D43F3F] border-b-4 border-[#D43F3F] text-white rounded-2xl py-3 font-bold text-xl shadow-md active:border-b-0 active:translate-y-1 transition-all"
-              >
-                ยอมแพ้
-              </button>
-            </div>
-          </div>
-        </div>
+        <TimeoutPopup
+          onContinue={handleContinue}
+          onRestart={handleRestartLevel}
+          onPreviousLevel={handlePreviousLevel}
+          onGiveUp={() => router.push('/')}
+          activeLevel={activeLevel}
+        />
       )}
 
       {/* The Result Popup Overlay */}
@@ -386,7 +352,13 @@ export default function GamePage({ params }: PageProps) {
               <button
                 onClick={() => {
                   setShowTutorialPopup(false);
-                  setActiveLevel(1);
+                  if (tutorialMode === 'review') {
+                    // Manual review -> Go to saved resume level (or max level)
+                    setActiveLevel(resumeLevel);
+                  } else {
+                    // First time tutorial -> Go to Level 1
+                    setActiveLevel(1);
+                  }
                 }}
                 className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
               >
@@ -497,47 +469,49 @@ export default function GamePage({ params }: PageProps) {
                 {/* Buttons Row (Success) */}
                 {/* Buttons Row (Success) - Only show after stats loaded */}
                 {((!isEndless && result.stat_memory !== null) || (isEndless && result.stat_focus !== null)) && (
-                  <div className="flex gap-4 w-full justify-center">
+                  <div className="flex flex-col gap-3 w-full">
+                    <div className="flex gap-4 w-full justify-center">
+                      {/* Restart Level Button */}
+                      {!isEndless && (
+                        <button
+                          onClick={handleRestartLevel}
+                          className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-full h-full">
+                            <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
+                          </svg>
+                        </button>
+                      )}
 
-                    {/* Restart Level Button (Only for non-endless games where replaying a specific level matters) */}
-                    {!isEndless && (
+                      {/* Back to Home Button */}
                       <button
-                        onClick={handleRestartLevel}
-                        className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
+                        onClick={() => router.push('/')}
+                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor" className="w-full h-full">
-                          <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                        </svg>
+                        <Home className="w-8 h-8" />
                       </button>
-                    )}
 
-                    {/* Back to Home Button */}
-                    <button
-                      onClick={() => router.push('/')}
-                      className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
-                    >
-                      <Home className="w-8 h-8" />
-                    </button>
-
-                    <button
-                      onClick={isEndless ? handleReplay : handleNextLevel}
-                      className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
-                    >
-                      {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleNextLevel}
+                        className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                      >
+                        {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                      </button>
+                    </div>
                 )}
-              </>
-            ) : (
-              // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
-              <div className="text-center">
-                <h1 className="text-3xl">Game Over</h1>
-                <button onClick={handleRestartLevel}>Restart</button>
-              </div>
+                  </>
+                ) : (
+                // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
+                <div className="text-center">
+                  <h1 className="text-3xl">Game Over</h1>
+                  <button onClick={handleRestartLevel}>Restart</button>
+                </div>
             )}
+              </div>
           </div>
+          )
+      }
         </div>
-      )}
-    </div>
-  );
+      );
 }
+
