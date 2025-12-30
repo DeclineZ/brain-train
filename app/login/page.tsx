@@ -56,6 +56,23 @@ export default function LoginPage() {
         }
     };
 
+    const handleDevLogin = async () => {
+        setLoading(true);
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: "test@example.com",
+                password: "password",
+            });
+
+            if (error) throw error;
+            router.refresh();
+            router.push("/");
+        } catch (err: any) {
+            setError(err.message || "Dev login failed");
+            setLoading(false);
+        }
+    };
+
     return (
         <main className="min-h-screen bg-cream flex md:gap-4 font-sans text-brown-800">
 
@@ -154,6 +171,16 @@ export default function LoginPage() {
                     </form>
 
                     <div className="space-y-4">
+                        {process.env.NODE_ENV === "development" && (
+                            <button
+                                type="button"
+                                onClick={handleDevLogin}
+                                disabled={loading}
+                                className="w-full h-12 bg-red-50 hover:bg-red-100 text-red-600 border-2 border-red-200 border-dashed rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                            >
+                                🚧 [DEV] Quick Login (test@example.com)
+                            </button>
+                        )}
                         <LineLoginButton />
                         <div className="grid grid-cols-1 gap-3">
                             <button
