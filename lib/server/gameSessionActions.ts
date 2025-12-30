@@ -184,8 +184,17 @@ export async function submitGameSession(
         }
 
         // 8. Check Daily Mission Completion
-        // We do this last so it doesn't block the main session save, but we include it in the response
+        // We do this last so it don't block the main session save, but we include it in the response
         const { completed: missionCompleted, mission: completedMission } = await checkMissionCompletion(user.id, gameId, levelPlayed)
+
+        // 9. Get Total Completed Count for Today (for UI update)
+        const today = new Date().toISOString().split("T")[0]
+        const { count: dailyPlayedCount } = await supabase
+            .from("daily_missions")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("date", today)
+            .eq("completed", true)
 
         revalidatePath("/stats")
         // Also revalidate home page where missions are shown
@@ -203,7 +212,8 @@ export async function submitGameSession(
                 completed: true,
                 label: completedMission?.label,
                 slotIndex: completedMission?.slot_index
-            } : null
+            } : null,
+            dailyPlayedCount
         }
     } catch (err) {
         console.error("Unexpected error in submitGameSession:", err)

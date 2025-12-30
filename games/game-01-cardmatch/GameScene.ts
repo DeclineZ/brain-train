@@ -53,6 +53,12 @@ export class MatchingGameScene extends Phaser.Scene {
     private isPaused = false;
     private hasPlayedLowTimeWarning = false;
 
+    // Tutorial State
+    private isTutorial = false;
+    private tutorialStep = 0;
+    private currentFlashTween: Phaser.Tweens.Tween | null = null;
+    private tutorialBtn: Phaser.GameObjects.Container | null = null;
+
     // UI Elements
     private messageText!: any; // Phaser.GameObjects.Text
     private streakText!: any; // Phaser.GameObjects.Text
@@ -63,8 +69,9 @@ export class MatchingGameScene extends Phaser.Scene {
         // Priority: Data Passed > Registry > Default
         const regLevel = this.registry.get('level');
         console.log(`[MatchingGameScene] init data=${JSON.stringify(data)} registry=${regLevel}`);
-        const level = data.level || regLevel || 1;
-        this.currentLevelConfig = MATCHING_LEVELS[level] || MATCHING_LEVELS[1];
+        const level = data.level !== undefined ? data.level : (regLevel || 1);
+        this.currentLevelConfig = MATCHING_LEVELS[level] !== undefined ? MATCHING_LEVELS[level] : MATCHING_LEVELS[1];
+        this.isTutorial = (level === 0);
         this.totalPairs = this.currentLevelConfig.totalPairs;
 
         // Reset Sound Flags
@@ -159,7 +166,7 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     update() {
-        if (!this.customTimerBar || !this.customTimerBar.visible || this.isPaused || this.continuedAfterTimeout || this.startTime === 0) return;
+        if (!this.customTimerBar || !this.customTimerBar.visible || this.isPaused || this.continuedAfterTimeout || this.startTime === 0 || this.isTutorial) return;
 
         const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
         const elapsed = Date.now() - this.startTime;
@@ -320,6 +327,15 @@ export class MatchingGameScene extends Phaser.Scene {
             ease: 'Back.out'
         });
 
+        this.cards.forEach(c => {
+            if (!c.isFlipped) this.flipCard(c, true, false); // Silent flip for preview
+        });
+
+        if (this.isTutorial) {
+            this.createTutorialButton();
+            return;
+        }
+
         const barW = 300;
         const barH = 10;
         const barX = this.scale.width / 2 - barW / 2;
@@ -339,10 +355,6 @@ export class MatchingGameScene extends Phaser.Scene {
                 this.endPreview();
             }
         });
-
-        this.cards.forEach(c => {
-            if (!c.isFlipped) this.flipCard(c, true, false); // Silent flip for preview
-        });
     }
 
     endPreview() {
@@ -361,11 +373,113 @@ export class MatchingGameScene extends Phaser.Scene {
             });
         });
 
-        this.time.delayedCall(this.cards.length * 50 + 500, () => {
+        this.time.delayedCall(this.isTutorial ? 1000 : (this.cards.length * 50 + 500), () => {
             this.isLocked = false;
             this.startTime = Date.now();
-            this.startTimer();
+            if (this.isTutorial) {
+                this.startTutorialGameplay();
+            } else {
+                this.startTimer();
+            }
         });
+    }
+
+    createTutorialButton() {
+        if (this.tutorialBtn) return; // Prevent duplicates
+
+        const { width, height } = this.scale;
+        const btnW = 200;
+        const btnH = 60;
+        const x = width / 2;
+        const y = height - 100;
+
+        const container = this.add.container(x, y);
+
+        // Graphics for rounded button
+        const gr = this.add.graphics();
+        gr.fillStyle(0x58CC02, 1);
+        gr.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+        gr.lineStyle(4, 0x46A302);
+        gr.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+
+        const text = this.add.text(0, 0, "ไปต่อ", {
+            fontSize: '32px',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            fontFamily: 'Noto Sans Thai, sans-serif'
+        }).setOrigin(0.5);
+
+        const hit = this.add.rectangle(0, 0, btnW, btnH, 0x000000, 0).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        container.add([gr, text, hit]);
+
+        hit.on('pointerdown', () => {
+            this.tweens.add({
+                targets: container,
+                scale: 0.9,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => {
+                    container.destroy();
+                    this.tutorialBtn = null;
+                    this.endPreview();
+                }
+            });
+        });
+
+        this.tutorialBtn = container;
+    }
+
+    startTutorialGameplay() {
+        // Change text
+        this.messageText.setText("จับคู่การ์ดให้ถูกต้อง");
+        this.messageText.setVisible(true);
+        this.messageText.setScale(0);
+        this.tweens.add({
+            targets: this.messageText,
+            scale: 1,
+            y: this.scale.height * 0.15,
+            duration: 500,
+            ease: 'Back.out'
+        });
+
+        this.tutorialStep = 1;
+        this.flashTutorialStep();
+    }
+
+    flashTutorialStep() {
+        // Clear existing flash
+        if (this.currentFlashTween) {
+            this.currentFlashTween.stop();
+            // Reset scales of all unmatched check?
+            // Better: reset all cards scale to base just in case
+            this.cards.forEach(c => {
+                if (!c.isMatched && c.container) c.container.setScale(1);
+            });
+            this.currentFlashTween = null;
+        }
+
+        if (this.tutorialStep > 2) return; // Step 3 (last one) has no hint
+
+        const unmatched = this.cards.filter(c => !c.isMatched);
+        if (unmatched.length === 0) return;
+
+        // Pick the first available card's emoji group
+        const first = unmatched[0];
+        const pair = unmatched.filter(c => c.emoji === first.emoji);
+
+        if (pair.length > 0) {
+            this.currentFlashTween = this.tweens.add({
+                targets: pair.map(c => c.container),
+                scaleX: 1.1,
+                scaleY: 1.1,
+                duration: 600,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+
     }
 
     startTimer() {
@@ -602,6 +716,11 @@ export class MatchingGameScene extends Phaser.Scene {
             this.playMatchEffect(c2);
 
             this.updateStreakUI(true);
+
+            if (this.isTutorial) {
+                this.tutorialStep++;
+                this.flashTutorialStep();
+            }
 
             if (this.matchedPairs === this.totalPairs) {
                 this.time.delayedCall(1000, () => this.endGame());
