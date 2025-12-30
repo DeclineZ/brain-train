@@ -4,7 +4,7 @@ import { checkMissionCompletion } from "@/lib/dailyMissions"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { ClinicalStats } from "@/types"
-import { upsertLevelStars } from "@/lib/db/stars"
+import { upsertLevelStars } from "@/lib/stars"
 import { addCoins } from "@/lib/server/shopAction"
 
 export async function submitGameSession(

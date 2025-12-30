@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { GameLevel } from '@/lib/api';
 import type { Game } from '@/types/game';
 import StarIcon from '@/components/game/StarIcon';
-import { Lock, ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import { Lock, ChevronLeft, ChevronRight, Home, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 interface LevelSelectionClientProps {
   gameId: string;
@@ -87,7 +88,12 @@ export default function LevelSelectionClient({ gameId, levels, game }: LevelSele
   return (
     <div className="h-auto bg-cream flex flex-col justify-between">
       {/* Header (15%) */}
-      <header className="h-[15vh] flex items-center justify-center px-4">
+      <header className="h-[15vh] flex items-center justify-center px-4 relative">
+        {/* Back Button - Top Left */}
+        <Link href="/allgames" className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white hover:scale-105 transition-all duration-200 active:scale-95">
+          <ArrowLeft className="w-5 h-5 text-brown-darkest" />
+        </Link>
+        
         <div className="text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-brown-darkest mb-2">
             {game?.title || 'เลือกด่าน'}
