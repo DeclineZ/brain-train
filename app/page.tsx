@@ -22,7 +22,7 @@ export default async function Home() {
 
   // Filter games that have GIFs for the main page (featured games)
   const featuredGames = games.filter(game => game.featured);
-  
+
   // Fetch total stars for featured games
   const featuredGameIds = featuredGames.map(game => game.gameId);
   const featuredGameStars = await getMultipleGameTotalStars(featuredGameIds);
@@ -58,19 +58,25 @@ export default async function Home() {
         >
           {/* Game Cards Grid */}
           <div className="grid gap-6 grid-cols-1">
-            {featuredGames.map((game, index) => (
-              <MainGameCard
-                key={game.id}
-                gameName={game.title}
-                image={game.image!}
-                index={index}
-                durationMin={game.durationMin}
-                gameId={game.gameId}
-                currentLevel={game.currentLevel}
-                haveLevel={game.have_level}
-                totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
-              />
-            ))}
+            {featuredGames.map((game, index) => {
+              const mission = missions.find(m => m.game_id === game.gameId);
+              const isCompleted = mission ? mission.completed : false;
+
+              return (
+                <MainGameCard
+                  key={game.id}
+                  gameName={game.title}
+                  image={game.image!}
+                  index={index}
+                  durationMin={game.durationMin}
+                  gameId={game.gameId}
+                  currentLevel={game.currentLevel}
+                  haveLevel={game.have_level}
+                  totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
+                  isCompleted={isCompleted}
+                />
+              );
+            })}
           </div>
         </ModernDashboard>
       </div>

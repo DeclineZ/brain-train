@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock } from "lucide-react";
+import { Clock, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LevelBadge from "./LevelBadge";
@@ -16,9 +16,10 @@ interface MainGameCardProps {
   currentLevel: number;
   haveLevel?: boolean;
   totalStars?: number;
+  isCompleted?: boolean;
 }
 
-export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel, haveLevel = true, totalStars }: MainGameCardProps) {
+export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel, haveLevel = true, totalStars, isCompleted }: MainGameCardProps) {
   const router = useRouter();
 
   const handleCardClick = () => {
@@ -46,9 +47,9 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
 
         {/* Level Badge */}
-        <LevelBadge 
-          level={currentLevel} 
-          isEndless={!haveLevel} 
+        <LevelBadge
+          level={currentLevel}
+          isEndless={!haveLevel}
           totalStars={haveLevel ? totalStars : undefined}
         />
 
@@ -70,6 +71,14 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
             </div>
           </div>
         </div>
+        {/* Completed Overlay */}
+        {isCompleted && (
+          <div className="absolute inset-0 bg-green-500/30 z-20 flex items-center justify-center backdrop-blur-sm transition-all duration-500">
+            <div className="bg-white rounded-full p-3 shadow-lg transform transition-transform animate-in zoom-in duration-300">
+              <Check className="w-8 h-8 text-green-600" strokeWidth={4} />
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
