@@ -461,10 +461,10 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.sound.stopAll(); // clear previous
         this.sound.play('bgm', { loop: true, volume: 0.5 });
 
-        this.nextCard();
+        this.nextCard(true);
     }
 
-    nextCard() {
+    nextCard(resetTimer: boolean = true) {
         const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
 
         // 50% Chance of Match
@@ -490,14 +490,19 @@ export class SensorLockGameScene extends Phaser.Scene {
         if (this.arrowContainer) this.arrowContainer.setVisible(true);
 
         // Render
-        // Render
         this.drawArrow(this.currentArrowDir, 0x0984E3); // Blue-ish
-        // this.labelText.setText(this.currentLabelText); // Already set text? 
-        this.labelText.setText(this.currentLabelText);
         this.labelText.setText(this.currentLabelText);
 
-        // Reset Timer
-        this.cardStartTime = Date.now();
+        // Reset Timer ONLY if requested
+        if (resetTimer) {
+            this.cardStartTime = Date.now();
+        } else {
+            // Keep the same start time, effectively continuing the countdown
+            // But we need to account for elapsed time?
+            // "Date.now() - cardStartTime" is the elapsed.
+            // If we don't change cardStartTime, elapsed continues increasing.
+            // Correct.
+        }
     }
 
     handleInput(saidMatch: boolean) {
@@ -551,20 +556,24 @@ export class SensorLockGameScene extends Phaser.Scene {
             }
 
             this.scoreText.setText(`${this.score}`);
-            this.nextCard();
+            this.nextCard(true); // Reset Timer on success
         } else {
             // WRONG
             this.sound.play('match-fail');
             this.currentStreak = 0;
             this.streakText.setAlpha(0); // Hide streak on fail
 
-            // Penalty: Slow down slightly to help
-            this.timeLimitPerCard = Math.min(this.maxTimeLimit, this.timeLimitPerCard * 1.10);
+            // Penalty: Do NOT reset timer. 
+            // We also do not adjust difficulty here to prevent the timer bar from jumping visually.
+            // The penalty is that the user loses time on the current card.
 
-            // Shake effect?
+            // Penalize score slightly? Or just no points. No points is enough.
+
+            // Shake effect
             this.cameras.main.shake(100, 0.01);
 
-            this.nextCard();
+            // Move to NEXT card (so they can't just click other button), but KEEP timer (resetTimer=false)
+            this.nextCard(false);
         }
     }
 
