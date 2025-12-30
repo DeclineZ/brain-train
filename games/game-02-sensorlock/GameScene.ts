@@ -563,14 +563,20 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.currentStreak = 0;
             this.streakText.setAlpha(0); // Hide streak on fail
 
-            // Penalty: Do NOT reset timer. 
-            // We also do not adjust difficulty here to prevent the timer bar from jumping visually.
-            // The penalty is that the user loses time on the current card.
+            // Penalty: Deduct 1000ms from remaining time.
+            // Reduced from 2000ms to be fair to older players at higher speeds (1.5s limit).
+            this.cardStartTime -= 1000;
 
-            // Penalize score slightly? Or just no points. No points is enough.
-
-            // Shake effect
+            // Visual Feedback for Penalty? (Red flash)
+            this.cameras.main.flash(200, 255, 0, 0);
             this.cameras.main.shake(100, 0.01);
+
+            // Check if this penalty killed the timer immediately
+            const elapsed = Date.now() - this.cardStartTime;
+            if (elapsed >= this.timeLimitPerCard) {
+                this.handleTimeout();
+                return;
+            }
 
             // Move to NEXT card (so they can't just click other button), but KEEP timer (resetTimer=false)
             this.nextCard(false);
