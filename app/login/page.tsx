@@ -155,7 +155,7 @@ export default function LoginPage() {
 
                     <div className="space-y-4">
                         <LineLoginButton />
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                             <button
                                 type="button"
                                 onClick={() => handleOAuth("google")}
@@ -180,18 +180,7 @@ export default function LoginPage() {
                                         fill="#EA4335"
                                     />
                                 </svg>
-                                Google
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleOAuth("facebook")}
-                                disabled={loading}
-                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-brown-border bg-white hover:bg-cream hover:border-blue text-brown-800 text-sm font-bold transition-all"
-                            >
-                                <svg className="h-5 w-5 text-blue" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v2.225l-.333.006c-2.769 0-3.853 1.18-3.853 3.845v1.185h4.8l-.673 3.667h-4.127v7.98h-2.738z" />
-                                </svg>
-                                Facebook
+                                เข้าสู่ระบบด้วย Google
                             </button>
                         </div>
                     </div>
