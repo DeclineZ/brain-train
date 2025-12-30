@@ -407,9 +407,9 @@ export class MatchingGameScene extends Phaser.Scene {
                     this.sound.play('timer-warning');
                 }
 
-                if (remainingMs <= 0) {
-                    this.handleTimeout();
-                }
+                // if (remainingMs <= 0) {
+                //     this.handleTimeout();
+                // }
             },
             loop: true
         });
