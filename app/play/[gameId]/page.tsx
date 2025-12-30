@@ -489,7 +489,7 @@ export default function GamePage({ params }: PageProps) {
                     />
                     {/* Text Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                      {streakInfo ? (Math.max(0, targetDaily - dailyCount) === 0 ? 'ภารกิจวันนี้เสร็จแล้ว' : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} เกม`) : 'กำลังบันทึก...'}
+                      {streakInfo ? (Math.max(0, targetDaily - dailyCount) === 0 ? 'ภารกิจวันนี้เสร็จแล้ว' : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`) : 'กำลังบันทึก...'}
                     </div>
                   </div>
                 </div>
