@@ -224,7 +224,7 @@ export default function GamePage({ params }: PageProps) {
       stat_planning: null,
       stat_emotion: null,
       starHint: rawData.starHint, // Capture Hint
-      earnedCoins: activeLevel > 0 ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 50)) : 20) : 0
+      earnedCoins: activeLevel > 0 ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 600)) : 20) : 0
     });
 
     // Save Level Progress (Implementation simplified)
