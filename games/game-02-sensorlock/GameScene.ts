@@ -36,18 +36,19 @@ export class SensorLockGameScene extends Phaser.Scene {
     private scoreText!: Phaser.GameObjects.Text;
     private streakText!: Phaser.GameObjects.Text;
 
-    // Timer
-    private lastFrameTime = 0;
-    private cardTimerEvent!: Phaser.Time.TimerEvent;
+    // Audio Objects
+    private soundMatchSuccess!: Phaser.Sound.BaseSound;
+    private soundMatchFail!: Phaser.Sound.BaseSound;
+    private soundLevelPass!: Phaser.Sound.BaseSound;
+    private soundBeep!: Phaser.Sound.BaseSound;
+    private soundBgm!: Phaser.Sound.BaseSound;
 
     constructor() { super({ key: 'SensorLockGameScene' }); }
 
     create() {
         const { width, height } = this.scale;
 
-        // 1. Background (Cyberpunk Style)
-        // 1. Background (Park Style)
-        // this.add.rectangle(width / 2, height / 2, width, height, 0x87CEEB); // Sky Blue Fallback
+        // 1. Background
         this.createBackground();
 
         // 2. HUD Elements
@@ -59,20 +60,19 @@ export class SensorLockGameScene extends Phaser.Scene {
         // 4. Controls
         this.createControls();
 
-        // 5. Audio
-        // Reusing sounds from cardmatch
-        this.load.audio('match-success', '/assets/sounds/match-success.mp3'); // Assuming loaded or needs loading
-        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
+        // 5. Audio Setup (Pre-create for lower latency)
+        this.soundMatchSuccess = this.sound.add('match-success');
+        this.soundMatchFail = this.sound.add('match-fail');
+        this.soundLevelPass = this.sound.add('level-pass');
+        this.soundBeep = this.sound.add('beep');
 
-        // Note: In Phaser, if audio isn't preloaded in preload(), it won't play.
-        // Assuming global preload or I should add one. 
-        // existing game structure had preload in scene. logic says I should add it.
+        // BGM
+        this.soundBgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
+        this.sound.stopAll();
+        // this.soundBgm.play(); // Played in startGame
 
-        this.input.keyboard?.on('keydown-LEFT', () => this.handleInput(true));  // Map Left to Match (Green)? No, specific keys maybe?
-        // Let's stick to UI buttons for touch compatibility mainly, maybe keys later.
-
-        // Let's stick to UI buttons for touch compatibility mainly, maybe keys later.
+        // 6. Input Keys
+        this.input.keyboard?.on('keydown-LEFT', () => this.handleInput(true));
 
         // Start with Countdown
         this.startCountdown();
@@ -423,10 +423,10 @@ export class SensorLockGameScene extends Phaser.Scene {
             callback: () => {
                 if (this.countdownValue > 0) {
                     countText.setText(String(this.countdownValue));
-                    this.sound.play('beep');
+                    this.soundBeep.play();
                 } else {
                     countText.setText('เริ่ม!');
-                    this.sound.play('beep', { detune: 600 }); // Higher pitch for start
+                    this.soundBeep.play({ detune: 600 }); // Higher pitch for start
                     this.tweens.add({
                         targets: countText,
                         alpha: 0,
@@ -459,7 +459,7 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // Start BGM
         this.sound.stopAll(); // clear previous
-        this.sound.play('bgm', { loop: true, volume: 0.5 });
+        if (this.soundBgm) this.soundBgm.play();
 
         this.nextCard(true);
     }
@@ -567,8 +567,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             // Reduced from 2000ms to be fair to older players at higher speeds (1.5s limit).
             this.cardStartTime -= 1000;
 
-            // Visual Feedback for Penalty? (Red flash)
-            this.cameras.main.flash(200, 255, 0, 0);
+            // Visual Feedback for Penalty? (Just shake)
             this.cameras.main.shake(100, 0.01);
 
             // Check if this penalty killed the timer immediately
