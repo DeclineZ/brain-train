@@ -8,6 +8,8 @@ import BottomNav from "@/components/BottomNav";
 import ModernDashboard from "@/components/ModernDashboard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import QuestNotificationManager from "@/components/QuestNotificationManager";
+import { Trophy } from "lucide-react";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -34,6 +36,7 @@ export default async function Home() {
   return (
     <div className="bg-cream overflow-hidden">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
+        <QuestNotificationManager />
         {/* TopCard */}
         <TopCard />
 
@@ -43,9 +46,16 @@ export default async function Home() {
           completedGames={completedCount}
           action={
             isAllComplete ? (
-              <span className="inline-flex items-center gap-2 bg-green-500 text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md cursor-default">
-                สำเร็จแล้ว
-              </span>
+              <div className="flex flex-col items-start gap-2">
+                <Link
+                  href="/allgames"
+                  className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  <Trophy className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
+                  <span className="drop-shadow-sm relative z-10">เล่นเกมอื่นๆ</span>
+                </Link>
+              </div>
             ) : (
               <Link
                 href={currentMission ? `/play/${currentMission.game_id}` : "#"}
@@ -83,6 +93,6 @@ export default async function Home() {
 
       {/* Bottom Navigation */}
       <BottomNav active="home" />
-    </div>
+    </div >
   );
 }

@@ -29,13 +29,14 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
   return (
     <div className="relative">
       <motion.div
-        onClick={handleCardClick}
+        onClick={!isCompleted ? handleCardClick : undefined}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
-        whileHover={{ scale: 1.01, y: -5 }}
-        whileTap={{ scale: 0.98 }}
-        className="relative rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-48 cursor-pointer group"
+        whileHover={!isCompleted ? { scale: 1.01, y: -5 } : {}}
+        whileTap={!isCompleted ? { scale: 0.98 } : {}}
+        className={`relative rounded-2xl shadow-md transition-shadow duration-300 overflow-hidden h-48 group ${isCompleted ? "cursor-default" : "cursor-pointer hover:shadow-xl"
+          }`}
       >
         {/* Background Image */}
         <div
@@ -71,12 +72,33 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
             </div>
           </div>
         </div>
-        {/* Completed Overlay */}
+        {/* Completed Overlay - Stamp Animation */}
         {isCompleted && (
-          <div className="absolute inset-0 bg-green-500/30 z-20 flex items-center justify-center backdrop-blur-sm transition-all duration-500">
-            <div className="bg-white rounded-full p-3 shadow-lg transform transition-transform animate-in zoom-in duration-300">
-              <Check className="w-8 h-8 text-green-600" strokeWidth={4} />
-            </div>
+          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+            <motion.div
+              initial={{ scale: 2, opacity: 0, rotate: -15 }}
+              animate={{ scale: 1, opacity: 1, rotate: -10 }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 15,
+                mass: 1
+              }}
+              className="relative z-30 border-4 border-orange-action text-orange-action bg-white/90 px-6 py-2 rounded-lg shadow-xl transform -rotate-12 backdrop-blur-sm"
+              style={{
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 0 20px rgba(232, 76, 28, 0.1)"
+              }}
+            >
+              <div className="flex flex-col items-center">
+                <span className="text-xl font-black tracking-widest uppercase border-b-2 border-orange-action/20 pb-1 mb-1">
+                  COMPLETED
+                </span>
+                <span className="text-sm font-bold tracking-wider">
+                  ภารกิจสำเร็จ
+                </span>
+              </div>
+            </motion.div>
           </div>
         )}
       </motion.div>
