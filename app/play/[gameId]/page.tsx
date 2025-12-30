@@ -498,20 +498,21 @@ export default function GamePage({ params }: PageProps) {
                         {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                       </button>
                     </div>
+                  </div>
                 )}
-                  </>
-                ) : (
-                // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
-                <div className="text-center">
-                  <h1 className="text-3xl">Game Over</h1>
-                  <button onClick={handleRestartLevel}>Restart</button>
-                </div>
-            )}
+              </>
+            ) : (
+              // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
+              <div className="text-center">
+                <h1 className="text-3xl">Game Over</h1>
+                <button onClick={handleRestartLevel}>Restart</button>
               </div>
+            )}
           </div>
-          )
-      }
         </div>
-      );
+      )
+      }
+    </div>
+  );
 }
 

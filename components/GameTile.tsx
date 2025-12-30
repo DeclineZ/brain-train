@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Lock, Grid3x3, Play } from "lucide-react";
+import { Lock, Grid3x3, Play, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Game } from "@/types/game";
@@ -29,7 +29,7 @@ const getCategoryInThai = (category: string): string => {
 
 export default function GameTile({ game, totalStars }: GameTileProps) {
   const isLocked = game.locked;
-  
+
   if (isLocked) {
     // Locked game - non-clickable
     return (
@@ -44,13 +44,13 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
               className="object-cover"
             />
           )}
-          
+
           {/* Lock badge */}
           <div className="absolute top-2 right-2 bg-black/50 rounded-full p-2">
             <Lock className="w-4 h-4 text-white" />
           </div>
         </div>
-        
+
         {/* Game Info */}
         <div className="p-3 flex-1">
           <h3 className="font-semibold text-brown-darkest text-sm mb-1">{game.title}</h3>
@@ -94,10 +94,14 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
     router.push(`/levels/${game.gameId}`);
   };
 
+  const handleTutorial = () => {
+    router.push(`/play/${game.gameId}?level=0`);
+  };
+
   return (
     <div ref={tileRef} className="relative">
       {/* Game Tile */}
-      <div 
+      <div
         onClick={handleTileClick}
         className="relative bg-tan-light rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer h-48 flex flex-col"
       >
@@ -111,16 +115,16 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
               className="object-cover"
             />
           )}
-          
+
           {/* Level Badge */}
-          <LevelBadge 
-            level={game.currentLevel || 1} 
+          <LevelBadge
+            level={game.currentLevel || 1}
             isEndless={!game.have_level}
             totalStars={game.have_level ? totalStars : undefined}
             isLoading={false}
           />
         </div>
-        
+
         {/* Game Info */}
         <div className="p-3 flex-1">
           <h3 className="font-semibold text-brown-darkest text-sm mb-1">{game.title}</h3>
@@ -135,19 +139,29 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
           <div className="text-center py-4">
             <h3 className="font-bold text-white text-lg">{game.title}</h3>
           </div>
-          
+
           {/* Middle area - buttons */}
           <div className="flex flex-col gap-3 ">
-            {game.have_level && (<button
-              onClick={handleSelectLevel}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <Grid3x3 className="w-4 h-4" />
-              เลือกด่าน
-            </button>)}
+            {game.have_level ? (
+              <button
+                onClick={handleSelectLevel}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <Grid3x3 className="w-4 h-4" />
+                เลือกด่าน
+              </button>
+            ) : (
+              <button
+                onClick={handleTutorial}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                วิธีเล่น
+              </button>
+            )}
             <button
               onClick={handlePlayNow}
-              className={`bg-green-500 hover:bg-green-600 text-white font-bold ${game.have_level ? 'py-3' : 'py-5'} px-4 rounded-lg transition-colors flex items-center justify-center gap-2`}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <Play className="w-4 h-4" />
               เล่นเลย
