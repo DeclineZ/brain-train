@@ -176,9 +176,26 @@ export async function submitGameSession(
 
         // 7. Add Coin Reward (Skip if Tutorial / Level 0)
         let coinResult: { ok: boolean, data?: { new_balance?: number }, error?: any } = { ok: true, data: { new_balance: undefined } }
+        let rewardAmount = 0
         if (levelPlayed > 0) {
-            let rewardAmount = 20
+            rewardAmount = 20
             let rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`
+
+            // Check if level was previously cleared (for reward calculation)
+            let isLevelAlreadyCleared = false
+            try {
+                const { count } = await supabase
+                    .from("user_game_stars")
+                    .select("*", { count: "exact", head: true })
+                    .eq("user_id", user.id)
+                    .eq("game_id", gameId)
+                    .eq("level", levelPlayed)
+                    .gt("star", 0)
+
+                isLevelAlreadyCleared = (count || 0) > 0
+            } catch (err) {
+                console.error("Error checking level completion:", err)
+            }
 
             if (gameId === 'game-02-sensorlock') {
                 // Dynamic Reward: Score / 500.
@@ -186,6 +203,37 @@ export async function submitGameSession(
                 const score = rawData.score || 0
                 rewardAmount = Math.max(1, Math.floor(score / 800))
                 rewardReason = `เล่น Sensor Lock คะแนน ${score}`
+            } else {
+                // game-01-cardmatch (and default)
+                // New Logic: Scaling Reward + Replay Penalty + Star Quality
+
+                // 1. Base Multiplier based on Level
+                // Level 1: 1.0 -> 20 coins
+                // Level 2: 1.1 -> 22 coins
+                // Level 10: 1.9 -> 38 coins
+                const levelMultiplier = 1 + (levelPlayed - 1) * 0.1
+
+                let calculatedReward = Math.floor(20 * levelMultiplier)
+
+                // 2. Star Quality Multiplier
+                // 3 Stars: 100%
+                // 2 Stars: 70%
+                // 1 Star: 50%
+                const starsEarned = Number(rawData.stars || 0)
+                let starMultiplier = 1.0
+                if (starsEarned === 2) starMultiplier = 0.7
+                if (starsEarned === 1) starMultiplier = 0.5
+                if (starsEarned === 0) starMultiplier = 0.0
+
+                calculatedReward = Math.floor(calculatedReward * starMultiplier)
+
+                // 3. Replay Penalty
+                // If level already cleared, reduce reward by 10% (e.g., 20 -> 18)
+                if (isLevelAlreadyCleared) {
+                    calculatedReward = Math.floor(calculatedReward * 0.9)
+                }
+
+                rewardAmount = calculatedReward
             }
 
             const res = await addCoins(user.id, rewardAmount, rewardReason, "game_session")
@@ -248,7 +296,7 @@ export async function submitGameSession(
             learningRate,
             starInfo,
             newBalance: coinResult.ok ? coinResult.data?.new_balance : undefined,
-            earnedCoins: (coinResult.ok && levelPlayed > 0) ? (gameId === 'game-02-sensorlock' ? Math.max(1, Math.floor((rawData.score || 0) / 600)) : 20) : 0,
+            earnedCoins: (coinResult.ok && levelPlayed > 0) ? rewardAmount : 0,
             missionResult: missionCompleted ? {
                 completed: true,
                 label: completedMission?.label,
