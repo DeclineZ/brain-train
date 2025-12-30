@@ -3,7 +3,7 @@ import { SensorLockGameScene } from './GameScene';
 export const SensorLockGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent: 'game-container',
-    backgroundColor: '#F0F4F8', // Light/Clean theme
+    backgroundColor: '#87CEEB', // Sky Blue for Park Theme
     scale: {
         mode: Phaser.Scale.RESIZE,
         width: 800,

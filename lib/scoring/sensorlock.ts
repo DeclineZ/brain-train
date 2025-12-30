@@ -20,25 +20,21 @@ export function calculateSensorLockStats(data: SensorLockGameStats): ClinicalSta
     const stat_focus = clamp(rawFocus);
 
     // B. Processing Speed
-    // Formula: (1500 - Avg Reaction Time) / (1500 - 250) * 100
-    // 250ms = 100 score, 1500ms = 0 score.
-    const minTime = 250;
-    const maxTime = 1500;
+    // Formula: (7000 - Avg Reaction Time) / (7000 - 500) * 100
+    // Adjusted for 7s max time.
+    const minTime = 500; // 0.5s is very fast for older audience
+    const maxTime = 7000;
     const rawSpeed = ((maxTime - Math.max(minTime, reactionTimeAvg)) / (maxTime - minTime)) * 100;
     const stat_speed = clamp(rawSpeed);
 
     // C. Emotional/Inhibitory Control
-    // Formula: (Mismatch Correct / Mismatch Attempts) * 100 * (Difficulty / 3.33)
-    // Difficulty ranges from 1.0 (2000ms) to ~3.33 (600ms).
+    // Formula: (Mismatch Correct / Mismatch Attempts) * 100
+    // Removed difficulty multiplier to treat it as pure "Inhibitory Control" accuracy.
+    // If you can stop yourself, you have good control, regardless of speed.
     const mismatchAccuracy = mismatchAttempts > 0 ? (mismatchCorrect / mismatchAttempts) : 0;
 
-    // Normalize difficulty: Max diff is 3.33 (2000/600).
-    const maxDiff = 3.33;
-    const diffFactor = Math.min(1, difficultyMultiplier / maxDiff);
-
-    // We want 100% accuracy at max speed to be 100.
-    // 100% accuracy at low speed (multiplier 1) -> 1/3.33 = ~30.
-    const rawEmotion = (mismatchAccuracy * 100) * diffFactor;
+    // We remove the diffFactor penalty.
+    const rawEmotion = mismatchAccuracy * 100;
     const stat_emotion = clamp(rawEmotion);
 
     return {

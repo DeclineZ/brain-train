@@ -86,7 +86,7 @@ export default function GamePage({ params }: PageProps) {
             setActiveLevel(nextLevel);
           } else {
             // No history -> Start Tutorial (Level 0) for cardmatch
-            if (gameId === 'game-01-cardmatch') {
+            if (gameId === 'game-01-cardmatch' || gameId === 'game-02-sensorlock') {
               setActiveLevel(0);
             }
           }
@@ -498,16 +498,6 @@ export default function GamePage({ params }: PageProps) {
                         {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                       </button>
                     </div>
-
-                    {/* Previous Level Button (New Bottom Position) */}
-                    {activeLevel > 1 && !isEndless && (
-                      <button
-                        onClick={handlePreviousLevel}
-                        className="w-full bg-white border-4 border-[#E5E7EB] text-[#9CA3AF] hover:text-[#4B5563] hover:border-[#D1D5DB] rounded-2xl py-3 font-bold text-xl shadow-sm active:translate-y-1 transition-all"
-                      >
-                        ย้อนกลับด่านที่ {activeLevel - 1}
-                      </button>
-                    )}
                   </div>
                 )}
               </>

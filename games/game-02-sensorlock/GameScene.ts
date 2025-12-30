@@ -14,9 +14,10 @@ export class SensorLockGameScene extends Phaser.Scene {
     private reactionCount = 0;     // Number of valid reactions tracked
 
     // Difficulty
-    private timeLimitPerCard = 2000;
-    private maxTimeLimit = 2000;
-    private minTimeLimit = 600;
+    // Difficulty
+    private timeLimitPerCard = 7000;    // Start at 7000ms (7s) for older/slower pace
+    private maxTimeLimit = 7000;
+    private minTimeLimit = 1500;        // Cap speed at 1.5s instead of 0.6s
     private difficultyMultiplier = 1.0;
 
     // Current Round Data
@@ -45,8 +46,9 @@ export class SensorLockGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // 1. Background (Cyberpunk Style)
-        this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e); // Dark Blue-Black
-        this.createCyberpunkGrid();
+        // 1. Background (Park Style)
+        // this.add.rectangle(width / 2, height / 2, width, height, 0x87CEEB); // Sky Blue Fallback
+        this.createBackground();
 
         // 2. HUD Elements
         this.createHUD();
@@ -86,7 +88,15 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Sounds
         this.load.audio('match-success', '/assets/sounds/match-success.mp3');
         this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3'); // For timeout
+        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
+
+        // Placeholder for the background image - uncomment when image is ready
+        // this.load.image('park-background', '/assets/images/park_background.png');
+
+        // New Audio
+        this.load.audio('beep', '/assets/sounds/game-02-sensorlock/beep.mp3');
+        this.load.audio('bgm', '/assets/sounds/game-02-sensorlock/sensorlock-bg.mp3');
+        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
     }
 
     update(time: number, delta: number) {
@@ -106,54 +116,157 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     // --- SETUP & VISUALS ---
 
-    createCyberpunkGrid() {
+    createBackground() {
         const { width, height } = this.scale;
 
-        // Dynamic Grid using a TileSprite usually better, but Graphics is fine for static background
-        const graphics = this.add.graphics();
-        graphics.lineStyle(1, 0x00f3ff, 0.1); // Cyan, low opacity
+        // Try to add image if loaded, else gradient/shapes
+        if (this.textures.exists('park-background')) {
+            const bg = this.add.image(width / 2, height / 2, 'park-background');
+            const scaleX = width / bg.width;
+            const scaleY = height / bg.height;
+            const scale = Math.max(scaleX, scaleY);
+            bg.setScale(scale).setScrollFactor(0);
+        } else {
+            // Enhanced Procedural Park Background
 
-        // Grid
-        const gridSize = 40;
-        for (let x = 0; x <= width; x += gridSize) {
-            graphics.moveTo(x, 0);
-            graphics.lineTo(x, height);
-        }
-        for (let y = 0; y <= height; y += gridSize) {
-            graphics.moveTo(0, y);
-            graphics.lineTo(width, y);
-        }
-        graphics.strokePath();
+            // 1. Sky (Gradient via multiple rects for smoothness or just a nice solid)
+            const sky = this.add.graphics();
+            sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xE0F7FA, 0xE0F7FA, 1);
+            sky.fillRect(0, 0, width, height);
 
-        // Vignette effect (Overlay)
-        const vignette = this.add.graphics();
-        vignette.fillStyle(0x000000, 0.3);
-        vignette.fillCircle(width / 2, height / 2, width * 0.8);
-        // Invert mask simpler: just big semi-transparent rects on sides or simple overlay image. 
-        // Actually, just a simple dark overlay is fine.
+            // 2. Sun with Rays
+            const sunGroup = this.add.container(width * 0.85, height * 0.15);
+            const sun = this.add.circle(0, 0, 50, 0xFDB813);
+            sunGroup.add(sun);
+
+            // Rays
+            const rays = this.add.graphics();
+            rays.lineStyle(4, 0xFDB813, 0.4);
+            for (let i = 0; i < 12; i++) {
+                const angle = i * 30;
+                const rad = Phaser.Math.DegToRad(angle);
+                rays.moveTo(Math.cos(rad) * 60, Math.sin(rad) * 60);
+                rays.lineTo(Math.cos(rad) * 90, Math.sin(rad) * 90);
+            }
+            rays.strokePath();
+            sunGroup.add(rays);
+
+            // Animate Sun
+            this.tweens.add({
+                targets: sunGroup,
+                angle: 360,
+                duration: 20000,
+                repeat: -1
+            });
+
+            // 3. Clouds (Fluffy)
+            this.createCloud(width * 0.2, height * 0.2, 0.8);
+            this.createCloud(width * 0.6, height * 0.15, 0.6);
+            this.createCloud(width * 0.9, height * 0.3, 0.9);
+
+            // 4. Hills (Smoother rolling hills)
+            const hills = this.add.graphics();
+
+            // Back Hill (Darker Green)
+            hills.fillStyle(0x76c7c0, 1);
+            const backHillPath = new Phaser.Curves.Path(0, height * 0.75);
+            // Single smooth curve spanning the width
+            backHillPath.splineTo([
+                new Phaser.Math.Vector2(width * 0.3, height * 0.65),
+                new Phaser.Math.Vector2(width * 0.7, height * 0.7),
+                new Phaser.Math.Vector2(width, height * 0.6)
+            ]);
+            backHillPath.lineTo(width, height);
+            backHillPath.lineTo(0, height);
+            backHillPath.closePath();
+            hills.fillPoints(backHillPath.getPoints(), true);
+
+            // Front Hill (Lighter Green)
+            hills.fillStyle(0x55efc4, 1);
+            const frontHillPath = new Phaser.Curves.Path(0, height * 0.85);
+            // Gentle rise and fall
+            frontHillPath.splineTo([
+                new Phaser.Math.Vector2(width * 0.4, height * 0.9),
+                new Phaser.Math.Vector2(width * 0.7, height * 0.8),
+                new Phaser.Math.Vector2(width, height * 0.9)
+            ]);
+            frontHillPath.lineTo(width, height);
+            frontHillPath.lineTo(0, height);
+            frontHillPath.closePath();
+            hills.fillPoints(frontHillPath.getPoints(), true);
+
+            // 5. Vector Trees
+            this.createTree(width * 0.1, height * 0.85, 0.8);
+            this.createTree(width * 0.25, height * 0.9, 1.0);
+            this.createTree(width * 0.85, height * 0.82, 0.7);
+            this.createTree(width * 0.95, height * 0.92, 0.9);
+        }
+    }
+
+    createCloud(x: number, y: number, scale: number) {
+        const cloud = this.add.container(x, y);
+        cloud.setScale(scale);
+
+        const g = this.add.graphics();
+        g.fillStyle(0xFFFFFF, 0.9);
+        g.fillCircle(0, 0, 30);
+        g.fillCircle(25, -10, 35);
+        g.fillCircle(50, 0, 30);
+
+        cloud.add(g);
+
+        // Floating animation
+        this.tweens.add({
+            targets: cloud,
+            x: x + 20,
+            duration: 4000 + Math.random() * 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+
+    createTree(x: number, y: number, scale: number) {
+        const tree = this.add.container(x, y);
+        tree.setScale(scale);
+
+        const g = this.add.graphics();
+
+        // Trunk
+        g.fillStyle(0x8D6E63, 1); // Brown
+        g.fillRect(-5, 0, 10, 40);
+
+        // Leaves (Triangle or Circle depending on style - Triangle is cleaner vector)
+        g.fillStyle(0x00b894, 1);
+        g.fillTriangle(0, -60, -25, 0, 25, 0); // Top
+        g.fillTriangle(0, -30, -30, 20, 30, 20); // Bottom
+
+        tree.add(g);
     }
 
     createHUD() {
         const { width } = this.scale;
 
         // Score (Top Right, Stylized)
+        // Score (Top Right, Stylized)
         const scoreSize = Math.max(32, Math.min(width * 0.08, 64)); // Responsive calculation
         this.scoreText = this.add.text(width - 20, 20 + (scoreSize / 2), "0", {
-            fontFamily: '"Sarabun", "Thai Sarabun New", Inter, sans-serif',
+            fontFamily: '"Mali", "Sarabun", "Thai Sarabun New", Inter, sans-serif',
             fontSize: `${scoreSize}px`,
             fontStyle: 'bold',
-            color: '#00f3ff',
-            stroke: '#000',
-            strokeThickness: 2
+            color: '#6c5ce7', // Purple/Blue text
+            stroke: '#ffffff',
+            strokeThickness: 5
         }).setOrigin(1, 0.5);
 
         // Streak Indicator (Center Top, initially hidden)
+        // Streak Indicator (Center Top, initially hidden)
         this.streakText = this.add.text(width / 2, 80, "", {
-            font: 'bold 48px Inter',
-            color: '#fdcb6e',
-            stroke: '#d35400',
+            font: 'bold 48px "Mali"',
+            color: '#ff7675',
+            stroke: '#ffffff',
             strokeThickness: 6
-        }).setOrigin(0.5).setAlpha(0);
+        }).setOrigin(0.5).setPadding(40).setAlpha(0);
     }
 
     createStimulusArea() {
@@ -166,11 +279,13 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Label
         const labelSize = Math.min(width * 0.15, 80);
         this.labelText = this.add.text(0, 120, "UP", {
-            fontFamily: 'Inter, "Sarabun", "Thai Sarabun New", sans-serif',
+            fontFamily: '"Mali", "Sarabun", sans-serif',
             fontSize: `${labelSize}px`,
             fontStyle: '900',
-            color: '#ffffff' // White text for dark BG
-        }).setOrigin(0.5);
+            color: '#2d3436', // Dark Grey for contrast on light bg
+            stroke: '#ffffff',
+            strokeThickness: 6
+        }).setOrigin(0.5).setPadding(10, 10, 10, 10); // Add padding for Thai accents
         this.arrowContainer.add(this.labelText);
 
         // Timer Bar (Below Label)
@@ -187,16 +302,18 @@ export class SensorLockGameScene extends Phaser.Scene {
         // NO MATCH Button (Left, Red)
         // NO MATCH Button (Left, Red)
         const noBtn = this.add.container(width / 4, yPos);
-        const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF6B6B)
+        const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF7675)
             .setInteractive({ useHandCursor: true })
-            .setStrokeStyle(4, 0xEE5253);
+            .setStrokeStyle(4, 0xD63031);
         const noTextSize = Math.min(btnWidth * 0.25, 50);
         const noText = this.add.text(0, 0, "ไม่ตรง", {
-            fontFamily: '"Sarabun", "Thai Sarabun New", Inter, sans-serif',
+            fontFamily: '"Mali", "Sarabun", sans-serif',
             fontSize: `${noTextSize}px`,
             fontStyle: 'bold',
-            color: '#FFF'
-        }).setOrigin(0.5);
+            color: '#FFF',
+            stroke: '#D63031',
+            strokeThickness: 2
+        }).setOrigin(0.5).setPadding(5);
         noBtn.add([noBg, noText]);
 
         noBg.on('pointerdown', () => {
@@ -206,16 +323,18 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // MATCH Button (Right, Green)
         const yesBtn = this.add.container(width * 0.75, yPos);
-        const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x1DD1A1)
+        const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x55EFC4)
             .setInteractive({ useHandCursor: true })
-            .setStrokeStyle(4, 0x10AC84);
+            .setStrokeStyle(4, 0x00B894);
         const yesTextSize = Math.min(btnWidth * 0.25, 50);
         const yesText = this.add.text(0, 0, "ตรง", {
-            fontFamily: '"Sarabun", "Thai Sarabun New", Inter, sans-serif',
+            fontFamily: '"Mali", "Sarabun", sans-serif',
             fontSize: `${yesTextSize}px`,
             fontStyle: 'bold',
-            color: '#FFF'
-        }).setOrigin(0.5);
+            color: '#FFF',
+            stroke: '#00B894',
+            strokeThickness: 2
+        }).setOrigin(0.5).setPadding(5);
         yesBtn.add([yesBg, yesText]);
 
         yesBg.on('pointerdown', () => {
@@ -268,10 +387,10 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     drawTimerBar(pct: number) {
         this.timerBar.clear();
-        this.timerBar.fillStyle(0xE0E0E0, 1);
+        this.timerBar.fillStyle(0xb2bec3, 1);
         this.timerBar.fillRoundedRect(-150, 180, 300, 10, 5);
 
-        const color = pct < 0.3 ? 0xFF4444 : 0x00CEC9;
+        const color = pct < 0.3 ? 0xff7675 : 0x0984e3;
         this.timerBar.fillStyle(color, 1);
         this.timerBar.fillRoundedRect(-150, 180, 300 * pct, 10, 5);
     }
@@ -290,13 +409,13 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         const countSize = Math.min(width * 0.3, 180); // Max 180, significantly smaller
         const countText = this.add.text(width / 2, height / 2, '3', {
-            fontFamily: 'Inter, "Sarabun", "Thai Sarabun New", sans-serif',
+            fontFamily: '"Mali", sans-serif',
             fontSize: `${countSize}px`,
             fontStyle: '900',
-            color: '#00f3ff', // Cyan
+            color: '#6c5ce7', // Purple
             stroke: '#ffffff',
             strokeThickness: 10
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setPadding(60); // Generous padding for Thai accents
 
         this.time.addEvent({
             delay: 1000,
@@ -304,9 +423,10 @@ export class SensorLockGameScene extends Phaser.Scene {
             callback: () => {
                 if (this.countdownValue > 0) {
                     countText.setText(String(this.countdownValue));
-                    // this.sound.play('tick'); // if available
+                    this.sound.play('beep');
                 } else {
                     countText.setText('เริ่ม!');
+                    this.sound.play('beep', { detune: 600 }); // Higher pitch for start
                     this.tweens.add({
                         targets: countText,
                         alpha: 0,
@@ -337,6 +457,10 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.mismatchAttempts = 0;
         this.timeLimitPerCard = this.maxTimeLimit;
 
+        // Start BGM
+        this.sound.stopAll(); // clear previous
+        this.sound.play('bgm', { loop: true, volume: 0.5 });
+
         this.nextCard();
     }
 
@@ -366,7 +490,10 @@ export class SensorLockGameScene extends Phaser.Scene {
         if (this.arrowContainer) this.arrowContainer.setVisible(true);
 
         // Render
+        // Render
         this.drawArrow(this.currentArrowDir, 0x0984E3); // Blue-ish
+        // this.labelText.setText(this.currentLabelText); // Already set text? 
+        this.labelText.setText(this.currentLabelText);
         this.labelText.setText(this.currentLabelText);
 
         // Reset Timer
@@ -391,10 +518,16 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         if (isCorrect) {
             // CORRECT
-            this.sound.play('match-success');
             this.correctCount++;
             this.currentStreak++;
             if (this.currentStreak > this.maxStreak) this.maxStreak = this.currentStreak;
+
+            // Dynamic Pitch: Increases for streaks 2, 3, 4, max at 5 (detune +200 cents per step)
+            // Streak 1: 0, Streak 2: 200, Streak 3: 400, Streak 4: 600, Streak 5+: 800
+            const pitchStep = 200;
+            const detune = Math.min(Math.max(0, this.currentStreak - 1), 4) * pitchStep;
+
+            this.sound.play('match-success', { detune: detune });
 
             // Score Calculation: 
             // Base score + Speed Bonus (faster = more points)
@@ -437,17 +570,27 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     handleTimeout() {
         this.isPlaying = false;
-        this.sound.play('level-fail');
+        this.sound.stopAll(); // Stop BGM
+        this.sound.play('level-pass'); // Positive feedback even on end
+
+        // TIMEOUT IS A REACTION too (Just a very slow one)
+        // If we don't count this, users who do nothing get 0 reaction time avg -> 100% speed score.
+        // We add the full time limit as the "reaction time" for this failed attempt.
+        this.totalReactionTime += this.timeLimitPerCard;
+        this.reactionCount++;
+        this.attempts++;
+        // Note: We do NOT increment match/mismatch correct since it was a fail.
 
         // Emit Game Over
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             // Calculate Difficulty Multiplier from final speed
-            // Standard was: D = 2000 / CurrentTimeLimit
-            const finalDifficulty = 2000 / this.timeLimitPerCard;
+            // Standard was: D = 2000 / CurrentTimeLimit. Now Base is 7000.
+            // D = 7000 / CurrentTimeLimit
+            const finalDifficulty = 7000 / this.timeLimitPerCard;
 
             onGameOver({
-                success: true, // It's an endless game, so ending it is a "result", not a failure state in the wrapper sense
+                success: true,
                 score: this.score,
                 maxStreak: this.maxStreak,
                 totalCorrect: this.correctCount,
@@ -480,14 +623,23 @@ export class SensorLockGameScene extends Phaser.Scene {
         let scale = 1.0;
 
         if (streak >= 5) {
-            text = "SUPER HOT!";
-            color = '#e17055';
+            const phrases = [
+                "เยี่ยม!",      // Great!
+                "สุดยอด!",     // Awesome!
+                "เก่งมาก!",    // Very good!
+                "แม่นยำ!",     // Precise!
+                "ว้าว!",       // Wow!
+                "ทำได้ดี!"     // Well done!
+            ];
+            text = Phaser.Utils.Array.GetRandom(phrases);
+            color = '#e17055'; // Orange/Red
             scale = 1.2;
-        }
-        if (streak >= 10) {
-            text = "UNSTOPPABLE!";
-            color = '#d63031';
-            scale = 1.5;
+
+            // Extra flair for high streaks
+            if (streak >= 10) {
+                color = '#d63031';
+                scale = 1.4;
+            }
         }
 
         this.streakText.setText(text);

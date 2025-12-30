@@ -40,10 +40,14 @@ export default function LineLoginButton() {
             className="w-full flex items-center justify-center gap-2 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md"
         >
             {/* LINE Icon (SVG) */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M20.3 10.9C20.3 6.9 16.6 3.6 12 3.6C7.4 3.6 3.7 6.9 3.7 10.9C3.7 14.3 6.2 17.2 9.4 17.9V20.7C9.4 20.7 9.3 21.2 9.6 21.3C10 21.5 10.4 21.1 10.5 21L13.8 18.2H14.1C18.4 18.2 22 14.6 22 10.9H20.3ZM10.2 9H9.4V11.2H10.2V12H9.4V12.9H11.5V13.7H8.6V8.1H11.5V9H10.2ZM12.7 13.7H11.9V8.1H12.7V13.7ZM15.2 13.7L14.4 9.5V13.7H13.6V8.1H14.3L15.1 12.3V8.1H16V13.7H15.2ZM19.2 11.2H17.4V12H19.2V12.9H17.4V13.7H16.6V8.1H19.2V9H17.4V11.2H19.2V11.2Z" />
-            </svg>
-            {loading ? 'Connecting...' : 'Continue with LINE'}
+            {/* LINE Icon (Official Brand Icon from Wikimedia) */}
+            <img
+                src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg"
+                alt="LINE Logo"
+                width={24}
+                height={24}
+            />
+            {loading ? 'กำลังเชื่อมต่อ...' : 'เข้าสู่ระบบด้วย LINE'}
         </button>
     )
 }
