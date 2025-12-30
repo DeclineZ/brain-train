@@ -3,7 +3,9 @@
 import { motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import LevelBadge from "./LevelBadge";
+import { useState, useEffect, useRef } from "react";
 
 interface MainGameCardProps {
   gameName: string;
@@ -15,9 +17,43 @@ interface MainGameCardProps {
 }
 
 export default function MainGameCard({ gameName, image, index, durationMin, gameId, currentLevel }: MainGameCardProps) {
+  const [showOverlay, setShowOverlay] = useState(false);
+  const router = useRouter();
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Close overlay when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(event.target as Node)) {
+        setShowOverlay(false);
+      }
+    };
+
+    if (showOverlay) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOverlay]);
+
+  const handleCardClick = () => {
+    setShowOverlay(true);
+  };
+
+  const handlePlayNow = () => {
+    router.push(`/play/${gameId}`);
+  };
+
+  const handleSelectLevel = () => {
+    router.push(`/levels/${gameId}`);
+  };
+
   return (
-    <Link href={`/play/${gameId}`}>
+    <div ref={cardRef} className="relative">
       <motion.div
+        onClick={handleCardClick}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -56,6 +92,35 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
           </div>
         </div>
       </motion.div>
-    </Link>
+
+      {/* Button Overlay */}
+      {showOverlay && (
+        <div className="absolute inset-0 bg-black/80 rounded-2xl flex flex-col justify-between p-4 z-10 animate-in fade-in duration-200">
+          {/* Top area - title */}
+          <div className="text-center pt-8">
+            <h3 className="font-bold text-white text-lg">{gameName}</h3>
+          </div>
+          
+          {/* Middle area - buttons */}
+          <div className="flex flex-col gap-3 px-4">
+            <button
+              onClick={handleSelectLevel}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              เลือกด่าน
+            </button>
+            <button
+              onClick={handlePlayNow}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              เล่นเลย
+            </button>
+          </div>
+          
+          {/* Bottom area - empty for spacing */}
+          <div></div>
+        </div>
+      )}
+    </div>
   );
 }

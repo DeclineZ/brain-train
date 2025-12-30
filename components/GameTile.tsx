@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Game } from "@/types/game";
 import LevelBadge from "./LevelBadge";
+import { useState, useEffect, useRef } from "react";
 
 interface GameTileProps {
   game: Game;
@@ -55,10 +59,47 @@ export default function GameTile({ game }: GameTileProps) {
     );
   }
 
-  // Unlocked game - clickable
+  // Unlocked game - with button overlay
+  const [showOverlay, setShowOverlay] = useState(false);
+  const router = useRouter();
+  const tileRef = useRef<HTMLDivElement>(null);
+
+  // Close overlay when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tileRef.current && !tileRef.current.contains(event.target as Node)) {
+        setShowOverlay(false);
+      }
+    };
+
+    if (showOverlay) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOverlay]);
+
+  const handleTileClick = () => {
+    setShowOverlay(true);
+  };
+
+  const handlePlayNow = () => {
+    router.push(`/play/${game.gameId}`);
+  };
+
+  const handleSelectLevel = () => {
+    router.push(`/levels/${game.gameId}`);
+  };
+
   return (
-    <Link href={`/play/${game.gameId}`}>
-      <div className="relative bg-tan-light rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer h-48 flex flex-col">
+    <div ref={tileRef} className="relative">
+      {/* Game Tile */}
+      <div 
+        onClick={handleTileClick}
+        className="relative bg-tan-light rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer h-48 flex flex-col"
+      >
         {/* Game Image */}
         <div className="relative h-32">
           {game.image && (
@@ -80,6 +121,35 @@ export default function GameTile({ game }: GameTileProps) {
           <p className="text-xs text-brown-medium">{getCategoryInThai(game.category)}</p>
         </div>
       </div>
-    </Link>
+
+      {/* Button Overlay */}
+      {showOverlay && (
+        <div className="absolute inset-0 bg-black/80 rounded-xl flex flex-col justify-between p-3 z-10 animate-in fade-in duration-200">
+          {/* Top area - title */}
+          <div className="text-center pt-8">
+            <h3 className="font-bold text-white text-lg">{game.title}</h3>
+          </div>
+          
+          {/* Middle area - buttons */}
+          <div className="flex flex-col gap-3 px-4">
+            <button
+              onClick={handleSelectLevel}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              เลือกด่าน
+            </button>
+            <button
+              onClick={handlePlayNow}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              เล่นเลย
+            </button>
+          </div>
+          
+          {/* Bottom area - empty for spacing */}
+          <div></div>
+        </div>
+      )}
+    </div>
   );
 }
