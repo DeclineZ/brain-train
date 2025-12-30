@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sarabun, Geist_Mono } from "next/font/google";
+import { Sarabun, Geist_Mono, Mali } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
@@ -9,6 +9,12 @@ import TopBarWrapper from "@/components/TopBarWrapper";
 
 const sarabun = Sarabun({
   variable: "--font-sarabun",
+  weight: ["400", "500", "600", "700"],
+  subsets: ["thai", "latin"],
+});
+
+const mali = Mali({
+  variable: "--font-mali",
   weight: ["400", "500", "600", "700"],
   subsets: ["thai", "latin"],
 });
@@ -34,7 +40,7 @@ export default async function RootLayout({
   return (
     <html lang="th">
       <body
-        className={`${sarabun.variable} ${geistMono.variable} antialiased`}
+        className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >
         <TopBarWrapper>
           <TopBar />

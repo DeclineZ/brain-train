@@ -81,8 +81,8 @@ export default function GamePage({ params }: PageProps) {
           setActiveLevel(nextLevel > 7 ? 7 : nextLevel);
         } else {
           // No history -> Start Tutorial (Level 0)
-          // Only for cardmatch? Valid for all games ideally, but let's stick to spec.
-          if (gameId === 'game-01-cardmatch') {
+          // Valid for game-01 and game-02
+          if (gameId === 'game-01-cardmatch' || gameId === 'game-02-sensorlock') {
             setActiveLevel(0);
           }
         }
@@ -520,7 +520,7 @@ export default function GamePage({ params }: PageProps) {
                     </button>
 
                     <button
-                      onClick={handleNextLevel}
+                      onClick={isEndless ? handleReplay : handleNextLevel}
                       className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
                     >
                       {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}

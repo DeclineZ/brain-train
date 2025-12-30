@@ -215,12 +215,7 @@ export default function StreakBadge({
                             <div
                                 key={index}
                                 className="flex-1 relative flex flex-col items-center gap-1 group"
-                                onClick={(e) => {
-                                    if (isToday && !isCompleted) {
-                                        e.stopPropagation();
-                                        handleManualCheckin();
-                                    }
-                                }}
+
                             >
                                 {/* Connection Line (To the right, except for last item) */}
                                 {index < weeklyProgress.week_days.length - 1 && (
@@ -242,7 +237,7 @@ export default function StreakBadge({
                                     {day.day_name}
                                 </span>
 
-                                <div className={`h-8 w-8 flex items-center justify-center transition-all duration-300 relative z-10 ${isToday && !isCompleted ? "cursor-pointer hover:scale-110" : ""}`}
+                                <div className={`h-8 w-8 flex items-center justify-center transition-all duration-300 relative z-10`}
                                 >
                                     {isCompleted ? (
                                         <div className="w-8 h-8 flex items-center justify-center">
@@ -271,15 +266,7 @@ export default function StreakBadge({
                             : "ยังไม่ได้เช็คอินวันนี้"}
                     </p>
 
-                    {!status.checked_in_today && (
-                        <button
-                            onClick={handleManualCheckin}
-                            disabled={isCheckingIn}
-                            className="bg-orange-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isCheckingIn ? "กำลังเช็คอิน..." : "เช็คอิน"}
-                        </button>
-                    )}
+
                 </div>
 
                 {/* Auto check-in indicator */}
@@ -309,12 +296,7 @@ export default function StreakBadge({
                             <div
                                 key={index}
                                 className="flex-1 relative flex flex-col items-center gap-1 group"
-                                onClick={(e) => {
-                                    if (isToday && !isCompleted) {
-                                        e.stopPropagation();
-                                        handleManualCheckin();
-                                    }
-                                }}
+
                             >
                                 {/* Connection Line (To the right, except for last item) */}
                                 {index < weeklyProgress.week_days.length - 1 && (

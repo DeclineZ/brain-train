@@ -70,10 +70,14 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       // Determine Scene Config
       // If mode is tutorial, override the scene config to use TutorialScene
       let config = { ...selectedConfig };
-      if (mode === 'tutorial' && gameId === 'game-01-cardmatch') {
-        // Dynamic import
-        const { TutorialScene } = await import('@/games/game-01-cardmatch/TutorialScene');
-        config.scene = TutorialScene;
+      if (mode === 'tutorial') {
+        if (gameId === 'game-01-cardmatch') {
+          const { TutorialScene } = await import('@/games/game-01-cardmatch/TutorialScene');
+          config.scene = TutorialScene;
+        } else if (gameId === 'game-02-sensorlock') {
+          const { TutorialScene } = await import('@/games/game-02-sensorlock/TutorialScene');
+          config.scene = TutorialScene;
+        }
       }
 
       // Destroy old instance if it exists (prevents duplicates)
