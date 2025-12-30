@@ -1,26 +1,464 @@
 @import "tailwindcss";
+@import "../node_modules/tw-animate-css/dist/tw-animate.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sarabun);
   --font-mono: var(--font-geist-mono);
+
+  /* Semantic Color Names mapped to CSS Variables for Theming */
+  --color-cream: var(--color-cream);
+  --color-brown-900: var(--color-brown-900);
+  --color-brown-800: var(--color-brown-800);
+  --color-brown-600: var(--color-brown-600);
+  --color-tan: var(--color-tan);
+  --color-orange-action: var(--color-orange-action);
+  --color-yellow-highlight: var(--color-yellow-highlight);
+  --color-yellow-highlight2: var(--color-yellow-highlight2);
+  --color-green-success: var(--color-green-success);
+  --color-tan-light: var(--color-tan-light);
+  --color-orange-dark: var(--color-orange-dark);
+  --color-brown-light: var(--color-brown-light);
+  --color-brown-medium: var(--color-brown-medium);
+  --color-brown-lightest: var(--color-brown-lightest);
+  --color-gray-light: var(--color-gray-light);
+  --color-gray-medium: var(--color-gray-medium);
+  --color-gray-text: var(--color-gray-text);
+  --color-gray-dark: var(--color-gray-dark);
+  --color-blue: var(--color-blue);
+  --color-green: var(--color-green);
+  --color-red: var(--color-red);
+  --color-blue-dark: var(--color-blue-dark);
+  --color-purple: var(--color-purple);
+  --color-yellow: var(--color-yellow);
+  --color-orange-hover: var(--color-orange-hover);
+  --color-brown-border: var(--color-brown-border);
+  --color-brown-darkest: var(--color-brown-darkest);
+  --color-brown-mute: var(--color-brown-mute);
+  --color-gray-lighter: var(--color-gray-lighter);
+  --color-gray-lightest: var(--color-gray-lightest);
+  --color-yellow-light: var(--color-yellow-light);
+  --color-orange-hover-2: var(--color-orange-hover-2);
+  --color-orange-dark-2: var(--color-orange-dark-2);
+  --color-gray-light-bg: var(--color-gray-light-bg);
+
+
+  /* Game Theme */
+  --color-game-bg: var(--color-game-bg);
+  --color-popup-bg: var(--color-popup-bg);
+  --color-brown-primary: var(--color-brown-primary);
+  --color-popup-title: var(--color-popup-title);
+  --color-stats-bg: var(--color-stats-bg);
+  --color-chip-memory-bg: var(--color-chip-memory-bg);
+  --color-chip-memory-text: var(--color-chip-memory-text);
+  --color-chip-speed-bg: var(--color-chip-speed-bg);
+  --color-chip-speed-text: var(--color-chip-speed-text);
+  --color-chip-focus-bg: var(--color-chip-focus-bg);
+  --color-chip-focus-text: var(--color-chip-focus-text);
+  --color-chip-planning-bg: var(--color-chip-planning-bg);
+  --color-chip-planning-text: var(--color-chip-planning-text);
+  --color-chip-emotion-bg: var(--color-chip-emotion-bg);
+  --color-chip-emotion-text: var(--color-chip-emotion-text);
+  --color-streak-fill: var(--color-streak-fill);
+  --color-streak-text: var(--color-streak-text);
+  --color-btn-border-light: var(--color-btn-border-light);
+  --color-btn-success-bg: var(--color-btn-success-bg);
+  --color-btn-success-hover: var(--color-btn-success-hover);
+  --color-btn-success-border: var(--color-btn-success-border);
+  --color-danger-title: var(--color-danger-title);
+  --color-btn-primary-bg: var(--color-btn-primary-bg);
+  --color-btn-primary-hover: var(--color-btn-primary-hover);
+  --color-btn-primary-border: var(--color-btn-primary-border);
+  --color-btn-warning-bg: var(--color-btn-warning-bg);
+  --color-btn-warning-hover: var(--color-btn-warning-hover);
+  --color-btn-warning-border: var(--color-btn-warning-border);
+
+
+  --color-overlay: var(--color-overlay);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  /* Default Theme (Wood/Rustic) Definitions */
+  --color-cream: #FFFDF6;
+  --color-brown-900: #3E2723;
+  --color-brown-800: #5D4037;
+  --color-brown-600: #6B4F00;
+  --color-tan: #C8A27A;
+  --color-orange-action: #E84C1C;
+  --color-yellow-highlight: #f09f3c;
+  --color-yellow-highlight2: #fccd34;
+  --color-green-success: #2E7D32;
+  --color-tan-light: #EADFD6;
+  --color-orange-dark: #D75931;
+  --color-brown-light: #8B5E3C;
+  --color-brown-medium: #51433A;
+  --color-brown-lightest: #C3A37F;
+  --color-gray-light: #F9F9F9;
+  --color-gray-medium: #E5E5E5;
+  --color-gray-text: #AFAFAF;
+  --color-gray-dark: #4B4B4B;
+  --color-blue: #1CB0F6;
+  --color-green: #58CC02;
+  --color-red: #FF4B4B;
+  --color-blue-dark: #2B70C9;
+  --color-purple: #CE82FF;
+  --color-yellow: #FFC800;
+  --color-orange-hover: #D64515;
+  --color-brown-border: #E0D8C0;
+  --color-brown-darkest: #3C2924;
+  --color-brown-mute: #8c7e75;
+  --color-gray-lighter: #F5F5F5;
+  --color-gray-lightest: #F0F0F0;
+
+  --shadow-card-color: #5D4037;
+  --color-topbar-text: #FFFFFF;
+  --color-topbar-icon-primary: #E84C1C;
+  --color-topbar-icon-secondary: #FFC107;
+
+  /* Juicy Icon Variables */
+  --icon-primary-stroke: #C53000;
+  /* Deep Orange Stroke */
+  --icon-primary-fill: #FF6D00;
+  /* Bright Orange Fill */
+
+  --icon-secondary-stroke: #F57F17;
+  /* Deep Gold Stroke */
+  --icon-secondary-fill: #FFD600;
+  /* Bright Yellow Fill */
+
+  --color-balance-text: #FFFFFF;
+  --color-balance-label: rgba(255, 255, 255, 0.9);
+  --color-balance-icon: #FFFFFF;
+  --color-balance-icon-bg: rgba(255, 255, 255, 0.2);
+
+
+  --color-yellow-light: #D4C4B0;
+  --color-orange-hover-2: #D74215;
+  --color-orange-dark-2: #E67E5A;
+  --color-gray-light-bg: #F5F0EB;
+
+  --color-game-bg: #FDF6E3;
+  --color-popup-bg: #FFF9F0;
+  --color-brown-primary: #8B4513;
+  --color-popup-title: #754E29;
+  --color-stats-bg: #FFF4E0;
+
+  --color-chip-memory-bg: #A8E6CF;
+  --color-chip-memory-text: #1B5E20;
+  --color-chip-speed-bg: #FFD3B6;
+  --color-chip-speed-text: #BF360C;
+  --color-chip-focus-bg: #D1C4E9;
+  --color-chip-focus-text: #4527A0;
+  --color-chip-planning-bg: #B3E5FC;
+  --color-chip-planning-text: #01579B;
+  --color-chip-emotion-bg: #FFCCBC;
+  /* Warm Deep Orange/Pinkish */
+  --color-chip-emotion-text: #BF360C;
+
+  --color-streak-fill: #FFD700;
+  --color-streak-text: #5A3E2B;
+
+  --color-btn-border-light: #E0E0E0;
+  --color-btn-success-bg: #76D13D;
+  --color-btn-success-hover: #65B731;
+  --color-btn-success-border: #529427;
+  --color-danger-title: #D32F2F;
+  --color-btn-primary-bg: #4DA6FF;
+  --color-btn-primary-hover: #2B83DD;
+  --color-btn-primary-border: #2568BA;
+  --color-btn-warning-bg: #FFB74D;
+  --color-btn-warning-hover: #F57C00;
+  --color-btn-warning-border: #E65100;
+
+  --color-overlay: #000000;
+}
+
+/* Pastel Theme Definitions (Based on User Image) */
+.theme-pastel {
+  --color-cream: #FAF9F6;
+  /* Off-white background */
+
+  /* Main UI Elements */
+  --color-brown-900: #455A64;
+  /* Dark Blue Grey for better readability */
+  --color-brown-800: #546E7A;
+  --color-brown-600: #78909C;
+
+  --shadow-card-color: #90A4AE;
+  /* Soft Blue Grey Shadow to replace dark brown */
+  --color-topbar-text: #455A64;
+  /* Dark text for light yellow navbar */
+
+  --color-balance-text: #455A64;
+  --color-balance-label: #546E7A;
+  --color-balance-icon: #455A64;
+  --color-balance-icon-bg: rgba(255, 255, 255, 0.5);
+
+  --color-balance-text: #455A64;
+  --color-balance-label: #546E7A;
+  --color-balance-icon: #455A64;
+  --color-balance-icon-bg: rgba(255, 255, 255, 0.5);
+
+  /* Pastel Palette from Image */
+  --color-tan: #FFF9C4;
+  /* Light Yellow (Top card) */
+  --color-tan-light: #F0F4C3;
+  /* Light Lime */
+
+  --color-brown-light: #546E7A;
+  /* Darker Blue Grey */
+  --color-brown-medium: #78909C;
+  /* Medium Blue Grey */
+  --color-brown-lightest: #90A4AE;
+  /* Light Blue Grey (but still readable) */
+
+  /* Top Bar specific overrides for Pastel Theme - High Contrast */
+  --color-topbar-icon-primary: #F06292;
+  /* Darker Pink for Flame */
+  --color-topbar-icon-secondary: #FBC02D;
+  /* Juicy Icon Override */
+  --icon-primary-stroke: #AD1457;
+  /* Deep Pink Stroke */
+  --icon-primary-fill: #FF80AB;
+  /* Soft Pink Fill */
+
+  --icon-secondary-stroke: #F9A825;
+  /* Dark Yellow Stroke */
+  --icon-secondary-fill: #FFF59D;
+  /* Pastel Yellow Fill */
+
+  --color-brown-darkest: #424242;
+
+  /* Missing Primary Colors - Mapped to Pastels */
+  --color-green: #AED581;
+  /* Pastel Green */
+  --color-blue: #81D4FA;
+  /* Pastel Blue */
+  --color-red: #EF9A9A;
+  /* Pastel Red */
+  --color-blue-dark: #64B5F6;
+  /* Darker Pastel Blue */
+  --color-purple: #CE93D8;
+  /* Pastel Purple */
+  --color-yellow: #fff067;
+  /* Pastel Yellow */
+
+  /* UI Accents overridden to Pastels */
+  --color-orange-action: #F48FB1;
+  /* Pink (Bottom card) */
+  --color-orange-dark: #F06292;
+
+  --color-yellow-highlight: #beb02a;
+  /* Light Yellow (Reverted for Coins/Banner) */
+  --color-yellow-highlight2: #ffe657;
+  /* Deep Gold (Readable Text) */
+
+  --color-green-success: #AED581;
+  /* Light Green (2nd card) */
+
+  /* Buttons and Chips */
+  --color-btn-success-bg: #C5E1A5;
+  --color-btn-success-hover: #AED581;
+  --color-btn-success-border: #9CCC65;
+
+  --color-btn-primary-bg: #81D4FA;
+  --color-btn-primary-hover: #4FC3F7;
+  --color-btn-primary-border: #29B6F6;
+
+  --color-btn-warning-bg: #FFCC80;
+  --color-btn-warning-hover: #FFB74D;
+
+  /* Backgrounds */
+  --color-game-bg: #FAFAFA;
+  --color-popup-bg: #FFFFFF;
+  --color-stats-bg: #F5F5F5;
+
+  /* Borders */
+  --color-brown-border: #E0E0E0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sarabun), sans-serif;
+}
+
+/* Safe area utilities */
+@layer utilities {
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@keyframes flame-wind {
+
+  0%,
+  100% {
+    transform: rotate(-2deg) scale(1);
+    opacity: 0.9;
+  }
+
+  25% {
+    transform: rotate(2deg) scale(1.05);
+    opacity: 1;
+  }
+
+  50% {
+    transform: rotate(-4deg) scale(0.95);
+    opacity: 0.85;
+  }
+
+  75% {
+    transform: rotate(1deg) scale(1.02);
+    opacity: 0.95;
+  }
+}
+
+.animate-flame-wind {
+  animation: flame-wind 3s infinite ease-in-out;
+  transform-origin: bottom center;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply bg-cream;
+  }
+
+  body {
+    @apply bg-cream text-brown-900 min-h-screen;
+  }
+}
+
+@layer utilities {
+  .bg-dot-pattern {
+    background-color: #FFFDF7;
+    background-image: radial-gradient(#E5E5E5 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-soft-mesh {
+    background-color: hsla(0, 100%, 50%, 1);
+    background-image:
+      radial-gradient(at 40% 20%, hsla(28, 100%, 74%, 1) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(340, 100%, 76%, 1) 0px, transparent 50%);
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
 }

@@ -1,65 +1,98 @@
-import Image from "next/image";
+import { getGames } from "@/lib/api";
+import { createClient } from "@/utils/supabase/server";
+import { getDailyMissions } from "@/lib/dailyMissions";
+import { getMultipleGameTotalStars } from "@/lib/stars";
+import TopCard from "@/components/TopCard";
+import MainGameCard from "@/components/MainGameCard";
+import BottomNav from "@/components/BottomNav";
+import ModernDashboard from "@/components/ModernDashboard";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import QuestNotificationManager from "@/components/QuestNotificationManager";
+import { Trophy } from "lucide-react";
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const games = await getGames();
+  const missions = await getDailyMissions(user.id);
+
+  // Filter games that have GIFs for the main page (featured games)
+  const featuredGames = games.filter(game => game.featured);
+
+  // Fetch total stars for featured games
+  const featuredGameIds = featuredGames.map(game => game.gameId);
+  const featuredGameStars = await getMultipleGameTotalStars(featuredGameIds);
+
+  const completedCount = missions.filter(m => m.completed).length;
+  const currentMission = missions.find(m => !m.completed);
+  const isAllComplete = completedCount === 2;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <div className="bg-cream overflow-hidden">
+      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
+        <QuestNotificationManager />
+        {/* TopCard */}
+        <TopCard />
+
+        <ModernDashboard
+          title={isAllComplete ? "ภารกิจวันนี้สำเร็จ!" : currentMission ? `ภารกิจ: ${currentMission.label}` : "ภารกิจวันนี้"}
+          totalGames={2}
+          completedGames={completedCount}
+          action={
+            isAllComplete ? (
+              <div className="flex flex-col items-start gap-2">
+                <Link
+                  href="/allgames"
+                  className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  <Trophy className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
+                  <span className="drop-shadow-sm relative z-10">เล่นเกมอื่นๆ</span>
+                </Link>
+              </div>
+            ) : (
+              <Link
+                href={currentMission ? `/play/${currentMission.game_id}` : "#"}
+                className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
+              >
+                <span>เริ่มภารกิจ</span>
+              </Link>
+            )
+          }
+        >
+          {/* Game Cards Grid */}
+          <div className="grid gap-6 grid-cols-1">
+            {featuredGames.map((game, index) => {
+              const mission = missions.find(m => m.game_id === game.gameId);
+              const isCompleted = mission ? mission.completed : false;
+
+              return (
+                <MainGameCard
+                  key={game.id}
+                  gameName={game.title}
+                  image={game.image!}
+                  index={index}
+                  durationMin={game.durationMin}
+                  gameId={game.gameId}
+                  currentLevel={game.currentLevel}
+                  haveLevel={game.have_level}
+                  totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
+                  isCompleted={isCompleted}
+                />
+              );
+            })}
+          </div>
+        </ModernDashboard>
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav active="home" />
+    </div >
   );
 }
