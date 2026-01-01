@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
 import LineLoginButton from "@/components/Login/LineLoginButton";
@@ -92,7 +92,7 @@ export default function LoginPage() {
                     <LogoHeader variant="mobile" />
                 </div>
 
-                <motion.div
+                <m.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
@@ -220,7 +220,7 @@ export default function LoginPage() {
                             </a>
                         </p>
                     </div>
-                </motion.div>
+                </m.div>
             </section>
         </main>
     );

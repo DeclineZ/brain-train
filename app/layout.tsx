@@ -7,7 +7,9 @@ import { ThemeProvider } from "@/app/providers/ThemeProvider";
 import TopBar from "@/components/TopBar";
 import TopBarWrapper from "@/components/TopBarWrapper";
 
-import { WebVitals } from "@/components/WebVitals";
+
+
+import { MotionProvider } from "@/app/providers/MotionProvider";
 
 const sarabun = Sarabun({
   variable: "--font-sarabun",
@@ -45,11 +47,12 @@ export default async function RootLayout({
         className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >
         <ThemeProvider initialTheme={(themeCookie?.value as "default" | "pastel") || "default"}>
-          <TopBarWrapper>
-            <TopBar />
-          </TopBarWrapper>
-          {children}
-          <WebVitals />
+          <MotionProvider>
+            <TopBarWrapper>
+              <TopBar />
+            </TopBarWrapper>
+            {children}
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

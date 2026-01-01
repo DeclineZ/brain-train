@@ -1,8 +1,14 @@
 'use client';
 
 import { use, useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useGameSession } from '@/hooks/useGameSession';
-import GameCanvas from '@/components/game/GameCanvas';
+// import GameCanvas from '@/components/game/GameCanvas';
+
+const GameCanvas = dynamic(() => import('@/components/game/GameCanvas'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full flex items-center justify-center text-brown-primary font-bold text-xl">Loading Game Engine...</div>
+});
 import StarIcon from '@/components/game/StarIcon';
 import ConfettiEffect from '@/components/game/ConfettiEffect';
 import TimeoutPopup from '@/components/game/TimeoutPopup';

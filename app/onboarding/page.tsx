@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronRight, Check, User, ChevronLeft } from "lucide-react";
 
 import Image from "next/image";
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
 
             {/* Desktop Progress Bar (Fixed Top) */}
             <div className="hidden md:block absolute top-19 left-1/2 -translate-x-1/2 z-50 w-64 lg:w-96 h-2 bg-brown-900/10 rounded-full overflow-hidden">
-                <motion.div
+                <m.div
                     className="h-full bg-orange-action shadow-[0_0_10px_rgba(234,88,12,0.5)]"
                     initial={{ width: "0%" }}
                     animate={{ width: `${(step / 3) * 100}%` }}
@@ -126,7 +126,7 @@ export default function OnboardingPage() {
 
                 {/* Progress Bar (Mobile) */}
                 <div className="w-full h-1.5 bg-brown-900/10 rounded-full overflow-hidden">
-                    <motion.div
+                    <m.div
                         className="h-full bg-orange-action"
                         initial={{ width: "0%" }}
                         animate={{ width: `${(step / 3) * 100}%` }}
@@ -142,7 +142,7 @@ export default function OnboardingPage() {
 
                 <AnimatePresence mode="wait">
                     {step === 1 && (
-                        <motion.div
+                        <m.div
                             key="step1"
                             initial={{ x: 50, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
@@ -250,11 +250,11 @@ export default function OnboardingPage() {
                                     ถัดไป <ChevronRight className="h-6 w-6" />
                                 </button>
                             </div>
-                        </motion.div>
+                        </m.div>
                     )}
 
                     {step === 2 && (
-                        <motion.div
+                        <m.div
                             key="step2"
                             initial={{ x: 50, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
@@ -317,11 +317,11 @@ export default function OnboardingPage() {
                             >
                                 ถัดไป <ChevronRight className="h-6 w-6" />
                             </button>
-                        </motion.div>
+                        </m.div>
                     )}
 
                     {step === 3 && (
-                        <motion.div
+                        <m.div
                             key="step3"
                             initial={{ x: 50, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
@@ -386,7 +386,7 @@ export default function OnboardingPage() {
                                 {loading ? "กำลังบันทึก..." : "เริ่มต้นใช้งาน"}
                                 {!loading && <Check className="h-6 w-6" />}
                             </button>
-                        </motion.div>
+                        </m.div>
                     )}
                 </AnimatePresence>
             </div>

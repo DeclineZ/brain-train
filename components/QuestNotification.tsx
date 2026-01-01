@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Trophy, Coins, Star } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 
 interface QuestNotificationProps {
     onClose: () => void;
@@ -28,7 +28,7 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
     return (
         <AnimatePresence>
             {isVisible && (
-                <motion.div
+                <m.div
                     initial={{ x: 100, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 100, opacity: 0 }}
@@ -52,14 +52,14 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                         {/* Content */}
                         <div className="p-4 bg-cream">
                             <div className="text-center mb-4">
-                                <motion.div
+                                <m.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
                                     className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2 border-4 border-white shadow-md"
                                 >
                                     <span className="text-4xl">🎁</span>
-                                </motion.div>
+                                </m.div>
                                 <h3 className="font-bold text-brown-900 text-lg">
                                     ยินดีด้วย!
                                 </h3>
@@ -69,7 +69,7 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                             </div>
 
                             {/* Reward Box */}
-                            <motion.div
+                            <m.div
                                 initial={{ y: 10, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.4 }}
@@ -87,18 +87,18 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                                 <div className="text-green-700 font-black text-xl">
                                     +100
                                 </div>
-                            </motion.div>
+                            </m.div>
                         </div>
 
                         {/* Progress Bar */}
-                        <motion.div
+                        <m.div
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
                             transition={{ duration: 6, ease: "linear" }}
                             className="h-1 bg-yellow-500"
                         />
                     </div>
-                </motion.div>
+                </m.div>
             )}
         </AnimatePresence>
     );

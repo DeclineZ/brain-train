@@ -2,6 +2,8 @@
 
 import { Coins, Lock, Check } from "lucide-react";
 import type { ShopItemWithOwnership } from "@/types";
+import Image from "next/image";
+import { useState } from "react";
 
 interface ShopItemCardProps {
   item: ShopItemWithOwnership;
@@ -15,6 +17,8 @@ interface ShopItemCardProps {
 }
 
 export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvatar, onEquip, isLoading = false, currentAvatar, currentTheme }: ShopItemCardProps) {
+  const [imageError, setImageError] = useState(false);
+
   const canAfford = userBalance >= item.price;
   const isLocked = !item.isOwned;
   const isAvatar = item.type === 'avatar';
@@ -92,19 +96,17 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
               <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#AED581]"></div>
               <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
             </div>
-          ) : hasImage ? (
-            <img
-              src={`/${itemImage}`}
-              alt={item.name}
-              className="max-w-full max-h-full object-contain rounded-lg"
-              onError={(e) => {
-                // Fallback to emoji if image fails to load
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const fallback = target.nextElementSibling as HTMLElement;
-                if (fallback) fallback.style.display = 'block';
-              }}
-            />
+          ) : hasImage && !imageError ? (
+            <div className="relative w-full h-full">
+              <Image
+                src={`/${itemImage}`}
+                alt={item.name}
+                fill
+                className="object-contain rounded-lg"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                onError={() => setImageError(true)}
+              />
+            </div>
           ) : (
             <div className="text-5xl filter drop-shadow-sm">
               {getItemIcon(item.type)}
