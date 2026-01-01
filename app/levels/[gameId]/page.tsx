@@ -1,5 +1,5 @@
-import { getGameLevels, hasUserPlayed } from '@/lib/api';
-import { getGames } from '@/lib/api';
+import { getGameLevels, hasUserPlayed, getGames } from '@/lib/api';
+import { createClient } from '@/utils/supabase/server';
 import LevelSelectionClient from '@/components/LevelSelectionClient';
 import { notFound } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
@@ -89,17 +89,19 @@ function NoLevelsUI({ game }: { game: any }) {
 
 export default async function LevelSelectionPage({ params }: PageProps) {
   const { gameId } = await params;
+  const supabase = await createClient();
 
   try {
-    // Load game levels (server-side)
-    const levels = await getGameLevels(gameId);
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Load game info (server-side)
-    const games = await getGames();
+    // Run all fetches in parallel, passing user.id if available
+    const [levels, games, hasPlayed] = await Promise.all([
+      getGameLevels(gameId, user?.id),
+      getGames(user?.id),
+      hasUserPlayed(gameId, user?.id)
+    ]);
+
     const game = games.find(g => g.gameId === gameId);
-
-    // Check if user has played before
-    const hasPlayed = await hasUserPlayed(gameId);
 
     if (!game) {
       notFound();

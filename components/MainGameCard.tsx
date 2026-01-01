@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Clock, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,7 +28,7 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
 
   return (
     <div className="relative">
-      <motion.div
+      <m.div
         onClick={handleCardClick}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -76,7 +76,7 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
         {isCompleted && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
             {/* Top Layer: Stamp (Shifted UP) */}
-            <motion.div
+            <m.div
               initial={{ scale: 2, opacity: 0, rotate: -15 }}
               animate={{ scale: 1, opacity: 1, rotate: -10 }}
               transition={{
@@ -98,10 +98,10 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
                   ภารกิจสำเร็จ
                 </span>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Middle Layer: Play Again Button (Pinned to bottom right) */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
@@ -109,10 +109,10 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
             >
               <span>เล่นต่อ</span>
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-            </motion.div>
+            </m.div>
           </div>
         )}
-      </motion.div>
+      </m.div>
     </div>
   );
 }

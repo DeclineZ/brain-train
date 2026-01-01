@@ -7,6 +7,10 @@ import { ThemeProvider } from "@/app/providers/ThemeProvider";
 import TopBar from "@/components/TopBar";
 import TopBarWrapper from "@/components/TopBarWrapper";
 
+
+
+import { MotionProvider } from "@/app/providers/MotionProvider";
+
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   weight: ["400", "500", "600", "700"],
@@ -43,10 +47,12 @@ export default async function RootLayout({
         className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >
         <ThemeProvider initialTheme={(themeCookie?.value as "default" | "pastel") || "default"}>
-          <TopBarWrapper>
-            <TopBar />
-          </TopBarWrapper>
-          {children}
+          <MotionProvider>
+            <TopBarWrapper>
+              <TopBar />
+            </TopBarWrapper>
+            {children}
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -95,16 +95,20 @@ export async function getGameStarsAuto(gameId: string): Promise<Record<string, n
 }
 
 // Get total stars for a specific game (sum of all levels)
-export async function getGameTotalStars(gameId: string): Promise<number> {
-    const user = await getCurrentUser();
-    if (!user) return 0;
-    
+export async function getGameTotalStars(gameId: string, userId?: string): Promise<number> {
+    let currentUserId = userId;
+    if (!currentUserId) {
+        const user = await getCurrentUser();
+        if (!user) return 0;
+        currentUserId = user.id;
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('user_game_stars')
         .select('star')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .eq('game_id', gameId);
 
     if (error) {
@@ -119,16 +123,20 @@ export async function getGameTotalStars(gameId: string): Promise<number> {
 }
 
 // Get total stars for multiple games at once
-export async function getMultipleGameTotalStars(gameIds: string[]): Promise<Record<string, number>> {
-    const user = await getCurrentUser();
-    if (!user) return {};
-    
+export async function getMultipleGameTotalStars(gameIds: string[], userId?: string): Promise<Record<string, number>> {
+    let currentUserId = userId;
+    if (!currentUserId) {
+        const user = await getCurrentUser();
+        if (!user) return {};
+        currentUserId = user.id;
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('user_game_stars')
         .select('game_id, star')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .in('game_id', gameIds);
 
     if (error) {

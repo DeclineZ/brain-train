@@ -19,8 +19,10 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const games = await getGames();
-  const missions = await getDailyMissions(user.id);
+  const [games, missions] = await Promise.all([
+    getGames(user.id),
+    getDailyMissions(user.id),
+  ]);
 
   // Filter games that have GIFs for the main page (featured games)
   const featuredGames = games.filter(game => game.featured);

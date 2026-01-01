@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 export default function LineLoginButton() {
     const [loading, setLoading] = useState(false)
@@ -17,15 +18,9 @@ export default function LineLoginButton() {
             scope: 'profile openid',
         })
 
-        // Note: NEXT_PUBLIC_LINE_CHANNEL_ID needs to be added to .env.local if not present,
-        // or we can hardcode for now if the user gave it in the prompt, but env is better.
-        // The user provided LINE_CHANNEL_ID in .env.local, but without NEXT_PUBLIC prefix it won't be available here.
-        // We will assume for now we might need to use a server action or just ask user to rename/expose it.
-        // Wait, the user shared .env.local content and it had LINE_CHANNEL_ID (no NEXT_PUBLIC).
-        // I will use a hardcoded fallback with the ID they provided if env is missing, or instructed them.
-        // User ID: 2008794022
-
-        if (!params.get('client_id')) {
+        // NOTE: NEXT_PUBLIC_LINE_CHANNEL_ID needs to be added to .env.local if not present.
+        // Fallback for demo specific to user ID 2008794022 if env is missing.
+        if (!process.env.NEXT_PUBLIC_LINE_CHANNEL_ID && !params.get('client_id')) {
             params.set('client_id', '2008794022')
         }
 
@@ -39,9 +34,8 @@ export default function LineLoginButton() {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md"
         >
-            {/* LINE Icon (SVG) */}
             {/* LINE Icon (Official Brand Icon from Wikimedia) */}
-            <img
+            <Image
                 src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg"
                 alt="LINE Logo"
                 width={24}

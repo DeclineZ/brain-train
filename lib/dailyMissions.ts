@@ -40,6 +40,8 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
         .select()
         .order("slot_index", { ascending: true });
 
+
+
     if (error) {
         console.error("Error creating daily missions:", JSON.stringify(error, null, 2));
         return [];
