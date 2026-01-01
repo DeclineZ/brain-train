@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/app/providers/ThemeProvider";
 import TopBar from "@/components/TopBar";
 import TopBarWrapper from "@/components/TopBarWrapper";
 
+import { WebVitals } from "@/components/WebVitals";
+
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   weight: ["400", "500", "600", "700"],
@@ -47,6 +49,7 @@ export default async function RootLayout({
             <TopBar />
           </TopBarWrapper>
           {children}
+          <WebVitals />
         </ThemeProvider>
       </body>
     </html>
