@@ -13,6 +13,10 @@ export class SensorLockGameScene extends Phaser.Scene {
     private totalReactionTime = 0; // Sum of reaction times
     private reactionCount = 0;     // Number of valid reactions tracked
 
+    // Spam Protection
+    private inputHistory: number[] = [];
+    private isInputLocked = false;
+
     // Difficulty
     // Difficulty
     private timeLimitPerCard = 7000;    // Start at 7000ms (7s) for older/slower pace
@@ -35,6 +39,8 @@ export class SensorLockGameScene extends Phaser.Scene {
     private timerBar!: Phaser.GameObjects.Graphics;
     private scoreText!: Phaser.GameObjects.Text;
     private streakText!: Phaser.GameObjects.Text;
+    private noBg!: Phaser.GameObjects.Rectangle;
+    private yesBg!: Phaser.GameObjects.Rectangle;
 
     // Audio Objects
     private soundMatchSuccess!: Phaser.Sound.BaseSound;
@@ -302,7 +308,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         // NO MATCH Button (Left, Red)
         // NO MATCH Button (Left, Red)
         const noBtn = this.add.container(width / 4, yPos);
-        const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF7675)
+        this.noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF7675)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0xD63031);
         const noTextSize = Math.min(btnWidth * 0.25, 50);
@@ -314,16 +320,16 @@ export class SensorLockGameScene extends Phaser.Scene {
             stroke: '#D63031',
             strokeThickness: 2
         }).setOrigin(0.5).setPadding(5);
-        noBtn.add([noBg, noText]);
+        noBtn.add([this.noBg, noText]);
 
-        noBg.on('pointerdown', () => {
+        this.noBg.on('pointerdown', () => {
             this.tweens.add({ targets: noBtn, scale: 0.95, duration: 50, yoyo: true });
             this.handleInput(false);
         });
 
         // MATCH Button (Right, Green)
         const yesBtn = this.add.container(width * 0.75, yPos);
-        const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x55EFC4)
+        this.yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x55EFC4)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0x00B894);
         const yesTextSize = Math.min(btnWidth * 0.25, 50);
@@ -335,9 +341,9 @@ export class SensorLockGameScene extends Phaser.Scene {
             stroke: '#00B894',
             strokeThickness: 2
         }).setOrigin(0.5).setPadding(5);
-        yesBtn.add([yesBg, yesText]);
+        yesBtn.add([this.yesBg, yesText]);
 
-        yesBg.on('pointerdown', () => {
+        this.yesBg.on('pointerdown', () => {
             this.tweens.add({ targets: yesBtn, scale: 0.95, duration: 50, yoyo: true });
             this.handleInput(true);
         });
@@ -507,8 +513,62 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     handleInput(saidMatch: boolean) {
         if (!this.isPlaying) return;
+        if (this.isInputLocked) return;
 
-        const reactionTime = Date.now() - this.cardStartTime;
+        const now = Date.now();
+        this.inputHistory.push(now);
+        if (this.inputHistory.length > 5) this.inputHistory.shift();
+
+        // Check for Spam (Rapid clicking)
+        if (this.inputHistory.length >= 5) {
+            let totalDiff = 0;
+            for (let i = 1; i < this.inputHistory.length; i++) {
+                totalDiff += (this.inputHistory[i] - this.inputHistory[i - 1]);
+            }
+            const avgDiff = totalDiff / (this.inputHistory.length - 1);
+
+            // 180ms threshold (~5.5 clicks/sec) is very fast for this game type
+            if (avgDiff < 180) {
+                // SPAM DETECTED
+                this.isInputLocked = true;
+                this.soundMatchFail.play();
+                this.cameras.main.shake(500, 0.05); // Heavy shake
+
+                // Show Warning
+                this.streakText.setText("อย่ากดรัว!");
+                this.streakText.setColor('#D63031');
+                this.streakText.setAlpha(1);
+                this.streakText.setScale(1);
+
+                // Grey out buttons & Disable Interactivity
+                this.noBg.setFillStyle(0x95a5a6);     // Concrete Grey
+                this.noBg.setStrokeStyle(4, 0x7f8c8d); // Darker Grey
+                this.noBg.disableInteractive();
+
+                this.yesBg.setFillStyle(0x95a5a6);
+                this.yesBg.setStrokeStyle(4, 0x7f8c8d);
+                this.yesBg.disableInteractive();
+
+                // Lockout for 3 seconds
+                this.time.delayedCall(3000, () => {
+                    this.isInputLocked = false;
+                    this.inputHistory = []; // Reset history
+                    this.streakText.setAlpha(0);
+
+                    // Restore Button Colors & Interactivity
+                    this.noBg.setFillStyle(0xFF7675); // Red
+                    this.noBg.setStrokeStyle(4, 0xD63031);
+                    this.noBg.setInteractive();
+
+                    this.yesBg.setFillStyle(0x55EFC4); // Green
+                    this.yesBg.setStrokeStyle(4, 0x00B894);
+                    this.yesBg.setInteractive();
+                });
+                return; // Block this input
+            }
+        }
+
+        const reactionTime = now - this.cardStartTime;
         this.totalReactionTime += reactionTime;
         this.reactionCount++;
         this.attempts++;
