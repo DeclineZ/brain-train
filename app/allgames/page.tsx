@@ -17,6 +17,7 @@ export default async function AllGamesPage() {
   // Filter by categories
   const reasoningGames = games.filter(game => game.category === "reasoning");
   const dataProcessingGames = games.filter(game => game.category === "data_processing");
+  const calculationGames = games.filter(game => game.category === "calculation");
 
   return (
     <div className="min-h-screen bg-cream pb-24">
@@ -45,6 +46,20 @@ export default async function AllGamesPage() {
             <h2 className="text-lg font-bold text-brown-darkest mb-4">การประมวลผลข้อมูล</h2>
             <div className="grid grid-cols-2 gap-4 items-stretch">
               {dataProcessingGames.map((game) => (
+                <GameTile
+                  key={game.id}
+                  game={game}
+                  totalStars={game.have_level ? gameStars[game.gameId] : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+         {calculationGames.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-brown-darkest mb-4">การประมวลผลข้อมูล</h2>
+            <div className="grid grid-cols-2 gap-4 items-stretch">
+              {calculationGames.map((game) => (
                 <GameTile
                   key={game.id}
                   game={game}

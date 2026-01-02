@@ -168,10 +168,13 @@ export async function submitGameSession(
                     console.warn(`[submitGameSession] Stars is NaN: ${rawData.stars}`);
                 }
             } catch (starErr) {
-                console.error("Error updating stars:", starErr);
+                console.error("[submitGameSession] Error updating stars:", starErr);
             }
         } else if (levelPlayed > 0) {
-            console.warn(`[submitGameSession] rawData.stars is undefined`);
+            console.warn(`[submitGameSession] rawData.stars is undefined for level ${levelPlayed}`);
+            console.warn(`[submitGameSession] rawData keys:`, Object.keys(rawData));
+        } else {
+            console.log(`[submitGameSession] Skipping star update for tutorial level ${levelPlayed}`);
         }
 
         // 7. Add Coin Reward (Skip if Tutorial / Level 0)

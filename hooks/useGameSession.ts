@@ -1,12 +1,14 @@
 import { calculateClinicalStats } from '@/lib/scoring/example';
 import { calculateMatchingStats } from '@/lib/scoring/matching';
 import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
+import { calculateBilliardsStats } from '@/lib/scoring/billiards';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats } from '@/types';
 
 export const useGameSession = () => {
 
   const submitSession = async (gameId: string, rawData: any) => {
+    console.log("[useGameSession] submitSession called", { gameId, rawData });
 
     let clinicalStats: ClinicalStats = {
       stat_memory: null,
@@ -24,6 +26,8 @@ export const useGameSession = () => {
       clinicalStats = { ...calculateMatchingStats(rawData as MatchingGameStats), stat_emotion: rawData.stat_emotion ?? null };
     } else if (gameId === 'game-02-sensorlock') {
       clinicalStats = calculateSensorLockStats(rawData as SensorLockGameStats);
+    } else if (gameId === 'game-03-billiards-math') {
+      clinicalStats = calculateBilliardsStats(rawData as BilliardsGameStats);
     }
     // Add 'else if' for other games here later...
 
@@ -32,9 +36,9 @@ export const useGameSession = () => {
     const result = await submitGameSession(gameId, rawData, clinicalStats);
 
     if (!result.ok) {
-      console.error("Error submitting game session:", result.error);
+      console.error("[useGameSession] Error submitting game session:", result.error);
     } else {
-      console.log("Game session submitted successfully.", result);
+      console.log("[useGameSession] Game session submitted successfully.", result);
     }
 
     return {
@@ -47,4 +51,3 @@ export const useGameSession = () => {
 
   return { submitSession };
 };
-

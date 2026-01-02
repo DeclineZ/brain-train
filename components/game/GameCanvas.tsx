@@ -77,6 +77,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-02-sensorlock') {
           const { TutorialScene } = await import('@/games/game-02-sensorlock/TutorialScene');
           config.scene = TutorialScene;
+        } else if (gameId === 'game-03-billiards-math') {
+          const { TutorialScene } = await import('@/games/game-03-billiards-math/TutorialScene');
+          config.scene = TutorialScene;
         }
       }
 

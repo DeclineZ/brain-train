@@ -41,6 +41,20 @@ export interface SensorLockGameStats {
   mismatchAttempts: number;
 }
 
+export interface BilliardsGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  totalEquations: number;
+  correctEquations: number;
+  wrongEquations: number;
+  totalTimeMs: number;
+  parTimeMs: number;
+  consecutiveErrors: number;
+  repeatedErrors: number;
+  attempts: number;
+  continuedAfterTimeout: boolean;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;
