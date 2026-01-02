@@ -100,7 +100,7 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
       if (userError || !authUser) {
         console.log("No authenticated user found, returning default levels");
         // Return default levels without user progress
-        return Array.from({ length: 12 }, (_, i) => ({
+        return Array.from({ length: getDefaultLevelCount(gameId) }, (_, i) => ({
           level: i + 1,
           unlocked: i === 0, // Only first level unlocked
           stars: 0,
@@ -132,8 +132,11 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     // Fetch user's stars for this game
     const userStars = await getGameStars(currentUserId, gameId);
 
+    // Get the correct number of levels for this game
+    const levelCount = getDefaultLevelCount(gameId);
+
     // Generate levels with real star data
-    const levels: GameLevel[] = Array.from({ length: 12 }, (_, i) => {
+    const levels: GameLevel[] = Array.from({ length: levelCount }, (_, i) => {
       const levelNum = i + 1;
       const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
       const isCompleted = levelNum <= userCurrentLevel;
@@ -153,12 +156,22 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
   } catch (error) {
     console.error("Game levels API error:", error);
     // Return default levels as fallback
-    return Array.from({ length: 12 }, (_, i) => ({
+    return Array.from({ length: getDefaultLevelCount(gameId) }, (_, i) => ({
       level: i + 1,
       unlocked: i === 0, // Only first level unlocked
       stars: 0,
       completed: false
     }));
+  }
+}
+
+// Helper function to get default level count based on game
+function getDefaultLevelCount(gameId: string): number {
+  switch (gameId) {
+    case 'game-03-billiards-math':
+      return 60; // Billiards has 60 levels
+    default:
+      return 12; // Default for other games
   }
 }
 

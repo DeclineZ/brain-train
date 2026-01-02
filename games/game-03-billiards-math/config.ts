@@ -1,4 +1,5 @@
 import { BilliardsGameScene } from './GameScene';
+import { TutorialScene } from './TutorialScene';
 
 export const BilliardsGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const BilliardsGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [BilliardsGameScene]
+    scene: [BilliardsGameScene, TutorialScene]
 };
