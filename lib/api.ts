@@ -94,13 +94,16 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     let currentUserId = userId;
     let user = null;
 
+    // Determine total levels based on gameId
+    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+
     if (!currentUserId) {
       // Get current user
       const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
       if (userError || !authUser) {
         console.log("No authenticated user found, returning default levels");
         // Return default levels without user progress
-        return Array.from({ length: 12 }, (_, i) => ({
+        return Array.from({ length: totalLevels }, (_, i) => ({
           level: i + 1,
           unlocked: i === 0, // Only first level unlocked
           stars: 0,
@@ -133,7 +136,7 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     const userStars = await getGameStars(currentUserId, gameId);
 
     // Generate levels with real star data
-    const levels: GameLevel[] = Array.from({ length: 12 }, (_, i) => {
+    const levels: GameLevel[] = Array.from({ length: totalLevels }, (_, i) => {
       const levelNum = i + 1;
       const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
       const isCompleted = levelNum <= userCurrentLevel;
@@ -153,7 +156,8 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
   } catch (error) {
     console.error("Game levels API error:", error);
     // Return default levels as fallback
-    return Array.from({ length: 12 }, (_, i) => ({
+    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+    return Array.from({ length: totalLevels }, (_, i) => ({
       level: i + 1,
       unlocked: i === 0, // Only first level unlocked
       stars: 0,
