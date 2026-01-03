@@ -68,6 +68,11 @@ export interface MatchingLevelConfig {
   parTimeSeconds: number; // For star calculation
   timeLimitSeconds: number; // <--- NEW: Countdown limit
   difficultyMultiplier: number;
+
+  // New Mechanics for Levels 8+
+  swapAfterPreviewCount?: number; // How many cards to random swap after preview (0 = none)
+  periodicSwapInterval?: number;  // Every N turns (0 = none)
+  periodicSwapPairs?: number;     // How many pairs to swap periodically
 }
 
 // Daily streak types

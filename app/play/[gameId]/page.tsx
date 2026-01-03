@@ -45,6 +45,9 @@ export default function GamePage({ params }: PageProps) {
 
   // Endless Mode Check
   const isEndless = gameId === 'game-02-sensorlock';
+  // Determine max level based on game
+  const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 7;
+
   const [activeLevel, setActiveLevel] = useState<number>(1);
   const [resumeLevel, setResumeLevel] = useState<number>(1);
   const [highScore, setHighScore] = useState<number>(0);
@@ -79,9 +82,9 @@ export default function GamePage({ params }: PageProps) {
 
         let nextLevel = 1;
         if (data && data.current_played) {
-          // Prevent going beyond max level (7)
+          // Prevent going beyond max level
           nextLevel = data.current_played + 1;
-          if (nextLevel > 7) nextLevel = 7;
+          if (nextLevel > maxLevel) nextLevel = maxLevel;
         }
 
         setResumeLevel(nextLevel);
@@ -312,8 +315,8 @@ export default function GamePage({ params }: PageProps) {
 
   const handleNextLevel = () => {
     setResult(null); // Explicitly clear before push
-    // For level 7 (max), maybe loop or show "Complete"
-    if (activeLevel >= 7) {
+    // For max level, maybe loop or show "Complete"
+    if (activeLevel >= maxLevel) {
       router.push('/allgames');
     } else {
       // Force reload by pushing new URL or just state update?
@@ -553,7 +556,7 @@ export default function GamePage({ params }: PageProps) {
                         onClick={handleNextLevel}
                         className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
                       >
-                        {activeLevel >= 7 && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                       </button>
                     </div>
                   </div>
