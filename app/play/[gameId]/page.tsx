@@ -51,7 +51,7 @@ export default function GamePage({ params }: PageProps) {
   // Endless Mode Check
   const isEndless = gameId === 'game-02-sensorlock';
   // Determine max level based on game
-  const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 7;
+  const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 60;
 
   const [activeLevel, setActiveLevel] = useState<number>(1);
   const [resumeLevel, setResumeLevel] = useState<number>(1);
