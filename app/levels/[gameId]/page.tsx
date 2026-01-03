@@ -1,4 +1,5 @@
-import { getGameLevels, hasUserPlayed, getGames } from '@/lib/api';
+import { hasUserPlayed, getGames } from '@/lib/api';
+import { getGameLevelsFromSource } from '@/lib/levelLoader';
 import { createClient } from '@/utils/supabase/server';
 import LevelSelectionClient from '@/components/LevelSelectionClient';
 import { notFound } from 'next/navigation';
@@ -96,12 +97,12 @@ export default async function LevelSelectionPage({ params }: PageProps) {
 
     // Run all fetches in parallel, passing user.id if available
     const [levels, games, hasPlayed] = await Promise.all([
-      getGameLevels(gameId, user?.id),
+      getGameLevelsFromSource(gameId, user?.id),
       getGames(user?.id),
       hasUserPlayed(gameId, user?.id)
     ]);
 
-    const game = games.find(g => g.gameId === gameId);
+    const game = games.find((g: any) => g.gameId === gameId);
 
     if (!game) {
       notFound();

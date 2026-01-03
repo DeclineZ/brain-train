@@ -165,27 +165,6 @@ export async function upsertLevelStars(
     newStars: number
 ) {
     const supabase = await createClient();
-    const { data: existing, error: fetchError } = await supabase
-        .from('user_game_stars')
-        .select('star')
-        .eq('user_id', userId)
-        .eq('game_id', gameId)
-        .eq('level', level)
-        .single();
-
-    if (fetchError) {
-        console.error('[upsertLevelStars] Error fetching existing stars:', fetchError);
-        // Don't return error here - it might just be "no rows found"
-    }
-
-    const oldStars = existing ? existing.star : 0;
-
-    // 2. Only update if new score is higher
-    if (newStars <= oldStars) {
-        console.log(`[upsertLevelStars] No update needed. Old: ${oldStars}, New: ${newStars}`);
-        return { success: true, updated: false, stars: oldStars };
-    }
-
     // 3. Upsert (Insert or Update)
     
     const { error } = await supabase

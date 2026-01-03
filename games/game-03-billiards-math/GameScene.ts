@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import { BILLIARDS_LEVELS } from "./levels";
 import { EquationGenerator } from "./equationGenerator";
-import type { BilliardsLevelConfig, Equation, Ball } from "./types";
+import type { BilliardsLevelConfig, Equation, ComplexEquation, Ball } from "./types";
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
 
@@ -11,7 +11,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     // Game State
     private balls: Ball[] = [];
-    private currentEquation!: Equation;
+    private currentEquation!: Equation | ComplexEquation;
     private placedBalls: number[] = [];
     private startTime = 0;
     private levelStartTime = 0;
@@ -25,6 +25,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     private isLocked = true;
     private continuedAfterTimeout = false;
     private isPaused = false;
+    private completedEquationResults: number[] = []; // Track results of completed equations
 
     // Timer
     private timerEvent!: Phaser.Time.TimerEvent;
@@ -38,12 +39,17 @@ export class BilliardsGameScene extends Phaser.Scene {
     private operatorTexts: { [key: string]: string } = {};
     private goalBall!: Phaser.GameObjects.Container;
     private poolTable!: Phaser.GameObjects.Container;
+    private shadowBallContainer!: Phaser.GameObjects.Container; // Container for shadow ball progress tracker
+    private shadowBalls: Phaser.GameObjects.Container[] = []; // Individual shadow balls
 
     // Audio
     private bgMusic!: Phaser.Sound.BaseSound;
     private soundBallDrop!: Phaser.Sound.BaseSound;
     private soundBallRattle!: Phaser.Sound.BaseSound;
     private soundSuccess!: Phaser.Sound.BaseSound;
+    private soundBallClick!: Phaser.Sound.BaseSound;
+    private soundLevelPass!: Phaser.Sound.BaseSound;
+    private soundLevelFail!: Phaser.Sound.BaseSound;
 
     constructor() {
         super({ key: "BilliardsGameScene" });
@@ -51,13 +57,13 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     init(data: { level: number }) {
         // Get level from registry (set by GameCanvas)
-        const level = this.registry.get('level') ;
-        console.log(`[BilliardsGameScene] init called with level:`, { 
-            dataLevel: data.level, 
-            registryLevel: this.registry.get('level'), 
-            finalLevel: level 
+        const level = this.registry.get("level");
+        console.log(`[BilliardsGameScene] init called with level:`, {
+            dataLevel: data.level,
+            registryLevel: this.registry.get("level"),
+            finalLevel: level,
         });
-        
+
         this.currentLevelConfig =
             BILLIARDS_LEVELS[level] || BILLIARDS_LEVELS[1];
         this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
@@ -67,6 +73,9 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     resetGameState() {
+        this.cleanupBalls();
+        this.cleanupShadowBalls();
+
         this.balls = [];
         this.currentEquation = {} as Equation;
         this.placedBalls = [];
@@ -80,21 +89,49 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.isLocked = true;
         this.continuedAfterTimeout = false;
         this.isPaused = false;
+        this.completedEquationResults = [];
+        this.shadowBalls = [];
+    }
+
+    cleanupBalls() {
+        // Properly cleanup all ball containers and their event listeners
+        this.balls.forEach((ball) => {
+            if (ball && ball.container) {
+                // Remove all event listeners before destroying
+                ball.container.removeAllListeners();
+                ball.container.destroy();
+            }
+        });
+        this.balls = [];
+    }
+
+    cleanupShadowBalls() {
+        // Properly cleanup all shadow ball containers and their event listeners
+        this.shadowBalls.forEach((shadowBall) => {
+            if (shadowBall) {
+                // Remove all event listeners before destroying
+                shadowBall.removeAllListeners();
+                shadowBall.destroy();
+            }
+        });
+        this.shadowBalls = [];
+
+        if (this.shadowBallContainer) {
+            this.shadowBallContainer.removeAllListeners();
+            this.shadowBallContainer.destroy();
+            this.shadowBallContainer = null as any;
+        }
     }
 
     preload() {
-        // Load pool ball assets
-        for (let i = 1; i <= 9; i++) {
+        // Load pool ball assets (1-10)
+        for (let i = 1; i <= 10; i++) {
             this.load.image(
                 `ball-${i}`,
                 `/assets/images/billiards/ball-${i}.png`
             );
         }
         this.load.image("goal-ball", "/assets/images/billiards/goal-ball.png");
-        this.load.image(
-            "pool-table",
-            "/assets/images/billiards/pool-table.png"
-        );
 
         // Load sounds
         this.load.audio("ball-drop", "/assets/sounds/billiards/ball-drop.mp3");
@@ -104,6 +141,9 @@ export class BilliardsGameScene extends Phaser.Scene {
         );
         this.load.audio("success", "/assets/sounds/billiards/success.mp3");
         this.load.audio("bg-music", "/assets/sounds/billiards/bg-music.mp3");
+        this.load.audio("ball-click", "/assets/sounds/billiards/ball-rattle.mp3"); // Use ball-rattle for click
+        this.load.audio("level-pass", "/assets/sounds/level-pass.mp3");
+        this.load.audio("level-fail", "/assets/sounds/level-fail.mp3");
     }
 
     create() {
@@ -127,6 +167,18 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.game.events.on("resume-game", (data: { penalty: boolean }) => {
             this.resumeGame(data.penalty);
         });
+
+        // Initialize sound effects
+        try {
+            this.soundBallClick = this.sound.add("ball-click", { volume: 0.5 });
+            this.soundBallDrop = this.sound.add("ball-drop", { volume: 0.6 });
+            this.soundBallRattle = this.sound.add("ball-rattle", { volume: 0.7 });
+            this.soundSuccess = this.sound.add("success", { volume: 0.8 });
+            this.soundLevelPass = this.sound.add("level-pass", { volume: 0.8 });
+            this.soundLevelFail = this.sound.add("level-fail", { volume: 0.8 });
+        } catch (e) {
+            console.warn("Sound effects failed to initialize", e);
+        }
 
         // Start background music
         try {
@@ -164,13 +216,56 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Create pool table container
         this.poolTable = this.add.container(width / 2, height / 2);
 
-        // Table background (felt)
-        const tableBg = this.add
-            .rectangle(0, 0, width * 0.9, height * 0.7, 0x2e7d32) // Dark green felt
-            .setStrokeStyle(8, 0x8b4513) // Brown rail
-            .setOrigin(0.5);
+        // Table dimensions - responsive for phone and desktop
+        const tableWidth = width * 0.8;
+        const tableHeight = height * 0.7;
+        const cornerRadius = Math.min(20, width * 0.03);
 
+        // Create table border (wooden frame)
+        const borderWidth = Math.min(15, width * 0.05);
+        const borderBg = this.add.graphics();
+        borderBg.fillStyle(0x8b4513); // Saddle brown for wooden frame
+        borderBg.fillRoundedRect(
+            -tableWidth / 2 - borderWidth,
+            -tableHeight / 2 - borderWidth,
+            tableWidth + borderWidth * 2,
+            tableHeight + borderWidth * 2,
+            cornerRadius + borderWidth
+        );
+        this.poolTable.add(borderBg);
+
+        // Create table background (brown felt)
+        const tableBg = this.add.graphics();
+        tableBg.fillStyle(0x0d5d3d); // Dark green felt color
+        tableBg.fillRoundedRect(-tableWidth / 2, -tableHeight / 2, tableWidth, tableHeight, cornerRadius);
         this.poolTable.add(tableBg);
+
+        // Add table pockets (6 pockets - 4 corners + 2 middle)
+        const pocketRadius = Math.min(25, width * 0.04);
+        const pocketColor = 0x000000; // Black pockets
+
+        // Corner pockets
+        const createPocket = (x: number, y: number) => {
+            const pocket = this.add.circle(x, y, pocketRadius, pocketColor);
+            this.poolTable.add(pocket);
+        };
+
+        // Top-left pocket
+        createPocket(-tableWidth / 2 + cornerRadius, -tableHeight / 2 + cornerRadius);
+        // Top-right pocket
+        createPocket(tableWidth / 2 - cornerRadius, -tableHeight / 2 + cornerRadius);
+        // Bottom-left pocket
+        createPocket(-tableWidth / 2 + cornerRadius, tableHeight / 2 - cornerRadius);
+        // Bottom-right pocket
+        createPocket(tableWidth / 2 - cornerRadius, tableHeight / 2 - cornerRadius);
+        // Middle-left pocket
+        createPocket(-tableWidth / 2 + cornerRadius, 0);
+        // Middle-right pocket
+        createPocket(tableWidth / 2 - cornerRadius, 0);
+
+        // Add table markings (head string and center spot)
+        const centerSpot = this.add.circle(0, 0, Math.min(8, width * 0.015), 0xffffff, 0.5);
+        this.poolTable.add(centerSpot);
     }
 
     createUI() {
@@ -182,18 +277,20 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Goal ball positioned after "=" (in equation area, center of pool table)
         this.goalBall = this.add.container(width / 2, height * 0.5);
         const goalBallRadius = Math.min(35, width * 0.06);
-        const goalBallBg = this.add
-            .circle(0, 0, goalBallRadius, 0xffd700) // Gold color
-            .setStrokeStyle(4, 0xffa500);
-        const goalBallText = this.add
-            .text(0, 0, "", {
-                fontFamily: "Sarabun, sans-serif",
-                fontSize: `${Math.min(28, width * 0.04)}px`,
-                color: "#000000",
-                fontStyle: "bold",
-            })
-            .setOrigin(0.5);
-        this.goalBall.add([goalBallBg, goalBallText]);
+        const goalBallBg = this.add.image(0, 0, "goal-ball");
+        goalBallBg.setDisplaySize(goalBallRadius * 2.2, goalBallRadius * 2.2); // Slightly larger for visibility
+        
+        // Add text overlay for result number
+        const goalText = this.add.text(0, 0, "0", {
+            fontFamily: "Arial, sans-serif",
+            fontSize: `${Math.min(20, width * 0.04)}px`,
+            color: "#ffffff",
+            fontStyle: "bold",
+            stroke: "#000000",
+            strokeThickness: 2,
+        }).setOrigin(0.5);
+       
+        this.goalBall.add([goalBallBg, goalText]);
 
         // Message text
         this.messageText = this.add
@@ -211,21 +308,188 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Timer bar
         this.customTimerBar = this.add.graphics();
         this.customTimerBar.setVisible(false);
+
+        // Create shadow ball progress tracker above timer bar
+        this.createShadowBallTracker();
+    }
+
+    updateGoalBall(result: number) {
+        const goalText = this.goalBall.getAt(1) as Phaser.GameObjects.Text;
+        goalText.setText(result.toString());
+
+        // Add pulse animation when result updates
+        this.tweens.add({
+            targets: this.goalBall,
+            scale: { from: 1, to: 1.2 },
+            duration: 200,
+            yoyo: true,
+            ease: "Sine.easeInOut",
+        });
+    }
+
+    createShadowBallTracker() {
+        const { width, height } = this.scale;
+
+        // Position above timer bar
+        const barW = Math.min(width * 0.8, 400);
+        const barH = Math.min(12, height * 0.02);
+        const x = (width - barW) / 2;
+        const y = height - Math.min(80, height * 0.12); // Above timer bar
+
+        // Create container for shadow balls
+        this.shadowBallContainer = this.add.container(width / 2, y);
+
+        // Create shadow balls based on total equations required
+        const totalBalls = this.currentLevelConfig.totalEquations;
+        const ballSpacing = Math.min(45, width * 0.08);
+        const startX = (-(totalBalls - 1) * ballSpacing) / 2;
+
+        for (let i = 0; i < totalBalls; i++) {
+            const shadowBall = this.createShadowBall(i);
+            shadowBall.setPosition(startX + i * ballSpacing, 0);
+            this.shadowBalls.push(shadowBall);
+            this.shadowBallContainer.add(shadowBall);
+        }
+
+        // Initialize with all balls showing "?" (incomplete)
+        this.updateShadowBallDisplay();
+    }
+
+    createShadowBall(index: number): Phaser.GameObjects.Container {
+        const container = this.add.container(0, 0);
+        const { width } = this.scale;
+
+        // Make shadow balls bigger and more prominent
+        const ballRadius = Math.min(25, width * 0.05);
+        const shadowOffset = ballRadius * 0.1;
+
+        // Shadow
+        const shadow = this.add
+            .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3)
+            .setOrigin(0.5);
+
+        // Use generated circle for shadow balls (no PNG for unknown values)
+        const ball = this.add
+            .circle(0, 0, ballRadius, 0xcccccc)
+            .setStrokeStyle(2, 0x666666);
+
+        // Text (shows "?" or result number) - overlay on top of ball image
+        const text = this.add
+            .text(0, 0, "?", {
+                fontFamily: "Arial, sans-serif",
+                fontSize: `${Math.min(16, width * 0.03)}px`,
+                color: "#ffffff",
+                fontStyle: "bold",
+                stroke: "#000000",
+                strokeThickness: 2,
+            })
+            .setOrigin(0.5);
+
+        container.add([shadow, ball, text]);
+
+        // Set explicit size for proper hit area
+        container.setSize(ballRadius * 2, ballRadius * 2);
+
+        // Add interactive with explicit hit area to prevent hitAreaCallback error
+        container.setInteractive({
+            useHandCursor: true,
+            hitArea: new Phaser.Geom.Circle(0, 0, ballRadius),
+            hitAreaCallback: Phaser.Geom.Circle.Contains,
+        });
+
+        container.on("pointerover", () => {
+            this.tweens.add({
+                targets: container,
+                scale: 1.1,
+                duration: 150,
+                ease: "Sine.easeOut",
+            });
+        });
+
+        container.on("pointerout", () => {
+            this.tweens.add({
+                targets: container,
+                scale: 1,
+                duration: 150,
+                ease: "Sine.easeOut",
+            });
+        });
+
+        return container;
+    }
+
+    updateShadowBallDisplay() {
+        // Update all shadow balls based on completed equations
+        this.shadowBalls.forEach((shadowBall, index) => {
+            const text = shadowBall.getAt(2) as Phaser.GameObjects.Text;
+            const ball = shadowBall.getAt(1) as Phaser.GameObjects.Arc;
+
+            if (index < this.completedEquationResults.length) {
+                // Show completed result - replace with bigger goal-ball.png, no shadow
+                const result = this.completedEquationResults[index];
+
+                // Remove existing ball and shadow
+                shadowBall.removeAll(true);
+
+                // Add bigger goal-ball.png with result number, no shadow effect
+                const { width } = this.scale;
+                const ballRadius = Math.min(35, width * 0.08); // Much bigger
+
+                // Goal ball PNG - bigger size
+                const goalBall = this.add.image(0, 0, "goal-ball");
+                goalBall.setDisplaySize(ballRadius * 2.8, ballRadius * 2.8); // Much bigger
+
+                // Result number text (bigger, clean, no background)
+                const resultText = this.add
+                    .text(0, 0, result.toString(), {
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: `${Math.min(24, width * 0.05)}px`, // Much bigger text
+                        color: "#ffffff",
+                        fontStyle: "bold",
+                    })
+                    .setOrigin(0.5);
+
+                shadowBall.add([goalBall, resultText]); // No shadow circle
+
+                // Add completion animation
+                this.tweens.add({
+                    targets: shadowBall,
+                    scale: { from: 0.8, to: 1 },
+                    duration: 300,
+                    ease: "Back.easeOut",
+                });
+            } else {
+                // Show incomplete - keep existing gray circle
+                text.setText("?");
+                text.setColor("#ffffff");
+                ball.setFillStyle(0xcccccc); // Gray fill for incomplete
+            }
+        });
+    }
+
+    trackCompletedEquation(result: number) {
+        this.completedEquationResults.push(result);
+        this.updateShadowBallDisplay();
     }
 
     // Create a miniature pool ball for equation display
-    private createEquationBall(value: number | null, position: string): Phaser.GameObjects.Container {
+    private createEquationBall(
+        value: number | null,
+        position: string
+    ): Phaser.GameObjects.Container {
         const container = this.add.container(0, 0);
         const { width } = this.scale;
-        
+
         // Responsive sizing
         const ballRadius = Math.min(30, width * 0.05);
         const fontSize = Math.min(22, width * 0.035);
         const shadowOffset = ballRadius * 0.1;
-        
+
         if (value === null) {
             // Create empty slot placeholder
-            const shadow = this.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.2).setOrigin(0.5);
+            const shadow = this.add
+                .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.2)
+                .setOrigin(0.5);
             const ball = this.add
                 .circle(0, 0, ballRadius, 0xe8e8e8)
                 .setStrokeStyle(3, 0xcccccc);
@@ -238,7 +502,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                 })
                 .setOrigin(0.5);
             container.add([shadow, ball, placeholder]);
-            
+
             // Add subtle idle animation for empty slots
             this.tweens.add({
                 targets: container,
@@ -246,55 +510,72 @@ export class BilliardsGameScene extends Phaser.Scene {
                 duration: 1500,
                 yoyo: true,
                 repeat: -1,
-                ease: "Sine.easeInOut"
+                ease: "Sine.easeInOut",
             });
         } else {
-            // Create numbered ball
-            const shadow = this.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.4).setOrigin(0.5);
-            const ball = this.add
-                .circle(0, 0, ballRadius, 0xffffff)
-                .setStrokeStyle(3, 0x000000);
-            const text = this.add
-                .text(0, 0, value.toString(), {
-                    fontFamily: "Arial, sans-serif",
-                    fontSize: `${fontSize}px`,
-                    color: "#000000",
-                    fontStyle: "bold",
-                })
-                .setOrigin(0.5);
-            container.add([shadow, ball, text]);
-            
+            // Conditional ball creation: PNG only for known values (1-9), generated circle for unknown
+            let ball;
+            if (value >= 1 && value <= 10) {
+                // Use PNG with bigger display size for known values - NO text overlay since PNG has numbers
+                const shadow = this.add
+                    .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.4)
+                    .setOrigin(0.5);
+                ball = this.add.image(0, 0, `ball-${value}`);
+                ball.setDisplaySize(ballRadius * 2.5, ballRadius * 2.5); // 25% bigger
+                container.add([shadow, ball]);
+            } else {
+                // Use generated circle for unknown values
+                const shadow = this.add
+                    .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.4)
+                    .setOrigin(0.5);
+                ball = this.add
+                    .circle(0, 0, ballRadius, 0xffffff)
+                    .setStrokeStyle(3, 0x000000);
+                const text = this.add
+                    .text(0, 0, value.toString(), {
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: `${fontSize}px`,
+                        color: "#000000",
+                        fontStyle: "bold",
+                    })
+                    .setOrigin(0.5);
+                container.add([shadow, ball, text]);
+            }
+
             // Add entrance animation
             container.setScale(0);
             this.tweens.add({
                 targets: container,
                 scale: 1,
                 duration: 300,
-                ease: "Back.easeOut"
+                ease: "Back.easeOut",
             });
         }
-        
+
         // Store reference
         this.equationBalls[position] = container;
         return container;
     }
 
-    // Create operator text (+ or -)
-    private createOperatorText(operator: string, position: string): Phaser.GameObjects.Text {
+    // Create operator text (+ or -) - Much bigger for elderly play
+    private createOperatorText(
+        operator: string,
+        position: string
+    ): Phaser.GameObjects.Text {
         const { width } = this.scale;
-        const fontSize = Math.min(48, width * 0.08);
-        
+        const fontSize = Math.min(64, width * 0.12); // Much bigger for elderly play
+
         const text = this.add
             .text(0, 0, operator, {
                 fontFamily: "Sarabun, sans-serif",
                 fontSize: `${fontSize}px`,
                 color: "#2B2115",
                 stroke: "#FFFFFF",
-                strokeThickness: 2,
+                strokeThickness: 3,
                 fontStyle: "bold",
             })
             .setOrigin(0.5);
-        
+
         this.operatorTexts[position] = operator;
         return text;
     }
@@ -311,27 +592,23 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.currentEquation =
             this.equationGenerator.generateFillInTheBlanksEquation();
 
-        // Update goal ball with target number
-        const goalText = this.goalBall.getAt(1) as Phaser.GameObjects.Text;
-        goalText.setText(this.currentEquation.result.toString());
+        // Update goal ball with target number using separate function
+        this.updateGoalBall(this.currentEquation.result);
 
         // Update equation display with visual pool balls
-        this.updateEquationDisplay();
 
         // Create pool balls
         this.createBalls();
+        this.updateEquationDisplay();
     }
 
     createBalls(
-        exclusionRadius: number = 160,
-        padding: number = 10,
-        maxAttempts: number = 60
+        exclusionRadius: number = 180,
+        padding: number = 5,
+        maxAttempts: number = 50
     ) {
-        // Clear existing balls
-        this.balls.forEach((ball) => {
-            if (ball.container) ball.container.destroy();
-        });
-        this.balls = [];
+        // Clear existing balls using proper cleanup
+        this.cleanupBalls();
 
         const requiredNumbers =
             this.equationGenerator.getRequiredBallsForEquation(
@@ -341,6 +618,14 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         const centerX = width / 2;
         const centerY = height / 2;
+
+        // Calculate pool table boundaries to ensure balls spawn inside
+        const tableWidth = width * 0.8;
+        const tableHeight = height * 0.7;
+        const tableLeft = centerX - tableWidth / 2;
+        const tableRight = centerX + tableWidth / 2;
+        const tableTop = centerY - tableHeight / 2;
+        const tableBottom = centerY + tableHeight / 2;
 
         // We'll store placed positions + radii to prevent overlap
         const placed: { x: number; y: number; r: number }[] = [];
@@ -363,7 +648,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             const dy = y - centerY;
             const dist = Math.hypot(dx, dy);
 
-            // keep ball fully outside the exclusion circle
+            // keep ball fully outside exclusion circle
             const minDist = exclusionRadius + r;
 
             if (dist < minDist) {
@@ -371,7 +656,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                     dist === 0
                         ? Math.random() * Math.PI * 2
                         : Math.atan2(dy, dx);
-                const extra = 6 + Math.random() * 14; // small jitter outside the circle
+                const extra = 6 + Math.random() * 14; // small jitter outside circle
                 const rr = minDist + extra;
                 x = centerX + Math.cos(angle) * rr;
                 y = centerY + Math.sin(angle) * rr;
@@ -379,16 +664,16 @@ export class BilliardsGameScene extends Phaser.Scene {
             return { x, y };
         };
 
-        // Create a grid of candidate positions (nice distribution), then we can fallback to random
+        // Create a grid of candidate positions within pool table bounds
         const cols = 3;
         const rows = Math.ceil(requiredNumbers.length / cols);
 
-        // We'll estimate margins conservatively; real margin will be adjusted per-ball using its radius
-        const baseMarginX = 80;
-        const baseMarginY = 120;
+        // Use pool table margins instead of screen margins
+        const marginX = Math.min(50, width * 0.05);
+        const marginY = Math.min(50, height * 0.05);
 
-        const cellWidth = (width - baseMarginX * 2) / cols;
-        const cellHeight = (height - baseMarginY * 2) / rows;
+        const cellWidth = (tableWidth - marginX * 2) / cols;
+        const cellHeight = (tableHeight - marginY * 2) / rows;
 
         const candidates: { x: number; y: number }[] = [];
         for (let row = 0; row < rows; row++) {
@@ -396,13 +681,13 @@ export class BilliardsGameScene extends Phaser.Scene {
                 if (candidates.length >= requiredNumbers.length) break;
 
                 const x =
-                    baseMarginX +
+                    tableLeft + marginX +
                     col * cellWidth +
                     cellWidth / 2 +
                     (Math.random() - 0.5) * cellWidth * 0.35;
 
                 const y =
-                    baseMarginY +
+                    tableTop + marginY +
                     row * cellHeight +
                     cellHeight / 2 +
                     (Math.random() - 0.5) * cellHeight * 0.35;
@@ -418,11 +703,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         }
 
         const nextCandidate = () => {
-            // Use grid candidates first, then fallback to random
+            // Use grid candidates first, then fallback to random within table bounds
             if (candidates.length) return candidates.pop()!;
             return {
-                x: Math.random() * width,
-                y: Math.random() * height,
+                x: tableLeft + marginX + Math.random() * (tableWidth - marginX * 2),
+                y: tableTop + marginY + Math.random() * (tableHeight - marginY * 2),
             };
         };
 
@@ -435,11 +720,13 @@ export class BilliardsGameScene extends Phaser.Scene {
             if (ball.container) {
                 const b = ball.container.getBounds();
                 r = Math.max(b.width, b.height) / 2;
-                if (!Number.isFinite(r) || r <= 0) r = Math.min(40, width * 0.08);
+                if (!Number.isFinite(r) || r <= 0)
+                    r = Math.min(40, width * 0.08);
             }
 
-            const marginX = r + 10;
-            const marginY = r + 10;
+            // Use table boundaries for clamping, not screen boundaries
+            const ballMarginX = r + marginX;
+            const ballMarginY = r + marginY;
 
             let placedPos: { x: number; y: number } | null = null;
 
@@ -454,14 +741,14 @@ export class BilliardsGameScene extends Phaser.Scene {
                     base.y +
                     (Math.random() - 0.5) * 18 * Math.min(1, attempt / 10);
 
-                // Keep in screen bounds
-                x = clamp(x, marginX, width - marginX);
-                y = clamp(y, marginY, height - marginY);
+                // Keep within pool table bounds (not screen bounds)
+                x = clamp(x, tableLeft + ballMarginX, tableRight - ballMarginX);
+                y = clamp(y, tableTop + ballMarginY, tableBottom - ballMarginY);
 
                 // Enforce center exclusion circle (ball fully outside)
                 const pushed = pushOutsideCenterCircle(x, y, r);
-                x = clamp(pushed.x, marginX, width - marginX);
-                y = clamp(pushed.y, marginY, height - marginY);
+                x = clamp(pushed.x, tableLeft + ballMarginX, tableRight - ballMarginX);
+                y = clamp(pushed.y, tableTop + ballMarginY, tableBottom - ballMarginY);
 
                 // Check overlaps
                 if (!isOverlapping(x, y, r)) {
@@ -470,22 +757,22 @@ export class BilliardsGameScene extends Phaser.Scene {
                 }
             }
 
-            // If we somehow failed, place it anyway at a clamped safe spot (last resort)
+            // If we somehow failed, place it anyway at a safe spot within table bounds (last resort)
             if (!placedPos) {
                 let x = clamp(
-                    centerX + (Math.random() - 0.5) * (width * 0.7),
-                    marginX,
-                    width - marginX
+                    centerX + (Math.random() - 0.5) * (tableWidth * 0.7),
+                    tableLeft + ballMarginX,
+                    tableRight - ballMarginX
                 );
                 let y = clamp(
-                    centerY + (Math.random() - 0.5) * (height * 0.7),
-                    marginY,
-                    height - marginY
+                    centerY + (Math.random() - 0.5) * (tableHeight * 0.7),
+                    tableTop + ballMarginY,
+                    tableBottom - ballMarginY
                 );
                 const pushed = pushOutsideCenterCircle(x, y, r);
                 placedPos = {
-                    x: clamp(pushed.x, marginX, width - marginX),
-                    y: clamp(pushed.y, marginY, height - marginY),
+                    x: clamp(pushed.x, tableLeft + ballMarginX, tableRight - ballMarginX),
+                    y: clamp(pushed.y, tableTop + ballMarginY, tableBottom - ballMarginY),
                 };
             }
 
@@ -506,35 +793,72 @@ export class BilliardsGameScene extends Phaser.Scene {
         const container = this.add.container(0, 0);
         const { width } = this.scale;
 
-        // Responsive sizing
-        const ballRadius = Math.min(25, width * 0.05);
-        const fontSize = Math.min(18, width * 0.03);
+        // Responsive sizing - Much bigger for elderly play
+        const ballRadius = Math.min(35, width * 0.08); // Much bigger
+        const fontSize = Math.min(22, width * 0.04); // Much bigger text
         const shadowOffset = ballRadius * 0.12;
 
-        // Ball shadow
-        const shadow = this.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3).setOrigin(0.5);
+        // Conditional ball creation: PNG only for known values (1-9), generated circle for unknown
+        let ball;
+        if (value >= 1 && value <= 10) {
+            // Use PNG with bigger display size for known values
+            ball = this.add.image(0, 0, `ball-${value}`);
+            ball.setDisplaySize(ballRadius * 2.5, ballRadius * 2.5); // 25% bigger
 
-        // Ball body
-        const ball = this.add
-            .circle(0, 0, ballRadius, 0xffffff)
-            .setStrokeStyle(2, 0x000000);
+            container.add([ball]);
+        } else {
+            // Use generated circle for unknown values
+            ball = this.add
+                .circle(0, 0, ballRadius, 0xffffff)
+                .setStrokeStyle(2, 0x000000);
+            // Ball shadow
+            const shadow = this.add
+                .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3)
+                .setOrigin(0.5);
+            // Ball number (overlay on top of ball image for better visibility)
+            const text = this.add
+                .text(0, 0, value.toString(), {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: `${fontSize}px`,
+                    color: "#ffffff", // White text for better contrast on ball image
+                    fontStyle: "bold",
+                    stroke: "#000000",
+                    strokeThickness: 1,
+                })
+                .setOrigin(0.5);
+            container.add([shadow, ball, text]);
+        }
 
-        // Ball number
-        const text = this.add
-            .text(0, 0, value.toString(), {
-                fontFamily: "Arial, sans-serif",
-                fontSize: `${fontSize}px`,
-                color: "#000000",
-                fontStyle: "bold",
-            })
-            .setOrigin(0.5);
-
-        container.add([shadow, ball, text]);
         container.setSize(ballRadius * 2, ballRadius * 2);
 
-        // Make container itself interactive
+        // Make container itself interactive with sound effects
         container.setInteractive({ useHandCursor: true });
-        container.on("pointerdown", () => this.handleBallClick(value));
+
+        // Add hover effect (no sound)
+        container.on("pointerover", () => {
+            this.tweens.add({
+                targets: container,
+                scale: 1.05,
+                duration: 150,
+                ease: "Sine.easeOut",
+            });
+        });
+
+        container.on("pointerout", () => {
+            this.tweens.add({
+                targets: container,
+                scale: 1,
+                duration: 150,
+                ease: "Sine.easeOut",
+            });
+        });
+
+        container.on("pointerdown", () => {
+            if (this.soundBallClick) {
+                this.soundBallClick.play();
+            }
+            this.handleBallClick(value);
+        });
 
         return {
             id: value,
@@ -552,12 +876,22 @@ export class BilliardsGameScene extends Phaser.Scene {
     handleBallClick(value: number) {
         if (this.isLocked) return;
 
-        // Check if we have empty slots
-        if (this.placedBalls.length >= 2) return;
+        // Check if this is a complex equation
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        const maxBalls = isComplex ? 
+            (this.currentEquation as ComplexEquation).operators.length + 1 : 2;
 
-        // Place the ball
+        // Check if we have empty slots
+        if (this.placedBalls.length >= maxBalls) return;
+
+        // Place ball
         this.placedBalls.push(value);
         this.updateEquationDisplay();
+
+        // Play drop sound when ball is placed
+        if (this.soundBallDrop) {
+            this.soundBallDrop.play();
+        }
 
         // Animate ball to blank position
         this.animateBallToBlank(value, this.placedBalls.length - 1);
@@ -573,47 +907,70 @@ export class BilliardsGameScene extends Phaser.Scene {
         }
 
         // Check if equation is complete
-        if (this.placedBalls.length === 2) {
+        if (this.placedBalls.length === maxBalls) {
             this.checkAnswer();
         }
     }
 
     updateEquationDisplay() {
-        const { operator, result } = this.currentEquation;
         const { width, height } = this.scale;
-        
+
         // Clear existing equation display
         this.equationContainer.removeAll(true);
         this.equationBalls = {};
         this.operatorTexts = {};
 
-        // Calculate responsive spacing based on screen width
-        const baseSpacing = Math.min(120, width * 0.1);
+        // Check if this is a complex equation
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+
+        if (isComplex) {
+            this.updateComplexEquationDisplay();
+        } else {
+            this.updateSimpleEquationDisplay();
+        }
+    }
+
+    private updateSimpleEquationDisplay() {
+        const equation = this.currentEquation as any; // Use any for backward compatibility
+        const { width } = this.scale;
+
+        // Calculate responsive spacing based on screen width (increased padding)
+        const baseSpacing = Math.min(140, width * 0.15);
         const startX = -baseSpacing * 1.5; // Center the equation
 
+        // Get operator with backward compatibility
+        const operator = equation.operator || equation.leftOperand1 ? '+' : equation.leftOperand;
+
         // Create first ball (placed or empty)
-        const firstValue = this.placedBalls[0] !== undefined ? this.placedBalls[0] : null;
-        const firstBall = this.createEquationBall(firstValue, 'first');
+        const firstValue =
+            this.placedBalls[0] !== undefined ? this.placedBalls[0] : null;
+        const firstBall = this.createEquationBall(firstValue, "first");
         firstBall.setPosition(startX, 0);
 
         // Create operator text
-        const operatorText = this.createOperatorText(operator, 'operator');
+        const operatorText = this.createOperatorText(operator, "operator");
         operatorText.setPosition(startX + baseSpacing, 0);
 
         // Create second ball (placed or empty)
-        const secondValue = this.placedBalls[1] !== undefined ? this.placedBalls[1] : null;
-        const secondBall = this.createEquationBall(secondValue, 'second');
+        const secondValue =
+            this.placedBalls[1] !== undefined ? this.placedBalls[1] : null;
+        const secondBall = this.createEquationBall(secondValue, "second");
         secondBall.setPosition(startX + baseSpacing * 2, 0);
 
         // Create equals sign
-        const equalsText = this.createOperatorText('=', 'equals');
+        const equalsText = this.createOperatorText("=", "equals");
         equalsText.setPosition(startX + baseSpacing * 3, 0);
+
+        // Add all elements to equation container
+        this.equationContainer.add([
+            firstBall,
+            operatorText,
+            secondBall,
+            equalsText,
+        ]);
 
         // Position gold ball at result location
         this.positionGoldBallAtResult(baseSpacing * 2.5);
-
-        // Add all elements to equation container
-        this.equationContainer.add([firstBall, operatorText, secondBall, equalsText]);
 
         // Animate entrance
         this.equationContainer.setAlpha(0);
@@ -621,17 +978,72 @@ export class BilliardsGameScene extends Phaser.Scene {
             targets: this.equationContainer,
             alpha: 1,
             duration: 300,
-            ease: "Linear"
+            ease: "Linear",
+        });
+    }
+
+    private updateComplexEquationDisplay() {
+        const equation = this.currentEquation as ComplexEquation;
+        const { width } = this.scale;
+
+        // Show first 3 operands with operators for complex equations
+        const maxDisplayOperands = Math.min(3, equation.operands.length);
+        const baseSpacing = Math.min(80, width * 0.10); // Increased spacing for complex equations
+
+        const totalWidth = baseSpacing * (maxDisplayOperands * 2);
+        const startX = -totalWidth / 2;
+
+        let currentX = startX;
+
+        // Create equation elements without parentheses (following proper order of operations)
+        for (let i = 0; i < maxDisplayOperands; i++) {
+            // Create ball for operand
+            const ballValue = i < this.placedBalls.length ? this.placedBalls[i] : null;
+            const ball = this.createEquationBall(ballValue, `operand-${i}`);
+            ball.setPosition(currentX, 0);
+            this.equationContainer.add(ball);
+
+            currentX += baseSpacing;
+
+            // Add operator (except after last operand)
+            if (i < maxDisplayOperands - 1 && i < equation.operators.length) {
+                // Convert operator to proper display symbol
+                let displayOp: string = equation.operators[i];
+                if (equation.operators[i] === '*') displayOp = '×';
+                if (equation.operators[i] === '/') displayOp = '÷';
+
+                const operatorText = this.createOperatorText(displayOp, `operator-${i}`);
+                operatorText.setPosition(currentX, 0);
+                this.equationContainer.add(operatorText);
+                currentX += baseSpacing;
+            }
+        }
+
+        // Add equals sign
+        const equalsText = this.createOperatorText("=", "equals");
+        equalsText.setPosition(currentX, 0);
+        this.equationContainer.add(equalsText);
+
+        // Position gold ball at result location
+        this.positionGoldBallAtResult(currentX + baseSpacing);
+
+        // Animate entrance
+        this.equationContainer.setAlpha(0);
+        this.tweens.add({
+            targets: this.equationContainer,
+            alpha: 1,
+            duration: 300,
+            ease: "Linear",
         });
     }
 
     positionGoldBallAtResult(equalsX: number) {
         const { width, height } = this.scale;
-        
+
         // Position gold ball at the result location (after equals)
         const equationX = width / 2;
         this.goalBall.setPosition(equationX + equalsX, height * 0.5);
-        
+
         // Add pulsing animation to goal ball
         this.tweens.add({
             targets: this.goalBall,
@@ -639,7 +1051,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             duration: 800,
             yoyo: true,
             repeat: -1,
-            ease: "Sine.easeInOut"
+            ease: "Sine.easeInOut",
         });
     }
 
@@ -647,8 +1059,22 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.isLocked = true;
         this.attempts++;
 
-        const userAnswer = this.placedBalls[0] + this.placedBalls[1];
-        const isCorrect = userAnswer === this.currentEquation.result;
+        // Check if this is a complex equation
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        let isCorrect: boolean;
+
+        if (isComplex) {
+            const complexEquation = this.currentEquation as ComplexEquation;
+            // For complex equations, validate using the equation generator
+            isCorrect = this.equationGenerator.validateEquation(complexEquation, this.placedBalls);
+        } else {
+            const simpleEquation = this.currentEquation as any; // Use any for backward compatibility
+            // For simple equations, use the original logic
+            const leftOperand = simpleEquation.leftOperand || simpleEquation.leftOperand1;
+            const rightOperand = simpleEquation.rightOperand || simpleEquation.leftOperand2;
+            const userAnswer = this.placedBalls[0] + this.placedBalls[1];
+            isCorrect = userAnswer === simpleEquation.result;
+        }
 
         if (isCorrect) {
             this.handleCorrectAnswer();
@@ -661,18 +1087,21 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.correctEquations++;
         this.totalEquations++;
         this.currentErrorRun = 0;
-        if (this.soundSuccess) {
-            this.soundSuccess.play();
+        if (this.soundBallDrop) {
+            this.soundBallDrop.play();
         }
 
+        // Track completed equation result for shadow ball display
+        this.trackCompletedEquation(this.currentEquation.result);
+
         // Add success animation to equation balls
-        Object.values(this.equationBalls).forEach(ball => {
+        Object.values(this.equationBalls).forEach((ball) => {
             this.tweens.add({
                 targets: ball,
                 scale: 1.2,
                 duration: 200,
                 yoyo: true,
-                ease: "Back.easeOut"
+                ease: "Back.easeOut",
             });
         });
 
@@ -696,11 +1125,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Add shake animation to indicate error
         this.equationContainer.scene.tweens.add({
             targets: this.equationContainer,
-            x: '+=10',
+            x: "+=10",
             duration: 50,
             yoyo: true,
             repeat: 5,
-            ease: "Power2.easeInOut"
+            ease: "Power2.easeInOut",
         });
 
         this.time.delayedCall(1500, () => {
@@ -720,9 +1149,23 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Calculate target position in equation
         const equationX = width / 2;
-        const baseSpacing = Math.min(120, width * 0.08);
-        const startX = -baseSpacing * 1.5;
-        const targetX = equationX + (blankIndex === 0 ? startX : startX + baseSpacing * 2);
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        
+        let baseSpacing: number;
+        let targetX: number;
+        
+        if (isComplex) {
+            // For complex equations, use smaller spacing
+            baseSpacing = Math.min(60, width * 0.06);
+            const startX = -baseSpacing * 2; // Adjust for complex equation layout
+            targetX = equationX + startX + (blankIndex * baseSpacing * 2);
+        } else {
+            // For simple equations
+            baseSpacing = Math.min(120, width * 0.08);
+            const startX = -baseSpacing * 1.5;
+            targetX = equationX + (blankIndex === 0 ? startX : startX + baseSpacing * 2);
+        }
+        
         const targetY = height * 0.5;
 
         // Animate ball to blank position
@@ -772,12 +1215,16 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     nextEquation() {
-        // Check if level is complete (1 equation per level)
+        // Check if level is complete using configurable total equations
         console.log(
-            `nextEquation: totalEquations=${this.totalEquations}, correctEquations=${this.correctEquations}`
+            `nextEquation: totalEquations=${this.totalEquations}, correctEquations=${this.correctEquations}, required=${this.currentLevelConfig.totalEquations}`
         );
 
-        if (this.totalEquations >= 1) {
+        // Reset placed balls for next equation
+        this.placedBalls = [];
+        this.updateEquationDisplay();
+
+        if (this.totalEquations >= this.currentLevelConfig.totalEquations) {
             console.log("Level complete, ending level");
             this.endLevel();
         } else {
@@ -881,11 +1328,14 @@ export class BilliardsGameScene extends Phaser.Scene {
             totalTime,
             correctEquations: this.correctEquations,
             totalEquations: this.totalEquations,
-            continuedAfterTimeout: this.continuedAfterTimeout
+            continuedAfterTimeout: this.continuedAfterTimeout,
         });
 
         const onGameOver = this.registry.get("onGameOver");
-        console.log("[BilliardsGameScene] onGameOver callback from registry:", !!onGameOver);
+        console.log(
+            "[BilliardsGameScene] onGameOver callback from registry:",
+            !!onGameOver
+        );
 
         if (onGameOver) {
             const gameStats: BilliardsGameStats = {
@@ -914,23 +1364,46 @@ export class BilliardsGameScene extends Phaser.Scene {
                 level: this.currentLevelConfig.level, // Add for compatibility with server expectations
             };
 
-            console.log("[BilliardsGameScene] Calling onGameOver with final data:", finalData);
+            console.log(
+                "[BilliardsGameScene] Calling onGameOver with final data:",
+                finalData
+            );
 
             try {
                 onGameOver(finalData);
-                console.log("[BilliardsGameScene] onGameOver callback executed successfully");
+                console.log(
+                    "[BilliardsGameScene] onGameOver callback executed successfully"
+                );
             } catch (error) {
-                console.error("[BilliardsGameScene] Error in onGameOver callback:", error);
+                console.error(
+                    "[BilliardsGameScene] Error in onGameOver callback:",
+                    error
+                );
             }
         } else {
-            console.error("[BilliardsGameScene] CRITICAL: onGameOver callback not found in registry!");
+            console.error(
+                "[BilliardsGameScene] CRITICAL: onGameOver callback not found in registry!"
+            );
             // Try to emit event as fallback
             this.game.events.emit("game-over", {
                 level: this.currentLevelConfig.level,
                 stars,
                 success: true,
-                error: "Registry callback not found"
+                error: "Registry callback not found",
             });
+        }
+
+        // Play appropriate end game sound effect based on star rating
+        if (stars >= 1) {
+            // Play level-pass sound for successful completion (1+ stars)
+            if (this.soundLevelPass) {
+                this.soundLevelPass.play();
+            }
+        } else {
+            // Play level-fail sound for failed completion (0 stars)
+            if (this.soundLevelFail) {
+                this.soundLevelFail.play();
+            }
         }
 
         if (this.bgMusic && this.bgMusic.isPlaying) {
@@ -982,6 +1455,12 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         if (this.messageText) {
             this.messageText.setPosition(width / 2, height / 2);
+        }
+
+        // Reposition shadow ball tracker above timer bar
+        if (this.shadowBallContainer) {
+            const y = height - Math.min(80, height * 0.12);
+            this.shadowBallContainer.setPosition(width / 2, y);
         }
 
         // Redraw timer bar if visible
