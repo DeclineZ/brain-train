@@ -21,6 +21,17 @@ export class MatchingGameScene extends Phaser.Scene {
     private timerEvent!: Phaser.Time.TimerEvent;
     private customTimerBar!: Phaser.GameObjects.Graphics;
     private lastTimerPct: number = 100; // Store for redraw handling
+    private turnsTaken = 0; // Track turns for periodic swaps
+
+    // Grid Metrics for swapping calculations
+    private gridMetrics: {
+        cardW: number;
+        cardH: number;
+        gap: number;
+        startX: number;
+        startY: number;
+        cols: number;
+    } | null = null;
 
     // Asset Mapping
     private emojiToAsset: { [key: string]: string } = {
@@ -79,6 +90,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.consecutiveErrors = 0;
         this.currentErrorRun = 0;
         this.currentStreak = 0;
+        this.turnsTaken = 0;
         this.maxStreak = 0;
         this.repeatedErrors = 0;
         this.seenCards.clear();
@@ -213,7 +225,15 @@ export class MatchingGameScene extends Phaser.Scene {
             // In portrait, we usually want fewer columns (e.g. 2 or 3)
             // For small levels (6 cards), 2 cols is good.
             // For larger levels (10 cards), 2 cols is still safely readable on phones.
-            cols = 2;
+            // But for 12+ cards, 2 cols becomes too tall (2x6). Switch to 3 or 4 cols.
+            const totalCards = this.cards.length;
+            if (totalCards >= 16) {
+                cols = 4; // 4x4
+            } else if (totalCards >= 12) {
+                cols = 3; // 3x4
+            } else {
+                cols = 2; // 2x2, 2x3, 2x4, 2x5
+            }
         }
 
         const totalCards = this.cards.length;
@@ -247,6 +267,10 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const startX = (width - gridWidth) / 2 + cardW / 2;
         const startY = (height - gridHeight) / 2 + cardH / 2 + 30; // Small offset
+
+        this.gridMetrics = { cardW, cardH, gap, startX, startY, cols };
+
+        // Position Cards
 
         // Position Cards
         this.cards.forEach((cardObj, i) => {
@@ -307,6 +331,189 @@ export class MatchingGameScene extends Phaser.Scene {
         }
     }
 
+    performCardSwap(count: number, callback: () => void, onlyUnopened: boolean = false) {
+        if (!this.gridMetrics || this.cards.length < 2) {
+            callback();
+            return;
+        }
+
+        // Identify cards to swap
+        let eligibleIndices = this.cards.map((_, i) => i);
+        if (onlyUnopened) {
+            eligibleIndices = eligibleIndices.filter(i => {
+                const c = this.cards[i];
+                return !c.isMatched && !c.face.visible;
+            });
+        }
+
+        if (eligibleIndices.length < 2) {
+            callback();
+            return;
+        }
+
+        // Shuffle eligible indices to pick which ones to swap
+        Phaser.Utils.Array.Shuffle(eligibleIndices);
+
+        // We want to swap 'count' PAIRS, meaning 'count * 2' cards, but simpler:
+        // The input 'count' to this function usually meant "Total Cards to swap" in previous logic?
+        // Let's check call sites: 
+        // In periodic swap: "const count = pairsToSwap * 2;" -> So it receives Total Cards.
+        // In startPreviewPhase: "const count = ...swapAfterPreviewCount" -> Receives Total Cards.
+
+        // Let's determine how many PAIRS we can form
+        const pairsToForm = Math.floor(Math.min(count, eligibleIndices.length) / 2);
+
+        if (pairsToForm < 1) {
+            callback();
+            return;
+        }
+
+        // Create a sequence of swaps
+        const swapPairs: [number, number][] = [];
+        for (let i = 0; i < pairsToForm; i++) {
+            swapPairs.push([eligibleIndices[2 * i], eligibleIndices[2 * i + 1]]);
+        }
+
+        // Recursive function to execute swaps one by one
+        const executeNextSwap = (index: number) => {
+            if (index >= swapPairs.length) {
+                // All swaps done
+                callback();
+                return;
+            }
+
+            const [idx1, idx2] = swapPairs[index];
+            const card1 = this.cards[idx1];
+            const card2 = this.cards[idx2];
+
+            // Swap in array
+            this.cards[idx1] = card2;
+            this.cards[idx2] = card1;
+
+            // Calculate new positions
+            // We need to fetch Layout metrics again or just calculate target for these specific slots
+            // But wait, the 'cards' array index determines the grid slot.
+            // So card1 is now at slot idx2, and card2 is at slot idx1.
+
+            // We can reuse animateGridReorder BUT that reorders everyone.
+            // Efficient way: Just animate these two specific cards to their new slots.
+
+            this.animatePairSwap(card1, card2, idx2, idx1, () => {
+                // Wait a tiny bit then next
+                this.time.delayedCall(200, () => {
+                    executeNextSwap(index + 1);
+                });
+            });
+        };
+
+        executeNextSwap(0);
+    }
+
+    animatePairSwap(card1: any, card2: any, slot1: number, slot2: number, onComplete: () => void) {
+        if (!this.gridMetrics) { onComplete(); return; }
+        const { cardW, cardH, gap, startX, startY, cols } = this.gridMetrics;
+
+        const getPos = (i: number) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            return {
+                x: startX + col * (cardW + gap),
+                y: startY + row * (cardH + gap)
+            };
+        };
+
+        const target1 = getPos(slot1);
+        const target2 = getPos(slot2);
+
+        // Bring to top
+        card1.container.setDepth(100);
+        card2.container.setDepth(100);
+
+        // Safe visual reference for highlighting (Back of card)
+        const back1 = card1.container.list[1] as Phaser.GameObjects.Rectangle;
+        const back2 = card2.container.list[1] as Phaser.GameObjects.Rectangle;
+        const originalColor = 0xE86A33; // Default orange
+
+        // --- PHASE 1: HIGHLIGHT & LIFT ---
+        // Flash Gold
+        if (back1.fillColor === originalColor) back1.setFillStyle(0xFFD700);
+        if (back2.fillColor === originalColor) back2.setFillStyle(0xFFD700);
+
+        this.tweens.add({
+            targets: [card1.container, card2.container],
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 350,
+            ease: 'Back.out',
+            onComplete: () => {
+                // --- PHASE 2: MOVE ---
+                // Play "swish"
+                this.sound.play('card-flip', { volume: 0.6, rate: 1.2 });
+
+                this.tweens.add({
+                    targets: card1.container,
+                    x: target1.x,
+                    y: target1.y,
+                    duration: 700, // Slower for readability
+                    ease: 'Cubic.inOut'
+                });
+
+                this.tweens.add({
+                    targets: card2.container,
+                    x: target2.x,
+                    y: target2.y,
+                    duration: 700,
+                    ease: 'Cubic.inOut',
+                    onComplete: () => {
+                        // --- PHASE 3: DROP ---
+                        // Play "thump"
+                        this.sound.play('card-flip', { volume: 0.4, rate: 0.8 });
+
+                        this.tweens.add({
+                            targets: [card1.container, card2.container],
+                            scaleX: 1.0,
+                            scaleY: 1.0,
+                            duration: 250,
+                            ease: 'Back.in',
+                            onComplete: () => {
+                                // Restore visuals
+                                back1.setFillStyle(originalColor);
+                                back2.setFillStyle(originalColor);
+                                card1.container.setDepth(0);
+                                card2.container.setDepth(0);
+
+                                onComplete();
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Keep animateGridReorder for full shuffles if needed, but it's less used now
+    animateGridReorder(callback: () => void) {
+        if (!this.gridMetrics) { callback(); return; }
+        const { cardW, cardH, gap, startX, startY, cols } = this.gridMetrics;
+
+        this.cards.forEach((cardObj, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const targetX = startX + col * (cardW + gap);
+            const targetY = startY + row * (cardH + gap);
+
+            this.tweens.add({
+                targets: cardObj.container,
+                x: targetX,
+                y: targetY,
+                duration: 600,
+                ease: 'Cubic.out'
+            });
+        });
+
+        this.time.delayedCall(650, callback);
+    }
+
     startPreviewPhase() {
         this.messageText.setText("จำตำแหน่งให้ดีนะ...");
         this.messageText.setVisible(true);
@@ -358,9 +565,21 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(this.cards.length * 50 + 500, () => {
-            this.isLocked = false;
-            this.startTime = Date.now();
-            this.startTimer();
+            // Check for Post-Preview Swap (Level 8+ Mechanic)
+            const swapCount = this.currentLevelConfig.swapAfterPreviewCount || 0;
+            if (swapCount > 0) {
+                // Show message maybe? "Swapping!"
+                // Just do it.
+                this.performCardSwap(swapCount, () => {
+                    this.isLocked = false;
+                    this.startTime = Date.now();
+                    this.startTimer();
+                });
+            } else {
+                this.isLocked = false;
+                this.startTime = Date.now();
+                this.startTimer();
+            }
         });
     }
 
@@ -584,6 +803,26 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const match = c1.emoji === c2.emoji;
 
+        // Callback to run after feedback animations
+        const finalizeTurn = () => {
+            this.openedCards = [];
+
+            // Check Periodic Swap
+            const interval = this.currentLevelConfig.periodicSwapInterval || 0;
+            if (interval > 0 && this.attempts > 0 && this.attempts % interval === 0) {
+                // Trigger swap
+                const pairsToSwap = this.currentLevelConfig.periodicSwapPairs || 1;
+                const count = pairsToSwap * 2;
+
+                this.performCardSwap(count, () => {
+                    this.isLocked = false;
+                }, true); // true = only unopened cards
+                return;
+            }
+
+            this.isLocked = false;
+        };
+
         if (match) {
             // MATCH
             this.sound.play('match-success');
@@ -603,8 +842,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 this.time.delayedCall(1000, () => this.endGame());
             } else {
                 this.time.delayedCall(500, () => {
-                    this.openedCards = [];
-                    this.isLocked = false;
+                    finalizeTurn();
                 });
             }
 
@@ -622,13 +860,10 @@ export class MatchingGameScene extends Phaser.Scene {
             this.playShakeEffect(c1);
             this.playShakeEffect(c2);
 
-            this.playShakeEffect(c2);
-
             this.time.delayedCall(800, () => {
                 this.flipCard(c1, false, false);
                 this.flipCard(c2, false, false);
-                this.openedCards = [];
-                this.isLocked = false;
+                finalizeTurn();
             });
         }
 
@@ -676,8 +911,14 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
 
-        if (!parExceeded && this.wrongFlips <= 1) return 3;
-        if (!parExceeded || this.wrongFlips <= 3) return 2;
+        // Dynamic mistake allowance based on level
+        let allowedMistakes = 1;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 4;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 3;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 2;
+
+        if (!parExceeded && this.wrongFlips <= allowedMistakes) return 3;
+        if (!parExceeded || this.wrongFlips <= allowedMistakes + 2) return 2;
         return 1;
     }
 
@@ -687,16 +928,23 @@ export class MatchingGameScene extends Phaser.Scene {
         }
 
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
-        const tooManyMistakes = this.wrongFlips > 1;
+
+        // Same dynamic logic matches calculateStars
+        let allowedMistakes = 1;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 4;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 3;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 2;
+
+        const tooManyMistakes = this.wrongFlips > allowedMistakes;
 
         if (parExceeded && tooManyMistakes) {
-            return `ลองทำเวลาให้ดีกว่านี้\nและผิดไม่เกิน 1 ครั้ง`;
+            return `ลองทำเวลาให้ดีกว่านี้\nและผิดไม่เกิน ${allowedMistakes} ครั้ง`;
         }
         if (parExceeded) {
             return `ลองทำเวลาให้ดีกว่านี้`;
         }
         if (tooManyMistakes) {
-            return "ลองจับคู่ผิดให้ไม่เกิน 1 ครั้ง";
+            return `ลองจับคู่ผิดให้ไม่เกิน ${allowedMistakes} ครั้ง`;
         }
         return null;
     }

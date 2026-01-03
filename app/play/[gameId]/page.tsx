@@ -47,11 +47,14 @@ export default function GamePage({ params }: PageProps) {
     const paramLevel = searchParams.get("level");
     const tutorialMode = searchParams.get("tutorial_mode");
 
-    // Endless Mode Check
-    const isEndless = gameId === "game-02-sensorlock";
-    const [activeLevel, setActiveLevel] = useState<number>(1);
-    const [resumeLevel, setResumeLevel] = useState<number>(1);
-    const [highScore, setHighScore] = useState<number>(0);
+  // Endless Mode Check
+  const isEndless = gameId === 'game-02-sensorlock';
+  // Determine max level based on game
+  const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 7;
+
+  const [activeLevel, setActiveLevel] = useState<number>(1);
+  const [resumeLevel, setResumeLevel] = useState<number>(1);
+  const [highScore, setHighScore] = useState<number>(0);
 
     // 1. Fetch persistent level on mount
     useEffect(() => {
@@ -83,12 +86,12 @@ export default function GamePage({ params }: PageProps) {
                     .limit(1)
                     .single();
 
-                let nextLevel = 1;
-                if (data && data.current_played) {
-                    // Prevent going beyond max level (7)
-                    nextLevel = data.current_played + 1;
-                    if (nextLevel > 7) nextLevel = 7;
-                }
+        let nextLevel = 1;
+        if (data && data.current_played) {
+          // Prevent going beyond max level
+          nextLevel = data.current_played + 1;
+          if (nextLevel > maxLevel) nextLevel = maxLevel;
+        }
 
                 setResumeLevel(nextLevel);
 
@@ -339,18 +342,18 @@ export default function GamePage({ params }: PageProps) {
         [activeLevel, gameId, submitSession, dailyCount, gameStars, isEndless]
     );
 
-    const handleNextLevel = () => {
-        setResult(null); // Explicitly clear before push
-        // For level 7 (max), maybe loop or show "Complete"
-        if (activeLevel >= 7) {
-            router.push("/allgames");
-        } else {
-            // Force reload by pushing new URL or just state update?
-            // Since GameCanvas uses 'key={activeLevel}', state update works.
-            // But we prefer URL for shareability.
-            router.push(`/play/${gameId}?level=${activeLevel + 1}`);
-        }
-    };
+  const handleNextLevel = () => {
+    setResult(null); // Explicitly clear before push
+    // For max level, maybe loop or show "Complete"
+    if (activeLevel >= maxLevel) {
+      router.push('/allgames');
+    } else {
+      // Force reload by pushing new URL or just state update?
+      // Since GameCanvas uses 'key={activeLevel}', state update works.
+      // But we prefer URL for shareability.
+      router.push(`/play/${gameId}?level=${activeLevel + 1}`);
+    }
+  };
 
     const handlePreviousLevel = () => {
         router.push(`/play/${gameId}?level=${activeLevel - 1}`);
@@ -634,32 +637,27 @@ export default function GamePage({ params }: PageProps) {
                                                 <Home className="w-8 h-8" />
                                             </button>
 
-                                            <button
-                                                onClick={handleNextLevel}
-                                                className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
-                                            >
-                                                {activeLevel >= 7 && !isEndless
-                                                    ? "จบเกม"
-                                                    : isEndless
-                                                      ? "เล่นอีกครั้ง"
-                                                      : "เกมถัดไป"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
-                            <div className="text-center">
-                                <h1 className="text-3xl">Game Over</h1>
-                                <button onClick={handleRestartLevel}>
-                                    Restart
-                                </button>
-                            </div>
-                        )}
+                      <button
+                        onClick={handleNextLevel}
+                        className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                      >
+                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                      </button>
                     </div>
-                </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
+              <div className="text-center">
+                <h1 className="text-3xl">Game Over</h1>
+                <button onClick={handleRestartLevel}>Restart</button>
+              </div>
             )}
+          </div>
         </div>
-    );
+      )
+      }
+    </div>
+  );
 }
