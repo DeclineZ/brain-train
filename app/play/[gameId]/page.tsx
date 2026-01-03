@@ -3,6 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
+import { calculateCoinReward } from "@/lib/coinCalculation";
 // import GameCanvas from '@/components/game/GameCanvas';
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
@@ -237,37 +238,19 @@ export default function GamePage({ params }: PageProps) {
                 return;
             }
 
-            // Calculate Earned Coins Optimistically
+            // Calculate Earned Coins Optimistically using shared function
             let optimisticCoins = 0;
             if (activeLevel > 0) {
-                if (gameId === "game-02-sensorlock") {
-                    // Match server logic (800 divisor)
-                    optimisticCoins = Math.max(
-                        1,
-                        Math.floor((rawData.score || 0) / 800)
-                    );
-                } else {
-                    // Card Match / Default
-                    const levelMultiplier = 1 + (activeLevel - 1) * 0.1;
-                    let baseReward = Math.floor(20 * levelMultiplier);
+                const starsEarned = Number(rawData.stars) || 0;
+                const previousStars = gameStars?.[`level_${activeLevel}_stars`] ?? null;
 
-                    // Star Quality Multiplier
-                    let starMultiplier = 1.0;
-                    const stars = Number(rawData.stars || 0);
-                    if (stars === 2) starMultiplier = 0.7;
-                    if (stars === 1) starMultiplier = 0.5;
-                    if (stars === 0) starMultiplier = 0.0;
-
-                    baseReward = Math.floor(baseReward * starMultiplier);
-
-                    // Check Replay (using gameStars state)
-                    const hasStars =
-                        gameStars?.[`level_${activeLevel}_stars`] > 0;
-                    if (hasStars) {
-                        baseReward = Math.floor(baseReward * 0.9);
-                    }
-                    optimisticCoins = baseReward;
-                }
+                optimisticCoins = calculateCoinReward({
+                    gameId,
+                    level: activeLevel,
+                    starsEarned,
+                    previousStars,
+                    score: rawData.score,
+                });
             }
 
             // 1. Optimistic UI: Show popup IMMEDIATELY with partial data

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { ClinicalStats } from "@/types";
 import { upsertLevelStars } from "@/lib/stars";
 import { addCoins } from "@/lib/server/shopAction";
+import { calculateCoinReward } from "@/lib/coinCalculation";
 
 export async function submitGameSession(
     gameId: string,
@@ -112,7 +113,7 @@ export async function submitGameSession(
                         // First time this stat is recorded -> Set to Game Result
                         newStats[dbKey] = gameResult;
                         // We consider this an "increase" from 0/null
-                        statChanges[key] = gameResult;
+                        statChanges[key as string] = gameResult;
                     } else {
                         // Standard update formula
                         // New = Current + ((GameResult - Current) * LearningRate)
@@ -124,7 +125,7 @@ export async function submitGameSession(
                             Math.min(100, Math.round(currentVal + change))
                         );
                         newStats[dbKey] = newVal;
-                        statChanges[key] = newVal - currentVal;
+                        statChanges[key as string] = newVal - currentVal;
                     }
                 }
                 // If gameResult is null, we leave newStats[dbKey] undefined, so it won't be updated.
@@ -224,62 +225,41 @@ export async function submitGameSession(
         } = { ok: true, data: { new_balance: undefined } };
         let rewardAmount = 0;
         if (levelPlayed > 0) {
-            rewardAmount = 20;
-            let rewardReason = `เล่นเกมด่าน ${levelPlayed} สำเร็จ`;
+            // Validate inputs before calculation
+            const validLevel = Math.max(1, levelPlayed || 1);
+            const starsEarned = Math.max(0, Math.min(3, Number(rawData.stars) || 0));
+            const score = Math.max(0, Number(rawData.score) || 0);
+            let previousStars: number = 0;
 
+            // Try to get previous stars for replay penalty calculation
             try {
                 const { data } = await supabase
                     .from("user_game_stars")
                     .select("star")
                     .eq("user_id", user.id)
                     .eq("game_id", gameId)
-                    .eq("level", levelPlayed)
+                    .eq("level", validLevel)
                     .single();
 
-                const previousStars = data?.star;
-
-                if (gameId === "game-02-sensorlock") {
-                    // Dynamic Reward: Score / 500.
-                    // Typical Score: ~15,000 -> 30 Coins.
-                    const score = rawData.score || 0;
-                    rewardAmount = Math.max(1, Math.floor(score / 1500));
-                    rewardReason = `เล่น Sensor Lock คะแนน ${score}`;
-                } else {
-                    // game-01-cardmatch (and default)
-                    // New Logic: Scaling Reward + Replay Penalty + Star Quality
-
-                    // 1. Base Multiplier based on Level
-                    // Level 1: 1.0 -> 20 coins
-                    // Level 2: 1.1 -> 22 coins
-                    // Level 10: 1.9 -> 38 coins
-                    const levelMultiplier = 1 + (levelPlayed - 1) * 0.1;
-
-                    let calculatedReward = Math.floor(20 * levelMultiplier);
-
-                    // 2. Star Quality Multiplier
-                    // 3 Stars: 100%
-                    // 2 Stars: 70%
-                    // 1 Star: 50%
-                    const starsEarned = Number(rawData.stars);
-                    let starMultiplier = 1.0;
-                    if (starsEarned === 2) starMultiplier = 0.7;
-                    if (starsEarned === 1) starMultiplier = 0.5;
-                    if (starsEarned === 0) starMultiplier = 0.0;
-
-                    calculatedReward = Math.floor(
-                        calculatedReward * starMultiplier
-                    );
-
-                    // 3. Star Improvement Penalty
-                    // Apply penalty only if same or fewer stars than before
-                    if (starsEarned <= previousStars) {
-                        calculatedReward = Math.floor(calculatedReward * 0.2);
-                    }
-
-                    rewardAmount = calculatedReward;
-                }
+                previousStars = data?.star;
             } catch (err) {
                 console.error("Error checking previous stars:", err);
+                // Continue with previousStars = null (treat as first-time play)
+            }
+
+            // Always use shared coin calculation function
+            rewardAmount = calculateCoinReward({
+                gameId: gameId || "",
+                level: validLevel,
+                starsEarned,
+                previousStars,
+                score,
+            });
+
+            // Set appropriate reward reason
+            let rewardReason = `เล่นเกมด่าน ${validLevel} สำเร็จ`;
+            if (gameId === "game-02-sensorlock") {
+                rewardReason = `เล่น Sensor Lock คะแนน ${score}`;
             }
 
             const res = await addCoins(
