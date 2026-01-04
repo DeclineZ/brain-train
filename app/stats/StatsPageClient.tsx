@@ -115,8 +115,8 @@ export default function StatsPageClient({
     if (!item) return "default";
 
     // Map Name/Type to CSS Key
-    // "Pastel Dream" -> "pastel"
-    if (item.name.includes("Pastel")) return "pastel";
+    if (item.item_key === "theme-pastel" || item.name.includes("Pastel")) return "pastel";
+    if (item.item_key === "theme-neon" || item.name.includes("Neon") || item.name.includes("Dark")) return "neon";
 
     // Fallback: if we named it 'theme_something', use that
     // But since we have UUIDs, we rely on Name mapping for now.
@@ -128,7 +128,7 @@ export default function StatsPageClient({
     if (profile?.active_theme_id) {
       const expectedTheme = getThemeKeyFromId(profile.active_theme_id);
       if (theme !== expectedTheme) {
-        setTheme(expectedTheme as "default" | "pastel");
+        setTheme(expectedTheme as "default" | "pastel" | "neon");
       }
     }
   }, [profile?.active_theme_id, ownedThemes]);
@@ -153,7 +153,7 @@ export default function StatsPageClient({
     }
 
     // Selecting a paid theme
-    const visualKey = getThemeKeyFromId(themeId); // Maps UUID -> "pastel"
+    const visualKey = getThemeKeyFromId(themeId); // Maps UUID -> "pastel" | "neon"
 
     // Don't update if already visually set (though we might want to ensure DB matches)
     // But let's allow it to ensure DB consistency
@@ -171,7 +171,7 @@ export default function StatsPageClient({
       const result = await response.json();
 
       if (result.ok) {
-        setTheme(visualKey as "default" | "pastel");
+        setTheme(visualKey as "default" | "pastel" | "neon");
         // Optional: Show toast
       } else {
         console.error('Theme update failed:', result.error);
@@ -243,7 +243,7 @@ export default function StatsPageClient({
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {/* Streak */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Flame className="w-8 h-8 text-orange-600 fill-orange-500" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{checkinStatus?.current_streak || 0}</div>
@@ -252,7 +252,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Total XP / Stars */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Star className="w-8 h-8 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{stars}</div>
@@ -261,7 +261,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Coins */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Coins className="w-8 h-8 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{balance}</div>
@@ -270,7 +270,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Total Badges - Replaced League */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Award className="w-8 h-8 text-[var(--color-yellow-highlight2)] fill-[var(--color-yellow-highlight)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">
@@ -388,6 +388,12 @@ export default function StatsPageClient({
                             <div className="absolute top-0 left-0 w-full h-1/3 bg-[#FFF9C4]"></div>
                             <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#AED581]"></div>
                             <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
+                          </>
+                        ) : itemVisualKey === 'neon' ? (
+                          <>
+                            <div className="absolute top-0 left-0 w-full h-1/3 bg-[#050505]"></div>
+                            <div className="absolute top-1/3 left-0 w-full h-1/2 bg-[#FF00FF]"></div>
+                            <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#00FFFF]"></div>
                           </>
                         ) : (
                           <div className="flex items-center justify-center h-full text-2xl">{item.image || "🎨"}</div>

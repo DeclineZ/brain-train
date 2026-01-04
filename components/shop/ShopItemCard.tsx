@@ -29,7 +29,9 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
 
   // NOTE: This logic mirrors ShopContent.tsx's handleEquip logic.
   // Ideally, we should have a robust way to map item ID/Keys to theme names.
-  const themeKey = item.name.toLowerCase().includes("pastel") ? "pastel" : "default";
+  let themeKey = "default";
+  if (item.item_key === "theme-pastel" || item.name.toLowerCase().includes("pastel")) themeKey = "pastel";
+  else if (item.item_key === "theme-neon" || item.name.toLowerCase().includes("neon") || item.name.toLowerCase().includes("dark")) themeKey = "neon";
   const isEquippedTheme = isTheme && currentTheme === themeKey;
 
   const isCurrentlyEquipped = isEquippedAvatar || isEquippedTheme;
@@ -77,7 +79,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
   return (
     <div
       className={`
-        bg-white border border-brown-border rounded-2xl shadow-sm overflow-hidden 
+        bg-[var(--color-card-item-bg)] border border-brown-border rounded-2xl shadow-sm overflow-hidden 
         transition-all duration-200 hover:shadow-md active:scale-98
         ${isLocked && !isDisabled ? 'cursor-pointer' : 'cursor-default'}
       `}
@@ -90,19 +92,25 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
 
         {/* Item Icon/Image */}
         <div className="relative z-10 flex items-center justify-center h-full w-full px-4">
-          {item.name.toLowerCase().includes("pastel") && item.type === "theme" ? (
+          {(item.item_key === "theme-pastel" || (item.name.toLowerCase().includes("pastel") && item.type === "theme")) ? (
             <div className="w-full h-20 rounded-lg bg-[#F0F0F0] border border-gray-200 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1/3 bg-[#FFF9C4]"></div>
               <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#AED581]"></div>
               <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
             </div>
+          ) : (item.item_key === "theme-neon" || (item.name.toLowerCase().includes("neon") && item.type === "theme")) ? (
+            <div className="w-full h-20 rounded-lg bg-[#F0F0F0] border border-gray-200 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1/3 bg-[#050505]"></div>
+              <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#FF00FF]"></div>
+              <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#00FFFF]"></div>
+            </div>
           ) : hasImage && !imageError ? (
-            <div className="relative w-full h-full">
+            <div className={`relative ${isAvatar ? 'w-20 h-20 rounded-full overflow-hidden shadow-sm' : 'w-full h-full'}`}>
               <Image
                 src={`/${itemImage}`}
                 alt={item.name}
                 fill
-                className="object-contain rounded-lg"
+                className={isAvatar ? "object-cover" : "object-contain rounded-lg"}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onError={() => setImageError(true)}
               />

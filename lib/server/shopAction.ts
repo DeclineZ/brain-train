@@ -111,13 +111,20 @@ export async function getShopItemsWithOwnership(userId: string | null): Promise<
     // Combine items with ownership status
     const itemsWithOwnership: ShopItemWithOwnership[] = itemsResult.data?.map(item => {
       const ownership = ownershipMap.get(item.id);
+
+      // Treat avatars with price 0 as implicitly owned (default/free avatars)
+      const isFreeAvatar = item.type === 'avatar' && item.price === 0;
+      // Also check if it's one of the explicitly named new avatars just in case price isn't 0 yet
+      // (User provided list: avatar-knight-1, avatar-dragon-1, avatar-eagle-1, etc.)
+      // But adhering to "price 0" is cleaner. Assuming user set them as free.
+
       return {
         ...item,
         icon: getItemIcon(item.type),
         category: item.type,
         available: true,
-        isOwned: !!ownership,
-        quantity: ownership?.quantity
+        isOwned: !!ownership || isFreeAvatar,
+        quantity: ownership?.quantity || (isFreeAvatar ? 1 : 0)
       };
     }) || [];
 
@@ -349,7 +356,7 @@ export async function addCoins(
   userId: string,
   amount: number,
   reason: string = "bonus",
-  from: string 
+  from: string
 ): Promise<Result<{ new_balance: number }>> {
   try {
     const supabase = await createClient();
@@ -440,7 +447,7 @@ export async function grantFreeAvatar(userId: string, avatarId: string): Promise
     const supabase = await createClient();
     const { error: profileError } = await supabase
       .from('user_profiles')
-      .upsert({ 
+      .upsert({
         user_id: userId,
         avatar_url: avatarId,
         claimed_free_avatar: true,
@@ -473,7 +480,7 @@ export async function getFreeAvatars(): Promise<Result<ShopItem[]>> {
 
     // Return only the 3 specific free avatars for onboarding
     const freeAvatarIds = ['avatar-1', 'avatar-2', 'avatar-3'];
-    const freeAvatars = itemsResult.data.filter(item => 
+    const freeAvatars = itemsResult.data.filter(item =>
       freeAvatarIds.includes(item.item_key)
     );
 

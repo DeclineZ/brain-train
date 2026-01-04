@@ -12,7 +12,7 @@ interface ShopItemWithOwnership {
   type: string;
   image?: string;
   created_at: string;
-  item_key:string;
+  item_key: string;
   updated_at: string;
   isOwned: boolean;
   quantity?: number;
@@ -27,13 +27,13 @@ interface AvatarEditModalProps {
   userId?: string | null;
 }
 
-export default function AvatarEditModal({ 
-  isOpen, 
-  onClose, 
-  currentAvatar, 
+export default function AvatarEditModal({
+  isOpen,
+  onClose,
+  currentAvatar,
   onAvatarSelect,
   isLoading = false,
-  userId 
+  userId
 }: AvatarEditModalProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<string>(currentAvatar || '');
   const [ownedAvatars, setOwnedAvatars] = useState<ShopItemWithOwnership[]>([]);
@@ -49,27 +49,28 @@ export default function AvatarEditModal({
 
   const fetchOwnedAvatars = async () => {
     if (!userId) return;
-    
+
     setAvatarsLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch(`/api/shop/avatars/owned?userId=${userId}`);
       const result = await response.json();
-      
+
       if (!result.ok) {
         setError(result.error || 'ไม่สามารถโหลดอวาตาร์ได้');
         setOwnedAvatars([]);
         return;
       }
-      
+
       const avatars = result.data.filter((item: { isOwned: boolean; }) => item.isOwned);
       setOwnedAvatars(avatars);
-      
+
       // Set selected avatar if not already set
       if (!selectedAvatar && avatars.length > 0) {
-        const current = avatars.find((a: { id: string ; }) => a.id === currentAvatar);
-        setSelectedAvatar(current ? current.id : avatars[0].id);
+        // Compare with item_key because profile stores the key (e.g., "avatar-1")
+        const current = avatars.find((a: ShopItemWithOwnership) => a.item_key === currentAvatar);
+        setSelectedAvatar(current ? current.item_key : avatars[0].item_key);
       }
     } catch (error) {
       console.error('Error fetching owned avatars:', error);
@@ -81,7 +82,7 @@ export default function AvatarEditModal({
 
   const handleAvatarClick = (avatarId: string) => {
     if (isLoading || avatarsLoading) return;
-    
+
     setSelectedAvatar(avatarId);
     onAvatarSelect(avatarId);
   };
@@ -90,7 +91,7 @@ export default function AvatarEditModal({
     if (avatar.image) {
       return `/${avatar.image}`;
     }
-    
+
     // Fallback to construct path from avatar ID
     const avatarNumber = avatar.id.replace('avatar-', '');
     return `/avatars/avatar-${avatarNumber}.webp`;
@@ -142,8 +143,8 @@ export default function AvatarEditModal({
                 onClick={() => handleAvatarClick(avatar.item_key)}
                 disabled={isLoading || avatarsLoading}
                 className={`relative aspect-square rounded-xl overflow-hidden border-4 transition-all hover:scale-105 active:scale-95
-                  ${selectedAvatar === avatar.id 
-                    ? 'border-orange-dark shadow-lg' 
+                  ${selectedAvatar === avatar.item_key
+                    ? 'border-orange-dark shadow-lg'
                     : 'border-gray-200 hover:border-brown-light'
                   }
                   ${isLoading || avatarsLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
@@ -168,16 +169,16 @@ export default function AvatarEditModal({
                     }
                   }}
                 />
-                
+
                 {/* Selected indicator */}
-                {selectedAvatar === avatar.id && (
+                {selectedAvatar === avatar.item_key && (
                   <div className="absolute inset-0 bg-orange-dark/20 flex items-center justify-center">
                     <div className="w-8 h-8 bg-orange-dark rounded-full flex items-center justify-center">
                       <CheckCircle2 className="w-5 h-5 text-white" />
                     </div>
                   </div>
                 )}
-                
+
                 {/* Avatar name overlay */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                   <p className="text-white text-xs font-medium text-center truncate">
@@ -194,7 +195,7 @@ export default function AvatarEditModal({
           <div className="text-center mb-4">
             <p className="text-sm text-brown-medium">คุณเลือก:</p>
             <p className="font-bold text-brown-800">
-              {ownedAvatars.find(a => a.id === selectedAvatar)?.name}
+              {ownedAvatars.find(a => a.item_key === selectedAvatar)?.name}
             </p>
           </div>
         )}
