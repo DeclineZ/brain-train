@@ -115,8 +115,8 @@ export default function StatsPageClient({
     if (!item) return "default";
 
     // Map Name/Type to CSS Key
-    // "Pastel Dream" -> "pastel"
-    if (item.name.includes("Pastel")) return "pastel";
+    if (item.item_key === "theme-pastel" || item.name.includes("Pastel")) return "pastel";
+    if (item.item_key === "theme-neon" || item.name.includes("Neon") || item.name.includes("Dark")) return "neon";
 
     // Fallback: if we named it 'theme_something', use that
     // But since we have UUIDs, we rely on Name mapping for now.
@@ -128,7 +128,7 @@ export default function StatsPageClient({
     if (profile?.active_theme_id) {
       const expectedTheme = getThemeKeyFromId(profile.active_theme_id);
       if (theme !== expectedTheme) {
-        setTheme(expectedTheme as "default" | "pastel");
+        setTheme(expectedTheme as "default" | "pastel" | "neon");
       }
     }
   }, [profile?.active_theme_id, ownedThemes]);
@@ -153,7 +153,7 @@ export default function StatsPageClient({
     }
 
     // Selecting a paid theme
-    const visualKey = getThemeKeyFromId(themeId); // Maps UUID -> "pastel"
+    const visualKey = getThemeKeyFromId(themeId); // Maps UUID -> "pastel" | "neon"
 
     // Don't update if already visually set (though we might want to ensure DB matches)
     // But let's allow it to ensure DB consistency
@@ -171,7 +171,7 @@ export default function StatsPageClient({
       const result = await response.json();
 
       if (result.ok) {
-        setTheme(visualKey as "default" | "pastel");
+        setTheme(visualKey as "default" | "pastel" | "neon");
         // Optional: Show toast
       } else {
         console.error('Theme update failed:', result.error);
@@ -388,6 +388,12 @@ export default function StatsPageClient({
                             <div className="absolute top-0 left-0 w-full h-1/3 bg-[#FFF9C4]"></div>
                             <div className="absolute top-1/3 left-0 w-full h-1/3 bg-[#AED581]"></div>
                             <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#81D4FA]"></div>
+                          </>
+                        ) : itemVisualKey === 'neon' ? (
+                          <>
+                            <div className="absolute top-0 left-0 w-full h-1/3 bg-[#050505]"></div>
+                            <div className="absolute top-1/3 left-0 w-full h-1/2 bg-[#FF00FF]"></div>
+                            <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#00FFFF]"></div>
                           </>
                         ) : (
                           <div className="flex items-center justify-center h-full text-2xl">{item.image || "🎨"}</div>

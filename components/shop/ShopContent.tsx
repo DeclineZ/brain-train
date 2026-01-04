@@ -174,8 +174,16 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
         });
 
         if (response.ok) {
-          // Helper to map ID to visual key (simplified logic from StatsPage)
-          const visualKey = item.name.toLowerCase().includes("pastel") ? "pastel" : "default";
+          // Helper to map ID to visual key
+          let visualKey: "default" | "pastel" | "neon" = "default";
+          const lowerName = item.name.toLowerCase();
+
+          if (item.item_key === "theme-pastel" || lowerName.includes("pastel")) {
+            visualKey = "pastel";
+          } else if (item.item_key === "theme-neon" || lowerName.includes("neon") || lowerName.includes("dark")) {
+            visualKey = "neon";
+          }
+
           setTheme(visualKey);
           showToast(`เปลี่ยนธีมเป็น ${item.name} แล้ว!`, "success");
         } else {
