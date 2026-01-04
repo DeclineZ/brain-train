@@ -79,7 +79,7 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
   return (
     <div
       className={`
-        bg-white border border-brown-border rounded-2xl shadow-sm overflow-hidden 
+        bg-[var(--color-card-item-bg)] border border-brown-border rounded-2xl shadow-sm overflow-hidden 
         transition-all duration-200 hover:shadow-md active:scale-98
         ${isLocked && !isDisabled ? 'cursor-pointer' : 'cursor-default'}
       `}
@@ -105,12 +105,12 @@ export default function ShopItemCard({ item, userBalance, onPurchase, onUseAvata
               <div className="absolute bottom-0 left-0 w-full h-1/3 bg-[#00FFFF]"></div>
             </div>
           ) : hasImage && !imageError ? (
-            <div className="relative w-full h-full">
+            <div className={`relative ${isAvatar ? 'w-20 h-20 rounded-full overflow-hidden shadow-sm' : 'w-full h-full'}`}>
               <Image
                 src={`/${itemImage}`}
                 alt={item.name}
                 fill
-                className="object-contain rounded-lg"
+                className={isAvatar ? "object-cover" : "object-contain rounded-lg"}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onError={() => setImageError(true)}
               />

@@ -313,7 +313,8 @@
   --color-stats-bg: #F5F5F5;
 
   /* Borders */
-  --color-brown-border: #E0E0E0;
+  --color-brown-border: #E0D8C0;
+  --color-card-item-bg: #FFFFFF;
 }
 
 /* Neon/Dark High Contrast Theme */
@@ -323,9 +324,9 @@
 
   /* Main UI Elements */
   --color-brown-900: #FFFFFF;
-  /* White text for max contrast */
-  --color-brown-800: #E0E0E0;
-  /* Light gray */
+  /* Main text white */
+  --color-brown-800: #F5F5F5;
+  /* Heading White/Off-white */
   --color-brown-600: #BDBDBD;
 
   --shadow-card-color: #000000;
@@ -340,12 +341,19 @@
   /* Neon Palette */
   --color-tan: #121212;
   /* Dark card background */
-  --color-tan-light: #1E1E1E;
-  /* Slightly lighter card bg */
+  --color-tan-light: #1A1A1A;
+  /* Slightly lighter card bg for TopCard */
+  --color-card-item-bg: #212121;
+  /* Item Card Background */
 
-  --color-brown-light: #E0E0E0;
+  --color-brown-light: #616161;
+  /* Dark Grey for subtle text/borders */
   --color-brown-medium: #9E9E9E;
+  /* Medium light grey for secondary text */
   --color-brown-lightest: #424242;
+  /* Dark grey for avatars/bgs */
+  --color-brown-darkest: #FFFFFF;
+  /* Critical: TopCard text must be white */
 
   /* Top Bar specific overrides for Neon Theme */
   --color-topbar-icon-primary: #FF00FF;
@@ -358,8 +366,6 @@
 
   --icon-secondary-stroke: #00E5FF;
   --icon-secondary-fill: #84FFFF;
-
-  --color-brown-darkest: #000000;
 
   /* Primary Colors - Neon */
   --color-green: #00E676;
@@ -378,8 +384,11 @@
   /* Deep Purple accent */
   --color-orange-dark: #00B0FF;
 
-  --color-yellow-highlight: #FFD600;
-  --color-yellow-highlight2: #FFFF00;
+  /* Balance Card: Dark Neon Gradient instead of Yellow */
+  --color-yellow-highlight: #4A148C;
+  /* Deep Purple */
+  --color-yellow-highlight2: #7B1FA2;
+  /* Purple */
 
   --color-green-success: #00C853;
 
@@ -398,11 +407,11 @@
 
   /* Backgrounds */
   --color-game-bg: #000000;
-  --color-popup-bg: #1A1A1A;
-  --color-stats-bg: #0A0A0A;
+  --color-popup-bg: #212121;
+  --color-stats-bg: #121212;
 
   /* Borders */
-  --color-brown-border: #333333;
+  --color-brown-border: #424242;
 }
 
 body {

@@ -243,7 +243,7 @@ export default function StatsPageClient({
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {/* Streak */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Flame className="w-8 h-8 text-orange-600 fill-orange-500" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{checkinStatus?.current_streak || 0}</div>
@@ -252,7 +252,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Total XP / Stars */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Star className="w-8 h-8 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{stars}</div>
@@ -261,7 +261,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Coins */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Coins className="w-8 h-8 text-[var(--icon-secondary-stroke)] fill-[var(--icon-secondary-fill)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">{balance}</div>
@@ -270,7 +270,7 @@ export default function StatsPageClient({
                 </div>
 
                 {/* Total Badges - Replaced League */}
-                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-white shadow-sm">
+                <div className="border-2 border-gray-medium rounded-2xl p-4 flex items-center gap-3 bg-[var(--color-card-item-bg)] shadow-sm">
                   <Award className="w-8 h-8 text-[var(--color-yellow-highlight2)] fill-[var(--color-yellow-highlight)]" />
                   <div>
                     <div className="text-xl font-bold text-brown-darkest">

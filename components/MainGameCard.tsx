@@ -44,7 +44,10 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
         />
 
         {/* Modern Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90" />
+        <div className={`absolute inset-0 bg-gradient-to-t to-transparent transition-all duration-500 ${isCompleted
+          ? "from-black/80 via-black/60 opacity-100"
+          : "from-black/80 via-black/20 opacity-90"
+          }`} />
 
         {/* Level Badge */}
         <LevelBadge
