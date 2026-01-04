@@ -4,6 +4,7 @@ import { DailyMission } from "@/types";
 const MOCK_MISSIONS = [
     { slot_index: 0, label: "Card Match", game_id: "game-01-cardmatch" },
     { slot_index: 1, label: "Sensor Lock", game_id: "game-02-sensorlock" },
+    { slot_index: 2, label: "Billiards Math", game_id: "game-03-billiards-math" },
 ];
 
 export async function getDailyMissions(userId: string): Promise<DailyMission[]> {
@@ -18,7 +19,7 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
         .eq("date", today)
         .order("slot_index", { ascending: true });
 
-    if (existingMissions && existingMissions.length === 2) {
+    if (existingMissions && existingMissions.length === 3) {
         return existingMissions as DailyMission[];
     }
 

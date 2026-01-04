@@ -70,7 +70,7 @@ export async function submitGameSession(
         // If GameResult is null, Skip
         const newStats: any = {};
         const statChanges: Record<string, number> = {};
-        
+
         // Define type for user profile stats
         type UserProfileStats = {
             global_memory: number | null;
@@ -80,7 +80,7 @@ export async function submitGameSession(
             global_planning: number | null;
             global_emotion: number | null;
         };
-        
+
         const statToGlobal: Record<keyof ClinicalStats, keyof UserProfileStats> = {
             stat_memory: "global_memory",
             stat_speed: "global_speed",
@@ -299,11 +299,11 @@ export async function submitGameSession(
             .eq("completed", true);
 
         let allMissionsCompleted = false;
-        // Assuming there are always 2 missions for now.
-        // If dailyPlayedCount is 2 (or more?), and we JUST completed one (missionCompleted is distinct),
+        // Assuming there are always 3 missions for now.
+        // If dailyPlayedCount is 3 (or more?), and we JUST completed one (missionCompleted is distinct),
         // we might want to flag it.
-        // Logic: If missionCompleted is true AND dailyPlayedCount === 2, then we just finished the set.
-        if (missionCompleted && dailyPlayedCount === 2) {
+        // Logic: If missionCompleted is true AND dailyPlayedCount === 3, then we just finished the set.
+        if (missionCompleted && dailyPlayedCount === 3) {
             // Award Bonus 100 Coins
             const bonusRes = await addCoins(
                 user.id,
@@ -344,10 +344,10 @@ export async function submitGameSession(
             earnedCoins: coinResult.ok && levelPlayed > 0 ? rewardAmount : 0,
             missionResult: missionCompleted
                 ? {
-                      completed: true,
-                      label: completedMission?.label,
-                      slotIndex: completedMission?.slot_index,
-                  }
+                    completed: true,
+                    label: completedMission?.label,
+                    slotIndex: completedMission?.slot_index,
+                }
                 : null,
             dailyPlayedCount,
             allMissionsCompleted,
