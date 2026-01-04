@@ -48,14 +48,14 @@ export default function GamePage({ params }: PageProps) {
     const paramLevel = searchParams.get("level");
     const tutorialMode = searchParams.get("tutorial_mode");
 
-  // Endless Mode Check
-  const isEndless = gameId === 'game-02-sensorlock';
-  // Determine max level based on game
-  const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 60;
+    // Endless Mode Check
+    const isEndless = gameId === 'game-02-sensorlock';
+    // Determine max level based on game
+    const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 60;
 
-  const [activeLevel, setActiveLevel] = useState<number>(1);
-  const [resumeLevel, setResumeLevel] = useState<number>(1);
-  const [highScore, setHighScore] = useState<number>(0);
+    const [activeLevel, setActiveLevel] = useState<number>(1);
+    const [resumeLevel, setResumeLevel] = useState<number>(1);
+    const [highScore, setHighScore] = useState<number>(0);
 
     // 1. Fetch persistent level on mount
     useEffect(() => {
@@ -87,12 +87,12 @@ export default function GamePage({ params }: PageProps) {
                     .limit(1)
                     .single();
 
-        let nextLevel = 1;
-        if (data && data.current_played) {
-          // Prevent going beyond max level
-          nextLevel = data.current_played + 1;
-          if (nextLevel > maxLevel) nextLevel = maxLevel;
-        }
+                let nextLevel = 1;
+                if (data && data.current_played) {
+                    // Prevent going beyond max level
+                    nextLevel = data.current_played + 1;
+                    if (nextLevel > maxLevel) nextLevel = maxLevel;
+                }
 
                 setResumeLevel(nextLevel);
 
@@ -325,25 +325,25 @@ export default function GamePage({ params }: PageProps) {
         [activeLevel, gameId, submitSession, dailyCount, gameStars, isEndless]
     );
 
-  const handleNextLevel = () => {
-    setResult(null); // Explicitly clear before push
-    // For max level, maybe loop or show "Complete"
-    if (activeLevel >= maxLevel) {
-      router.push('/allgames');
-    } else {
-      // Force reload by pushing new URL or just state update?
-      // Since GameCanvas uses 'key={activeLevel}', state update works.
-      // But we prefer URL for shareability.
-      router.push(`/play/${gameId}?level=${activeLevel + 1}`);
-    }
-  };
+    const handleNextLevel = () => {
+        setResult(null); // Explicitly clear before push
+        // For max level, maybe loop or show "Complete"
+        if (activeLevel >= maxLevel) {
+            router.push('/allgames');
+        } else {
+            // Force reload by pushing new URL or just state update?
+            // Since GameCanvas uses 'key={activeLevel}', state update works.
+            // But we prefer URL for shareability.
+            router.push(`/play/${gameId}?level=${activeLevel + 1}`);
+        }
+    };
 
     const handlePreviousLevel = () => {
         router.push(`/play/${gameId}?level=${activeLevel - 1}`);
     };
 
     // Calculate stats progress
-    const targetDaily = 2;
+    const targetDaily = 3;
     const progressPercent = Math.min(
         100,
         Math.round((dailyCount / targetDaily) * 100)
@@ -504,11 +504,11 @@ export default function GamePage({ params }: PageProps) {
                                         {((!isEndless && !result.statChanges) ||
                                             (isEndless &&
                                                 result.stat_focus ===
-                                                    null)) && (
-                                            <div className="text-brown-primary animate-pulse font-bold text-sm">
-                                                กำลังคำนวณคะแนน...
-                                            </div>
-                                        )}
+                                                null)) && (
+                                                <div className="text-brown-primary animate-pulse font-bold text-sm">
+                                                    กำลังคำนวณคะแนน...
+                                                </div>
+                                            )}
                                         {result.earnedCoins > 0 && (
                                             <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1">
                                                 <Coins className="w-5 h-5 text-yellow-600 fill-yellow-600/20" />
@@ -519,10 +519,10 @@ export default function GamePage({ params }: PageProps) {
                                         )}
                                         {result.statChanges?.stat_memory >
                                             0 && (
-                                            <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                ^ ความจำ
-                                            </div>
-                                        )}
+                                                <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                    ^ ความจำ
+                                                </div>
+                                            )}
                                         {result.statChanges?.stat_speed > 0 && (
                                             <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                                                 ^ ความเร็ว
@@ -536,16 +536,16 @@ export default function GamePage({ params }: PageProps) {
                                         )}
                                         {result.statChanges?.stat_planning >
                                             0 && (
-                                            <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                ^ การวางแผน
-                                            </div>
-                                        )}
+                                                <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                    ^ การวางแผน
+                                                </div>
+                                            )}
                                         {result.statChanges?.stat_emotion >
                                             0 && (
-                                            <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                ^ ควบคุมอารมณ์
-                                            </div>
-                                        )}
+                                                <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                    ^ ควบคุมอารมณ์
+                                                </div>
+                                            )}
                                     </div>
                                 </div>
 
@@ -569,9 +569,9 @@ export default function GamePage({ params }: PageProps) {
                                         <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
                                             {streakInfo
                                                 ? Math.max(
-                                                      0,
-                                                      targetDaily - dailyCount
-                                                  ) === 0
+                                                    0,
+                                                    targetDaily - dailyCount
+                                                ) === 0
                                                     ? "ภารกิจวันนี้เสร็จแล้ว"
                                                     : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`
                                                 : "กำลังบันทึก..."}
@@ -587,60 +587,60 @@ export default function GamePage({ params }: PageProps) {
                                         result.stat_planning !== null)) ||
                                     (isEndless &&
                                         result.stat_focus !== null)) && (
-                                    <div className="flex flex-col gap-3 w-full">
-                                        <div className="flex gap-4 w-full justify-center">
-                                            {/* Restart Level Button */}
-                                            {!isEndless && (
-                                                <button
-                                                    onClick={handleRestartLevel}
-                                                    className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
-                                                >
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        viewBox="0 0 512 512"
-                                                        fill="currentColor"
-                                                        className="w-full h-full"
+                                        <div className="flex flex-col gap-3 w-full">
+                                            <div className="flex gap-4 w-full justify-center">
+                                                {/* Restart Level Button */}
+                                                {!isEndless && (
+                                                    <button
+                                                        onClick={handleRestartLevel}
+                                                        className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
                                                     >
-                                                        <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                                                    </svg>
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            viewBox="0 0 512 512"
+                                                            fill="currentColor"
+                                                            className="w-full h-full"
+                                                        >
+                                                            <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+
+                                                {/* Back to Home Button */}
+                                                <button
+                                                    onClick={() => {
+                                                        const query =
+                                                            result.allMissionsCompleted
+                                                                ? "?questComplete=true"
+                                                                : "";
+                                                        router.push(`/${query}`);
+                                                    }}
+                                                    className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
+                                                >
+                                                    <Home className="w-8 h-8" />
                                                 </button>
-                                            )}
 
-                                            {/* Back to Home Button */}
-                                            <button
-                                                onClick={() => {
-                                                    const query =
-                                                        result.allMissionsCompleted
-                                                            ? "?questComplete=true"
-                                                            : "";
-                                                    router.push(`/${query}`);
-                                                }}
-                                                className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
-                                            >
-                                                <Home className="w-8 h-8" />
-                                            </button>
-
-                      <button
-                        onClick={handleNextLevel}
-                        className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
-                      >
-                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
-                      </button>
+                                                <button
+                                                    onClick={handleNextLevel}
+                                                    className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                                                >
+                                                    {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                            </>
+                        ) : (
+                            // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
+                            <div className="text-center">
+                                <h1 className="text-3xl">Game Over</h1>
+                                <button onClick={handleRestartLevel}>Restart</button>
+                            </div>
+                        )}
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
-              <div className="text-center">
-                <h1 className="text-3xl">Game Over</h1>
-                <button onClick={handleRestartLevel}>Restart</button>
-              </div>
-            )}
-          </div>
+                </div>
+            )
+            }
         </div>
-      )
-      }
-    </div>
-  );
+    );
 }

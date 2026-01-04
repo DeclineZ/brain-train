@@ -33,7 +33,7 @@ export default async function Home() {
 
   const completedCount = missions.filter(m => m.completed).length;
   const currentMission = missions.find(m => !m.completed);
-  const isAllComplete = completedCount === 2;
+  const isAllComplete = completedCount === 3;
 
   return (
     <div className="bg-cream overflow-hidden">
@@ -44,7 +44,7 @@ export default async function Home() {
 
         <ModernDashboard
           title={isAllComplete ? "ภารกิจวันนี้สำเร็จ!" : currentMission ? `ภารกิจ: ${currentMission.label}` : "ภารกิจวันนี้"}
-          totalGames={2}
+          totalGames={3}
           completedGames={completedCount}
           action={
             isAllComplete ? (
