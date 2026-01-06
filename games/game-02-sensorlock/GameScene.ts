@@ -16,6 +16,7 @@ export class SensorLockGameScene extends Phaser.Scene {
     // Spam Protection
     private inputHistory: number[] = [];
     private isInputLocked = false;
+    private isTutorialMode = false;
 
     // Difficulty
     // Difficulty
@@ -112,6 +113,12 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     update(time: number, delta: number) {
         if (!this.isPlaying) return;
+
+        // Tutorial Mode: Infinite Time
+        if (this.isTutorialMode) {
+            this.timerBar.clear(); // Hide timer bar
+            return;
+        }
 
         // Smooth Timer Bar
         const elapsed = Date.now() - this.cardStartTime;
@@ -477,7 +484,10 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.sound.stopAll(); // clear previous
         if (this.soundBgm) this.soundBgm.play();
 
+        if (this.soundBgm) this.soundBgm.play();
+
         this.currentPhase = 1;
+        this.isTutorialMode = false; // Reset
         this.nextCard(true);
     }
 
@@ -703,6 +713,18 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.attempts++;
 
         let isCorrect = (saidMatch === this.isMatch);
+
+        // Tutorial Logic: Retry on fail, proceed on success
+        if (this.isTutorialMode) {
+            if (!isCorrect) {
+                this.sound.play('match-fail');
+                this.cameras.main.shake(100, 0.01);
+                return; // Don't advance, don't penalize
+            }
+            // If correct, clear tutorial mode and proceed to scoring
+            this.isTutorialMode = false;
+            this.cardStartTime = Date.now(); // Reset timer for next card
+        }
 
         // Tracking Mismatches specifically
         if (!this.isMatch) {
@@ -1021,6 +1043,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         if (this.soundBgm) this.soundBgm.play();
 
         this.isPlaying = true;
+        this.isTutorialMode = true; // First card of new phase is untimed tutorial
 
         // Reset Visuals for new phase (important!)
         this.nextCard(true);
