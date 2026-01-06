@@ -24,6 +24,11 @@ export class SensorLockGameScene extends Phaser.Scene {
     private minTimeLimit = 1500;        // Cap speed at 1.5s instead of 0.6s
     private difficultyMultiplier = 1.0;
 
+    // Phases
+    private currentPhase = 1;
+    private readonly PHASE_2_THRESHOLD = 10000;
+    private readonly PHASE_3_THRESHOLD = 20000;
+
     // Current Round Data
     private currentArrowDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' = 'UP';
     private currentLabelText: 'บน' | 'ล่าง' | 'ซ้าย' | 'ขวา' = 'บน';
@@ -291,7 +296,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             color: '#2d3436', // Dark Grey for contrast on light bg
             stroke: '#ffffff',
             strokeThickness: 6
-        }).setOrigin(0.5).setPadding(10, 10, 10, 10); // Add padding for Thai accents
+        }).setOrigin(0.5).setPadding(40); // Generous padding for Thai accents
         this.arrowContainer.add(this.labelText);
 
         // Timer Bar (Below Label)
@@ -450,6 +455,11 @@ export class SensorLockGameScene extends Phaser.Scene {
         });
     }
 
+    // Helper to ensure 6-digit hex
+    colorToHex(color: number): string {
+        return '#' + color.toString(16).padStart(6, '0');
+    }
+
     startGame() {
         this.isPlaying = true;
         this.score = 0;
@@ -467,23 +477,43 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.sound.stopAll(); // clear previous
         if (this.soundBgm) this.soundBgm.play();
 
+        this.currentPhase = 1;
         this.nextCard(true);
     }
 
     nextCard(resetTimer: boolean = true) {
-        const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
+        if (this.currentPhase === 1) {
+            this.setupPhase1();
+        } else if (this.currentPhase === 2) {
+            this.setupPhase2();
+        } else {
+            this.setupPhase3();
+        }
 
-        // 50% Chance of Match
+        if (this.arrowContainer) this.arrowContainer.setVisible(true);
+
+        // Reset Timer ONLY if requested
+        if (resetTimer) {
+            this.cardStartTime = Date.now();
+        }
+    }
+
+    setupPhase1() {
+        // Phase 1: Direction Match (Arrow vs Text)
+        const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
         const startMatch = Math.random() > 0.5;
 
         this.currentArrowDir = dirs[Math.floor(Math.random() * dirs.length)];
+
+        // Reset Visuals
+        this.labelText.setColor('#2d3436'); // Default Grey
+        this.arrowGraphics.setVisible(true);
 
         if (startMatch) {
             // @ts-ignore
             this.currentLabelText = this.getThaiLabel(this.currentArrowDir);
             this.isMatch = true;
         } else {
-            // Pick a different text
             let other = dirs[Math.floor(Math.random() * dirs.length)];
             while (other === this.currentArrowDir) {
                 other = dirs[Math.floor(Math.random() * dirs.length)];
@@ -493,22 +523,121 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.isMatch = false;
         }
 
-        if (this.arrowContainer) this.arrowContainer.setVisible(true);
-
-        // Render
-        this.drawArrow(this.currentArrowDir, 0x0984E3); // Blue-ish
+        this.drawArrow(this.currentArrowDir, 0x0984E3); // Default Blue
         this.labelText.setText(this.currentLabelText);
+    }
 
-        // Reset Timer ONLY if requested
-        if (resetTimer) {
-            this.cardStartTime = Date.now();
+    setupPhase2() {
+        // Phase 2: Color Match (Text Color vs Text Meaning)
+        // Arrow is HIDDEN.
+        this.arrowGraphics.setVisible(false);
+
+        const colors = [
+            { key: 'RED', hex: 0xFF7675, label: 'แดง' },
+            { key: 'GREEN', hex: 0x00B894, label: 'เขียว' },
+            { key: 'BLUE', hex: 0x0984E3, label: 'น้ำเงิน' },
+            { key: 'YELLOW', hex: 0xFDCB6E, label: 'เหลือง' }
+        ];
+
+        const startMatch = Math.random() > 0.5;
+        const targetColor = colors[Math.floor(Math.random() * colors.length)]; // The Meaning
+
+        if (startMatch) {
+            // Ink matches Meaning
+            // @ts-ignore
+            this.currentLabelText = targetColor.label;
+            this.labelText.setColor(this.colorToHex(targetColor.hex));
+            this.isMatch = true;
         } else {
-            // Keep the same start time, effectively continuing the countdown
-            // But we need to account for elapsed time?
-            // "Date.now() - cardStartTime" is the elapsed.
-            // If we don't change cardStartTime, elapsed continues increasing.
-            // Correct.
+            // Ink mismatch
+            let otherInk = colors[Math.floor(Math.random() * colors.length)];
+            while (otherInk.key === targetColor.key) {
+                otherInk = colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            // @ts-ignore
+            this.currentLabelText = targetColor.label; // Meaning says "Red"
+            this.labelText.setColor(this.colorToHex(otherInk.hex)); // Ink is "Blue"
+
+            // User matches "Ink Color" vs "Text Meaning"?
+            // Wait, Standard Stroop: "Say the color of the word".
+            // Here we want "Match Color with Name". 
+            // If Text says "Red" and Ink is Red -> Match.
+            // If Text says "Red" and Ink is Blue -> No Match.
+            this.isMatch = false;
         }
+
+        this.labelText.setText(this.currentLabelText);
+    }
+
+    setupPhase3() {
+        // Phase 3: Combined (Direction Match AND Color Match)
+        // Show Arrow and Text.
+        // Arrow has Direction and Color.
+        // Text has Direction Meaning and Ink Color.
+        // Match = ArrowDir == TextMeaning AND ArrowColor == TextInkColor.
+
+        this.arrowGraphics.setVisible(true);
+
+        const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
+        const colors = [
+            { key: 'RED', hex: 0xFF7675, label: 'แดง' },
+            { key: 'GREEN', hex: 0x00B894, label: 'เขียว' },
+            { key: 'BLUE', hex: 0x0984E3, label: 'น้ำเงิน' },
+            { key: 'YELLOW', hex: 0xFDCB6E, label: 'เหลือง' } // Using simple Yellow
+        ];
+
+        const isFullMatch = Math.random() > 0.5;
+
+        // 1. Setup Attributes
+        const arrowDir = dirs[Math.floor(Math.random() * dirs.length)];
+        const arrowColor = colors[Math.floor(Math.random() * colors.length)];
+
+        // Store for drawing
+        this.currentArrowDir = arrowDir;
+
+        let textDir = arrowDir;
+        let textInk = arrowColor;
+
+        if (isFullMatch) {
+            // EVERYTHING MATCHES
+            this.isMatch = true;
+        } else {
+            // MISMATCH
+            // Could be Dir mismatch, Color mismatch, or Both.
+            // Let's randomize the type of mismatch
+            const mismatchType = Math.random();
+
+            if (mismatchType < 0.33) {
+                // Dir Mismatch only
+                let d = dirs[Math.floor(Math.random() * dirs.length)];
+                while (d === arrowDir) d = dirs[Math.floor(Math.random() * dirs.length)];
+                textDir = d;
+            } else if (mismatchType < 0.66) {
+                // Color Mismatch only
+                let c = colors[Math.floor(Math.random() * colors.length)];
+                while (c.key === arrowColor.key) c = colors[Math.floor(Math.random() * colors.length)];
+                textInk = c;
+            } else {
+                // Both Mismatch
+                let d = dirs[Math.floor(Math.random() * dirs.length)];
+                while (d === arrowDir) d = dirs[Math.floor(Math.random() * dirs.length)];
+                textDir = d;
+
+                let c = colors[Math.floor(Math.random() * colors.length)];
+                while (c.key === arrowColor.key) c = colors[Math.floor(Math.random() * colors.length)];
+                textInk = c;
+            }
+            this.isMatch = false;
+        }
+
+        // Apply
+        // @ts-ignore
+        this.currentLabelText = this.getThaiLabel(textDir);
+        this.labelText.setText(this.currentLabelText);
+        this.labelText.setColor(this.colorToHex(textInk.hex));
+
+        this.drawArrow(arrowDir, arrowColor.hex);
     }
 
     handleInput(saidMatch: boolean) {
@@ -610,13 +739,19 @@ export class SensorLockGameScene extends Phaser.Scene {
                 this.timeLimitPerCard = Math.max(this.minTimeLimit, this.timeLimitPerCard * 0.95);
             }
 
+            // Check Phase Progression
+            this.checkPhaseProgression();
+
             // Streak Effect
             if (this.currentStreak > 1) {
                 this.showStreakEffect();
             }
 
             this.scoreText.setText(`${this.score}`);
-            this.nextCard(true); // Reset Timer on success
+
+            if (this.isPlaying) {
+                this.nextCard(true); // Reset Timer on success
+            }
         } else {
             // WRONG
             this.sound.play('match-fail');
@@ -757,5 +892,137 @@ export class SensorLockGameScene extends Phaser.Scene {
                 popup.destroy();
             }
         });
+    }
+
+    checkPhaseProgression() {
+        if (this.currentPhase === 1 && this.score >= this.PHASE_2_THRESHOLD) {
+            this.showPhaseTransition(2);
+        } else if (this.currentPhase === 2 && this.score >= this.PHASE_3_THRESHOLD) {
+            this.showPhaseTransition(3);
+        }
+    }
+
+    showPhaseTransition(nextPhase: number) {
+        this.isPlaying = false; // Pause Game
+        this.currentPhase = nextPhase;
+        this.sound.stopAll();
+        this.soundLevelPass.play();
+
+        // 1. Fade OUT Game Elements
+        this.tweens.add({
+            targets: [this.arrowContainer, this.streakText, this.scoreText],
+            alpha: 0,
+            duration: 300,
+            onComplete: () => {
+                this.playTransitionSequence(nextPhase);
+            }
+        });
+    }
+
+    playTransitionSequence(nextPhase: number) {
+        const { width, height } = this.scale;
+
+        let title = "";
+        let line1 = "";
+        let line2 = "";
+
+        if (nextPhase === 2) {
+            title = "LEVEL 2";
+            line1 = "จับคู่สี!";
+            line2 = "(ตรงกัน = สีเหมือนชื่อสี)";
+        } else {
+            title = "LEVEL 3";
+            line1 = "รวมร่าง!";
+            line2 = "(ต้องตรงกันทั้งทิศและสี)";
+        }
+
+        const container = this.add.container(width / 2, height / 2).setAlpha(1);
+
+        const titleText = this.add.text(0, -80, title, {
+            fontFamily: '"Mali", sans-serif',
+            fontSize: '80px',
+            color: '#fdcb6e',
+            stroke: '#ffffff',
+            strokeThickness: 6,
+            align: 'center'
+        }).setOrigin(0.5).setScale(0).setAlpha(0).setPadding(30);
+
+        const text1 = this.add.text(0, 20, line1, {
+            fontFamily: '"Mali", sans-serif',
+            fontSize: '48px',
+            color: '#ffffff',
+            stroke: '#2d3436',
+            strokeThickness: 3,
+            align: 'center'
+        }).setOrigin(0.5).setAlpha(0).setY(50).setPadding(20);
+
+        const text2 = this.add.text(0, 90, line2, {
+            fontFamily: '"Mali", sans-serif',
+            fontSize: '32px',
+            color: '#dfe6e9',
+            stroke: '#2d3436',
+            strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setAlpha(0).setY(120).setPadding(20);
+
+        container.add([titleText, text1, text2]);
+
+        // Sequence
+        this.tweens.chain({
+            tweens: [
+                {
+                    targets: titleText,
+                    scale: 1,
+                    alpha: 1,
+                    duration: 600,
+                    ease: 'Back.out',
+                    onComplete: () => { this.soundBeep.play({ detune: 200 }); }
+                },
+                {
+                    targets: text1,
+                    y: 20,
+                    alpha: 1,
+                    duration: 500,
+                    ease: 'Power2.out'
+                },
+                {
+                    targets: text2,
+                    y: 90,
+                    alpha: 1,
+                    duration: 500,
+                    ease: 'Power2.out'
+                },
+                {
+                    targets: container,
+                    alpha: 1, // Hold
+                    duration: 2500
+                },
+                {
+                    targets: container,
+                    alpha: 0,
+                    scale: 0.8,
+                    duration: 400,
+                    onComplete: () => {
+                        container.destroy();
+                        this.resumeGameAfterTransition();
+                    }
+                }
+            ]
+        });
+    }
+
+    resumeGameAfterTransition() {
+        // Restore Visibility
+        this.arrowContainer.setAlpha(1);
+        this.streakText.setAlpha(0); // Should be hidden initially
+        this.scoreText.setAlpha(1);
+
+        // Resume Music
+        if (this.soundBgm) this.soundBgm.play();
+
+        this.isPlaying = true;
+
+        // Reset Visuals for new phase (important!)
+        this.nextCard(true);
     }
 }
