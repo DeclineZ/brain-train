@@ -45,7 +45,9 @@ export const useGameSession = () => {
       ...clinicalStats,
       statChanges: result.ok ? result.statChanges : null,
       dailyPlayedCount: result.ok ? (result as any).dailyPlayedCount : undefined,
-      allMissionsCompleted: result.ok ? (result as any).allMissionsCompleted : undefined
+      allMissionsCompleted: result.ok ? (result as any).allMissionsCompleted : undefined,
+      earnedCoins: result.ok ? (result as any).earnedCoins : undefined,
+      checkinResult: result.ok ? (result as any).checkinResult : undefined
     };
   };
 

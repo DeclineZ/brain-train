@@ -40,6 +40,12 @@ export default function GamePage({ params }: PageProps) {
     const [retryCount, setRetryCount] = useState(0);
     const [showTutorialPopup, setShowTutorialPopup] = useState(false);
 
+    // Add isSaving state to block UI while saving
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Optimistic Stats State
+    const [userProfileStats, setUserProfileStats] = useState<any>(null);
+
     // Ref for imperative game control
     const gameRef = useRef<any>(null);
 
@@ -75,6 +81,19 @@ export default function GamePage({ params }: PageProps) {
             if (!user) {
                 setIsLoadingLevel(false);
                 return;
+            }
+
+            // Fetch User Profile Stats for Optimistic Calculation
+            const { data: profileData } = await supabase
+                .from("user_profiles")
+                .select(
+                    "global_memory, global_speed, global_visual, global_focus, global_planning, global_emotion"
+                )
+                .eq("user_id", user.id)
+                .single();
+
+            if (profileData) {
+                setUserProfileStats(profileData);
             }
 
             try {
@@ -254,15 +273,62 @@ export default function GamePage({ params }: PageProps) {
             }
 
             // 1. Optimistic UI: Show popup IMMEDIATELY with partial data
+
+            // Calculate Optimistic Stat Changes
+            const optimisticStatChanges: any = {};
+            const clinicalStats: any = rawData; // rawData contains the stats from game
+
+            if (activeLevel > 0 && userProfileStats) {
+                const statToGlobal: any = {
+                    stat_memory: "global_memory",
+                    stat_speed: "global_speed",
+                    stat_visual: "global_visual",
+                    stat_focus: "global_focus",
+                    stat_planning: "global_planning",
+                    stat_emotion: "global_emotion",
+                };
+
+                // Check Replay Status (Simplified: if we have stars for this level, it's a replay)
+                // Or better: check if existing score > 0.
+                // We'll use a heuristic: if we have previous stars, it's a replay.
+                const isReplay = (gameStars?.[`level_${activeLevel}_stars`] !== undefined);
+                const learningRate = isReplay ? 0.05 : 0.1;
+
+                ["stat_memory", "stat_speed", "stat_visual", "stat_focus", "stat_planning", "stat_emotion"].forEach(key => {
+                    const gameResult = clinicalStats[key];
+                    const dbKey = statToGlobal[key];
+                    const currentVal = userProfileStats[dbKey];
+
+                    if (gameResult !== null && gameResult !== undefined) {
+                        if (currentVal === null || currentVal === undefined) {
+                            // First time -> Increase is full value (or treating 0->Value)
+                            // But usually we just show "Value"
+                            // For UI "Change", let's show it as full value gain if it was null
+                            optimisticStatChanges[key] = gameResult;
+                        } else {
+                            const delta = gameResult - currentVal;
+                            const change = Math.max(0, Math.round(delta * learningRate)); // Ensure we don't show negative change for now? Or do we? Server logic allows negative but UI usually shows "^ Memory" if > 0.
+                            // Server logic: newVal = currentVal + change. 
+                            // statChanges returned from server is: newVal - currentVal = change.
+
+                            // Let's match server logic exactly for sign
+                            const calculatedChange = Math.round(delta * learningRate);
+                            optimisticStatChanges[key] = calculatedChange;
+                        }
+                    }
+                });
+            }
+
             setResult({
                 success: true,
                 stars: rawData.stars,
                 score: rawData.score, // Capture Score
-                stat_memory: null, // Loading indicators
-                stat_speed: null,
-                stat_focus: null,
-                stat_planning: null,
-                stat_emotion: null,
+                stat_memory: rawData.stat_memory, // Use actual game results for display if needed
+                stat_speed: rawData.stat_speed,
+                stat_focus: rawData.stat_focus,
+                stat_planning: rawData.stat_planning,
+                stat_emotion: rawData.stat_emotion,
+                statChanges: optimisticStatChanges, // Inject Optimistic Changes
                 starHint: rawData.starHint, // Capture Hint
                 earnedCoins: optimisticCoins,
             });
@@ -271,56 +337,54 @@ export default function GamePage({ params }: PageProps) {
             // We should save this to DB here.
 
             // 2. Submit Game Stats (Async)
-            const stats = await submitSession(gameId, rawData);
+            // Start blocking UI
+            setIsSaving(true);
 
-            // 3. Perform Daily Check-in & Get Streak
-            setLoadingStreak(true);
             try {
-                const supabase = createClient();
-                const {
-                    data: { user },
-                } = await supabase.auth.getUser();
+                const stats = await submitSession(gameId, rawData);
 
-                if (user) {
-                    // No explicit save to users table needed, relying on game_sessions history now.
+                // 3. Perform Daily Check-in (Handled by submitSession now)
+                // Optimistically increment daily count (clamped by UI logic anyway)
+                setDailyCount((prev) => prev + 1);
 
-                    const res = await fetch("/api/daily-streak", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            userId: user.id,
-                            action: "checkin",
-                        }),
-                    });
-                    const streakData = await res.json();
-                    if (streakData.ok) {
-                        setStreakInfo(streakData.data);
-                        // Save for notification on home page ONLY if it's a new check-in
-                        if (streakData.data.new_checkin) {
-                            sessionStorage.setItem(
-                                "daily_streak_new_checkin",
-                                JSON.stringify(streakData.data)
-                            );
-                        }
-                    }
-
-                    if (stats.dailyPlayedCount !== undefined) {
-                        setDailyCount(stats.dailyPlayedCount);
-                    } else {
-                        setDailyCount((prev) => prev + 1);
+                // Handle Server Response (stats already awaited above, but checkinResult needs processing)
+                if (stats.checkinResult) {
+                    setStreakInfo(stats.checkinResult);
+                    if (stats.checkinResult.new_checkin) {
+                        sessionStorage.setItem(
+                            "daily_streak_new_checkin",
+                            JSON.stringify(stats.checkinResult)
+                        );
                     }
                 }
-            } catch (e) {
-                console.error("Streak error", e);
+
+                // Re-sync authoritative daily count
+                if (stats.dailyPlayedCount !== undefined) {
+                    setDailyCount(stats.dailyPlayedCount);
+                }
+
+                // 4. Update Popup with REAL stats (Merge in case of discrepancy, but keep UI fluid)
+                setResult((prev: any) => {
+                    if (!prev) return stats; // If for some reason result was cleared
+                    return {
+                        ...prev,
+                        ...stats,
+                        // Prefer optimistic coins if server returns 0/undefined for some reason, or vice versa
+                        // But server is truth.
+                        earnedCoins: stats.earnedCoins !== undefined ? stats.earnedCoins : prev.earnedCoins
+                    };
+                });
+
+                // 5. Trigger TopBar Refresh
+                // This event name 'balanceUpdate' is listened to by TopBar to refetch user stats (including stars)
+                window.dispatchEvent(new Event("balanceUpdate"));
+
+            } catch (err) {
+                console.error("Save failed", err);
             } finally {
-                setLoadingStreak(false);
+                // Stop blocking UI
+                setIsSaving(false);
             }
-
-            // 4. Update Popup with REAL stats
-            setResult((prev: any) => ({ ...prev, ...stats }));
-
-            // 5. Trigger TopBar Refresh
-            // This event name 'balanceUpdate' is listened to by TopBar to refetch user stats (including stars)
-            window.dispatchEvent(new Event("balanceUpdate"));
         },
         [activeLevel, gameId, submitSession, dailyCount, gameStars, isEndless]
     );
@@ -567,14 +631,12 @@ export default function GamePage({ params }: PageProps) {
                                         />
                                         {/* Text Overlay */}
                                         <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                                            {streakInfo
-                                                ? Math.max(
-                                                    0,
-                                                    targetDaily - dailyCount
-                                                ) === 0
+                                            {isSaving
+                                                ? "กำลังบันทึก..."
+                                                : (Math.max(0, targetDaily - dailyCount) === 0
                                                     ? "ภารกิจวันนี้เสร็จแล้ว"
-                                                    : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`
-                                                : "กำลังบันทึก..."}
+                                                    : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`)
+                                            }
                                         </div>
                                     </div>
                                 </div>
@@ -588,45 +650,54 @@ export default function GamePage({ params }: PageProps) {
                                     (isEndless &&
                                         result.stat_focus !== null)) && (
                                         <div className="flex flex-col gap-3 w-full">
-                                            <div className="flex gap-4 w-full justify-center">
-                                                {/* Restart Level Button */}
-                                                {!isEndless && (
-                                                    <button
-                                                        onClick={handleRestartLevel}
-                                                        className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
-                                                    >
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            viewBox="0 0 512 512"
-                                                            fill="currentColor"
-                                                            className="w-full h-full"
+                                            {isSaving && (
+                                                <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">
+                                                    กำลังบันทึกข้อมูล...
+                                                </div>
+                                            )}
+
+                                            {/* Hide buttons while saving */}
+                                            {!isSaving && (
+                                                <div className="flex gap-4 w-full justify-center">
+                                                    {/* Restart Level Button */}
+                                                    {!isEndless && (
+                                                        <button
+                                                            onClick={handleRestartLevel}
+                                                            className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
                                                         >
-                                                            <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                                                        </svg>
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                viewBox="0 0 512 512"
+                                                                fill="currentColor"
+                                                                className="w-full h-full"
+                                                            >
+                                                                <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Back to Home Button */}
+                                                    <button
+                                                        onClick={() => {
+                                                            const query =
+                                                                result.allMissionsCompleted
+                                                                    ? "?questComplete=true"
+                                                                    : "";
+                                                            router.push(`/${query}`);
+                                                        }}
+                                                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
+                                                    >
+                                                        <Home className="w-8 h-8" />
                                                     </button>
-                                                )}
 
-                                                {/* Back to Home Button */}
-                                                <button
-                                                    onClick={() => {
-                                                        const query =
-                                                            result.allMissionsCompleted
-                                                                ? "?questComplete=true"
-                                                                : "";
-                                                        router.push(`/${query}`);
-                                                    }}
-                                                    className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
-                                                >
-                                                    <Home className="w-8 h-8" />
-                                                </button>
-
-                                                <button
-                                                    onClick={handleNextLevel}
-                                                    className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
-                                                >
-                                                    {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
-                                                </button>
-                                            </div>
+                                                    <button
+                                                        onClick={handleNextLevel}
+                                                        className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                                                    >
+                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                             </>
