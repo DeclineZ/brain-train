@@ -631,12 +631,12 @@ export default function GamePage({ params }: PageProps) {
                                         />
                                         {/* Text Overlay */}
                                         <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                                            {isSaving
-                                                ? "กำลังบันทึก..."
-                                                : (Math.max(0, targetDaily - dailyCount) === 0
-                                                    ? "ภารกิจวันนี้เสร็จแล้ว"
-                                                    : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`)
-                                            }
+                                            {Math.max(
+                                                0,
+                                                targetDaily - dailyCount
+                                            ) === 0
+                                                ? "ภารกิจวันนี้เสร็จแล้ว"
+                                                : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`}
                                         </div>
                                     </div>
                                 </div>
@@ -685,14 +685,14 @@ export default function GamePage({ params }: PageProps) {
                                                                     : "";
                                                             router.push(`/${query}`);
                                                         }}
-                                                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4"
+                                                        className={`bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 ${isEndless ? 'h-14' : ''}`}
                                                     >
                                                         <Home className="w-8 h-8" />
                                                     </button>
 
                                                     <button
                                                         onClick={handleNextLevel}
-                                                        className="flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                                                        className={`flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
                                                     >
                                                         {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                                                     </button>
