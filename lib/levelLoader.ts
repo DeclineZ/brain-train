@@ -1,5 +1,4 @@
 import type { GameLevel } from './api';
-import type { MemoryLevelConfig, MatchingLevelConfig } from '@/types';
 import { createClient } from '@/utils/supabase/server';
 import { getGameStars } from './stars';
 
@@ -8,6 +7,7 @@ const gameLevelModules = {
   'game-00-example': () => import('@/games/game-00-example/levels'),
   'game-01-cardmatch': () => import('@/games/game-01-cardmatch/levels'),
   'game-03-billiards-math': () => import('@/games/game-03-billiards-math/levels'),
+  'game-04-floating-ball-math': () => import('@/games/game-04-floating-ball-math/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -47,9 +47,11 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = levelModule.MATCHING_LEVELS;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
+      levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
-      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS'];
+      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS'];
       for (const name of possibleNames) {
         if (name in levelModule) {
           levelConfigs = (levelModule as any)[name];
@@ -111,6 +113,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelModule.MATCHING_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       return levelModule.BILLIARDS_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
+      return levelModule.FLOATING_BALL_MATH_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -177,6 +181,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = levelModule.MATCHING_LEVELS;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
+      levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)

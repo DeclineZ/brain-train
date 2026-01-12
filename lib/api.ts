@@ -174,6 +174,8 @@ function getDefaultLevelCount(gameId: string): number {
   switch (gameId) {
     case 'game-03-billiards-math':
       return 60; // Billiards has 60 levels
+    case 'game-04-floating-ball-math':
+      return 50; // Floating Pool Balls has 50 levels
     default:
       return 12; // Default for other games
   }

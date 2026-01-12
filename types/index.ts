@@ -55,6 +55,23 @@ export interface BilliardsGameStats {
   continuedAfterTimeout: boolean;
 }
 
+export interface FloatingBallMathGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  totalEquations: number;
+  correctEquations: number;
+  wrongEquations: number;
+  totalTimeMs: number;
+  parTimeMs: number;
+  consecutiveErrors: number;
+  repeatedErrors: number;
+  attempts: number;
+  continuedAfterTimeout: boolean;
+  averageReactionTime: number;
+  mismatchCorrect: number;
+  mismatchAttempts: number;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;

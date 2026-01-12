@@ -80,6 +80,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-03-billiards-math') {
           const { TutorialScene } = await import('@/games/game-03-billiards-math/TutorialScene');
           config.scene = TutorialScene;
+        } else if (gameId === 'game-04-floating-ball-math') {
+          const { TutorialScene } = await import('@/games/game-04-floating-ball-math/TutorialScene');
+          config.scene = TutorialScene;
         }
       }
 
