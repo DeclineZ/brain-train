@@ -53,10 +53,10 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
     if (level.unlocked) {
       // If clicking level 1 and hasn't played before, go to tutorial (level 0)
       if (level.level === 1 && hasPlayedBefore === false) {
-        router.push(`/play/${gameId}?level=0`);
+        router.push(`/play/${gameId}?level=0&from=levels`);
         return;
       }
-      router.push(`/play/${gameId}?level=${level.level}`);
+      router.push(`/play/${gameId}?level=${level.level}&from=levels`);
     }
   };
 
@@ -192,7 +192,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
       {/* Tutorial Button */}
       <div className="fixed bottom-25 right-4 z-50 flex flex-col items-center gap-1 group">
         <Link
-          href={`/play/${gameId}?level=0&tutorial_mode=review`}
+          href={`/play/${gameId}?level=0&tutorial_mode=review&from=levels`}
           className="bg-white hover:bg-gray-50 text-brown-primary border-4 border-brown-primary rounded-full w-14 h-14 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
         >
           <span className="text-2xl font-bold">?</span>

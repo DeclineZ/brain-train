@@ -24,12 +24,19 @@ export default async function Home() {
     getDailyMissions(user.id),
   ]);
 
-  // Filter games that have GIFs for the main page (featured games)
-  const featuredGames = games.filter(game => game.featured);
+  // Filter games that are part of today's missions
+  const dailyQuestGames = games.filter(game => missions.some(m => m.game_id === game.gameId));
 
-  // Fetch total stars for featured games
-  const featuredGameIds = featuredGames.map(game => game.gameId);
-  const featuredGameStars = await getMultipleGameTotalStars(featuredGameIds);
+  // Sort dailyQuestGames according to the mission slot_index
+  dailyQuestGames.sort((a, b) => {
+    const missionA = missions.find(m => m.game_id === a.gameId);
+    const missionB = missions.find(m => m.game_id === b.gameId);
+    return (missionA?.slot_index || 0) - (missionB?.slot_index || 0);
+  });
+
+  // Fetch total stars for daily quest games
+  const dailyQuestGameIds = dailyQuestGames.map(game => game.gameId);
+  const dailyQuestGameStars = await getMultipleGameTotalStars(dailyQuestGameIds);
 
   const completedCount = missions.filter(m => m.completed).length;
   const currentMission = missions.find(m => !m.completed);
@@ -70,7 +77,7 @@ export default async function Home() {
         >
           {/* Game Cards Grid */}
           <div className="grid gap-6 grid-cols-1">
-            {featuredGames.map((game, index) => {
+            {dailyQuestGames.map((game, index) => {
               const mission = missions.find(m => m.game_id === game.gameId);
               const isCompleted = mission ? mission.completed : false;
 
@@ -84,7 +91,7 @@ export default async function Home() {
                   gameId={game.gameId}
                   currentLevel={game.currentLevel}
                   haveLevel={game.have_level}
-                  totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
+                  totalStars={game.have_level ? dailyQuestGameStars[game.gameId] : undefined}
                   isCompleted={isCompleted}
                 />
               );
