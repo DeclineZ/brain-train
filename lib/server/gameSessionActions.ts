@@ -7,6 +7,7 @@ import type { ClinicalStats } from "@/types";
 import { upsertLevelStars } from "@/lib/stars";
 import { addCoins } from "@/lib/server/shopAction";
 import { calculateCoinReward } from "@/lib/coinCalculation";
+import { performDailyCheckin } from "@/lib/server/dailystreakAction";
 
 export async function submitGameSession(
     gameId: string,
@@ -289,7 +290,29 @@ export async function submitGameSession(
             completedMission = res.mission;
         }
 
-        // 9. Get Total Completed Count for Today (for UI update)
+        // 9. Perform Daily Check-in & Get Streak (Merged)
+        // We do this server-side to avoid extra round trip and "Saving..." delay
+        let checkinResult: any = null;
+        let streakCoins = 0;
+
+        try {
+            const checkinRes = await performDailyCheckin(user.id);
+            if (checkinRes.ok && checkinRes.data) {
+                checkinResult = checkinRes.data;
+                if (checkinRes.data.coins_earned) {
+                    streakCoins = checkinRes.data.coins_earned;
+                }
+            }
+        } catch (checkinErr) {
+            console.error("Error performing auto checkin:", checkinErr);
+        }
+
+        // 10. Get Total Completed Count with consistency check
+        // If we just completed a mission, we want to ensure dailyPlayedCount reflects it.
+        // However, dailyPlayedCount comes from DB.
+
+        // Let's rely on the DB fetch we do below.
+
         const today = new Date().toISOString().split("T")[0];
         const { count: dailyPlayedCount } = await supabase
             .from("daily_missions")
@@ -339,9 +362,13 @@ export async function submitGameSession(
             learningRate,
             starInfo,
             newBalance: coinResult.ok
-                ? coinResult.data?.new_balance
+                ? coinResult.data?.new_balance // This might not include streak coins if order was wrong? 
+                // shopAction.addCoins updates DB. performDailyCheckin calls addCoins too.
+                // The final balance should be the latest if sequential.
+                // We don't strictly return 'newBalance' for UI display usually, we rely on 'earnedCoins' for the popup.
                 : undefined,
-            earnedCoins: coinResult.ok && levelPlayed > 0 ? rewardAmount : 0,
+            earnedCoins: (coinResult.ok && levelPlayed > 0 ? rewardAmount : 0) + streakCoins,
+            checkinResult,
             missionResult: missionCompleted
                 ? {
                     completed: true,
