@@ -47,7 +47,7 @@ function NoLevelsUI({ game }: { game: any }) {
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            <Link href={`/play/${game?.gameId}`}>
+            <Link href={`/play/${game?.gameId}?from=levels`}>
               <button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-3">
                 <Play className="w-6 h-6" />
                 <span>เริ่มเล่นเลย</span>

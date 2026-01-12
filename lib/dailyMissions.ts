@@ -1,11 +1,15 @@
 import { createClient } from "@/utils/supabase/server";
 import { DailyMission } from "@/types";
 
-const MOCK_MISSIONS = [
-    { slot_index: 0, label: "Card Match", game_id: "game-01-cardmatch" },
-    { slot_index: 1, label: "Sensor Lock", game_id: "game-02-sensorlock" },
-    { slot_index: 2, label: "Billiards Math", game_id: "game-03-billiards-math" },
-];
+// Helper to shuffle array (Fisher-Yates)
+function shuffleArray<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
 
 export async function getDailyMissions(userId: string): Promise<DailyMission[]> {
     const supabase = await createClient();
@@ -24,13 +28,27 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
     }
 
     // 2. If incomplete or missing, generate/upsert them
-    // (In a real app, this might be a scheduled job, but doing it lazy-load is fine for now)
-    const missionsToInsert = MOCK_MISSIONS.map((mock) => ({
+
+    // Fetch all available games
+    const { data: allGames, error: gamesError } = await supabase
+        .from("games")
+        .select("game_id, title");
+
+    if (gamesError || !allGames || allGames.length < 3) {
+        console.error("Error fetching games for daily missions or not enough games:", gamesError);
+        return [];
+    }
+
+    // Randomly select 3 unique games
+    const shuffledGames = shuffleArray(allGames);
+    const selectedGames = shuffledGames.slice(0, 3);
+
+    const missionsToInsert = selectedGames.map((game, index) => ({
         user_id: userId,
         date: today,
-        slot_index: mock.slot_index,
-        label: mock.label,
-        game_id: mock.game_id,
+        slot_index: index,
+        label: game.title,
+        game_id: game.game_id,
         completed: false,
     }));
 

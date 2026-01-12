@@ -139,6 +139,7 @@ export class MatchingGameScene extends Phaser.Scene {
         // 4. UI Layer
         this.createUI();
         this.customTimerBar = this.add.graphics();
+        this.customTimerBar.setDepth(150); // Ensure it's above cards (depth 100 during swap)
         this.customTimerBar.setVisible(false); // Hide initially
 
         // 5. Start Sequence (Preview)
@@ -184,33 +185,83 @@ export class MatchingGameScene extends Phaser.Scene {
     // --- GAME FLOW ---
 
     createCards() {
-        const { totalPairs } = this.currentLevelConfig;
-        // Prepare Emoji Deck
-        const emojis = ["🐙", "⭐", "🦫", "🐤", "🐘", "🐌", "🐢", "🐳", "🦊", "🐼", "🦁", "🐸"];
-        const selectedEmojis = emojis.slice(0, totalPairs);
-        const deck = [...selectedEmojis, ...selectedEmojis];
-        Phaser.Utils.Array.Shuffle(deck);
+        const { totalPairs, useHardVariations } = this.currentLevelConfig;
 
-        // Emoji Color Map (Pastel/Hay Day vibes)
-        const colorMap: { [key: string]: number } = {
-            "🐙": 0xFFB3BA, // Pastel Red
-            "⭐": 0xFFDFBA, // Pastel Orange
-            "🦫": 0xD2B48C, // Tan
-            "🐤": 0xFFFFBA, // Pastel Yellow
-            "🐘": 0xBaffC9, // Pastel Green (Mint)
-            "🐌": 0xEECBFF, // Lavender
-            "🐢": 0x97C1A9, // Sage
-            "🐳": 0xBAE1FF, // Pastel Blue
-            "🦊": 0xFFCCB6, // Peach
-            "🐼": 0xE0E0E0, // Light Gray
-            "🦁": 0xFDFD96, // Light Yellow
-            "🐸": 0xC1E1C1  // Tea Green
+        // Prepare Emoji Deck
+        // We need a stable list of assets
+        const assets = ["octopus", "beaver", "bird", "elephant", "snail", "turtle", "whale", "fox", "panda", "lion"];
+
+        // Color Map for Backgrounds (Pastel)
+        const assetColors: { [key: string]: number } = {
+            "octopus": 0xFFB3BA, "beaver": 0xD2B48C, "bird": 0xFFFFBA,
+            "elephant": 0xBaffC9, "snail": 0xEECBFF, "turtle": 0x97C1A9, "whale": 0xBAE1FF,
+            "fox": 0xFFCCB6, "panda": 0xE0E0E0, "lion": 0xFDFD96
         };
 
-        deck.forEach((emoji, i) => {
-            const color = colorMap[emoji] || 0xFFFFFF;
-            // Create off-screen initially
-            const card = this.createCard(-1000, -1000, 100, 100, emoji, i, color);
+        this.cards = [];
+        let deck: any[] = [];
+
+        if (useHardVariations) {
+            // HARD MODE: Create "Confusing Pairs"
+            // We need groups of 2 pairs that look similar.
+            // e.g. if totalPairs = 4, we want 2 "Concepts" (e.g. Octopus, Star)
+            // Concept 1 (Octopus): Pair A (Normal), Pair B (Variation)
+
+            const conceptsNeeded = Math.floor(totalPairs / 2);
+            const leftovers = totalPairs % 2;
+
+            // Shuffle assets to pick random concepts
+            Phaser.Utils.Array.Shuffle(assets);
+            const selectedAssets = assets.slice(0, conceptsNeeded + leftovers);
+
+            let assetHighIndex = 0;
+
+            // 1. Generate Confusing Sets
+            for (let i = 0; i < conceptsNeeded; i++) {
+                const asset = selectedAssets[assetHighIndex++];
+                const color = assetColors[asset] || 0xFFFFFF;
+
+                // Pick a variation type for this set
+                // Removed 'gray' as per user feedback
+                const varType = Phaser.Math.RND.pick(['quantity', 'orientation']);
+
+                // Pair 1: Base
+                deck.push({ asset, id: i * 4, color, variation: 'normal', matchId: `${asset}_normal` });
+                deck.push({ asset, id: i * 4 + 1, color, variation: 'normal', matchId: `${asset}_normal` });
+
+                // Pair 2: Modified
+                deck.push({ asset, id: i * 4 + 2, color, variation: varType, matchId: `${asset}_${varType}` });
+                deck.push({ asset, id: i * 4 + 3, color, variation: varType, matchId: `${asset}_${varType}` });
+            }
+
+            // 2. Handle Leftovers (Simple Pairs)
+            if (leftovers > 0) {
+                const asset = selectedAssets[assetHighIndex];
+                const color = assetColors[asset] || 0xFFFFFF;
+                deck.push({ asset, id: 900, color, variation: 'normal', matchId: `${asset}_normal` });
+                deck.push({ asset, id: 901, color, variation: 'normal', matchId: `${asset}_normal` });
+            }
+
+        } else {
+            // BASIC MODE: Distinct Assets
+            Phaser.Utils.Array.Shuffle(assets);
+            const selected = assets.slice(0, totalPairs);
+
+            selected.forEach((asset, i) => {
+                const color = assetColors[asset] || 0xFFFFFF;
+                // Add Pair
+                deck.push({ asset, id: i * 2, color, variation: 'normal', matchId: asset });
+                deck.push({ asset, id: i * 2 + 1, color, variation: 'normal', matchId: asset });
+            });
+        }
+
+        // Shuffle Deck Positions
+        Phaser.Utils.Array.Shuffle(deck);
+
+        // Instantiate
+        deck.forEach((data, i) => {
+            // Create off-screen
+            const card = this.createCard(-1000, -1000, 100, 100, data, i);
             this.cards.push(card);
         });
     }
@@ -565,11 +616,11 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(this.cards.length * 50 + 500, () => {
-            // Check for Post-Preview Swap (Level 8+ Mechanic)
+            // Check for Post-Preview Swap Logic
             const swapCount = this.currentLevelConfig.swapAfterPreviewCount || 0;
+
             if (swapCount > 0) {
-                // Show message maybe? "Swapping!"
-                // Just do it.
+                // Perform "Nice" Shuffle 1-by-1
                 this.performCardSwap(swapCount, () => {
                     this.isLocked = false;
                     this.startTime = Date.now();
@@ -801,7 +852,8 @@ export class MatchingGameScene extends Phaser.Scene {
         this.isLocked = true;
         const [c1, c2] = this.openedCards;
 
-        const match = c1.emoji === c2.emoji;
+        // Strict match on matchId (handles Hard Variations)
+        const match = c1.matchId === c2.matchId;
 
         // Callback to run after feedback animations
         const finalizeTurn = () => {
@@ -911,11 +963,11 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
 
-        // Dynamic mistake allowance based on level
-        let allowedMistakes = 1;
-        if (this.currentLevelConfig.level >= 19) allowedMistakes = 4;
-        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 3;
-        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 2;
+        // Dynamic mistake allowance based on level - Generous for older audience
+        let allowedMistakes = 2;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 7;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 5;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 3;
 
         if (!parExceeded && this.wrongFlips <= allowedMistakes) return 3;
         if (!parExceeded || this.wrongFlips <= allowedMistakes + 2) return 2;
@@ -930,10 +982,11 @@ export class MatchingGameScene extends Phaser.Scene {
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
 
         // Same dynamic logic matches calculateStars
-        let allowedMistakes = 1;
-        if (this.currentLevelConfig.level >= 19) allowedMistakes = 4;
-        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 3;
-        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 2;
+        // Dynamic mistake allowance based on level - Generous for older audience
+        let allowedMistakes = 2;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 7;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 5;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 3;
 
         const tooManyMistakes = this.wrongFlips > allowedMistakes;
 
@@ -957,7 +1010,9 @@ export class MatchingGameScene extends Phaser.Scene {
 
     // --- VISUALS & HELPERS ---
 
-    createCard(x: number, y: number, w: number, h: number, emoji: string, id: number, color: number) {
+    createCard(x: number, y: number, w: number, h: number, data: any, index: number) {
+        const { asset, emoji, color, variation, variationValue, matchId, id } = data;
+
         const container = this.add.container(x, y);
 
         // Shadow
@@ -973,59 +1028,74 @@ export class MatchingGameScene extends Phaser.Scene {
         face.visible = false;
         face.scaleX = 0;
 
-        // Icon - Responsive Image
-        const assetName = this.emojiToAsset[emoji];
-        let icon: any;
+        // Icon Container (For managing multiple icons/variations)
+        const iconContainer = this.add.container(0, 0);
 
-        // Safety check: if image loaded, use it. Else text.
-        if (this.textures.exists(assetName)) {
-            icon = this.add.image(0, 0, assetName).setOrigin(0.5);
+        // Helper to Create One Icon
+        const createIcon = (ox: number, oy: number, scaleMult: number = 1.0) => {
+            // Asset Name from data usually, but fallback to emojiToAsset if using old path
+            const textureKey = asset || this.emojiToAsset[emoji];
+            let img: any;
 
-            // 1. Get REAL dimensions from Texture Manager (safer than GameObject)
-            const texture = this.textures.get(assetName);
-            const frame = texture.get();
-            const realW = frame.width || 0;
-            const realH = frame.height || 0;
+            if (this.textures.exists(textureKey)) {
+                img = this.add.image(ox, oy, textureKey).setOrigin(0.5);
+                const texture = this.textures.get(textureKey);
+                const frame = texture.get();
+                const realW = frame.width || 100;
+                const realH = frame.height || 100;
 
-            const maxW = w * 0.75; // 75% of card width
-            const maxH = h * 0.75; // 75% of card height
+                const maxW = w * 0.90 * scaleMult; // Increased to 90%
+                const maxH = h * 0.90 * scaleMult;
 
-            if (realW > 0 && realH > 0) {
-                // Valid texture found
-                const scaleX = maxW / realW;
-                const scaleY = maxH / realH;
-                const scale = Math.min(scaleX, scaleY);
-                icon.setScale(scale);
+                const scale = Math.min(maxW / realW, maxH / realH);
+                img.setScale(scale);
             } else {
-                // Fallback: Texture valid key but 0 dimensions? Force visual size.
-                // This prevents the "Giant Image" bug if dimensions are missing.
-                icon.setDisplaySize(maxW, maxH);
+                // Text fallback
+                const fs = Math.floor(Math.min(w, h) * 0.5 * scaleMult);
+                img = this.add.text(ox, oy, emoji || "?", { fontSize: `${fs}px` }).setOrigin(0.5);
             }
+            return img;
+        };
+
+        // --- APPLY VARIATIONS ---
+        if (variation === 'quantity') {
+            // Render 2 smaller icons
+            const i1 = createIcon(-w * 0.2, -h * 0.2, 0.6);
+            const i2 = createIcon(w * 0.2, h * 0.2, 0.6);
+            iconContainer.add([i1, i2]);
         } else {
-            // Fallback to text if missing
-            const fontSize = Math.floor(Math.min(w, h) * 0.5);
-            icon = this.add.text(0, 0, emoji, { fontSize: `${fontSize}px` }).setOrigin(0.5);
+            // Normal, Orientation, Gray
+            const icon = createIcon(0, 0, 1.0);
+
+            if (variation === 'orientation') {
+                if (icon.setFlipX) icon.setFlipX(true);
+            }
+            // Gray variation removed
+
+            iconContainer.add(icon);
         }
 
         // HITZONE: Transparent Interactive Layer
         const hitZone = this.add.rectangle(0, 0, w, h, 0x000000, 0).setOrigin(0.5);
         hitZone.setInteractive({ useHandCursor: true });
 
-        container.add([shadow, back, face, icon, hitZone]);
-        container.setSize(w, h); // Size for layout calc, not interaction
+        container.add([shadow, back, face, iconContainer, hitZone]);
+        container.setSize(w, h);
 
-        const cardObj = { container, back, face, icon, hitZone, emoji, id, isFlipped: true, isMatched: false, baseScale: icon.scale };
+        // Store Logic Data
+        const cardObj = {
+            container, back, face, icon: iconContainer, hitZone,
+            id, matchId, emoji, // matchId is key now
+            isFlipped: true, isMatched: false, baseScale: iconContainer.scaleX
+        };
 
         // Initial state is Face UP (for preview)
         back.visible = false;
         face.visible = true;
         face.scaleX = 1;
-        icon.visible = true;
+        iconContainer.visible = true;
 
-        // Initial scale must be set correctly
-        icon.scaleX = cardObj.baseScale;
-
-        // Listen on HitZone, not Container
+        // Listen on HitZone
         hitZone.on('pointerdown', () => this.handleCardClick(cardObj));
 
         return cardObj;
@@ -1125,7 +1195,7 @@ export class MatchingGameScene extends Phaser.Scene {
             stroke: '#FFFFFF',
             strokeThickness: 6,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(100).setPadding(10, 14, 10, 18);
+        }).setOrigin(0.5).setDepth(200).setPadding(10, 14, 10, 18);
 
         this.streakText = this.add.text(0, 250, '', {
             fontFamily: 'Sarabun, sans-serif',
@@ -1134,7 +1204,7 @@ export class MatchingGameScene extends Phaser.Scene {
             stroke: '#8B4513',
             strokeThickness: 4,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setVisible(false).setPadding(10, 14, 10, 18);
+        }).setOrigin(0.5).setDepth(200).setVisible(false).setPadding(10, 14, 10, 18);
 
         this.layoutUI();
     }
