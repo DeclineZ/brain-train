@@ -469,7 +469,7 @@ export default function GamePage({ params }: PageProps) {
             {/* Level & Difficulty Badge (Top Center) - ONLY for Game 01 */}
             {!isLoadingLevel && activeLevel > 0 && gameId === 'game-01-cardmatch' && (
                 <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                    <span className="text-lg">LEVEL {activeLevel}</span>
+                    <span className="text-3xl">LEVEL {activeLevel}</span>
                 </div>
             )}
 
