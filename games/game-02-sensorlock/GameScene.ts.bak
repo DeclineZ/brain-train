@@ -43,19 +43,12 @@ export class SensorLockGameScene extends Phaser.Scene {
     private arrowGraphics!: Phaser.GameObjects.Graphics;
     private labelText!: Phaser.GameObjects.Text;
     private timerBar!: Phaser.GameObjects.Graphics;
-    private timerIcon!: Phaser.GameObjects.Graphics;
     private scoreText!: Phaser.GameObjects.Text;
     private streakText!: Phaser.GameObjects.Text;
-
-    // Controls
-    private noBg!: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Graphics;
-    private yesBg!: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Graphics;
-    // We now store Containers for general manipulation
-    private noContainer!: Phaser.GameObjects.Container;
-    private yesContainer!: Phaser.GameObjects.Container;
-    // We store the Face Groups to reset animation/position
-    private noFace!: Phaser.GameObjects.Container;
-    private yesFace!: Phaser.GameObjects.Container;
+    private noBg!: Phaser.GameObjects.Rectangle;
+    private yesBg!: Phaser.GameObjects.Rectangle;
+    private noGraphics!: Phaser.GameObjects.Graphics;
+    private yesGraphics!: Phaser.GameObjects.Graphics;
 
     // Audio Objects
     private soundMatchSuccess!: Phaser.Sound.BaseSound;
@@ -299,172 +292,113 @@ export class SensorLockGameScene extends Phaser.Scene {
     createStimulusArea() {
         const { width, height } = this.scale;
 
-        // 1. Permanent Timer (Below the card area)
-        // Card center is height/2 - 100. Card height is 420.
-        // Card bottom is approx (height/2 - 100) + 210 = height/2 + 110.
-        // Let's put timer at height/2 + 160.
+        // Move container higher to accommodate the text moving down
+        this.arrowContainer = this.add.container(width / 2, height / 2 - 100);
 
-        const timerY = height / 2 + 160;
+        // 1. Circular Background for Arrow
+        const circleRadius = 90;
 
-        this.timerBar = this.add.graphics();
-        this.timerBar.setPosition(width / 2, timerY); // Center X
-        this.add.existing(this.timerBar);
-
-        // Timer Icon
-        this.timerIcon = this.add.graphics();
-        this.timerIcon.setPosition(width / 2, timerY);
-        this.timerIcon.lineStyle(3, 0x636e72, 1); // Darker Grey for visibility
-        this.timerIcon.strokeCircle(-140, 6, 12);
-        this.timerIcon.beginPath();
-        this.timerIcon.moveTo(-140, 6); this.timerIcon.lineTo(-140, 0);
-        this.timerIcon.moveTo(-140, 6); this.timerIcon.lineTo(-134, 6);
-        this.timerIcon.strokePath();
-        this.add.existing(this.timerIcon);
-
-        // 2. Create the initial card
-        this.spawnCardContainer(width / 2, height / 2 - 100);
-    }
-
-    // Helper to create a fresh Card Container
-    spawnCardContainer(x: number, y: number) {
-        const container = this.add.container(x, y);
-        // Start invisible/small for "Pop In" effect if needed, 
-        // but nextCard handles the tween.
-
-        // Card Dimensions (Unified Card Theme)
-        const cardW = 340;
-        const cardH = 420;
-        const cornerRadius = 32;
-
-        // 1. Soft Shadow
+        // Shadow
         const shadow = this.add.graphics();
-        shadow.fillStyle(0x000000, 0.15);
-        shadow.fillRoundedRect(-cardW / 2, -cardH / 2 + 10, cardW, cardH, cornerRadius);
-        container.add(shadow);
+        shadow.fillStyle(0x000000, 0.1);
+        shadow.fillCircle(0, 8, circleRadius);
+        this.arrowContainer.add(shadow);
 
-        // 2. Card Body (White)
-        const bgCard = this.add.graphics();
-        bgCard.fillStyle(0xffffff, 1);
-        bgCard.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, cornerRadius);
-        container.add(bgCard);
+        // White Circle
+        const bgCircle = this.add.graphics();
+        bgCircle.fillStyle(0xffffff, 1);
+        bgCircle.fillCircle(0, 0, circleRadius);
+        this.arrowContainer.add(bgCircle);
 
-        // 3. Arrow Graphics
-        const arrowG = this.add.graphics();
-        arrowG.y = -80; // Top half
-        container.add(arrowG);
+        this.arrowGraphics = this.add.graphics();
+        this.arrowContainer.add(this.arrowGraphics);
 
-        // 4. Label Text
-        // Explicitly White/High Contrast if needed, or Dark Grey
-        const labelT = this.add.text(0, 80, "", {
+        // Label
+        const labelSize = Math.min(width * 0.15, 64);
+        // Increase spacing to prevent overlap with arrow/circle
+        // But also clear of timer bar. Move UP slightly (170 -> 150)
+        // circleRadius is 90. 150 is +60px gap.
+        const labelY = 150;
+
+        this.labelText = this.add.text(0, labelY, "UP", {
             fontFamily: '"Mali", "Sarabun", sans-serif',
-            fontSize: "64px",
-            fontStyle: "900",
-            color: "#2d3436"
-        }).setOrigin(0.5).setPadding(30); // Added Padding
-        container.add(labelT);
+            fontSize: `${labelSize}px`,
+            fontStyle: '900',
+            color: '#2d3436',
+            stroke: '#ffffff',
+            strokeThickness: 8
+        }).setOrigin(0.5).setPadding(20);
+        this.arrowContainer.add(this.labelText);
 
-        // Update Class References to this NEW card
-        this.arrowContainer = container;
-        this.arrowGraphics = arrowG;
-        this.labelText = labelT;
-        // Timer is now global/static, not per-card
+        // Timer Bar
+        this.timerBar = this.add.graphics();
+        this.arrowContainer.add(this.timerBar);
     }
 
     createControls() {
         const { width, height } = this.scale;
 
         const yPos = height - 100;
-        const btnWidth = width / 2 - 40; // Full width - padding
-        const btnHeight = 90;
-        const lipDepth = 12; // Height of the 3D "Lip"
+        // Full width buttons with padding
+        const btnWidth = width / 2 - 40;
+        const btnHeight = 80;
 
-        // --- Helper to create 3D "Juicy" Button ---
-        const create3DBtn = (x: number, label: string, color: number, lipColor: number, textColor: string, isYes: boolean) => {
+        // --- Helper to create rounded button ---
+        const createRoundedBtn = (x: number, label: string, color: number, borderColor: number, isYes: boolean) => {
             const container = this.add.container(x, yPos);
 
-            // 1. The "Lip" (Bottom/Darker Layer)
-            // It sits fixed.
-            const lip = this.add.graphics();
-            lip.fillStyle(lipColor, 1);
-            lip.fillRoundedRect(-btnWidth / 2, -btnHeight / 2 + lipDepth, btnWidth, btnHeight, 16);
-            container.add(lip);
+            // Background (Graphics)
+            const bg = this.add.graphics();
+            bg.fillStyle(color, 1);
+            bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
+            bg.lineStyle(4, borderColor, 1);
+            bg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
 
-            // 2. The "Face" (Top/Main Layer)
-            // This is the part that moves up/down.
-            const faceGroup = this.add.container(0, 0); // Group face + text
-            container.add(faceGroup);
+            // Shadow
+            const shadow = this.add.graphics();
+            shadow.fillStyle(0x000000, 0.2);
+            shadow.fillRoundedRect(-btnWidth / 2 + 4, -btnHeight / 2 + 8, btnWidth, btnHeight, 24);
+            container.add(shadow);
+            container.add(bg);
 
-            const face = this.add.graphics();
-            face.fillStyle(color, 1);
-            face.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
-            faceGroup.add(face);
-
-            // 3. Text (High Contrast White)
-            const textSize = Math.min(btnWidth * 0.25, 45);
-            const text = this.add.text(0, 0, label, {
-                fontFamily: '"Mali", "Sarabun", sans-serif',
-                fontSize: `${textSize}px`,
-                fontStyle: '900', // Bold
-                color: "#FFFFFF", // White for max contrast
-                shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 4, fill: true, stroke: false }
-            }).setOrigin(0.5).setPadding(5);
-            faceGroup.add(text);
-
-            // 4. Hit Area (Covers the whole potential area)
-            const hitArea = this.add.rectangle(0, lipDepth / 2, btnWidth, btnHeight + lipDepth, 0x000000, 0)
+            // Hit Area
+            const hitArea = this.add.rectangle(0, 0, btnWidth, btnHeight, 0x000000, 0)
                 .setInteractive({ useHandCursor: true });
             container.add(hitArea);
 
-            // 5. Interaction (Juicy "Press" Animation)
-            // Move Face DOWN to cover the lip.
+            // Text
+            const textSize = Math.min(btnWidth * 0.25, 40);
+            const text = this.add.text(0, 0, label, {
+                fontFamily: '"Mali", "Sarabun", sans-serif',
+                fontSize: `${textSize}px`,
+                fontStyle: 'bold',
+                color: '#FFF',
+                stroke: '#000000',
+                strokeThickness: 2
+            }).setOrigin(0.5).setPadding(5);
+            container.add(text);
+
+            // Interaction
             hitArea.on('pointerdown', () => {
-                this.tweens.add({
-                    targets: faceGroup,
-                    y: lipDepth, // Move down by lip depth
-                    duration: 50,
-                    ease: 'Quad.easeOut'
-                });
+                this.tweens.add({ targets: container, scale: 0.95, duration: 50, yoyo: true });
                 this.handleInput(isYes);
             });
 
-            hitArea.on('pointerup', () => {
-                this.tweens.add({
-                    targets: faceGroup,
-                    y: 0, // Reset to top
-                    duration: 50,
-                    ease: 'Quad.easeOut'
-                });
-            });
-
-            hitArea.on('pointerout', () => {
-                this.tweens.add({
-                    targets: faceGroup,
-                    y: 0,
-                    duration: 50,
-                    ease: 'Quad.easeOut'
-                });
-            });
-
-            // Store references for Spam Logic (Greying out)
-            // We store the CONTAINER to tint the whole thing (face+lip+text)
             if (isYes) {
-                this.yesBg = hitArea as any; // Interact
-                this.yesContainer = container; // For Alpha
-                this.yesFace = faceGroup; // For Resetting Y
+                this.yesBg = hitArea as any;
+                this.yesGraphics = bg;
             } else {
                 this.noBg = hitArea as any;
-                this.noContainer = container;
-                this.noFace = faceGroup;
+                this.noGraphics = bg;
             }
 
             return container;
         };
 
         // Modern Palette: Coral/Rose (#FF6B6B) and Teal/Mint (#4ECDC4)
-        // Lips: Darker shades (#E05656, #3EBFA6)
-        // Text: High Contrast White
-        create3DBtn(width * 0.25, "ไม่ตรง", 0xFF6B6B, 0xE05656, "#FFFFFF", false);
-        create3DBtn(width * 0.75, "ตรง", 0x4ECDC4, 0x3EBFA6, "#FFFFFF", true);
+        // Darker strokes: #EE5253 (Red-ish), #16A085 (Teal-ish)
+        createRoundedBtn(width * 0.25, "ไม่ตรง", 0xFF6B6B, 0xEE5253, false);
+        createRoundedBtn(width * 0.75, "ตรง", 0x4ECDC4, 0x16A085, true);
     }
 
     layoutUI() {
@@ -526,11 +460,12 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         const barWidth = 240;
         const barHeight = 12;
-        const yPos = 0;
+        // Move timer bar down to increase gap with text
+        const yPos = 240; // Relative to circle center (previously 200)
 
-        // Background Track containing
-        this.timerBar.fillStyle(0xe5e5e5, 1);
-        this.timerBar.fillRoundedRect(-barWidth / 2, 0, barWidth, barHeight, 6);
+        // Background Track
+        this.timerBar.fillStyle(0xffffff, 0.6);
+        this.timerBar.fillRoundedRect(-barWidth / 2, yPos, barWidth, barHeight, 6);
 
         // Fill
         // Use new Coral for danger color
@@ -538,12 +473,11 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.timerBar.fillStyle(color, 1);
 
         const fillWidth = Math.max(0, barWidth * pct);
-        this.timerBar.fillRoundedRect(-barWidth / 2, 0, fillWidth, barHeight, 6);
+        this.timerBar.fillRoundedRect(-barWidth / 2, yPos, fillWidth, barHeight, 6);
 
-        // Ensure icon is visible when bar is updating
-        if (this.timerIcon && !this.timerIcon.visible) {
-            this.timerIcon.setVisible(true);
-        }
+        // Subtle Border
+        this.timerBar.lineStyle(2, 0xffffff, 0.8);
+        this.timerBar.strokeRoundedRect(-barWidth / 2, yPos, barWidth, barHeight, 6);
     }
 
     // --- GAMEPLAY LOGIC ---
@@ -557,8 +491,6 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // Ensure partial cleanup
         if (this.arrowContainer) this.arrowContainer.setVisible(false);
-        if (this.timerBar) this.timerBar.clear(); // Hide bar
-        if (this.timerIcon) this.timerIcon.setVisible(false); // Hide icon
 
         const countSize = Math.min(width * 0.3, 180); // Max 180, significantly smaller
         const countText = this.add.text(width / 2, height / 2, '3', {
@@ -627,29 +559,6 @@ export class SensorLockGameScene extends Phaser.Scene {
     }
 
     nextCard(resetTimer: boolean = true) {
-        const { width, height } = this.scale;
-
-        // 1. Gentle Exit of OLD card (Fade Out + Subtle Scale Down)
-        if (this.arrowContainer) {
-            const oldContainer = this.arrowContainer;
-            this.tweens.add({
-                targets: oldContainer,
-                alpha: 0,
-                scale: 0.95,
-                duration: 250,
-                ease: 'Quad.easeOut',
-                onComplete: () => {
-                    oldContainer.destroy();
-                }
-            });
-        }
-
-        // 2. Create NEW card at Center (Invisible/Scaled)
-        this.spawnCardContainer(width / 2, height / 2 - 100);
-        this.arrowContainer.setAlpha(0);
-        this.arrowContainer.setScale(1.05); // Start slightly larger
-
-        // 3. Setup Content on the NEW card
         if (this.currentPhase === 1) {
             this.setupPhase1();
         } else if (this.currentPhase === 2) {
@@ -658,14 +567,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.setupPhase3();
         }
 
-        // 4. Gentle Entrance (Fade In + Scale to Normal)
-        this.tweens.add({
-            targets: this.arrowContainer,
-            alpha: 1,
-            scale: 1,
-            duration: 250,
-            ease: 'Quad.easeOut'
-        });
+        if (this.arrowContainer) this.arrowContainer.setVisible(true);
 
         // Reset Timer ONLY if requested
         if (resetTimer) {
@@ -683,8 +585,8 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Reset Visuals
         this.labelText.setColor('#2d3436'); // Default Grey
         this.arrowGraphics.setVisible(true);
-        // Layout: Text bottom half
-        this.labelText.setPosition(0, 80);
+        // Layout: Text below arrow
+        this.labelText.setPosition(0, 150); // Move text UP slightly
         this.labelText.setOrigin(0.5);
 
         if (startMatch) {
@@ -846,24 +748,30 @@ export class SensorLockGameScene extends Phaser.Scene {
                 this.soundMatchFail.play();
                 this.cameras.main.shake(500, 0.05); // Heavy shake
 
-                // Show Warning - PERSISTENT
-                this.tweens.killTweensOf(this.streakText); // Stop any fades
+                // Show Warning
                 this.streakText.setText("อย่ากดรัว!");
                 this.streakText.setColor('#D63031');
                 this.streakText.setAlpha(1);
                 this.streakText.setScale(1);
 
-                // Stop Button Animations (Reset "Pressed" state)
-                this.tweens.killTweensOf(this.noFace);
-                this.tweens.killTweensOf(this.yesFace);
-                this.noFace.y = 0;
-                this.yesFace.y = 0;
+                // Grey out buttons & Disable Interactivity
+                // Responsive sizes
+                const { width } = this.scale;
+                const btnWidth = width / 2 - 40;
+                const btnHeight = 80;
 
-                // Grey out buttons (Alpha) & Disable Interactivity
-                this.noContainer.setAlpha(0.5);
-                this.yesContainer.setAlpha(0.5);
-
+                this.noGraphics.clear();
+                this.noGraphics.fillStyle(0x95a5a6, 1);
+                this.noGraphics.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
+                this.noGraphics.lineStyle(4, 0x7f8c8d, 1);
+                this.noGraphics.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
                 this.noBg.disableInteractive();
+
+                this.yesGraphics.clear();
+                this.yesGraphics.fillStyle(0x95a5a6, 1);
+                this.yesGraphics.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
+                this.yesGraphics.lineStyle(4, 0x7f8c8d, 1);
+                this.yesGraphics.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
                 this.yesBg.disableInteractive();
 
                 // Lockout for 3 seconds
@@ -873,10 +781,23 @@ export class SensorLockGameScene extends Phaser.Scene {
                     this.streakText.setAlpha(0);
 
                     // Restore Button Colors & Interactivity
-                    this.noContainer.setAlpha(1);
-                    this.yesContainer.setAlpha(1);
+                    // Recalculate size in case of resize during penalty (edge case, but good practice)
+                    const { width } = this.scale;
+                    const btnWidth = width / 2 - 40;
+                    const btnHeight = 80;
 
+                    this.noGraphics.clear();
+                    this.noGraphics.fillStyle(0xFF6B6B, 1);
+                    this.noGraphics.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
+                    this.noGraphics.lineStyle(4, 0xEE5253, 1);
+                    this.noGraphics.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
                     this.noBg.setInteractive();
+
+                    this.yesGraphics.clear();
+                    this.yesGraphics.fillStyle(0x4ECDC4, 1);
+                    this.yesGraphics.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
+                    this.yesGraphics.lineStyle(4, 0x16A085, 1);
+                    this.yesGraphics.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 24);
                     this.yesBg.setInteractive();
                 });
                 return; // Block this input
