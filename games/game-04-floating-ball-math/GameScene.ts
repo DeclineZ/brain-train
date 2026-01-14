@@ -3,6 +3,8 @@ import { FLOATING_BALL_MATH_LEVELS } from "./levels";
 import { EquationGenerator } from "./utils/EquationGenerator";
 import { WaterPhysics } from "./utils/WaterPhysics";
 import { BallSpawner } from "./utils/BallSpawner";
+import { FloatboatController } from "./utils/Floatboat";
+import { HandController } from "./utils/HandController";
 import type {
   FloatingBall,
   Equation,
@@ -16,12 +18,16 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   private equationGenerator!: EquationGenerator;
   private waterPhysics!: WaterPhysics;
   private ballSpawner!: BallSpawner;
+  private floatboatController!: FloatboatController;
+  private handController!: HandController;
 
   // Game State
   private balls: FloatingBall[] = [];
   private currentEquation!: Equation;
-  private selectedBalls: FloatingBall[] = [];
+  private currentScore: number = 0; // Always starts at 0
+  private collectedBalls: FloatingBall[] = [];
   private completedEquationResults: number[] = [];
+  private completedEquationStats: { target: number; ballsCollected: number }[] = [];
   private startTime = 0;
   private levelStartTime = 0;
   private totalEquations = 0;
@@ -36,11 +42,14 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   private continuedAfterTimeout = false;
   private isPaused = false;
   private equationStartTime = 0;
+  private initialBallCount: number = 8; // Track starting ball count
+  private minBallCount: number = 8; // Minimum to maintain
+  private ballsCollectedThisEquation: number = 0; // Track balls collected this equation
 
   // Reaction Time Tracking
   private reactionTimes: number[] = [];
-  private mismatchCorrect = 0;
-  private mismatchAttempts = 0;
+  private ballsCollected = 0;
+  private successfulCollections = 0;
 
   // Timer
   private timerEvent!: Phaser.Time.TimerEvent;
@@ -50,18 +59,18 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   // UI Elements
   private targetDisplay!: Phaser.GameObjects.Container;
   private targetText!: Phaser.GameObjects.Text;
-  private operationText!: Phaser.GameObjects.Text;
-  private operationBg!: Phaser.GameObjects.Graphics;
-  private selectionCounter!: Phaser.GameObjects.Text;
+  private currentDisplay!: Phaser.GameObjects.Container;
+  private currentText!: Phaser.GameObjects.Text;
   private shadowBallContainer!: Phaser.GameObjects.Container;
   private shadowBalls: Phaser.GameObjects.Container[] = [];
   private waterOverlay!: Phaser.GameObjects.Graphics;
 
   // Audio
   private bgMusic!: Phaser.Sound.BaseSound;
-  private soundBallClick!: Phaser.Sound.BaseSound;
+  private soundBallCollect!: Phaser.Sound.BaseSound;
   private soundSuccess!: Phaser.Sound.BaseSound;
   private soundError!: Phaser.Sound.BaseSound;
+  private soundBomb!: Phaser.Sound.BaseSound;
   private soundLevelPass!: Phaser.Sound.BaseSound;
   private soundLevelFail!: Phaser.Sound.BaseSound;
 
@@ -82,6 +91,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
     this.waterPhysics = new WaterPhysics(this, this.currentLevelConfig);
     this.ballSpawner = new BallSpawner(this);
+    this.floatboatController = new FloatboatController(this);
+    this.handController = new HandController(this);
 
     this.resetGameState();
   }
@@ -93,8 +104,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     this.balls = [];
     this.currentEquation = {} as Equation;
-    this.selectedBalls = [];
+    this.currentScore = 0; // Always start at 0
+    this.collectedBalls = [];
     this.completedEquationResults = [];
+    this.completedEquationStats = [];
     this.totalEquations = 0;
     this.correctEquations = 0;
     this.wrongEquations = 0;
@@ -108,8 +121,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.isPaused = false;
     this.equationStartTime = 0;
     this.reactionTimes = [];
-    this.mismatchCorrect = 0;
-    this.mismatchAttempts = 0;
+    this.ballsCollected = 0;
+    this.successfulCollections = 0;
+    this.ballsCollectedThisEquation = 0;
     this.shadowBalls = [];
     console.log("[FloatingBallMathGameScene] resetGameState completed - isLocked:", this.isLocked, "physicsEnabled:", this.physicsEnabled);
   }
@@ -122,57 +136,57 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       }
     });
     this.balls = [];
+    this.handController.hideAllHands();
   }
 
   /**
-   * Destroy only the selected balls (not all balls)
-   * Used when player selects the correct answer
+   * Destroy all balls (used when resetting)
    */
-  destroySelectedBalls() {
-    console.log("[FloatingBallMathGameScene] destroySelectedBalls called - removing selected balls");
-    this.selectedBalls.forEach((ball) => {
+  destroyAllBalls() {
+    console.log("[FloatingBallMathGameScene] destroyAllBalls called");
+    this.balls.forEach((ball) => {
       if (ball && ball.container) {
         ball.container.removeAllListeners();
         ball.container.destroy();
       }
     });
-    
-    // Remove selected balls from the balls array
-    this.balls = this.balls.filter(ball => !this.selectedBalls.includes(ball));
-    console.log("[FloatingBallMathGameScene] destroySelectedBalls completed - remaining balls:", this.balls.length);
+    this.balls = [];
+    this.collectedBalls = [];
+    this.currentScore = 0;
+    console.log("[FloatingBallMathGameScene] destroyAllBalls completed");
   }
 
   /**
-   * Spawn replacement balls with random values and positions
-   * Called after correct balls are destroyed
+   * Spawn replacement balls with random operations
+   * Called after balls are collected
    */
   spawnReplacementBalls() {
-    console.log("[FloatingBallMathGameScene] spawnReplacementBalls called - adding 2 new balls");
-    const { width, height } = this.scale;
+    console.log("[FloatingBallMathGameScene] spawnReplacementBalls called - adding new balls");
+    const { width } = this.scale;
     const margin = 80;
 
-    // Spawn 2 replacement balls with random values and positions
-    for (let i = 0; i < 2; i++) {
+    // Spawn replacement balls equal to number of collected balls
+    const count = this.collectedBalls.length;
+    
+    for (let i = 0; i < count; i++) {
       const { min, max } = this.currentLevelConfig.operandRange;
+      const operations = this.currentLevelConfig.operations;
       const value = min + Math.floor(Math.random() * (max - min + 1));
+      const operator = operations[Math.floor(Math.random() * operations.length)];
       const color = this.equationGenerator.getRandomColor();
       
-      // Random position - spawn from top with increased vertical spacing
+      // Random position - spawn from top with vertical spacing
       const x = margin + Math.random() * (width - margin * 2);
-      const y = -100 - (i * 120); // Increased spacing from 60px to 120px
+      const y = -100 - (i * 120)*2.5;
 
-      const ball = this.ballSpawner.createReplacementBall(value, color, x, y);
+      const ball = this.ballSpawner.createBall(value, operator, color, x, y);
 
       // Store original position
       ball.originalX = x;
       ball.originalY = y;
 
-      // Add click handler
-      if (ball.container) {
-        ball.container.on("pointerdown", () => {
-          this.handleBallClick(ball);
-        });
-      }
+      // Store operator
+      ball.operator = operator;
 
       this.balls.push(ball);
     }
@@ -203,9 +217,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.load.image("ball-lavender", "/assets/images/billiards/ball-4.png");
 
     // Load sounds (placeholder)
-    this.load.audio("ball-click", "/assets/sounds/billiards/ball-rattle.mp3");
+    this.load.audio("ball-collect", "/assets/sounds/billiards/ball-rattle.mp3");
     this.load.audio("success", "/assets/sounds/billiards/success.mp3");
     this.load.audio("error", "/assets/sounds/billiards/ball-rattle.mp3");
+    this.load.audio("bomb", "/assets/sounds/billiards/ball-rattle.mp3"); // Reuse bomb sound
     this.load.audio("bg-music", "/assets/sounds/billiards/bg-music.mp3");
     this.load.audio("level-pass", "/assets/sounds/level-pass.mp3");
     this.load.audio("level-fail", "/assets/sounds/level-fail.mp3");
@@ -220,6 +235,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     // Create water background
     this.createWaterBackground();
+
+    // Create floatboat at higher position (75% of screen height from top)
+    const boatY = height * 0.75;
+    this.floatboatController.createFloatboat(boatY);
+    
+    // Create movement hint arrows
+    this.floatboatController.createMovementHints();
 
     // Create UI elements
     this.createUI();
@@ -240,9 +262,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     // Initialize sound effects
     try {
-      this.soundBallClick = this.sound.add("ball-click", { volume: 0.5 });
+      this.soundBallCollect = this.sound.add("ball-collect", { volume: 0.5 });
       this.soundSuccess = this.sound.add("success", { volume: 0.8 });
       this.soundError = this.sound.add("error", { volume: 0.7 });
+      this.soundBomb = this.sound.add("bomb", { volume: 0.8 });
       this.soundLevelPass = this.sound.add("level-pass", { volume: 0.8 });
       this.soundLevelFail = this.sound.add("level-fail", { volume: 0.8 });
     } catch (e) {
@@ -262,6 +285,18 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    // Update floatboat movement
+    this.floatboatController.handleKeyboardMovement(delta);
+    
+    // Update movement hints
+    this.floatboatController.updateMovementHints();
+
+    // Check for ball collisions with floatboat
+    if (!this.isLocked && !this.isPaused && this.physicsEnabled) {
+      this.checkBallCollisions();
+      this.checkBallCount();
+    }
+
     // Update water overlay animation
     if (this.waterOverlay) {
       this.waterPhysics.updateWaterOverlay(this.waterOverlay);
@@ -269,11 +304,30 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     // Update ball positions with water physics - only check physicsEnabled, not isLocked
     if (!this.isPaused && this.physicsEnabled) {
+      // Get boat position for dynamic speed calculation
+      const floatboat = this.floatboatController.getFloatboat();
+      
       // Filter out destroyed balls to prevent null reference errors
-      const activeBalls = this.balls.filter(ball => ball && ball.container);
+      const activeBalls = this.balls.filter(ball => ball && ball.container && !ball.isCollected);
       
       activeBalls.forEach((ball) => {
-        this.waterPhysics.updateBall(ball, delta);
+        // Calculate distance to boat and adjust speed
+        let speedMultiplier = 1.0;
+        if (floatboat) {
+          const distance = Math.sqrt(
+            Math.pow(ball.x - floatboat.x, 2) +
+            Math.pow(ball.y - floatboat.y, 2)
+          );
+
+          // Speed curve: balls fall fast at top, slow near boat
+          // 0px distance = 0.3x, 600px = 1.0x speed
+          const maxDistance = 600;
+          const speedMultiplier = Math.min(1.0, 0.3 + (distance / maxDistance) * 0.7);
+        }
+
+        // Apply speed multiplier to physics
+        const adjustedDelta = delta * speedMultiplier;
+        this.waterPhysics.updateBall(ball, adjustedDelta);
 
         // Update container position
         if (ball.container) {
@@ -282,11 +336,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
         // Check if ball needs respawn
         if (this.waterPhysics.shouldRespawn(ball)) {
-          // console.log(`[FloatingBallMathGameScene] Ball ${ball.id} needs respawn at ${ball.x}, ${ball.y}`);
           const newX = this.waterPhysics.getRandomSpawnX();
           const newY = -100;
           this.waterPhysics.respawnBall(ball, newX, newY);
-          // console.log(`[FloatingBallMathGameScene] Ball ${ball.id} respawned to ${newX}, ${newY}`);
         }
       });
     }
@@ -309,6 +361,235 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.drawTimerBar(pct);
   }
 
+  /**
+   * Check for collisions between balls and floatboat
+   */
+  checkBallCollisions() {
+    const floatboat = this.floatboatController.getFloatboat();
+    if (!floatboat) return;
+
+    this.balls.forEach((ball) => {
+      if (ball.isCollected || !ball.container) return; // Skip collected or destroyed balls
+
+      const ballDistance = Math.sqrt(
+        Math.pow(ball.x - floatboat.x, 2) + 
+        Math.pow(ball.y - floatboat.y, 2)
+      );
+
+      // Check if ball is "bad" - would cause equation to fail
+      let isBadBall = false;
+      if (!ball.isBomb) {
+        // Calculate if this operation would be bad
+        let newScore = this.currentScore;
+        switch (ball.operator) {
+          case '+':
+            newScore += ball.value;
+            break;
+          case '-':
+            newScore -= ball.value;
+            break;
+          case '*':
+            newScore *= ball.value;
+            break;
+          case '/':
+            if (ball.value !== 0) {
+              newScore = Math.round(newScore / ball.value);
+            }
+            break;
+        }
+        
+        // Ball is bad if it would exceed target or go negative
+        isBadBall = newScore < 0 || newScore > this.currentEquation.target * 2;
+      }
+
+      // Check if bomb ball is close - trigger warning hand
+      if (ball.isBomb) {
+        // If bomb is within 200px of boat and no hand active
+        if (ballDistance < 200 && !this.handController.isHandActive(ball.id)) {
+          this.handController.showWarningHand(ball);
+        }
+      } else if (isBadBall) {
+        // If bad ball is within 200px of boat and no hand active
+        if (ballDistance < 200 && !this.handController.isHandActive(ball.id)) {
+          this.handController.showWarningHand(ball);
+        }
+      } else {
+        // Normal ball collision check
+        const ballRadius = 40; // Approximate radius
+        const isColliding = this.floatboatController.checkCollision(
+          ball.x,
+          ball.y,
+          ballRadius
+        );
+
+        if (isColliding) {
+          this.collectBall(ball);
+        }
+      }
+    });
+    
+    // Check bomb ball collisions separately
+    this.checkBombCollisions();
+  }
+
+  /**
+   * Check for bomb ball collisions
+   */
+  checkBombCollisions() {
+    const floatboat = this.floatboatController.getFloatboat();
+    if (!floatboat) return;
+
+    this.balls.forEach((ball) => {
+      if (!ball.isBomb || ball.isCollected || !ball.container) return;
+
+      const ballRadius = 40;
+      const isColliding = this.floatboatController.checkCollision(
+        ball.x,
+        ball.y,
+        ballRadius
+      );
+
+      if (isColliding) {
+        this.collectBall(ball);
+      }
+    });
+  }
+
+  /**
+   * Check ball count and replenish if needed
+   */
+  checkBallCount() {
+    const activeBalls = this.balls.filter(b => !b.isCollected && b.container);
+    
+    if (activeBalls.length < this.minBallCount) {
+      const ballsNeeded = this.minBallCount - activeBalls.length;
+      this.spawnOperationBalls(ballsNeeded);
+    }
+  }
+
+  /**
+   * Handle ball collection by floatboat
+   */
+  async collectBall(ball: FloatingBall) {
+    console.log(`[FloatingBallMathGameScene] Ball collected - id: ${ball.id}, operator: ${ball.operator}, value: ${ball.value}`);
+    
+    // Check if bomb ball
+    if (ball.isBomb) {
+      await this.handleBombCollision(ball);
+      return;
+    }
+    
+    // Mark ball as collected
+    ball.isCollected = true;
+    this.collectedBalls.push(ball);
+    this.ballsCollected++;
+    this.ballsCollectedThisEquation++;
+
+    // Play collect sound
+    if (this.soundBallCollect) {
+      this.soundBallCollect.play();
+    }
+
+    // Animate boat collection
+    await this.floatboatController.animateCollection();
+
+    // Apply operation to current score
+    this.applyOperation(ball);
+
+    // Destroy ball
+    if (ball.container) {
+      ball.container.destroy();
+      ball.container = null;
+    }
+
+    // Remove from active balls array
+    this.balls = this.balls.filter(b => b.id !== ball.id);
+
+    // Check if target reached
+    if (this.currentScore === this.currentEquation.target) {
+      this.handleSuccess();
+    } else if (this.currentScore < 0 || this.currentScore > this.currentEquation.target * 2) {
+      // Overshot or went negative - give option to reset
+      this.handleOvershoot();
+    }
+  }
+
+  /**
+   * Handle bomb ball collision - game over for equation
+   */
+  async handleBombCollision(ball: FloatingBall) {
+    console.log(`[FloatingBallMathGameScene] BOMB HIT! - id: ${ball.id}`);
+    
+    // Mark bomb as collected and count as wrong equation
+    ball.isCollected = true;
+    this.wrongEquations++;
+    this.totalEquations++;
+
+    // Play bomb sound
+    if (this.soundBomb) {
+      this.soundBomb.play();
+    }
+
+    // Shake screen
+    this.cameras.main.shake(500, 0.02);
+
+    // Flash red
+    const flash = this.add.graphics();
+    flash.fillStyle(0xFF0000, 0.5);
+    flash.fillRect(0, 0, this.scale.width, this.scale.height);
+    flash.setDepth(1000);
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => {
+        flash.destroy();
+      },
+    });
+
+    // Destroy bomb
+    if (ball.container) {
+      ball.container.destroy();
+      ball.container = null;
+    }
+
+    // Remove from active balls array
+    this.balls = this.balls.filter(b => b.id !== ball.id);
+
+    // Wait then reset equation
+    this.time.delayedCall(1500, () => {
+      this.resetEquation();
+    });
+  }
+
+  /**
+   * Apply operation from collected ball to current score
+   */
+  applyOperation(ball: FloatingBall) {
+    const oldValue = this.currentScore;
+    
+    switch (ball.operator) {
+      case '+':
+        this.currentScore += ball.value;
+        break;
+      case '-':
+        this.currentScore -= ball.value;
+        break;
+      case '*':
+        this.currentScore *= ball.value;
+        break;
+      case '/':
+        if (ball.value !== 0) {
+          this.currentScore = Math.round(this.currentScore / ball.value);
+        }
+        break;
+    }
+
+    console.log(`[FloatingBallMathGameScene] Applied operation: ${oldValue} ${ball.operator} ${ball.value} = ${this.currentScore}`);
+    this.updateCurrentDisplay();
+  }
+
   createWaterBackground() {
     const { width, height } = this.scale;
 
@@ -325,57 +606,51 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    // Target display (top center)
-    this.targetDisplay = this.add.container(width / 2, height * 0.12);
+    // Target display (left side)
+    this.targetDisplay = this.add.container(width * 0.25, height * 0.12);
 
     const targetBg = this.add.graphics();
     targetBg.fillStyle(0x42A5F5, 1);
     targetBg.fillRoundedRect(-70, -40, 140, 80, 15);
 
-    this.targetText = this.add.text(0, 0, "0", {
+    const targetLabel = this.add.text(0, -25, "เป้าหมาย", {
+      fontFamily: "Sarabun, sans-serif",
+      fontSize: `${Math.min(16, width * 0.03)}px`,
+      color: "#FFFFFF",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+
+    this.targetText = this.add.text(0, 10, "0", {
       fontFamily: "Arial, sans-serif",
       fontSize: `${Math.min(48, width * 0.08)}px`,
       color: "#FFFFFF",
       fontStyle: "bold",
     }).setOrigin(0.5);
 
-    // Create attractive operation symbol background
-    const opRadius = Math.min(28, width * 0.05);
-    this.operationBg = this.add.graphics();
-    this.operationBg.fillStyle(0xFFC107, 1); // Golden yellow
-    this.operationBg.fillCircle(50, 0, opRadius);
-    this.operationBg.lineStyle(3, 0xFFF59D, 0.8); // Lighter yellow glow
-    this.operationBg.strokeCircle(50, 0, opRadius);
-    this.operationBg.lineStyle(2, 0xFFFFFF, 0.6); // White glow
-    this.operationBg.strokeCircle(50, 0, opRadius - 3);
+    this.targetDisplay.add([targetBg, targetLabel, this.targetText]);
 
-    this.operationText = this.add.text(50, 0, "+", {
-      fontFamily: "Arial, sans-serif",
-      fontSize: `${Math.min(36, width * 0.06)}px`,
-      color: "#1565C0",
+    // Current display (right side)
+    this.currentDisplay = this.add.container(width * 0.75, height * 0.12);
+
+    const currentBg = this.add.graphics();
+    currentBg.fillStyle(0x4CAF50, 1);
+    currentBg.fillRoundedRect(-70, -40, 140, 80, 15);
+
+    const currentLabel = this.add.text(0, -25, "ปัจจุบัน", {
+      fontFamily: "Sarabun, sans-serif",
+      fontSize: `${Math.min(16, width * 0.03)}px`,
+      color: "#FFFFFF",
       fontStyle: "bold",
-      shadow: {
-        offsetX: 1,
-        offsetY: 1,
-        blur: 2,
-        color: "#FFFFFF",
-        fill: true,
-      },
     }).setOrigin(0.5);
 
-    this.targetDisplay.add([targetBg, this.targetText, this.operationBg, this.operationText]);
+    this.currentText = this.add.text(0, 10, "0", {
+      fontFamily: "Arial, sans-serif",
+      fontSize: `${Math.min(48, width * 0.08)}px`,
+      color: "#FFFFFF",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
 
-    // Selection counter (below target)
-    this.selectionCounter = this.add
-      .text(width / 2, height * 0.22, "เลือก 0/2", {
-        fontFamily: "Sarabun, sans-serif",
-        fontSize: `${Math.min(24, width * 0.04)}px`,
-        color: "#2c3e50",
-        stroke: "#FFFFFF",
-        strokeThickness: 2,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
+    this.currentDisplay.add([currentBg, currentLabel, this.currentText]);
 
     // Timer bar
     this.customTimerBar = this.add.graphics();
@@ -484,16 +759,32 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.updateShadowBallDisplay();
   }
 
+  /**
+   * Update the current display
+   */
+  updateCurrentDisplay() {
+    this.currentText.setText(this.currentScore.toString());
+
+    // Pulse animation on change
+    this.tweens.add({
+      targets: this.currentDisplay,
+      scale: { from: 1, to: 1.15 },
+      duration: 150,
+      yoyo: true,
+      ease: "Sine.easeInOut",
+    });
+  }
+
   startLevel() {
     console.log("[FloatingBallMathGameScene] startLevel called");
     this.levelStartTime = Date.now();
     this.equationGenerator.reset();
     
-    // Spawn initial balls BEFORE generating equation to avoid crash
-    const initialBallCount = 6; // Start with 6 balls for good variety
-    this.spawnAdditionalBalls(initialBallCount);
+    // Spawn initial operation balls
+    const initialBallCount = 8; // Start with 8 balls for good variety
+    this.spawnOperationBalls(initialBallCount);
     
-    // Now generate equation using available balls
+    // Now generate equation
     this.generateNewEquation();
     this.isLocked = false;
     this.physicsEnabled = true;
@@ -502,136 +793,69 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     console.log("[FloatingBallMathGameScene] startLevel completed - isLocked:", this.isLocked, "physicsEnabled:", this.physicsEnabled);
   }
 
-  generateNewEquation() {
-    console.log("[FloatingBallMathGameScene] generateNewEquation called");
-    try {
-      // Extract available ball values
-      const availableValues = this.balls.map(ball => ball.value);
-      console.log("[FloatingBallMathGameScene] Available ball values:", availableValues);
-
-      // Generate equation based on available balls
-      this.currentEquation = this.equationGenerator.generateEquationWithBalls(availableValues);
-      this.equationStartTime = Date.now();
-      console.log("[FloatingBallMathGameScene] New equation:", this.currentEquation);
-
-      // Update only the target display (balls are already spawned)
-      this.updateTargetDisplay();
-      console.log("[FloatingBallMathGameScene] generateNewEquation completed");
-    } catch (error) {
-      console.error("[FloatingBallMathGameScene] ERROR in generateNewEquation:", error);
-      // If we can't generate an equation with available balls, spawn new balls and try again
-      console.log("[FloatingBallMathGameScene] Falling back to spawning new balls");
-      this.handleEquationGenerationFallback();
-    }
-  }
-
   /**
-   * Handle fallback when we can't generate an equation with available balls
-   * This can happen if: 1) Not enough balls, 2) No valid pairs exist
+   * Spawn operation balls with random values and operators
+   * Balls are equally spaced horizontally for better gameplay
    */
-  private handleEquationGenerationFallback() {
-    console.log("[FloatingBallMathGameScene] handleEquationGenerationFallback called");
-    
-    // Check if we have enough balls (need at least 4 for the equation to be solvable)
-    if (this.balls.length < 4) {
-      // Spawn additional balls to ensure we have enough options
-      const ballsNeeded = Math.max(4, this.balls.length + 2) - this.balls.length;
-      console.log("[FloatingBallMathGameScene] Not enough balls, spawning additional ones");
-      this.spawnAdditionalBalls(ballsNeeded);
-    }
-
-    // Try again with the traditional method (spawn all balls for the equation)
-    try {
-      this.currentEquation = this.equationGenerator.generateEquation();
-      this.equationStartTime = Date.now();
-      console.log("[FloatingBallMathGameScene] Fallback equation generated:", this.currentEquation);
-      
-      this.updateTargetDisplay();
-      this.spawnBalls();
-    } catch (error) {
-      console.error("[FloatingBallMathGameScene] ERROR in fallback equation generation:", error);
-      this.isLocked = false;
-    }
-  }
-
-  /**
-   * Spawn additional balls without clearing existing ones
-   * @param count - Number of balls to spawn
-   */
-  private spawnAdditionalBalls(count: number) {
-    console.log(`[FloatingBallMathGameScene] spawnAdditionalBalls called - adding ${count} new balls`);
-    const { width, height } = this.scale;
+  spawnOperationBalls(count: number) {
+    console.log(`[FloatingBallMathGameScene] spawnOperationBalls called - adding ${count} new balls`);
+    const { width } = this.scale;
     const margin = 80;
+
+    // Calculate equal horizontal spacing
+    const availableWidth = width - (margin * 2);
+    const spacing = availableWidth / (count - 1);
 
     for (let i = 0; i < count; i++) {
       const { min, max } = this.currentLevelConfig.operandRange;
+      const operations = this.currentLevelConfig.operations;
       const value = min + Math.floor(Math.random() * (max - min + 1));
+      const operator = operations[Math.floor(Math.random() * operations.length)];
       const color = this.equationGenerator.getRandomColor();
       
-      // Random position - spawn from top with increased vertical spacing
+      // Equal horizontal spacing with vertical offset
       const x = margin + Math.random() * (width - margin * 2);
-      const y = -100 - (i * 120 * 2); // Increased spacing from 60px to 120px
+      const y = -100 - (i * 120);
 
-      const ball = this.ballSpawner.createBall(value, color, x, y);
+      let ball: FloatingBall;
+      if (Math.random() < 0.15) { // 15% chance to spawn bomb ball
+        ball = this.ballSpawner.createBombBall(value, operator, x, y);
+      } else {
+        ball = this.ballSpawner.createBall(value, operator, color, x, y);
+      }
 
       // Store original position
       ball.originalX = x;
       ball.originalY = y;
 
-      // Add click handler
-      if (ball.container) {
-        ball.container.on("pointerdown", () => {
-          this.handleBallClick(ball);
-        });
-      }
-
       this.balls.push(ball);
     }
-    console.log(`[FloatingBallMathGameScene] spawnAdditionalBalls completed - total balls: ${this.balls.length}`);
+    console.log(`[FloatingBallMathGameScene] spawnOperationBalls completed - total balls: ${this.balls.length}`);
+  }
+
+  generateNewEquation() {
+    console.log("[FloatingBallMathGameScene] generateNewEquation called");
+    try {
+      // Generate equation
+      this.currentEquation = this.equationGenerator.generateEquation();
+      this.equationStartTime = Date.now();
+      console.log("[FloatingBallMathGameScene] New equation:", this.currentEquation);
+
+      // Reset ball count for this equation
+      this.ballsCollectedThisEquation = 0;
+
+      // Update displays
+      this.updateTargetDisplay();
+      this.currentScore = 0; // Always start at 0
+      this.updateCurrentDisplay();
+      console.log("[FloatingBallMathGameScene] generateNewEquation completed");
+    } catch (error) {
+      console.error("[FloatingBallMathGameScene] ERROR in generateNewEquation:", error);
+    }
   }
 
   updateTargetDisplay() {
     this.targetText.setText(this.currentEquation.target.toString());
-
-    const operationDisplay = {
-      "+": "+",
-      "-": "-",
-      "*": "×",
-      "/": "÷",
-    };
-    const operation = operationDisplay[this.currentEquation.operation];
-    this.operationText.setText(operation);
-
-    // Update operation background color based on operation
-    const { width } = this.scale;
-    const opRadius = Math.min(28, width * 0.05);
-    
-    // Clear and redraw operation background
-    if (this.operationBg) {
-      this.operationBg.clear();
-      
-      // Choose color based on operation
-      let bgColor = 0xFFC107; // Golden yellow (default for +)
-      let textColor = "#1565C0"; // Blue (default for +)
-      
-      if (this.currentEquation.operation === "*") {
-        bgColor = 0x9C27B0; // Purple for multiplication
-        textColor = "#FFFFFF"; // White text for better contrast
-      }
-      
-      // Fill circle
-      this.operationBg.fillStyle(bgColor, 1);
-      this.operationBg.fillCircle(50, 0, opRadius);
-      
-      // Add glow effects
-      this.operationBg.lineStyle(3, this.lightenColor(bgColor, 40), 0.8);
-      this.operationBg.strokeCircle(50, 0, opRadius);
-      this.operationBg.lineStyle(2, 0xFFFFFF, 0.6); // White glow
-      this.operationBg.strokeCircle(50, 0, opRadius - 3);
-      
-      // Update text color
-      this.operationText.setColor(textColor);
-    }
 
     // Pulse animation
     this.tweens.add({
@@ -643,208 +867,31 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     });
   }
 
-  // Helper to lighten a hex color
-  private lightenColor(color: number, percent: number): number {
-    const num = color >>> 0;
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return 0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-           (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-           (B < 255 ? B < 1 ? 0 : B : 255);
-  }
-
-  spawnBalls() {
-    this.cleanupBalls();
-
-    const { width, height } = this.scale;
-    const startY = -100;
-    const margin = 80;
-
-    // Spawn balls with random x positions
-    this.currentEquation.allNumbers.forEach((value, index) => {
-      const x = margin + Math.random() * (width - margin * 2);
-      const y = startY - (index * 120*2); // Increased spacing from 60px to 120px
-      const color = this.equationGenerator.getRandomColor();
-
-      const ball = this.ballSpawner.createBall(value, color, x, y);
-
-      // Store original position
-      ball.originalX = x;
-      ball.originalY = y;
-
-      // Add click handler
-      if (ball.container) {
-        ball.container.on("pointerdown", () => {
-          this.handleBallClick(ball);
-        });
-      }
-
-      this.balls.push(ball);
-    });
-  }
-
-  handleBallClick(ball: FloatingBall) {
-    if (this.isLocked) {
-      console.log("[FloatingBallMathGameScene] Click blocked - isLocked:", this.isLocked);
-      return;
-    }
-    console.log(`[FloatingBallMathGameScene] Ball clicked - id: ${ball.id}, value: ${ball.value}`);
-
-    // Check if ball is already selected
-    if (this.selectedBalls.includes(ball)) {
-      // Deselect
-      this.deselectBall(ball);
-      return;
-    }
-
-    // Check if already have 2 selected
-    if (this.selectedBalls.length >= 2) return;
-
-    // Select ball
-    this.selectBall(ball);
-
-    // Check if 2 balls selected
-    if (this.selectedBalls.length === 2) {
-      this.checkAnswer();
-    }
-  }
-
-  selectBall(ball: FloatingBall) {
-    this.selectedBalls.push(ball);
-    ball.isSelected = true;
-    console.log(`[FloatingBallMathGameScene] Ball selected - id: ${ball.id}, total selected: ${this.selectedBalls.length}`);
-
-    // Highlight ball
-    this.ballSpawner.highlightBall(ball);
-
-    // Play sound
-    if (this.soundBallClick) {
-      this.soundBallClick.play();
-    }
-
-    // Update selection counter
-    this.updateSelectionCounter();
-
-    // Animate ball to selection area
-    this.animateBallToSelection(ball, this.selectedBalls.length - 1);
-  }
-
-  deselectBall(ball: FloatingBall) {
-    const index = this.selectedBalls.indexOf(ball);
-    if (index > -1) {
-      this.selectedBalls.splice(index, 1);
-    }
-    ball.isSelected = false;
-
-    // Remove highlight
-    this.ballSpawner.unhighlightBall(ball);
-
-    // Clear feedback
-    this.ballSpawner.clearFeedback(ball);
-
-    // Update selection counter
-    this.updateSelectionCounter();
-
-    // Animate back to original position
-    this.ballSpawner.animateToOriginal(ball);
-  }
-
-  updateSelectionCounter() {
-    this.selectionCounter.setText(
-      `เลือก ${this.selectedBalls.length}/2`
-    );
-  }
-
-  async animateBallToSelection(ball: FloatingBall, index: number) {
-    const { width, height } = this.scale;
-    const spacing = 120;
-    const startX = width / 2 - spacing;
-    const targetX = startX + index * spacing;
-    const targetY = height * 0.4;
-
-    await this.ballSpawner.animateToPosition(ball, targetX, targetY);
-  }
-
-  checkAnswer() {
-    console.log("[FloatingBallMathGameScene] checkAnswer called - isLocked set to true");
-    this.isLocked = true;
-    this.attempts++;
-
-    const [ball1, ball2] = this.selectedBalls;
-    const num1 = ball1.value;
-    const num2 = ball2.value;
-    const target = this.currentEquation.target;
-    const operation = this.currentEquation.operation;
-
-    let result: number;
-    let isCorrect: boolean;
-
-    switch (operation) {
-      case "+":
-        result = num1 + num2;
-        break;
-      case "-":
-        result = Math.abs(num1 - num2);
-        break;
-      case "*":
-        result = num1 * num2;
-        break;
-      case "/":
-        result = Math.round(num1 / num2);
-        break;
-    }
-
-    isCorrect = result === target;
-    console.log(`[FloatingBallMathGameScene] Answer check: ${num1} ${operation} ${num2} = ${result} (target: ${target}) - isCorrect: ${isCorrect}`);
-
-    // Track reaction time
-    const reactionTime = Date.now() - this.equationStartTime;
-    this.reactionTimes.push(reactionTime);
-
-    // Track mismatch attempts (when balls don't form target)
-    if (!isCorrect) {
-      this.mismatchAttempts++;
-    } else {
-      this.mismatchCorrect++;
-    }
-
-    // Add safety timeout - if nothing happens in 3 seconds, force unlock
-    this.time.delayedCall(3000, () => {
-      if (this.isLocked) {
-        console.log("[FloatingBallMathGameScene] SAFETY TIMEOUT - Force unlocking after 3 seconds");
-        this.isLocked = false;
-      }
-    });
-
-    if (isCorrect) {
-      this.handleCorrectAnswer();
-    } else {
-      this.handleWrongAnswer();
-    }
-  }
-
-  handleCorrectAnswer() {
-    console.log("[FloatingBallMathGameScene] handleCorrectAnswer called");
+  /**
+   * Handle successful completion of equation
+   */
+  async handleSuccess() {
+    console.log("[FloatingBallMathGameScene] handleSuccess called - target reached!");
     this.correctEquations++;
     this.totalEquations++;
+    this.successfulCollections++;
     this.currentErrorRun = 0;
     if (this.soundSuccess) {
       this.soundSuccess.play();
     }
 
-    // Show feedback
-    this.selectedBalls.forEach((ball) => {
-      this.ballSpawner.showCorrectFeedback(ball);
+    // Track completed equation with ball count
+    this.completedEquationStats.push({
+      target: this.currentEquation.target,
+      ballsCollected: this.ballsCollectedThisEquation
     });
 
-    // Track completed equation
+    // Track completed equation for UI
     this.trackCompletedEquation(this.currentEquation.target);
 
     // Animate success
     this.tweens.add({
-      targets: [this.targetDisplay],
+      targets: [this.targetDisplay, this.currentDisplay],
       scale: 1.2,
       duration: 200,
       yoyo: true,
@@ -858,70 +905,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   }
 
   /**
-   * Replace selected balls with new ones and continue to next equation
-   * This keeps unselected balls in their current positions
+   * Handle overshoot (current value went beyond target or negative)
    */
-  replaceBallsAndContinue() {
-    console.log("[FloatingBallMathGameScene] replaceBallsAndContinue called");
-
-    // Destroy only the selected balls
-    this.destroySelectedBalls();
-
-    // Spawn 2 new replacement balls with random values
-    this.spawnReplacementBalls();
-
-    // Reset selection
-    this.selectedBalls = [];
-    this.updateSelectionCounter();
-
-    // Clear feedback from all balls
-    this.balls.forEach((ball) => {
-      this.ballSpawner.clearFeedback(ball);
-      this.ballSpawner.unhighlightBall(ball);
-      ball.isSelected = false;
-    });
-
-    // Check if level complete
-    if (this.totalEquations >= this.currentLevelConfig.totalEquations) {
-      console.log("[FloatingBallMathGameScene] Level complete in replaceBallsAndContinue, ending level");
-      this.endLevel();
-      return;
-    }
-
-    // Generate new equation based on available balls (but don't spawn balls)
-    try {
-      // Extract available ball values
-      const availableValues = this.balls.map(ball => ball.value);
-      console.log("[FloatingBallMathGameScene] Available ball values:", availableValues);
-
-      // Generate equation based on available balls
-      this.currentEquation = this.equationGenerator.generateEquationWithBalls(availableValues);
-      this.equationStartTime = Date.now();
-      console.log("[FloatingBallMathGameScene] New equation:", this.currentEquation);
-
-      // Update target display only
-      this.updateTargetDisplay();
-      console.log("[FloatingBallMathGameScene] replaceBallsAndContinue completed - isLocked:", this.isLocked);
-    } catch (error) {
-      console.error("[FloatingBallMathGameScene] ERROR in replaceBallsAndContinue:", error);
-      // If we can't generate an equation with available balls, try with the traditional method
-      console.log("[FloatingBallMathGameScene] Falling back to traditional equation generation");
-      try {
-        this.currentEquation = this.equationGenerator.generateEquation();
-        this.equationStartTime = Date.now();
-        console.log("[FloatingBallMathGameScene] Fallback equation generated:", this.currentEquation);
-        this.updateTargetDisplay();
-      } catch (fallbackError) {
-        console.error("[FloatingBallMathGameScene] ERROR in fallback equation generation:", fallbackError);
-      }
-    }
-
-    // Unlock for next selection
-    this.isLocked = false;
-  }
-
-  handleWrongAnswer() {
-    console.log("[FloatingBallMathGameScene] handleWrongAnswer called");
+  async handleOvershoot() {
+    console.log("[FloatingBallMathGameScene] handleOvershoot called");
     this.wrongEquations++;
     this.totalEquations++;
     this.currentErrorRun++;
@@ -933,14 +920,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       this.soundError.play();
     }
 
-    // Show error feedback
-    this.selectedBalls.forEach((ball) => {
-      this.ballSpawner.showIncorrectFeedback(ball);
-    });
-
-    // Shake target display
+    // Shake current display
     this.tweens.add({
-      targets: this.targetDisplay,
+      targets: this.currentDisplay,
       x: "+=10",
       duration: 50,
       yoyo: true,
@@ -950,49 +932,70 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     // Wait then reset
     this.time.delayedCall(1500, () => {
-      this.resetSelection();
+      this.resetEquation();
     });
   }
 
-  resetSelection() {
-    console.log("[FloatingBallMathGameScene] resetSelection called - isLocked will be set to false");
-    // Clear feedback and deselect all balls
-    this.selectedBalls.forEach((ball) => {
-      this.ballSpawner.clearFeedback(ball);
-      this.ballSpawner.unhighlightBall(ball);
-      this.ballSpawner.animateToOriginal(ball);
-      ball.isSelected = false;
-    });
+  /**
+   * Replace collected balls with new ones and continue to next equation
+   */
+  replaceBallsAndContinue() {
+    console.log("[FloatingBallMathGameScene] replaceBallsAndContinue called");
 
-    this.selectedBalls = [];
-    this.updateSelectionCounter();
-    this.isLocked = false;
-    console.log("[FloatingBallMathGameScene] resetSelection completed - isLocked:", this.isLocked);
-  }
+    // Spawn new replacement balls
+    this.spawnReplacementBalls();
 
-  nextEquation() {
-    console.log("[FloatingBallMathGameScene] nextEquation called");
-    // Reset selection
-    this.selectedBalls = [];
-    this.updateSelectionCounter();
+    // Reset collection state
+    this.collectedBalls = [];
 
     // Clear feedback from all balls
     this.balls.forEach((ball) => {
-      this.ballSpawner.clearFeedback(ball);
-      this.ballSpawner.unhighlightBall(ball);
-      ball.isSelected = false;
+      ball.isCollected = false;
     });
 
     // Check if level complete
     if (this.totalEquations >= this.currentLevelConfig.totalEquations) {
       console.log("[FloatingBallMathGameScene] Level complete, ending level");
       this.endLevel();
-    } else {
-      console.log("[FloatingBallMathGameScene] Generating next equation");
-      this.generateNewEquation();
-      this.isLocked = false;
-      console.log("[FloatingBallMathGameScene] nextEquation completed - isLocked:", this.isLocked);
+      return;
     }
+
+    // Generate new equation
+    try {
+      this.currentEquation = this.equationGenerator.generateEquation();
+      this.equationStartTime = Date.now();
+      console.log("[FloatingBallMathGameScene] New equation:", this.currentEquation);
+
+      this.updateTargetDisplay();
+      this.currentScore = 0; // Always start at 0
+      this.updateCurrentDisplay();
+      console.log("[FloatingBallMathGameScene] replaceBallsAndContinue completed");
+    } catch (error) {
+      console.error("[FloatingBallMathGameScene] ERROR in replaceBallsAndContinue:", error);
+    }
+
+    // Unlock for next collection
+    this.isLocked = false;
+  }
+
+  /**
+   * Reset current equation (when overshoot occurs)
+   */
+  resetEquation() {
+    console.log("[FloatingBallMathGameScene] resetEquation called");
+
+    // Reset current score to 0
+    this.currentScore = 0;
+    this.updateCurrentDisplay();
+
+    // Reset collected balls
+    this.collectedBalls = [];
+    this.balls.forEach((ball) => {
+      ball.isCollected = false;
+    });
+
+    // Unlock for next collection
+    this.isLocked = false;
   }
 
   startTimer() {
@@ -1087,8 +1090,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       attempts: this.attempts,
       continuedAfterTimeout: this.continuedAfterTimeout,
       averageReactionTime: avgReactionTime,
-      mismatchCorrect: this.mismatchCorrect,
-      mismatchAttempts: this.mismatchAttempts,
+      mismatchCorrect: this.successfulCollections,
+      mismatchAttempts: this.ballsCollected,
     } as any;
 
     const onGameOver = this.registry.get("onGameOver");
@@ -1137,24 +1140,60 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     const averageTimePerEquation = totalTime / this.totalEquations;
     const averageTimeSeconds = averageTimePerEquation / 1000;
-    const accuracy = (this.correctEquations / this.totalEquations) * 100;
+    const accuracy = this.totalEquations > 0 
+      ? (this.correctEquations / this.totalEquations) * 100 
+      : 0;
 
     const timeRequirement = this.currentLevelConfig.starRequirements.threeStars;
+    const timePercentage = timeRequirement > 0 
+      ? (averageTimeSeconds / timeRequirement) * 100 
+      : 100;
 
-    // Perfect score: within time requirement and high accuracy
-    if (averageTimeSeconds <= timeRequirement && accuracy === 100) {
-      return 3;
-    }
+    // Check if * and / are in operations (hardest level)
+    const hasMultiplication = this.currentLevelConfig.operations.includes('*');
+    const hasDivision = this.currentLevelConfig.operations.includes('/');
+    const isHardestLevel = hasMultiplication || hasDivision;
 
-    // Good score: within time requirement or good accuracy
-    if (
-      averageTimeSeconds <= timeRequirement * 1.5 ||
-      accuracy >= this.totalEquations * 0.8
-    ) {
+    // Check if it's a starter level (only - and +)
+    const hasOtherOps = this.currentLevelConfig.operations.some(op => 
+      op !== '-' && op !== '+'
+    );
+    const isStarterLevel = !hasOtherOps;
+
+    // PERFECT PERFORMANCE: 100% accuracy AND ≤3 balls per equation
+    const perfectPerformance = accuracy === 100 && this.completedEquationStats.every(
+      stat => stat.ballsCollected <= 3
+    );
+
+    // HIGHEST DIFFICULTY BONUS: 100% accuracy AND complete in time
+    const allPerfectInTime = accuracy === 100 && timePercentage <= 100;
+
+    // HARDEST LEVEL BONUS: 2 stars for 100% accuracy, efficient gameplay
+    if (isHardestLevel && perfectPerformance) {
+      console.log(`[FloatingBallMathGameScene] Hardest level bonus: 2 stars (100% accuracy, ≤3 balls/equation)`);
       return 2;
     }
 
-    // Complete the level = at least 1 star
+    // STARTER LEVEL BONUS: 3 stars for 100% accuracy, efficient gameplay
+    if (isStarterLevel && perfectPerformance) {
+      console.log(`[FloatingBallMathGameScene] Starter level bonus: 3 stars (100% accuracy, ≤3 balls/equation)`);
+      return 3;
+    }
+
+    // 3 STARS: Less than 80% of time requirement AND accuracy >= 85%
+    if (timePercentage < 80 && accuracy >= 85) {
+      console.log(`[FloatingBallMathGameScene] Awarded 3 stars (speed + accuracy)`);
+      return 3;
+    }
+
+    // 2 STARS: Complete within time requirement AND accuracy >= 50%
+    if (accuracy >= 50) {
+      console.log(`[FloatingBallMathGameScene] Awarded 2 stars`);
+      return 2;
+    }
+
+    // 1 STAR: Complete level regardless of accuracy
+    console.log(`[FloatingBallMathGameScene] Awarded 1 star`);
     return 1;
   }
 
@@ -1184,11 +1223,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     if (this.targetDisplay) {
-      this.targetDisplay.setPosition(width / 2, height * 0.12);
+      this.targetDisplay.setPosition(width * 0.25, height * 0.12);
     }
 
-    if (this.selectionCounter) {
-      this.selectionCounter.setPosition(width / 2, height * 0.22);
+    if (this.currentDisplay) {
+      this.currentDisplay.setPosition(width * 0.75, height * 0.12);
     }
 
     if (this.shadowBallContainer) {

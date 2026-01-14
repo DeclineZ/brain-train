@@ -32,7 +32,7 @@ export class TutorialScene extends Phaser.Scene {
   
   // Tutorial state
   private demoEquation!: Equation;
-  private currentOperation: Operation = '+';
+  private currentOperation: '+' | '*' = '+';
 
   constructor() {
     super({ key: "TutorialScene" });
@@ -216,7 +216,12 @@ export class TutorialScene extends Phaser.Scene {
         title: "เครื่องหมายคือบวก (+)",
         description: "เครื่องหมายมีสีทองคือบวก (+)\nคุณต้องหาลูกบอลสองลูกที่บวกกันแล้วได้เป้าหมาย\nเช่น: 3 + 5 = 8",
         operation: '+',
-        equation: { target: 8, operation: '+' as const },
+        equation: { 
+          target: 8, 
+          operation: '+' as const,
+          correctPair: [3, 5] as [number, number],
+          allNumbers: [3, 5, 1],
+        },
       },
       {
         title: "บวกลูกบอลให้ได้เป้าหมาย",
@@ -233,7 +238,12 @@ export class TutorialScene extends Phaser.Scene {
         title: "เครื่องหมายที่สองคือคูณ (×)",
         description: "เครื่องหมายสีม่วงคือคูณ (×)\nคุณต้องหาลูกบอลสองลูกที่คูณกันแล้วได้เป้าหมาย\nเช่น: 4 × 2 = 8\n× มีสีม่วง ต่างจาก +",
         operation: '*',
-        equation: { target: 8, operation: '*' as const },
+        equation: { 
+          target: 8, 
+          operation: '*' as const,
+          correctPair: [2, 4] as [number, number],
+          allNumbers: [2, 4, 1],
+        },
       },
       {
         title: "คูณลูกบอลให้ได้เป้าหมาย",
@@ -333,7 +343,7 @@ export class TutorialScene extends Phaser.Scene {
 
   spawnDemoBalls(equation: Equation, interactive: boolean) {
     this.clearDemoBalls();
-    this.currentOperation = equation.operation;
+    this.currentOperation = equation.operation as '+' | '*';
 
     const { width, height } = this.scale;
     const startY = -100;

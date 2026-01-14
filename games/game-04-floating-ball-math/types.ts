@@ -4,22 +4,45 @@ export type Operation = '+' | '-' | '*' | '/';
 export interface FloatingBall {
   id: string;
   value: number;
+  operator: '+' | '-' | '*' | '/';
   color: BallColor;
   x: number;
   y: number;
   originalX: number;
   originalY: number;
   wavePhase: number;
-  isSelected: boolean;
+  isCollected: boolean;
+  isBomb: boolean; // True if this is a bomb ball
   container: Phaser.GameObjects.Container | null;
   isDemo?: boolean; // Optional property for tutorial balls
 }
 
+export interface Floatboat {
+  container: Phaser.GameObjects.Container;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  speed: number;
+}
+
+export interface CompletedEquationStats {
+  target: number;
+  ballsCollected: number;
+}
+
+export interface WarningHand {
+  container: Phaser.GameObjects.Container;
+  targetBall: FloatingBall;
+  isStealing: boolean;
+  retreatDelay: number;
+  defendButton: Phaser.GameObjects.Container;
+}
+
 export interface Equation {
   target: number;
-  operation: Operation;
-  correctPair: [number, number];
-  allNumbers: number[];
+  startingCurrent: number;
+  operationBalls: FloatingBall[];
 }
 
 export interface FloatingBallMathLevelConfig {

@@ -16,12 +16,21 @@ export class WaterPhysics {
     const time = this.scene.time.now;
     const { height } = this.scene.scale;
     
-    // Determine speed based on ball position
-    // Fast speed in top 15% of screen, normal speed in bottom 85%
-    const fastZoneThreshold = height * 0.17;
-    const speedMultiplier = ball.y < fastZoneThreshold ? 3.0 : 1.0;
+    // Determine speed based on ball position - INCREASED SPEED
+    // Fast speed in top 20% of screen, medium speed in middle 30%, normal speed in bottom 50%
+    const fastZoneThreshold = height * 0.2;
+    const mediumZoneThreshold = height * 0.5;
+    let speedMultiplier: number;
     
-    // Vertical movement (float down)
+    if (ball.y < fastZoneThreshold) {
+      speedMultiplier = 4.0; // Increased from 3.0 to 5.0
+    } else if (ball.y < mediumZoneThreshold) {
+      speedMultiplier = 2.5; // Medium speed in middle
+    } else {
+      speedMultiplier = 1.5; // Increased from 1.0 to 1.8
+    }
+    
+    // Vertical movement (float down) - FASTER
     ball.y += this.config.waterSpeed * speedMultiplier * (deltaTime / 16.67); // Normalize to 60fps
     
     // Horizontal movement (sine wave)

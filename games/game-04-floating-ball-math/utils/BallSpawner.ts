@@ -8,9 +8,9 @@ export class BallSpawner {
   }
 
   /**
-   * Create a floating ball with colored image and black text
+   * Create a floating ball with colored image and operation text (e.g., "+5", "-3", "*2", "/4")
    */
-  createBall(value: number, color: BallColor, x: number, y: number): FloatingBall {
+  createBall(value: number, operator: '+' | '-' | '*' | '/', color: BallColor, x: number, y: number): FloatingBall {
     const { width } = this.scene.scale;
     const ballRadius = Math.min(40, width * 0.08);
     const fontSize = Math.min(28, width * 0.05);
@@ -27,8 +27,11 @@ export class BallSpawner {
     const shadow = this.scene.add.circle(5, 5, ballRadius, 0x000000, 0.2);
     container.addAt(shadow, 0); // Add at index 0 (behind ball image)
 
-    // Add number text (black with white stroke)
-    const text = this.scene.add.text(0, 0, value.toString(), {
+    // Format the operator for display
+    const displayOperator = operator === '*' ? '×' : operator === '/' ? '÷' : operator;
+    
+    // Add operation text (black with white stroke, e.g., "+5", "-3", "×2", "÷4")
+    const text = this.scene.add.text(0, 0, `${displayOperator}${value}`, {
       fontFamily: 'Arial, sans-serif',
       fontSize: `${fontSize}px`,
       color: '#000000',
@@ -94,13 +97,15 @@ export class BallSpawner {
     return {
       id,
       value,
+      operator,
       color,
       x,
       y,
       originalX: x,
       originalY: y,
       wavePhase: Math.random() * Math.PI * 2,
-      isSelected: false,
+      isCollected: false,
+      isBomb: false, // Not a bomb by default
       container,
     };
   }
@@ -247,10 +252,10 @@ export class BallSpawner {
   }
 
   /**
-   * Create a replacement ball with random value, color, and position
-   * Used when correct balls are removed and need to be replaced
+   * Create a replacement ball with random value, operator, color, and position
+   * Used when balls are collected and need to be replaced
    */
-  createReplacementBall(value: number, color: BallColor, x: number, y: number): FloatingBall {
+  createReplacementBall(value: number, operator: '+' | '-' | '*' | '/', color: BallColor, x: number, y: number): FloatingBall {
     const { width, height } = this.scene.scale;
     const margin = 80;
     
@@ -258,8 +263,80 @@ export class BallSpawner {
     const safeX = Math.max(margin, Math.min(x, width - margin));
     const safeY = Math.max(-100, Math.min(y, height - 100));
     
-    const ball = this.createBall(value, color, safeX, safeY);
+    const ball = this.createBall(value, operator, color, safeX, safeY);
     return ball;
+  }
+
+  /**
+   * Create a bomb ball with black color and bomb/skull icon
+   */
+  createBombBall(value: number, operator: '+' | '-' | '*' | '/', x: number, y: number): FloatingBall {
+    const { width } = this.scene.scale;
+    const ballRadius = Math.min(40, width * 0.08);
+    const fontSize = Math.min(28, width * 0.05);
+
+    const container = this.scene.add.container(x, y);
+    const id = `bomb-${Date.now()}-${Math.random()}`;
+
+    // Black bomb ball
+    const ballImage = this.scene.add.graphics();
+    ballImage.fillStyle(0x222222, 1); // Dark gray/black color
+    ballImage.fillCircle(0, 0, ballRadius);
+    
+    // Add danger border
+    ballImage.lineStyle(4, 0xFF0000, 1); // Red danger border
+    ballImage.strokeCircle(0, 0, ballRadius);
+    container.add(ballImage);
+
+    // Create shadow
+    const shadow = this.scene.add.circle(5, 5, ballRadius, 0x000000, 0.2);
+    container.addAt(shadow, 0);
+
+    // Format the operator for display
+    const displayOperator = operator === '*' ? '×' : operator === '/' ? '÷' : operator;
+    
+    // Add bomb icon (💣)
+    const bombIcon = this.scene.add.text(0, -15, '💣', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: `${Math.min(24, width * 0.05)}px`,
+      color: '#FF0000',
+    }).setOrigin(0.5);
+    container.add(bombIcon);
+
+    // Add operation text below bomb
+    const text = this.scene.add.text(0, 15, `${displayOperator}${value}`, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: `${fontSize}px`,
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    container.add(text);
+
+    // Set interactive
+    const hitAreaRadius = ballRadius * 1.6;
+    container.setSize(ballRadius * 2, ballRadius * 2);
+    container.setInteractive({
+      useHandCursor: true,
+      hitArea: new Phaser.Geom.Circle(0, 0, hitAreaRadius),
+      hitAreaCallback: Phaser.Geom.Circle.Contains,
+    });
+
+    return {
+      id,
+      value,
+      operator,
+      color: 'coral', // Default color, but overridden by black graphics
+      x,
+      y,
+      originalX: x,
+      originalY: y,
+      wavePhase: Math.random() * Math.PI * 2,
+      isCollected: false,
+      isBomb: true, // This IS a bomb ball
+      container,
+    };
   }
 
   /**

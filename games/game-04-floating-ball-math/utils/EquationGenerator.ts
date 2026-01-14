@@ -1,4 +1,4 @@
-import { Equation, Operation, FloatingBallMathLevelConfig, BallColor } from '../types';
+import { Equation, Operation, FloatingBallMathLevelConfig, BallColor, FloatingBall } from '../types';
 
 export class EquationGenerator {
   private config: FloatingBallMathLevelConfig;
@@ -10,36 +10,27 @@ export class EquationGenerator {
     this.config = config;
   }
 
+  /**
+   * Generate an equation with operation balls
+   * Starts with a target, creates a starting current, and generates operation balls
+   */
   generateEquation(): Equation {
     console.log('[EquationGenerator] generateEquation called');
     try {
-      const operation = this.pickOperation();
-      console.log('[EquationGenerator] Operation selected:', operation);
-      
-      const target = this.generateTarget(operation);
+      const target = this.generateTarget();
       console.log('[EquationGenerator] Target generated:', target);
-      
-      const correctPair = this.generateCorrectPair(target, operation);
-      console.log('[EquationGenerator] Correct pair generated:', correctPair);
-      
-      const distractors = this.generateDistractors(target, operation, correctPair);
-      console.log('[EquationGenerator] Distractors generated:', distractors);
-      
-      const allNumbers = [...correctPair, ...distractors];
-      
-      // Shuffle the array to place correct pair at random positions
-      for (let i = allNumbers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
-      }
-      
-      console.log('[EquationGenerator] All numbers (shuffled):', allNumbers);
-      
+
+      const startingCurrent = this.generateStartingCurrent(target);
+      console.log('[EquationGenerator] Starting current generated:', startingCurrent);
+
+      // Generate operation balls that can transform startingCurrent to target
+      const operationBalls = this.generateOperationBalls(target, startingCurrent);
+      console.log('[EquationGenerator] Operation balls generated:', operationBalls.length);
+
       const result = {
         target,
-        operation,
-        correctPair,
-        allNumbers,
+        startingCurrent,
+        operationBalls,
       };
       console.log('[EquationGenerator] Equation generated successfully:', result);
       return result;
@@ -49,372 +40,373 @@ export class EquationGenerator {
     }
   }
 
-  private pickOperation(): Operation {
-    const operations = this.config.operations;
-    if (!operations || operations.length === 0) {
-      console.error('[EquationGenerator] ERROR: operations array is empty!');
-      throw new Error('No operations available in config');
-    }
-    const op = operations[Math.floor(Math.random() * operations.length)];
-    return op;
-  }
-
-  private generateTarget(operation: Operation): number {
+  /**
+   * Generate a target number within the configured range
+   */
+  private generateTarget(): number {
     const { min, max } = this.config.targetRange;
-    console.log('[EquationGenerator] generateTarget - range:', { min, max }, 'operation:', operation);
+    console.log('[EquationGenerator] generateTarget - range:', { min, max });
     
-    // Validate range
     if (min >= max) {
       console.error('[EquationGenerator] ERROR: Invalid targetRange', { min, max });
       throw new Error('Invalid targetRange: min (' + min + ') must be less than max (' + max + ')');
     }
     
-    if (operation === '/') {
-      const divisors = [2,3,4,5,6,7,8,9,10];
-      const validDivisors = divisors.filter(d => d >= min && d <= max);
-      if (validDivisors.length === 0) {
-        console.error('[EquationGenerator] ERROR: No valid divisors in range', { min, max });
-        throw new Error('No valid divisors in range ' + min + '}' + max);
-      }
-      return validDivisors[Math.floor(Math.random() * validDivisors.length)];
-    }
-    
     return this.randomInt(min, max);
   }
 
-  private generateCorrectPair(target: number, operation: Operation): [number, number] {
+  /**
+   * Generate a starting current number that's reasonably close to target
+   */
+  private generateStartingCurrent(target: number): number {
     const { min, max } = this.config.operandRange;
-    console.log('[EquationGenerator] generateCorrectPair - target:', target, 'operation:', operation, 'operandRange:', { min, max });
     
-    // Validate operand range
-    if (min >= max) {
-      console.error('[EquationGenerator] ERROR: Invalid operandRange', { min, max });
-      throw new Error('Invalid operandRange: min (' + min + ') must be less than max (' + max + ')');
-    }
+    // Starting current should be within a reasonable range of target
+    // to make the puzzle solvable with a few operations
+    const difference = Math.abs(target - this.randomInt(min, max));
+    const startingCurrent = Math.max(min, Math.min(max, target - difference + this.randomInt(-5, 5)));
     
-    let attempts = 0;
-    const maxAttempts = 1000; // Increased from 100 for more robustness
-
-    while (attempts < maxAttempts) {
-      let num1: number, num2: number;
-      let uniqueKey: string;
-
-      try {
-        switch (operation) {
-          case '+':
-            num1 = this.randomInt(min, Math.min(max, target - min));
-            num2 = target - num1;
-            uniqueKey = '' + num1 + '+' + num2;
-            break;
-
-          case '-':
-            num2 = this.randomInt(min, max);
-            num1 = target + num2;
-            uniqueKey = '' + num1 + '-' + num2;
-            break;
-
-          case '*':
-            const factors = this.getFactors(target);
-            const validFactors = factors.filter(f => f >= min && f <= max);
-            if (validFactors.length === 0) {
-              attempts++;
-              console.log('[EquationGenerator] Attempt ' + attempts + ': No valid factors for multiplication');
-              continue;
-            }
-            num1 = validFactors[Math.floor(Math.random() * validFactors.length)];
-            num2 = target / num1;
-            uniqueKey = '' + num1 + '*' + num2;
-            break;
-
-          case '/':
-            const divisor = this.randomInt(min, max);
-            num1 = target * divisor;
-            num2 = divisor;
-            uniqueKey = '' + num1 + '/' + num2;
-            break;
-
-          default:
-            console.error('[EquationGenerator] ERROR: Unknown operation:', operation);
-            throw new Error('Unknown operation: ' + operation);
-        }
-
-        // Check if this combination was already used
-        if (!this.usedCombinations.has(uniqueKey)) {
-          // Ensure both numbers are within operand range
-          if (num1 >= min && num1 <= max && num2 >= min && num2 <= max) {
-            this.usedCombinations.add(uniqueKey);
-            console.log('[EquationGenerator] Found valid pair after ' + attempts + ' attempts:', [num1, num2]);
-            return [num1, num2];
-          } else {
-            console.log('[EquationGenerator] Attempt ' + attempts + ': Pair out of range', [num1, num2], 'range:', { min, max });
-          }
-        } else {
-          console.log('[EquationGenerator] Attempt ' + attempts + ': Combination already used', uniqueKey);
-        }
-
-        attempts++;
-      } catch (e) {
-        console.error('[EquationGenerator] ERROR in generateCorrectPair loop:', e);
-        attempts++;
-      }
-    }
-
-    // Fallback with validation
-    console.error('[EquationGenerator] ERROR: Could not find valid pair after ' + maxAttempts + ' attempts');
-    throw new Error('Failed to generate correct pair after ' + maxAttempts + ' attempts. Config: target=' + target + ', operation=' + operation + ', range=[' + min + ',' + max + ']');
+    return startingCurrent;
   }
 
-  private generateDistractors(
-    target: number,
-    operation: Operation,
-    correctPair: [number, number]
-  ): number[] {
+  /**
+   * Generate operation balls that can transform startingCurrent to target
+   */
+  private generateOperationBalls(target: number, startingCurrent: number): FloatingBall[] {
+    const balls: FloatingBall[] = [];
     const { min, max } = this.config.operandRange;
-    console.log('[EquationGenerator] generateDistractors - target:', target, 'operation:', operation, 'correctPair:', correctPair);
+    const operations = this.config.operations;
     
-    const distractors: number[] = [];
-    const targetCount = this.randomInt(4, 6);
-    console.log('[EquationGenerator] Target distractor count:', targetCount);
-    
-    let attempts = 0;
-    const maxAttempts = 1000; // Safety limit
+    // Generate a solution path (sequence of operations)
+    const solutionPath = this.generateSolutionPath(target, startingCurrent);
+    console.log('[EquationGenerator] Solution path:', solutionPath);
 
-    while (distractors.length < targetCount && attempts < maxAttempts) {
-      const offset = this.randomInt(-5, 5);
-      const reference = correctPair[this.randomInt(0, 1)];
-      const candidate = reference + offset;
-      
-      if (this.isValidDistractor(candidate, target, operation, correctPair, min, max)) {
-        if (!distractors.includes(candidate) && !correctPair.includes(candidate)) {
-          distractors.push(candidate);
-          console.log('[EquationGenerator] Added distractor ' + distractors.length + '/' + targetCount + ':', candidate);
-        }
-      }
-      
+    // Create balls from the solution path
+    solutionPath.forEach((step, index) => {
+      const ball: FloatingBall = {
+        id: `ball-${Date.now()}-${Math.random()}`,
+        value: step.value,
+        operator: step.operator,
+        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        x: 0, // Will be set when spawning
+        y: 0,
+        originalX: 0,
+        originalY: 0,
+        wavePhase: Math.random() * Math.PI * 2,
+        isCollected: false,
+        isBomb: false,
+        container: null, // Will be set when creating
+      };
+      balls.push(ball);
+    });
+
+    // Generate distractor balls (balls that won't help solve puzzle)
+    const distractorCount = this.randomInt(4, 6);
+    const distractorBalls = this.generateDistractorBalls(target, startingCurrent, distractorCount);
+    
+    // Generate bomb balls (1-2 bombs)
+    const bombCount = this.randomInt(1, 2);
+    const bombBalls = this.generateBombBalls(bombCount);
+    
+    // Combine and shuffle
+    const allBalls = [...balls, ...distractorBalls, ...bombBalls];
+    this.shuffleArray(allBalls);
+    
+    return allBalls;
+  }
+
+  /**
+   * Generate a sequence of operations that transforms startingCurrent to target
+   */
+  private generateSolutionPath(target: number, startingCurrent: number): Array<{operator: '+' | '-' | '*' | '/', value: number}> {
+    const path: Array<{operator: '+' | '-' | '*' | '/', value: number}> = [];
+    let current = startingCurrent;
+    const operations = this.config.operations;
+    const { min, max } = this.config.operandRange;
+    
+    const maxSteps = 4; // Maximum number of operations to solve
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    while (current !== target && attempts < maxAttempts && path.length < maxSteps) {
       attempts++;
+      
+      // Find an operation that gets us closer to target
+      let foundValidOperation = false;
+      
+      // Try each available operation
+      for (const op of operations) {
+        const validValues = this.getValidOperationValues(op, current, target, min, max);
+        
+        for (const value of validValues) {
+          // Apply operation and check if it's valid
+          const result = this.applyOperation(current, op, value);
+          
+          if (result === target) {
+            // Found the solution!
+            path.push({ operator: op, value });
+            current = result;
+            foundValidOperation = true;
+            break;
+          } else if (this.isValidIntermediateResult(result, target, min, max)) {
+            // This gets us closer, use it
+            path.push({ operator: op, value });
+            current = result;
+            foundValidOperation = true;
+            break;
+          }
+        }
+        
+        if (foundValidOperation) break;
+      }
+      
+      // If we couldn't find a valid operation, restart
+      if (!foundValidOperation) {
+        path.length = 0;
+        current = startingCurrent;
+        attempts++;
+      }
     }
-    
-    if (distractors.length < targetCount) {
-      console.error('[EquationGenerator] WARNING: Only generated ' + distractors.length + '/' + targetCount + ' distractors after ' + attempts + ' attempts');
+
+    // If we couldn't reach target, return a simple path
+    if (current !== target && path.length === 0) {
+      // Fallback: simple addition/subtraction
+      const difference = target - startingCurrent;
+      if (difference > 0) {
+        path.push({ operator: '+', value: difference });
+      } else {
+        path.push({ operator: '-', value: Math.abs(difference) });
+      }
     }
-    
-    return distractors;
+
+    return path;
   }
 
-  private isValidDistractor(
-    candidate: number,
+  /**
+   * Get valid values for an operation that could help solve the puzzle
+   */
+  private getValidOperationValues(
+    operator: '+' | '-' | '*' | '/',
+    current: number,
     target: number,
-    operation: Operation,
-    correctPair: [number, number],
     min: number,
     max: number
-  ): boolean {
-    if (candidate < min || candidate > max) return false;
+  ): number[] {
+    const values: number[] = [];
+    
+    switch (operator) {
+      case '+':
+        // Values that when added to current get closer to target
+        const diffPlus = target - current;
+        if (diffPlus > 0 && diffPlus >= min && diffPlus <= max) {
+          values.push(diffPlus);
+        }
+        // Also try partial values
+        const partialPlus = Math.floor(diffPlus / 2);
+        if (partialPlus >= min && partialPlus <= max) {
+          values.push(partialPlus);
+        }
+        break;
 
-    for (const num of correctPair) {
-      if (this.formsTarget(candidate, num, target, operation)) {
-        return false;
-      }
+      case '-':
+        // Values that when subtracted from current get closer to target
+        const diffMinus = current - target;
+        if (diffMinus > 0 && diffMinus >= min && diffMinus <= max) {
+          values.push(diffMinus);
+        }
+        // Try partial values
+        const partialMinus = Math.floor(diffMinus / 2);
+        if (partialMinus >= min && partialMinus <= max) {
+          values.push(partialMinus);
+        }
+        break;
+
+      case '*':
+        // Multipliers that get us closer to target
+        if (current !== 0) {
+          const multiplier = target / current;
+          if (Number.isInteger(multiplier) && multiplier >= min && multiplier <= max) {
+            values.push(Math.round(multiplier));
+          }
+          // Try smaller multipliers
+          for (let i = 2; i <= 5; i++) {
+            const result = current * i;
+            if (i >= min && i <= max && result <= max * 2) {
+              values.push(i);
+            }
+          }
+        }
+        break;
+
+      case '/':
+        // Divisors that get us closer to target
+        if (current !== 0 && target !== 0) {
+          const divisor = current / target;
+          if (Number.isInteger(divisor) && divisor >= min && divisor <= max) {
+            values.push(Math.round(divisor));
+          }
+          // Try common divisors
+          const divisors = [2, 3, 4, 5];
+          for (const d of divisors) {
+            if (d >= min && d <= max && current % d === 0) {
+              values.push(d);
+            }
+          }
+        }
+        break;
     }
+    
+    return values;
+  }
 
+  /**
+   * Apply an operation to a value
+   */
+  private applyOperation(current: number, operator: '+' | '-' | '*' | '/', value: number): number {
+    switch (operator) {
+      case '+':
+        return current + value;
+      case '-':
+        return current - value;
+      case '*':
+        return current * value;
+      case '/':
+        return value !== 0 ? Math.round(current / value) : current;
+    }
+  }
+
+  /**
+   * Check if a result is valid as an intermediate step
+   */
+  private isValidIntermediateResult(result: number, target: number, min: number, max: number): boolean {
+    // Result should be positive and within reasonable bounds
+    if (result < 0 || result > max * 2) {
+      return false;
+    }
+    
+    // Result should get us closer to target
+    const currentDistance = Math.abs(result - target);
+    
     return true;
   }
 
-  private formsTarget(num1: number, num2: number, target: number, operation: Operation): boolean {
-    switch (operation) {
-      case '+':
-        return num1 + num2 === target;
-      case '-':
-        return num1 - num2 === target || num2 - num1 === target;
-      case '*':
-        return num1 * num2 === target;
-      case '/':
-        return num1 !== 0 && num2 !== 0 && (num1 / num2 === target || num2 / num1 === target);
-      default:
-        return false;
+  /**
+   * Generate distractor balls that won't help solve the puzzle
+   */
+  private generateDistractorBalls(target: number, startingCurrent: number, count: number): FloatingBall[] {
+    const balls: FloatingBall[] = [];
+    const { min, max } = this.config.operandRange;
+    const operations = this.config.operations;
+    
+    for (let i = 0; i < count; i++) {
+      const operator = operations[Math.floor(Math.random() * operations.length)];
+      let value: number;
+      
+      // Generate a value that's NOT helpful
+      let attempts = 0;
+      do {
+        value = this.randomInt(min, max);
+        attempts++;
+      } while (attempts < 10 && this.isHelpfulOperation(operator, value, startingCurrent, target));
+      
+      const ball: FloatingBall = {
+        id: `ball-distractor-${Date.now()}-${Math.random()}`,
+        value,
+        operator,
+        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        x: 0,
+        y: 0,
+        originalX: 0,
+        originalY: 0,
+        wavePhase: Math.random() * Math.PI * 2,
+        isCollected: false,
+        isBomb: false,
+        container: null,
+      };
+      balls.push(ball);
+    }
+    
+    return balls;
+  }
+
+  /**
+   * Generate bomb balls (dangerous balls to avoid)
+   */
+  private generateBombBalls(count: number): FloatingBall[] {
+    const balls: FloatingBall[] = [];
+    const { min, max } = this.config.operandRange;
+    const operations = this.config.operations;
+    
+    for (let i = 0; i < count; i++) {
+      const operator = operations[Math.floor(Math.random() * operations.length)];
+      const value = this.randomInt(min, max);
+      
+      const ball: FloatingBall = {
+        id: `bomb-${Date.now()}-${Math.random()}`,
+        value,
+        operator,
+        color: 'coral', // Will be overridden by black graphics
+        x: 0,
+        y: 0,
+        originalX: 0,
+        originalY: 0,
+        wavePhase: Math.random() * Math.PI * 2,
+        isCollected: false,
+        isBomb: true, // This IS a bomb
+        container: null,
+      };
+      balls.push(ball);
+    }
+    
+    return balls;
+  }
+
+  /**
+   * Check if an operation is helpful for solving the puzzle
+   */
+  private isHelpfulOperation(operator: '+' | '-' | '*' | '/', value: number, current: number, target: number): boolean {
+    const result = this.applyOperation(current, operator, value);
+    const currentDistance = Math.abs(result - target);
+    const originalDistance = Math.abs(current - target);
+    
+    return currentDistance < originalDistance;
+  }
+
+  /**
+   * Shuffle array in place
+   */
+  private shuffleArray<T>(array: T[]): void {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
     }
   }
 
-  private getFactors(n: number): number[] {
-    const factors: number[] = [];
-    for (let i = 1; i <= Math.sqrt(n); i++) {
-      if (n % i === 0) {
-        factors.push(i);
-        if (i !== n / i) {
-          factors.push(n / i);
-        }
-      }
-    }
-    return factors.sort((a, b) => a - b);
-  }
-
+  /**
+   * Generate random integer in range [min, max]
+   */
   private randomInt(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
+  /**
+   * Reset generator state
+   */
   reset(): void {
     console.log('[EquationGenerator] reset called - clearing used combinations');
     this.usedCombinations.clear();
   }
 
+  /**
+   * Get random color
+   */
   getRandomColor(): BallColor {
     return this.colors[Math.floor(Math.random() * this.colors.length)];
   }
 
-  /**
-   * Generate an equation that can be solved using the available ball values
-   * @param availableNumbers - Array of ball values currently available
-   * @returns An equation with target, operation, correct pair, and all numbers
-   */
+  // Deprecated methods kept for backward compatibility
   generateEquationWithBalls(availableNumbers: number[]): Equation {
-    console.log('[EquationGenerator] generateEquationWithBalls called with available numbers:', availableNumbers);
-    
-    // Need at least 2 balls to form an equation
-    if (availableNumbers.length < 2) {
-      console.error('[EquationGenerator] ERROR: Need at least 2 available balls, got:', availableNumbers.length);
-      throw new Error('Need at least 2 available balls to generate equation');
-    }
-
-    // Pick an operation
-    const operation = this.pickOperation();
-    console.log('[EquationGenerator] Operation selected:', operation);
-
-    // Find all valid pairs from available numbers that can form a target within range
-    const validPairs = this.findValidPairs(availableNumbers, operation);
-    console.log('[EquationGenerator] Valid pairs found:', validPairs.length);
-
-    if (validPairs.length === 0) {
-      console.error('[EquationGenerator] ERROR: No valid pairs found in available numbers for operation:', operation);
-      throw new Error('No valid pairs found in available numbers for operation: ' + operation);
-    }
-
-    // Select a random valid pair as the correct answer
-    const correctPair = validPairs[Math.floor(Math.random() * validPairs.length)];
-    console.log('[EquationGenerator] Selected correct pair:', correctPair);
-
-    // Calculate target from the correct pair
-    const target = this.calculateTarget(correctPair, operation);
-    console.log('[EquationGenerator] Target calculated:', target);
-
-    // Use available numbers as the pool for distractors
-    // Remove the correct pair from available numbers to get distractor candidates
-    const distractorCandidates = availableNumbers.filter(num => !correctPair.includes(num));
-    console.log('[EquationGenerator] Distractor candidates:', distractorCandidates);
-
-    // Generate distractors from remaining available numbers
-    const distractors = this.generateDistractorsFromCandidates(target, operation, correctPair, distractorCandidates);
-    console.log('[EquationGenerator] Distractors generated:', distractors);
-
-    // Combine correct pair and distractors
-    const allNumbers = [...correctPair, ...distractors];
-
-    // Shuffle the array
-    for (let i = allNumbers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
-    }
-
-    console.log('[EquationGenerator] All numbers (shuffled):', allNumbers);
-
-    const result = {
-      target,
-      operation,
-      correctPair,
-      allNumbers,
-    };
-    console.log('[EquationGenerator] Equation generated successfully:', result);
-    return result;
-  }
-
-  /**
-   * Find all pairs from available numbers that can form valid targets within the configured range
-   */
-  private findValidPairs(availableNumbers: number[], operation: Operation): [number, number][] {
-    const validPairs: [number, number][] = [];
-    const { min: targetMin, max: targetMax } = this.config.targetRange;
-
-    // Check all unique pairs
-    for (let i = 0; i < availableNumbers.length; i++) {
-      for (let j = i + 1; j < availableNumbers.length; j++) {
-        const num1 = availableNumbers[i];
-        const num2 = availableNumbers[j];
-
-        // Calculate what target this pair would produce
-        const target = this.calculateTarget([num1, num2], operation);
-
-        // Check if target is within valid range
-        if (target >= targetMin && target <= targetMax) {
-          // Check if we haven't used this combination before
-          const uniqueKey1 = `${num1}${operation}${num2}`;
-          const uniqueKey2 = `${num2}${operation}${num1}`;
-          
-          if (!this.usedCombinations.has(uniqueKey1) && !this.usedCombinations.has(uniqueKey2)) {
-            validPairs.push([num1, num2]);
-          }
-        }
-      }
-    }
-
-    console.log('[EquationGenerator] findValidPairs found', validPairs.length, 'valid pairs out of', availableNumbers.length, 'numbers');
-    return validPairs;
-  }
-
-  /**
-   * Calculate the target from a pair of numbers using the specified operation
-   */
-  private calculateTarget(pair: [number, number], operation: Operation): number {
-    const [num1, num2] = pair;
-
-    switch (operation) {
-      case '+':
-        return num1 + num2;
-      case '-':
-        return Math.abs(num1 - num2);
-      case '*':
-        return num1 * num2;
-      case '/':
-        // For division, return the quotient (should be integer)
-        return Math.round(num1 / num2);
-      default:
-        throw new Error('Unknown operation: ' + operation);
-    }
-  }
-
-  /**
-   * Generate distractors from candidate numbers
-   * Uses available numbers that are not part of the correct pair
-   */
-  private generateDistractorsFromCandidates(
-    target: number,
-    operation: Operation,
-    correctPair: [number, number],
-    candidates: number[]
-  ): number[] {
-    const { min, max } = this.config.operandRange;
-    const distractors: number[] = [];
-    const targetCount = this.randomInt(2, Math.min(4, candidates.length)); // Use fewer distractors if we have fewer candidates
-    console.log('[EquationGenerator] Target distractor count:', targetCount, 'from', candidates.length, 'candidates');
-
-    // Try to use all candidates first, then shuffle and select targetCount
-    const shuffledCandidates = [...candidates];
-    for (let i = shuffledCandidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledCandidates[i], shuffledCandidates[j]] = [shuffledCandidates[j], shuffledCandidates[i]];
-    }
-
-    for (const candidate of shuffledCandidates) {
-      if (distractors.length >= targetCount) break;
-
-      if (this.isValidDistractor(candidate, target, operation, correctPair, min, max)) {
-        distractors.push(candidate);
-        console.log('[EquationGenerator] Added distractor ' + distractors.length + ':', candidate);
-      }
-    }
-
-    if (distractors.length < targetCount) {
-      console.warn('[EquationGenerator] WARNING: Only generated ' + distractors.length + '/' + targetCount + ' distractors');
-    }
-
-    return distractors;
+    console.warn('[EquationGenerator] generateEquationWithBalls is deprecated, using generateEquation instead');
+    return this.generateEquation();
   }
 }
