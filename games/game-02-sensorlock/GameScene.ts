@@ -19,8 +19,8 @@ export class SensorLockGameScene extends Phaser.Scene {
     private isTutorialMode = false;
 
     // Game Settings
-    private maxTimeLimit = 6000;
-    private minTimeLimit = 1500;
+    private maxTimeLimit = 6500;
+    private minTimeLimit = 2000;
     private speedupRate = 50;
     private timeLimitPerCard = this.maxTimeLimit;
     private tutorialDirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
