@@ -18,17 +18,35 @@ export class SensorLockGameScene extends Phaser.Scene {
     private isInputLocked = false;
     private isTutorialMode = false;
 
-    // Difficulty
-    // Difficulty
-    private timeLimitPerCard = 7000;    // Start at 7000ms (7s) for older/slower pace
-    private maxTimeLimit = 7000;
-    private minTimeLimit = 1500;        // Cap speed at 1.5s instead of 0.6s
-    private difficultyMultiplier = 1.0;
+    // Game Settings
+    private maxTimeLimit = 6000;
+    private minTimeLimit = 1500;
+    private speedupRate = 50;
+    private timeLimitPerCard = this.maxTimeLimit;
+    private tutorialDirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
 
-    // Phases
+    // --- PHASE THRESHOLDS (UPDATED) ---
     private currentPhase = 1;
-    private readonly PHASE_2_THRESHOLD = 10000;
-    private readonly PHASE_3_THRESHOLD = 20000;
+    private difficultyMultiplier = 1.0;
+    private PHASE_2_THRESHOLD = 10000;  // Was 5000
+    private PHASE_3_THRESHOLD = 20000;  // Was 15000
+    private PHASE_4_THRESHOLD = 30000;  // NEW
+
+    // --- NEW MECHANIC: NOT Operator ---
+    private isNegated: boolean = false;
+    private NOT_THRESHOLD = 15000; // Enable after 15k points
+    private NOT_CHANCE = 0.25; // 25% chance when enabled
+    private notBadge!: Phaser.GameObjects.Container | null;
+
+    // --- NEW MECHANIC: Drifting ---
+    private driftEnabled: boolean = false;
+    private DRIFT_SPEED = 40; // pixels per second
+    private arrowVelocity = { x: 0, y: 0 };
+    private textVelocity = { x: 0, y: 0 };
+
+    // --- NEW MECHANIC: Button Swap ---
+    private buttonsSwapped: boolean = false;
+    private SWAP_COMBO_TRIGGER = 5;
 
     // Current Round Data
     private currentArrowDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' = 'UP';
@@ -120,24 +138,59 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
     }
 
-    update(time: number, delta: number) {
-        if (!this.isPlaying) return;
+    update(t: number, dt: number) {
+        // Strict Visibility Control
+        const shouldShowTimer = this.isPlaying && !this.isTutorialMode && !this.isInputLocked;
 
-        // Tutorial Mode: Infinite Time
-        if (this.isTutorialMode) {
-            this.timerBar.clear(); // Hide timer bar
+        if (this.timerBar) this.timerBar.setVisible(shouldShowTimer);
+        if (this.timerIcon) this.timerIcon.setVisible(shouldShowTimer);
+
+        // --- DRIFTING MECHANIC (Phase 4+) ---
+        // Note: Runs even during tutorial so Phase 4 tutorial shows the feature!
+        if (this.driftEnabled && this.arrowGraphics && this.labelText && this.isPlaying) {
+            const dtSec = dt / 1000;
+
+            // Move Arrow
+            this.arrowGraphics.x += this.arrowVelocity.x * dtSec;
+            this.arrowGraphics.y += this.arrowVelocity.y * dtSec;
+
+            // Bounce Arrow (Card bounds: ±100 for X, ±120 for Y from center)
+            if (Math.abs(this.arrowGraphics.x) > 100) {
+                this.arrowVelocity.x *= -1;
+                this.arrowGraphics.x = Phaser.Math.Clamp(this.arrowGraphics.x, -100, 100);
+            }
+            if (Math.abs(this.arrowGraphics.y + 80) > 100) { // Offset by -80 (default Y)
+                this.arrowVelocity.y *= -1;
+                this.arrowGraphics.y = Phaser.Math.Clamp(this.arrowGraphics.y, -180, 20);
+            }
+
+            // Move Text
+            this.labelText.x += this.textVelocity.x * dtSec;
+            this.labelText.y += this.textVelocity.y * dtSec;
+
+            // Bounce Text (default Y = 80)
+            if (Math.abs(this.labelText.x) > 80) {
+                this.textVelocity.x *= -1;
+                this.labelText.x = Phaser.Math.Clamp(this.labelText.x, -80, 80);
+            }
+            if (Math.abs(this.labelText.y - 80) > 80) {
+                this.textVelocity.y *= -1;
+                this.labelText.y = Phaser.Math.Clamp(this.labelText.y, 0, 160);
+            }
+        }
+
+        if (!this.isPlaying || this.isInputLocked || this.isTutorialMode) {
             return;
         }
 
-        // Smooth Timer Bar
-        const elapsed = Date.now() - this.cardStartTime;
-        const remaining = Math.max(0, this.timeLimitPerCard - elapsed);
-        const pct = remaining / this.timeLimitPerCard;
+        const now = Date.now();
+        const elapsed = now - this.cardStartTime;
+        const pct = 1 - (elapsed / this.timeLimitPerCard);
 
-        this.drawTimerBar(pct);
-
-        if (remaining <= 0) {
+        if (pct <= 0) {
             this.handleTimeout();
+        } else {
+            this.drawTimerBar(pct);
         }
     }
 
@@ -363,11 +416,52 @@ export class SensorLockGameScene extends Phaser.Scene {
         }).setOrigin(0.5).setPadding(30); // Added Padding
         container.add(labelT);
 
+        // 5. NOT Badge (Hidden by default) - TOP of card, clearly visible
+        const badge = this.add.container(0, -160); // Very top of card
+        badge.setVisible(false);
+
+        const badgeBg = this.add.graphics();
+        badgeBg.fillStyle(0xFF6B6B, 1); // Coral/Red
+        badgeBg.fillRoundedRect(-50, -18, 100, 36, 18); // Pill shape
+        badge.add(badgeBg);
+
+        const badgeText = this.add.text(0, 0, "ไม่ใช่", {
+            fontFamily: '"Mali", "Sarabun", sans-serif',
+            fontSize: "24px",
+            fontStyle: "900",
+            color: "#FFFFFF"
+        }).setOrigin(0.5);
+        badge.add(badgeText);
+
+        container.add(badge);
+        this.notBadge = badge;
+
         // Update Class References to this NEW card
         this.arrowContainer = container;
         this.arrowGraphics = arrowG;
         this.labelText = labelT;
         // Timer is now global/static, not per-card
+    }
+
+    // Show NOT badge with subtle pulse animation
+    showNotBadge() {
+        if (!this.notBadge) return;
+        this.notBadge.setVisible(true);
+        this.notBadge.setScale(0);
+        this.notBadge.setAlpha(1);
+
+        this.tweens.add({
+            targets: this.notBadge,
+            scale: 1,
+            duration: 300,
+            ease: 'Back.out'
+        });
+    }
+
+    // Hide NOT badge
+    hideNotBadge() {
+        if (!this.notBadge) return;
+        this.notBadge.setVisible(false);
     }
 
     createControls() {
@@ -472,6 +566,33 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // Re-center container - match the createStimulusArea position
         if (this.arrowContainer) this.arrowContainer.setPosition(width / 2, height / 2 - 100);
+    }
+
+    // Button Swap Animation (triggers on 5-combo)
+    swapButtons() {
+        this.buttonsSwapped = !this.buttonsSwapped;
+        const { width } = this.scale;
+
+        // Target positions
+        const leftPos = width * 0.25;
+        const rightPos = width * 0.75;
+
+        // Play swap sound (use existing beep with detune)
+        this.soundBeep.play({ detune: -400 });
+
+        // Animate both containers
+        this.tweens.add({
+            targets: this.noContainer,
+            x: this.buttonsSwapped ? rightPos : leftPos,
+            duration: 400,
+            ease: 'Back.inOut'
+        });
+        this.tweens.add({
+            targets: this.yesContainer,
+            x: this.buttonsSwapped ? leftPos : rightPos,
+            duration: 400,
+            ease: 'Back.inOut'
+        });
     }
 
     drawArrow(dir: string, color: number) {
@@ -619,8 +740,6 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.sound.stopAll(); // clear previous
         if (this.soundBgm) this.soundBgm.play();
 
-        if (this.soundBgm) this.soundBgm.play();
-
         this.currentPhase = 1;
         this.isTutorialMode = false; // Reset
         this.nextCard(true);
@@ -656,6 +775,27 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.setupPhase2();
         } else {
             this.setupPhase3();
+        }
+
+        // 3b. Initialize Drift Velocities (Phase 4+)
+        // Enable drift if score is high enough
+        this.driftEnabled = (this.score >= this.PHASE_4_THRESHOLD);
+        if (this.driftEnabled) {
+            // Random direction, consistent speed
+            const speed = this.DRIFT_SPEED;
+            const randomAngle1 = Math.random() * Math.PI * 2;
+            const randomAngle2 = Math.random() * Math.PI * 2;
+            this.arrowVelocity = {
+                x: Math.cos(randomAngle1) * speed,
+                y: Math.sin(randomAngle1) * speed
+            };
+            this.textVelocity = {
+                x: Math.cos(randomAngle2) * speed * 0.8, // Text slightly slower
+                y: Math.sin(randomAngle2) * speed * 0.8
+            };
+        } else {
+            this.arrowVelocity = { x: 0, y: 0 };
+            this.textVelocity = { x: 0, y: 0 };
         }
 
         // 4. Gentle Entrance (Fade In + Scale to Normal)
@@ -703,6 +843,14 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         this.drawArrow(this.currentArrowDir, 0x0984E3); // Default Blue
         this.labelText.setText(this.currentLabelText);
+
+        // NOT Operator (after 15k points)
+        this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
+        if (this.isNegated) {
+            this.showNotBadge();
+        } else {
+            this.hideNotBadge();
+        }
     }
 
     setupPhase2() {
@@ -748,6 +896,14 @@ export class SensorLockGameScene extends Phaser.Scene {
         }
 
         this.labelText.setText(this.currentLabelText);
+
+        // NOT Operator (after 15k points)
+        this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
+        if (this.isNegated) {
+            this.showNotBadge();
+        } else {
+            this.hideNotBadge();
+        }
     }
 
     setupPhase3() {
@@ -821,6 +977,14 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.labelText.setColor(this.colorToHex(textInk.hex));
 
         this.drawArrow(arrowDir, arrowColor.hex);
+
+        // NOT Operator (after 15k points)
+        this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
+        if (this.isNegated) {
+            this.showNotBadge();
+        } else {
+            this.hideNotBadge();
+        }
     }
 
     handleInput(saidMatch: boolean) {
@@ -888,7 +1052,9 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.reactionCount++;
         this.attempts++;
 
-        let isCorrect = (saidMatch === this.isMatch);
+        // NOT Operator: Flip expected answer if negated
+        const effectiveMatch = this.isNegated ? !this.isMatch : this.isMatch;
+        let isCorrect = (saidMatch === effectiveMatch);
 
         // Tutorial Logic: Retry on fail, proceed on success
         if (this.isTutorialMode) {
@@ -921,6 +1087,11 @@ export class SensorLockGameScene extends Phaser.Scene {
 
             this.sound.play('match-success', { detune: detune });
 
+            // Button Swap on 5-combo
+            if (this.currentStreak > 0 && this.currentStreak % this.SWAP_COMBO_TRIGGER === 0) {
+                this.swapButtons();
+            }
+
             // Score Calculation: 
             // Base score + Speed Bonus (faster = more points)
             // Max time 2000. If 500ms used, 1500 saved. 
@@ -934,7 +1105,7 @@ export class SensorLockGameScene extends Phaser.Scene {
 
             // Difficulty Scaling
             if (this.correctCount % 5 === 0) {
-                this.timeLimitPerCard = Math.max(this.minTimeLimit, this.timeLimitPerCard * 0.95);
+                this.timeLimitPerCard = Math.max(this.minTimeLimit, this.timeLimitPerCard * 0.96);
             }
 
             // Check Phase Progression
@@ -1097,6 +1268,8 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.showPhaseTransition(2);
         } else if (this.currentPhase === 2 && this.score >= this.PHASE_3_THRESHOLD) {
             this.showPhaseTransition(3);
+        } else if (this.currentPhase === 3 && this.score >= this.PHASE_4_THRESHOLD) {
+            this.showPhaseTransition(4);
         }
     }
 
@@ -1107,8 +1280,13 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.soundLevelPass.play();
 
         // 1. Fade OUT Game Elements
+        // Include Timer (Bar + Icon)
+        const targetsToFade = [this.arrowContainer, this.streakText, this.scoreText];
+        if (this.timerBar) targetsToFade.push(this.timerBar as any);
+        if (this.timerIcon) targetsToFade.push(this.timerIcon as any);
+
         this.tweens.add({
-            targets: [this.arrowContainer, this.streakText, this.scoreText],
+            targets: targetsToFade,
             alpha: 0,
             duration: 300,
             onComplete: () => {
@@ -1128,10 +1306,14 @@ export class SensorLockGameScene extends Phaser.Scene {
             title = "LEVEL 2";
             line1 = "จับคู่สี!";
             line2 = "(ตรงกัน = สีเหมือนชื่อสี)";
-        } else {
+        } else if (nextPhase === 3) {
             title = "LEVEL 3";
             line1 = "รวมร่าง!";
             line2 = "(ต้องตรงกันทั้งทิศและสี)";
+        } else if (nextPhase === 4) {
+            title = "LEVEL 4";
+            line1 = "เคลื่อนไหว!";
+            line2 = "(ตัวอักษรจะลอยไปมา)";
         }
 
         const container = this.add.container(width / 2, height / 2).setAlpha(1);
@@ -1211,15 +1393,22 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     resumeGameAfterTransition() {
         // Restore Visibility
-        this.arrowContainer.setAlpha(1);
+        // Don't show the old card! Destroy it.
+        if (this.arrowContainer) this.arrowContainer.destroy();
+
         this.streakText.setAlpha(0); // Should be hidden initially
         this.scoreText.setAlpha(1);
+
+        // Reset Timer Alpha (was faded out during transition)
+        if (this.timerBar) this.timerBar.setAlpha(1);
+        if (this.timerIcon) this.timerIcon.setAlpha(1);
 
         // Resume Music
         if (this.soundBgm) this.soundBgm.play();
 
         this.isPlaying = true;
         this.isTutorialMode = true; // First card of new phase is untimed tutorial
+        this.cardStartTime = Date.now(); // Reset timer base just in case
 
         // Reset Visuals for new phase (important!)
         this.nextCard(true);
