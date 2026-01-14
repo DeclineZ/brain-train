@@ -91,6 +91,9 @@ export interface MemoryLevelConfig {
   difficultyMultiplier: number;
 }
 
+// Difficulty Tiers for Visual Feedback
+export type DifficultyTier = 'easy' | 'normal' | 'hard' | 'nightmare';
+
 export interface MatchingLevelConfig {
   level: number;
   gridCols: number;
@@ -99,11 +102,16 @@ export interface MatchingLevelConfig {
   parTimeSeconds: number; // For star calculation
   timeLimitSeconds: number; // <--- NEW: Countdown limit
   difficultyMultiplier: number;
+  difficultyTier?: DifficultyTier; // Visual Theme
 
   // New Mechanics for Levels 8+
   swapAfterPreviewCount?: number; // How many cards to random swap after preview (0 = none)
   periodicSwapInterval?: number;  // Every N turns (0 = none)
   periodicSwapPairs?: number;     // How many pairs to swap periodically
+
+  // Advanced Mechanics (Rebalancing Update)
+  useHardVariations?: boolean;    // Enable Quantity, Orientation, State variations
+  shuffleAfterPreview?: boolean;  // Force full grid shuffle after preview
 }
 
 // Daily streak types

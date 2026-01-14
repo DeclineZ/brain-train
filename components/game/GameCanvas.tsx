@@ -160,7 +160,14 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current = null;
       }
     };
-  }, [gameId, level, stars, mode]); // CRITICAL: Removed onGameOver/onTimeout from dependencies
+  }, [gameId, level, mode]); // Removed 'stars' to prevent re-init on async fetch
+
+  // Sync Stars to Registry without restarting game
+  useEffect(() => {
+    if (gameInstance.current) {
+      gameInstance.current.registry.set('stars', stars);
+    }
+  }, [stars]);
 
   const renderTimer = () => {
     if (typeof timerData === 'number') {
@@ -185,7 +192,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
 
         {/* Top: Level Indicator (Centered) */}
-        {gameId !== 'game-02-sensorlock' && mode !== 'tutorial' && (
+        {gameId !== 'game-02-sensorlock' && gameId !== 'game-01-cardmatch' && mode !== 'tutorial' && (
           <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
             LEVEL {currentLevel}
           </div>

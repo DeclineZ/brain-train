@@ -21,6 +21,21 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Home, ArrowLeft, Coins } from "lucide-react";
 
+// Import Level Configs for visual tier lookup
+import { MATCHING_LEVELS } from "@/games/game-01-cardmatch/levels";
+
+// Helper for Tier Visuals
+// Helper for Tier Visuals
+const getDifficultyVisuals = (tier?: string) => {
+    switch (tier) {
+        case 'easy': return { color: 'bg-green-100 text-green-700 border-green-300' };
+        case 'normal': return { color: 'bg-blue-100 text-blue-700 border-blue-300' };
+        case 'hard': return { color: 'bg-orange-100 text-orange-700 border-orange-300' };
+        case 'nightmare': return { color: 'bg-purple-900 text-purple-100 border-purple-500 shadow-purple-500/50' };
+        default: return { color: 'bg-gray-100 text-gray-700 border-gray-300' };
+    }
+};
+
 interface PageProps {
     params: Promise<{ gameId: string }>;
 }
@@ -53,6 +68,16 @@ export default function GamePage({ params }: PageProps) {
     // We prioritize URL param, but if missing, we wait for DB fetch
     const paramLevel = searchParams.get("level");
     const tutorialMode = searchParams.get("tutorial_mode");
+    const fromSource = searchParams.get("from");
+
+    const handleHomeClick = () => {
+        if (fromSource === 'levels') {
+            router.push(`/levels/${gameId}`);
+        } else {
+            const query = result?.allMissionsCompleted ? "?questComplete=true" : "";
+            router.push(`/${query}`);
+        }
+    };
 
     // Endless Mode Check
     const isEndless = gameId === 'game-02-sensorlock';
@@ -421,17 +446,33 @@ export default function GamePage({ params }: PageProps) {
             </div>
         );
 
+    // Get current level tier logic
+    // Safe lookup for Card Match game
+    let currentTier: string | undefined;
+    if (gameId === 'game-01-cardmatch') {
+        currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
+    }
+
+    const { color: tierColor } = getDifficultyVisuals(currentTier);
+
     return (
         <div className="w-full h-screen relative bg-game-bg overflow-hidden">
             {/* Header with Back Button */}
             <div className="absolute top-4 left-4 z-10 transition-transform hover:scale-105 active:scale-95">
-                <a
-                    href="/"
+                <button
+                    onClick={handleHomeClick}
                     className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center"
                 >
                     <Home className="w-6 h-6 text-brown-primary" />
-                </a>
+                </button>
             </div>
+
+            {/* Level & Difficulty Badge (Top Center) - ONLY for Game 01 */}
+            {!isLoadingLevel && activeLevel > 0 && gameId === 'game-01-cardmatch' && (
+                <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                    <span className="text-3xl">LEVEL {activeLevel}</span>
+                </div>
+            )}
 
             {/* The Game */}
             {/* The Game - Force remount on level change */}
@@ -453,7 +494,7 @@ export default function GamePage({ params }: PageProps) {
                     onContinue={handleContinue}
                     onRestart={handleRestartLevel}
                     onPreviousLevel={handlePreviousLevel}
-                    onGiveUp={() => router.push("/")}
+                    onGiveUp={handleHomeClick}
                     activeLevel={activeLevel}
                 />
             )}
@@ -679,13 +720,7 @@ export default function GamePage({ params }: PageProps) {
 
                                                     {/* Back to Home Button */}
                                                     <button
-                                                        onClick={() => {
-                                                            const query =
-                                                                result.allMissionsCompleted
-                                                                    ? "?questComplete=true"
-                                                                    : "";
-                                                            router.push(`/${query}`);
-                                                        }}
+                                                        onClick={handleHomeClick}
                                                         className={`bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 ${isEndless ? 'h-14' : ''}`}
                                                     >
                                                         <Home className="w-8 h-8" />
