@@ -41,17 +41,22 @@ export class WormVisual {
     private onSpawn({ worm }: { worm: WormEntity }) {
         const colorInt = parseInt(worm.config.color.replace('#', '0x'));
 
+        // Size multipliers: S=smaller, M=normal
+        const sizeMultiplier = worm.config.size === 'S' ? 0.7 : 1.0;
+        const headRadius = WormGameConfig.WORM_HEAD_RADIUS * sizeMultiplier;
+        const bodyRadius = WormGameConfig.WORM_BODY_RADIUS * sizeMultiplier;
+
         const segments: Phaser.GameObjects.Arc[] = [];
 
         // Create Head (larger, with eyes placeholder)
-        const head = this.scene.add.circle(0, 0, WormGameConfig.WORM_HEAD_RADIUS, colorInt);
+        const head = this.scene.add.circle(0, 0, headRadius, colorInt);
         head.setStrokeStyle(2, 0xffffff);
         this.container.add(head);
         segments.push(head);
 
         // Create Body Segments (smaller, slightly transparent)
         for (let i = 0; i < SEGMENT_COUNT - 1; i++) {
-            const bodyPart = this.scene.add.circle(0, 0, WormGameConfig.WORM_BODY_RADIUS - i * 0.5, colorInt);
+            const bodyPart = this.scene.add.circle(0, 0, bodyRadius - i * 0.5 * sizeMultiplier, colorInt);
             bodyPart.setAlpha(0.9 - i * 0.1);
             this.container.add(bodyPart);
             segments.push(bodyPart);

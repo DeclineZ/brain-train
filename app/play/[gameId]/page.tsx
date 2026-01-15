@@ -466,9 +466,16 @@ export default function GamePage({ params }: PageProps) {
                 </button>
             </div>
 
-            {/* Level & Difficulty Badge (Top Center) - ONLY for Game 01 */}
+            {/* Level & Difficulty Badge (Top Center) - For Game 01 with tier colors */}
             {!isLoadingLevel && activeLevel > 0 && gameId === 'game-01-cardmatch' && (
                 <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                    <span className="text-3xl">LEVEL {activeLevel}</span>
+                </div>
+            )}
+
+            {/* Level Badge (Top Center) - For Wormtrain */}
+            {!isLoadingLevel && activeLevel > 0 && gameId === 'game-05-wormtrain' && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
                     <span className="text-3xl">LEVEL {activeLevel}</span>
                 </div>
             )}

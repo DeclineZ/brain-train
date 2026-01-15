@@ -1,6 +1,7 @@
 export type NodeType = 'SPAWN' | 'JUNCTION' | 'MERGE' | 'HOLE' | 'TRAP';
 export type EdgeWidth = 'normal' | 'narrow';
 export type WormSize = 'S' | 'M' | 'L';
+export type HoleSize = 'S' | 'M'; // Only S and M per user request
 export type TrapType = 'SPIDER' | 'COLLAPSING_HOLE' | 'EARTHQUAKE';
 
 export interface Point {
@@ -14,6 +15,7 @@ export interface Node {
   x: number;
   y: number;
   color?: string; // For HOLE (match worm color)
+  size?: HoleSize; // For HOLE (match worm size)
 }
 
 export interface Edge {

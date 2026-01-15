@@ -11,7 +11,7 @@ import { WormVisual } from './visuals/WormVisual';
 import { JunctionVisual } from './visuals/JunctionVisual';
 import { GraphVisual } from './visuals/GraphVisual';
 import { TrapVisual } from './visuals/TrapVisual';
-import { ResultPopup } from './visuals/ResultPopup';
+// Note: ResultPopup is handled by React layer (page.tsx), not Phaser
 
 
 export default class GameScene extends Phaser.Scene {
@@ -29,26 +29,28 @@ export default class GameScene extends Phaser.Scene {
   public junctionVisual!: JunctionVisual;
   public wormVisual!: WormVisual;
   public trapVisual!: TrapVisual;
-  public resultPopup!: ResultPopup;
 
   // State
   public gameOver: boolean = false;
+  public currentLevel: number = 1;
 
   constructor() {
     super({ key: 'WormTrainGame' });
   }
 
   preload() {
-    // Load game assets
-    this.load.image('hole', '/games/game-05-wormtrain/hole.png');
-    this.load.image('spawn', '/games/game-05-wormtrain/spawn.png');
+    // Load game assets (WebP for faster loading)
+    this.load.image('hole', '/games/game-05-wormtrain/hole.webp');
+    this.load.image('spawn', '/games/game-05-wormtrain/spawn.webp');
     // Color-specific holes
-    this.load.image('hole_orange', '/games/game-05-wormtrain/orangehole.png');
-    this.load.image('hole_blue', '/games/game-05-wormtrain/bluehole.png');
+    this.load.image('hole_orange', '/games/game-05-wormtrain/Orangehole.webp');
+    this.load.image('hole_blue', '/games/game-05-wormtrain/Bluehole.webp');
   }
 
   create() {
-    console.log('Worm Train Game Started');
+    // Get level from registry (set by GameCanvas)
+    this.currentLevel = this.game.registry.get('level') || 1;
+    console.log('Worm Train Game Started - Level', this.currentLevel);
 
     // Initialize Systems - Order Matters
     this.levelLoader = new LevelLoader();
@@ -64,10 +66,9 @@ export default class GameScene extends Phaser.Scene {
     this.junctionVisual = new JunctionVisual(this);
     this.wormVisual = new WormVisual(this, this.wormSystem);
     this.trapVisual = new TrapVisual(this);
-    this.resultPopup = new ResultPopup(this);
 
-    // Load Level 1
-    const levelData = this.levelLoader.loadLevel(1);
+    // Load Level from registry
+    const levelData = this.levelLoader.loadLevel(this.currentLevel);
 
     // Init Systems with Data
     this.graphSystem.init(levelData);

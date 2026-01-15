@@ -1,5 +1,5 @@
 // Game types
-export type GameCategory = "reasoning" | "data_processing" | "matching" | "pattern_recognition" | "logic" | "calculation";
+export type GameCategory = "reasoning" | "data_processing" | "matching" | "pattern_recognition" | "logic" | "calculation" | "attention";
 
 
 // Result type

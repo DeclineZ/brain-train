@@ -76,28 +76,31 @@ export class GraphVisual {
                     holeTextureKey = 'hole_blue';
                 }
 
+                // Size multiplier based on hole size (S=smaller, M=normal)
+                const sizeMultiplier = node.size === 'S' ? 6 : 8;
+
                 // Use color-specific hole sprite if available
                 if (this.scene.textures.exists(holeTextureKey)) {
                     const holeSprite = this.scene.add.image(node.x, node.y, holeTextureKey);
-                    // Scale to be larger than tunnel width (~192px diameter)
-                    const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * 8;
+                    const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier;
                     const textureWidth = holeSprite.width || 512;
                     holeSprite.setScale(targetSize / textureWidth);
                     this.nodeSprites.add(holeSprite);
                 } else if (this.scene.textures.exists('hole')) {
                     // Fallback to generic hole with tint
                     const holeSprite = this.scene.add.image(node.x, node.y, 'hole');
-                    const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * 8;
+                    const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier;
                     const textureWidth = holeSprite.width || 512;
                     holeSprite.setScale(targetSize / textureWidth);
                     const color = parseInt(node.color!.replace('#', '0x'));
                     holeSprite.setTint(color);
                     this.nodeSprites.add(holeSprite);
                 } else {
-                    // Fallback circle
+                    // Fallback circle - smaller for S, larger for M
                     const color = parseInt(node.color!.replace('#', '0x'));
+                    const radiusMultiplier = node.size === 'S' ? 2.2 : 3;
                     this.graphics.fillStyle(color, 1);
-                    this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 3);
+                    this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * radiusMultiplier);
                     this.graphics.fillStyle(0x000000, 0.5);
                     this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 0.6);
                 }

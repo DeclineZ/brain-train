@@ -136,7 +136,12 @@ export class WormSystem {
 
         // 2. Handle Node Types
         if (node.type === 'HOLE') {
-            const success = this.scene.winLoseSystem.checkHoleArrival(worm.config.color, node.color || '');
+            const success = this.scene.winLoseSystem.checkHoleArrival(
+                worm.config.color,
+                node.color || '',
+                worm.config.size,
+                node.size
+            );
             this.setWormState(worm, success ? 'ARRIVED' : 'DEAD');
             return;
         }

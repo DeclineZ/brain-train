@@ -1,4 +1,4 @@
-export type GameCategory = "reasoning" | "data_processing" | "matching" | "pattern_recognition" | "logic" | "calculation";
+export type GameCategory = "reasoning" | "data_processing" | "matching" | "pattern_recognition" | "logic" | "calculation" | "attention";
 
 export interface Game {
   id: string;
