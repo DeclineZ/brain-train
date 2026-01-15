@@ -403,7 +403,7 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // 3. Arrow Graphics
         const arrowG = this.add.graphics();
-        arrowG.y = -80; // Top half
+        arrowG.y = -40; // Moved down to avoid NOT badge overlap
         container.add(arrowG);
 
         // 4. Label Text
@@ -417,17 +417,27 @@ export class SensorLockGameScene extends Phaser.Scene {
         container.add(labelT);
 
         // 5. NOT Badge (Hidden by default) - TOP of card, clearly visible
-        const badge = this.add.container(0, -160); // Very top of card
+        const badge = this.add.container(0, -160); // Back to top
         badge.setVisible(false);
 
+        // Glow/Shadow effect - EVEN padding (8px on all sides)
+        const badgeGlow = this.add.graphics();
+        badgeGlow.fillStyle(0xFF0000, 0.25);
+        badgeGlow.fillRoundedRect(-78, -30, 156, 60, 30); // 8px larger than badge on all sides
+        badge.add(badgeGlow);
+
+        // Main badge background - LARGER & BOLDER
         const badgeBg = this.add.graphics();
-        badgeBg.fillStyle(0xFF6B6B, 1); // Coral/Red
-        badgeBg.fillRoundedRect(-50, -18, 100, 36, 18); // Pill shape
+        badgeBg.fillStyle(0xD63031, 1); // Strong Red
+        badgeBg.lineStyle(4, 0xFFFFFF, 1); // White border
+        badgeBg.fillRoundedRect(-70, -22, 140, 44, 22);
+        badgeBg.strokeRoundedRect(-70, -22, 140, 44, 22);
         badge.add(badgeBg);
 
-        const badgeText = this.add.text(0, 0, "ไม่ใช่", {
+        // Badge text with ❌ icon - BIGGER
+        const badgeText = this.add.text(0, 0, "❌ ไม่ใช่!", {
             fontFamily: '"Mali", "Sarabun", sans-serif',
-            fontSize: "24px",
+            fontSize: "28px",
             fontStyle: "900",
             color: "#FFFFFF"
         }).setOrigin(0.5);
@@ -443,24 +453,37 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Timer is now global/static, not per-card
     }
 
-    // Show NOT badge with subtle pulse animation
+    // Show NOT badge with attention-grabbing animation
     showNotBadge() {
         if (!this.notBadge) return;
         this.notBadge.setVisible(true);
         this.notBadge.setScale(0);
         this.notBadge.setAlpha(1);
 
+        // Pop in
         this.tweens.add({
             targets: this.notBadge,
             scale: 1,
             duration: 300,
-            ease: 'Back.out'
+            ease: 'Back.out',
+            onComplete: () => {
+                // Continuous pulse to keep attention
+                this.tweens.add({
+                    targets: this.notBadge,
+                    scale: 1.1,
+                    duration: 500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.inOut'
+                });
+            }
         });
     }
 
     // Hide NOT badge
     hideNotBadge() {
         if (!this.notBadge) return;
+        this.tweens.killTweensOf(this.notBadge); // Stop pulse
         this.notBadge.setVisible(false);
     }
 
@@ -914,8 +937,9 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Match = ArrowDir == TextMeaning AND ArrowColor == TextInkColor.
 
         this.arrowGraphics.setVisible(true);
-        // Layout: Text below arrow
-        this.labelText.setPosition(0, 150); // Move text UP slightly
+        // Layout: Arrow above, Text below - balanced spacing
+        this.arrowGraphics.y = -40; // Reset to default (adjusted for NOT badge)
+        this.labelText.setPosition(0, 120); // Closer to arrow for balance
         this.labelText.setOrigin(0.5);
 
         const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'] as const;
