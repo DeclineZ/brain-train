@@ -24,8 +24,8 @@ export class JunctionVisual {
             const node = levelData.nodes.find((n: any) => n.id === j.id);
             if (!node) return;
 
-            // Hit Area (Invisible interactive circle)
-            const hitArea = this.scene.add.circle(node.x, node.y, 30, 0x000000, 0.0);
+            // Hit Area (Invisible interactive circle - extra large for mobile touch)
+            const hitArea = this.scene.add.circle(node.x, node.y, 70, 0x000000, 0.0);
             hitArea.setInteractive({ useHandCursor: true });
             hitArea.on('pointerdown', () => {
                 this.scene.switchSystem.switchJunction(j.id);
@@ -33,8 +33,9 @@ export class JunctionVisual {
             this.container.add(hitArea);
 
             // Indicator (Arrow or Line showing direction)
-            // For MVP: A Line stick that rotates
-            const stick = this.scene.add.rectangle(node.x, node.y, 40, 6, 0xffffff);
+            // Larger stick for mobile visibility
+            const stick = this.scene.add.rectangle(node.x, node.y, 60, 12, 0xffffff);
+            stick.setStrokeStyle(3, 0x333333); // Add border for visibility
             stick.setOrigin(0.5, 0.5); // Pivot center
             this.container.add(stick);
             this.indicators.set(j.id, stick);

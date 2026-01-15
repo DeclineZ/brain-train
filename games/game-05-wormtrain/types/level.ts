@@ -1,6 +1,6 @@
 export type NodeType = 'SPAWN' | 'JUNCTION' | 'MERGE' | 'HOLE' | 'TRAP';
 export type EdgeWidth = 'normal' | 'narrow';
-export type WormSize = 'S' | 'M' | 'L';
+export type WormSize = 'S' | 'M';
 export type HoleSize = 'S' | 'M'; // Only S and M per user request
 export type TrapType = 'SPIDER' | 'COLLAPSING_HOLE' | 'EARTHQUAKE';
 

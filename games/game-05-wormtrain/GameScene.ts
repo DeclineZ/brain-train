@@ -45,6 +45,10 @@ export default class GameScene extends Phaser.Scene {
     // Color-specific holes
     this.load.image('hole_orange', '/games/game-05-wormtrain/Orangehole.webp');
     this.load.image('hole_blue', '/games/game-05-wormtrain/Bluehole.webp');
+    this.load.image('hole_green', '/games/game-05-wormtrain/Greenhole.webp');
+    this.load.image('hole_yellow', '/games/game-05-wormtrain/Yellowhole.webp');
+    this.load.image('hole_pink', '/games/game-05-wormtrain/Pinkhole.webp');
+    this.load.image('hole_purple', '/games/game-05-wormtrain/Purplehole.webp');
   }
 
   create() {
@@ -82,6 +86,54 @@ export default class GameScene extends Phaser.Scene {
     this.graphVisual.init(levelData);
     this.junctionVisual.init(levelData);
     this.trapVisual.init(levelData);
+
+    // Apply responsive camera zoom to fit content on any screen
+    this.setupResponsiveCamera(levelData);
+
+    // Listen for resize events
+    this.scale.on('resize', () => {
+      this.setupResponsiveCamera(levelData);
+    });
+  }
+
+  private setupResponsiveCamera(levelData: any) {
+    // Calculate bounding box of all nodes
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    levelData.nodes.forEach((node: any) => {
+      minX = Math.min(minX, node.x);
+      maxX = Math.max(maxX, node.x);
+      minY = Math.min(minY, node.y);
+      maxY = Math.max(maxY, node.y);
+    });
+
+    // Add padding for sprites
+    const padding = 100;
+    minX -= padding;
+    maxX += padding;
+    minY -= padding;
+    maxY += padding;
+
+    // Calculate content size
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    // Get screen size
+    const screenWidth = this.cameras.main.width;
+    const screenHeight = this.cameras.main.height;
+
+    // Calculate zoom to fit content
+    const zoomX = screenWidth / contentWidth;
+    const zoomY = screenHeight / contentHeight;
+    const zoom = Math.min(zoomX, zoomY) * 0.9; // 0.9 for some margin
+
+    // Center camera on content
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.centerOn(centerX, centerY);
   }
 
   update(time: number, delta: number) {

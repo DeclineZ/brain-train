@@ -34,12 +34,18 @@ export class GraphVisual {
         };
 
         // 1. Draw Outer Layer (Border/Depth)
-        this.graphics.lineStyle(WormGameConfig.PATH_WIDTH_NORMAL * 1.4 * (style.widthMultiplier || 1), style.outerColor, style.outerAlpha);
-        levelData.edges.forEach(edge => this.drawEdgePath(edge));
+        levelData.edges.forEach(edge => {
+            const baseWidth = edge.widthClass === 'narrow' ? WormGameConfig.PATH_WIDTH_NARROW : WormGameConfig.PATH_WIDTH_NORMAL;
+            this.graphics.lineStyle(baseWidth * 1.4 * (style.widthMultiplier || 1), style.outerColor, style.outerAlpha);
+            this.drawEdgePath(edge);
+        });
 
         // 2. Draw Inner Layer (Tunnel Floor)
-        this.graphics.lineStyle(WormGameConfig.PATH_WIDTH_NORMAL * (style.widthMultiplier || 1), style.innerColor, style.innerAlpha);
-        levelData.edges.forEach(edge => this.drawEdgePath(edge));
+        levelData.edges.forEach(edge => {
+            const baseWidth = edge.widthClass === 'narrow' ? WormGameConfig.PATH_WIDTH_NARROW : WormGameConfig.PATH_WIDTH_NORMAL;
+            this.graphics.lineStyle(baseWidth * (style.widthMultiplier || 1), style.innerColor, style.innerAlpha);
+            this.drawEdgePath(edge);
+        });
 
         // 3. Draw Nodes (Stylized)
         this.drawNodes(levelData.nodes, style);
@@ -59,11 +65,11 @@ export class GraphVisual {
     private drawNodes(nodes: Node[], style: any) {
         nodes.forEach((node: Node) => {
             if (node.type === 'JUNCTION' || node.type === 'MERGE') {
-                // Chunky junction circle
+                // Chunky junction circle - larger for mobile
                 this.graphics.fillStyle(style.outerColor, 1);
-                this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 0.8);
+                this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 1.2);
                 this.graphics.fillStyle(style.innerColor, 1);
-                this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 0.6);
+                this.graphics.fillCircle(node.x, node.y, WormGameConfig.PATH_WIDTH_NORMAL * 0.9);
             } else if (node.type === 'HOLE') {
                 // Determine color-specific sprite key
                 const colorLower = node.color?.toLowerCase() || '';
@@ -74,6 +80,14 @@ export class GraphVisual {
                     holeTextureKey = 'hole_orange';
                 } else if (colorLower === '#5170ff' || colorLower.includes('5170ff')) {
                     holeTextureKey = 'hole_blue';
+                } else if (colorLower === '#58cc02' || colorLower.includes('58cc02')) {
+                    holeTextureKey = 'hole_green';
+                } else if (colorLower === '#ffd700' || colorLower.includes('ffd700')) {
+                    holeTextureKey = 'hole_yellow';
+                } else if (colorLower === '#e91e63' || colorLower.includes('e91e63')) {
+                    holeTextureKey = 'hole_pink';
+                } else if (colorLower === '#9c27b0' || colorLower.includes('9c27b0')) {
+                    holeTextureKey = 'hole_purple';
                 }
 
                 // Size multiplier based on hole size (S=smaller, M=normal)

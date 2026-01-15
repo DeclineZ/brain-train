@@ -189,8 +189,17 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
   const timerState = renderTimer();
 
+  // Get game-specific background color to fill any gaps from FIT mode scaling
+  const getContainerBackground = () => {
+    if (gameId === 'game-05-wormtrain') return '#4a7c4e'; // Match Phaser bg
+    return 'transparent';
+  };
+
   return (
-    <div className="relative w-full h-full">
+    <div
+      className="relative w-full h-full"
+      style={{ backgroundColor: getContainerBackground() }}
+    >
 
 
 

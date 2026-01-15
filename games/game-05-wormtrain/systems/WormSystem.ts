@@ -186,9 +186,8 @@ export class WormSystem {
         if (edge.widthClass === 'narrow') {
             // TODO: Check global rules if we want to toggle this mechanic?
             // For now assume rule is always ON for narrow edges
-            if (worm.config.size === 'L' || worm.config.size === 'M') { // Assuming M/L cant fit narrow? Or just L?
-                // Let's stick to user prompt: "worm.size === 'S' // หรือ S/M ตามดีไซน์ level"
-                // Assume ONLY S fits narrow.
+            if (worm.config.size === 'M') {
+                // Only S fits narrow. M is too large.
                 return true;
             }
         }

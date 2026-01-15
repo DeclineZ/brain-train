@@ -3,11 +3,11 @@ export const WormGameConstants = {
   DEFAULT_SPEED: 80,
   JAM_SHAKE_INTENSITY: 2,
 
-  // Visuals
-  WORM_HEAD_RADIUS: 12,
-  WORM_BODY_RADIUS: 10,
-  PATH_WIDTH_NORMAL: 24,
-  PATH_WIDTH_NARROW: 14,
+  // Visuals (scaled up for mobile)
+  WORM_HEAD_RADIUS: 16,
+  WORM_BODY_RADIUS: 13,
+  PATH_WIDTH_NORMAL: 30,
+  PATH_WIDTH_NARROW: 12,
 
   // Colors (Hex strings)
   COLORS: {
@@ -52,10 +52,8 @@ export const WormGameConfig: Types.Core.GameConfig = {
   parent: 'game-container',
   backgroundColor: '#4a7c4e', // Organic green background (Lumosity-style)
   scale: {
-    mode: Phaser.Scale.ENVELOP, // Fill entire screen, may crop edges
+    mode: Phaser.Scale.RESIZE, // Dynamic resize with camera zoom
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 800,
-    height: 600,
   },
   physics: {
     default: 'arcade',

@@ -42,7 +42,7 @@ export class WormVisual {
         const colorInt = parseInt(worm.config.color.replace('#', '0x'));
 
         // Size multipliers: S=smaller, M=normal
-        const sizeMultiplier = worm.config.size === 'S' ? 0.7 : 1.0;
+        const sizeMultiplier = worm.config.size === 'S' ? 0.5 : 1.0;
         const headRadius = WormGameConfig.WORM_HEAD_RADIUS * sizeMultiplier;
         const bodyRadius = WormGameConfig.WORM_BODY_RADIUS * sizeMultiplier;
 

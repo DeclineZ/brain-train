@@ -7,7 +7,7 @@ VALUES (
   'พาหนอนน้อยกลับบ้าน',
   'attention',
   true,
-  '/games/game-05-wormtrain/cover.png',  -- Placeholder path (add cover image later)
+  '/covers/wormtrain_cover.webp',
   5
 );
 
