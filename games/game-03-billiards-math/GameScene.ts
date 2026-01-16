@@ -142,8 +142,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.load.audio("success", "/assets/sounds/billiards/success.mp3");
         this.load.audio("bg-music", "/assets/sounds/billiards/bg-music.mp3");
         this.load.audio("ball-click", "/assets/sounds/billiards/ball-rattle.mp3"); // Use ball-rattle for click
-        this.load.audio("level-pass", "/assets/sounds/level-pass.mp3");
-        this.load.audio("level-fail", "/assets/sounds/level-fail.mp3");
+        this.load.audio("level-pass", "/assets/sounds/global/level-pass.mp3");
+        this.load.audio("level-fail", "/assets/sounds/global/level-fail.mp3");
     }
 
     create() {

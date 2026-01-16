@@ -10,62 +10,37 @@ export class FloatboatController {
   private leftArrowHint!: Phaser.GameObjects.Container;
   private rightArrowHint!: Phaser.GameObjects.Container;
   private isBoatMoving: boolean = false;
+  private signText!: Phaser.GameObjects.Text;
+  private childrenWithSign!: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
   /**
-   * Create the floatboat sprite at the bottom of the screen
+   * Create floatboat sprite at bottom of screen
    */
   createFloatboat(yPosition: number): Floatboat {
     const { width } = this.scene.scale;
-    const boatWidth = Math.min(120, width * 0.2);
-    const boatHeight = Math.min(100, width * 0.1); // Made boat taller (from 60 to 100)
+    const boatWidth = Math.min(120, width * 0.35); // Wider for Boat.png
+    const boatHeight = Math.min(120, width * 0.06); // Taller for Boat.png
     const x = width / 2;
 
     const container = this.scene.add.container(x, yPosition);
-    container.setSize(boatWidth, boatHeight);
 
-    // Create boat body (simple boat shape using graphics)
-    const boatGraphics = this.scene.add.graphics();
-    
-    // Boat hull (brown/wood color) - made taller
-    boatGraphics.fillStyle(0x8B4513, 1);
-    boatGraphics.beginPath();
-    boatGraphics.moveTo(-boatWidth / 2, -boatHeight / 2);
-    boatGraphics.lineTo(-boatWidth / 2 + 15, boatHeight / 2);
-    boatGraphics.lineTo(boatWidth / 2 - 15, boatHeight / 2);
-    boatGraphics.lineTo(boatWidth / 2, -boatHeight / 2);
-    boatGraphics.closePath();
-    boatGraphics.fillPath();
+    // Load and add boat image sprite
+    const boatSprite = this.scene.add.image(0, 0, 'boat');
+    boatSprite.setOrigin(0.5, 0.5);
+    boatSprite.setScale(0.25); // Scale down Boat.png image appropriately
 
-    // Boat deck (lighter wood) - made taller
-    boatGraphics.fillStyle(0xDEB887, 1);
-    boatGraphics.fillRoundedRect(-boatWidth / 2 + 18, -boatHeight / 2 + 8, boatWidth - 36, boatHeight / 2, 8);
+    // Calculate actual boat image size after scaling (drag box equals image)
+    const boatDisplayWidth = boatSprite.width * boatSprite.scaleX;
+    const boatDisplayHeight = boatSprite.height * boatSprite.scaleY;
+    container.setSize(boatDisplayWidth, boatDisplayHeight);
 
-    // Add some decorative stripes
-    boatGraphics.lineStyle(3, 0xFFFFFF, 0.5);
-    boatGraphics.beginPath();
-    boatGraphics.moveTo(-boatWidth / 2 + 20, 0);
-    boatGraphics.lineTo(boatWidth / 2 - 20, 0);
-    boatGraphics.strokePath();
-
-    // Add small mast/sail for visual interest - adjusted for taller boat
-    const mast = this.scene.add.graphics();
-    mast.fillStyle(0x8B4513, 1);
-    mast.fillRect(-3, -boatHeight / 2 - 30, 6, 35);
-    
-    // Sail
-    mast.fillStyle(0xFFFFFF, 0.9);
-    mast.beginPath();
-    mast.moveTo(0, -boatHeight / 2 - 55);
-    mast.lineTo(0, -boatHeight / 2 - 30);
-    mast.lineTo(30, -boatHeight / 2 - 30);
-    mast.closePath();
-    mast.fillPath();
-
-    container.add([boatGraphics, mast]);
+    // Create children holding sign (moved to left side of boat)
+    this.childrenWithSign = this.createChildrenWithSign(boatWidth, boatHeight, width);
+    container.add([boatSprite, this.childrenWithSign]);
 
     // Make container interactive for drag
     container.setInteractive({
@@ -84,6 +59,8 @@ export class FloatboatController {
 
     container.on('dragend', () => {
       this.isDragging = false;
+      // Snap to nearest lane after drag ends
+      this.snapToNearestLane();
     });
 
     container.on('pointerdown', () => {
@@ -100,12 +77,15 @@ export class FloatboatController {
       height: boatHeight,
       speed: 8,
     };
+    
+    // Initialize last movement time so arrows will show after 3 seconds of being idle
+    this.lastMovementTime = Date.now();
 
     return this.floatboat;
   }
 
   /**
-   * Get the floatboat object
+   * Get floatboat object
    */
   getFloatboat(): Floatboat | null {
     return this.floatboat;
@@ -119,13 +99,15 @@ export class FloatboatController {
 
     const { width } = this.scene.scale;
 
-    // Left arrow hint
-    this.leftArrowHint = this.createArrow('⬅️', -70, width);
-    this.floatboat.container.add(this.leftArrowHint);
+    // Left arrow hint - add to boat container so it follows automatically
+    this.leftArrowHint = this.createArrow('left', -100, width);
+    this.floatboat.container.add(this.leftArrowHint); // Add to boat container
+    this.leftArrowHint.setDepth(1500); // Above boat but below UI
     
-    // Right arrow hint
-    this.rightArrowHint = this.createArrow('➡️', 70, width);
-    this.floatboat.container.add(this.rightArrowHint);
+    // Right arrow hint - add to boat container so it follows automatically
+    this.rightArrowHint = this.createArrow('right', 100, width);
+    this.floatboat.container.add(this.rightArrowHint); // Add to boat container
+    this.rightArrowHint.setDepth(1500); // Above boat but below UI
     
     // Hide initially
     this.leftArrowHint.setVisible(false);
@@ -133,24 +115,67 @@ export class FloatboatController {
   }
 
   /**
-   * Create an arrow hint container
+   * Create an arrow hint container using Phaser graphics
    */
-  private createArrow(emoji: string, xOffset: number, screenWidth: number): Phaser.GameObjects.Container {
+  private createArrow(direction: 'left' | 'right', xOffset: number, screenWidth: number): Phaser.GameObjects.Container {
     const container = this.scene.add.container(xOffset, 0);
     const arrowSize = Math.min(40, screenWidth * 0.08);
+
+    // Shadow (offset for depth effect)
+    const shadow = this.scene.add.graphics();
+    shadow.fillStyle(0x000000, 0.3);
+    shadow.fillCircle(3, 3, arrowSize / 2);
 
     // Background circle
     const bg = this.scene.add.graphics();
     bg.fillStyle(0xFFFF00, 0.8); // Yellow background
+    bg.lineStyle(3, 0xFFA000, 1); // Orange outline
     bg.fillCircle(0, 0, arrowSize / 2);
+    bg.strokeCircle(0, 0, arrowSize / 2);
 
-    // Arrow text
-    const text = this.scene.add.text(0, 0, emoji, {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: `${Math.min(28, screenWidth * 0.05)}px`,
-    }).setOrigin(0.5);
+    // Arrow graphics
+    const arrow = this.scene.add.graphics();
+    arrow.fillStyle(0xFFFFFF, 1); // White arrow
+    arrow.lineStyle(2, 0xFFFF00, 1); // Yellow outline
+    
+    if (direction === 'left') {
+      // Draw left-pointing triangle
+      arrow.fillTriangle(
+        arrowSize / 3, -arrowSize / 3,  // Top
+        arrowSize / 3, arrowSize / 3,   // Bottom
+        -arrowSize / 3, 0              // Left point
+      );
+      arrow.strokeTriangle(
+        arrowSize / 3, -arrowSize / 3,  // Top
+        arrowSize / 3, arrowSize / 3,   // Bottom
+        -arrowSize / 3, 0              // Left point
+      );
+    } else {
+      // Draw right-pointing triangle
+      arrow.fillTriangle(
+        -arrowSize / 3, -arrowSize / 3,  // Top
+        -arrowSize / 3, arrowSize / 3,   // Bottom
+        arrowSize / 3, 0               // Right point
+      );
+      arrow.strokeTriangle(
+        -arrowSize / 3, -arrowSize / 3,  // Top
+        -arrowSize / 3, arrowSize / 3,   // Bottom
+        arrowSize / 3, 0               // Right point
+      );
+    }
 
-    container.add([bg, text]);
+    container.add([shadow, bg, arrow]);
+    
+    // Make container interactive for click-to-move
+    container.setSize(arrowSize, arrowSize);
+    container.setInteractive({ useHandCursor: true });
+    
+    // Add click handler to move boat - emit event for GameScene to handle
+    container.on('pointerdown', () => {
+      this.onBoatMoved();
+      // Emit event to trigger lane movement
+      this.scene.events.emit('arrow-click', { direction });
+    });
     
     // Add pulsing animation
     this.scene.tweens.add({
@@ -171,28 +196,50 @@ export class FloatboatController {
   onBoatMoved() {
     this.isBoatMoving = true;
     this.lastMovementTime = Date.now();
-    this.leftArrowHint.setVisible(false);
-    this.rightArrowHint.setVisible(false);
+    if (this.leftArrowHint) {
+      this.leftArrowHint.setVisible(false);
+    }
+    if (this.rightArrowHint) {
+      this.rightArrowHint.setVisible(false);
+    }
+  }
+
+  /**
+   * Reset boat moving flag (called when movement completes)
+   */
+  resetIsBoatMoving() {
+    this.isBoatMoving = false;
   }
 
   /**
    * Update movement hints (call from scene update)
    */
   updateMovementHints() {
-    if (!this.isBoatMoving) return;
+    if (!this.floatboat) return;
 
     const idleTime = Date.now() - this.lastMovementTime;
     
-    // Show arrows if idle for 3 seconds
-    if (idleTime > 3000) {
-      this.leftArrowHint.setVisible(true);
-      this.rightArrowHint.setVisible(true);
-      this.isBoatMoving = false;
+    // Hide arrows when boat is moving
+    if (this.isBoatMoving) {
+      if (this.leftArrowHint) {
+        this.leftArrowHint.setVisible(false);
+      }
+      if (this.rightArrowHint) {
+        this.rightArrowHint.setVisible(false);
+      }
+    } else if (idleTime > 800) {
+      // Show arrows if idle for 3 seconds (arrows are children of boat container, so they follow automatically)
+      if (this.leftArrowHint) {
+        this.leftArrowHint.setVisible(true);
+      }
+      if (this.rightArrowHint) {
+        this.rightArrowHint.setVisible(true);
+      }
     }
   }
 
   /**
-   * Get the collision bounds of the floatboat
+   * Get collision bounds of floatboat
    */
   getCollisionBounds(): Phaser.Geom.Rectangle | null {
     if (!this.floatboat) return null;
@@ -261,6 +308,45 @@ export class FloatboatController {
   }
 
   /**
+   * Snap boat to nearest lane
+   */
+  snapToNearestLane(): void {
+    if (!this.floatboat || !this.floatboat.container) return;
+
+    const { width } = this.scene.scale;
+    const laneWidth = width / 3;
+    
+    // Calculate lane positions
+    const lanes = {
+      left: laneWidth * 0.5,
+      center: width * 0.5,
+      right: width * 0.75 + laneWidth * 0.25,
+    };
+
+    // Find nearest lane
+    const currentX = this.floatboat.container.x;
+    const distances = [
+      { lane: 'left', center: lanes.left, distance: Math.abs(currentX - lanes.left) },
+      { lane: 'center', center: lanes.center, distance: Math.abs(currentX - lanes.center) },
+      { lane: 'right', center: lanes.right, distance: Math.abs(currentX - lanes.right) },
+    ];
+    
+    distances.sort((a, b) => a.distance - b.distance);
+    const nearest = distances[0];
+    
+    // Animate to nearest lane and reset moving flag
+    this.scene.tweens.add({
+      targets: this.floatboat.container,
+      x: nearest.center,
+      duration: 200,
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        this.isBoatMoving = false; // Reset flag when movement completes
+      },
+    });
+  }
+
+  /**
    * Check collision with a ball
    */
   checkCollision(ballX: number, ballY: number, ballRadius: number): boolean {
@@ -290,7 +376,7 @@ export class FloatboatController {
 
       this.scene.tweens.add({
         targets: this.floatboat.container,
-        scaleX: 1.1,
+        scaleX:1.1,
         scaleY: 0.9,
         duration: 100,
         yoyo: true,
@@ -300,6 +386,65 @@ export class FloatboatController {
         },
       });
     });
+  }
+
+  /**
+   * Create children holding a sign with target text
+   */
+  private createChildrenWithSign(boatWidth: number, boatHeight: number, screenWidth: number): Phaser.GameObjects.Container {
+    // Position on left side of boat (negative x offset)
+    const container = this.scene.add.container(-boatWidth / 2 + 30, -boatHeight / 2 - 20);
+    
+    const signWidth = Math.min(140, screenWidth * 0.25);
+    const signHeight = Math.min(50, screenWidth * 0.2);
+
+    // Create sign/board (white with blue border)
+    const signBg = this.scene.add.graphics();
+    signBg.fillStyle(0xFFFFFF, 1);
+    signBg.lineStyle(4, 0x42A5F5, 1);
+    signBg.fillRoundedRect(-signWidth / 2, -signHeight / 2, signWidth, signHeight, 10);
+    signBg.strokeRoundedRect(-signWidth / 2, -signHeight / 2, signWidth, signHeight, 10);
+
+    // Sign shadow
+    const signShadow = this.scene.add.graphics();
+    signShadow.fillStyle(0x000000, 0.2);
+    signShadow.fillRoundedRect(-signWidth / 2 + 4, -signHeight / 2 + 4, signWidth, signHeight, 10);
+
+    // Target text on sign
+    this.signText = this.scene.add.text(0, 0, "เป้าหมาย 0", {
+      fontFamily: "Sarabun, sans-serif",
+      fontSize: `${Math.min(40, screenWidth * 0.3)}px`,
+      color: "#333333",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+
+    container.add([signShadow, signBg, this.signText ]);
+
+    return container;
+  }
+
+
+  /**
+   * Update current value on sign
+   */
+  updateSignText(current: number): void {
+    if (this.signText) {
+      this.signText.setText(`${current.toString()}`);
+    }
+  }
+
+  /**
+   * Get sign text object (for animations)
+   */
+  getSignText(): Phaser.GameObjects.Text | null {
+    return this.signText || null;
+  }
+
+  /**
+   * Get children with sign container (for animations)
+   */
+  getChildrenWithSign(): Phaser.GameObjects.Container | null {
+    return this.childrenWithSign || null;
   }
 
   /**

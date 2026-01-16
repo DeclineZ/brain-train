@@ -59,12 +59,10 @@ export class EquationGenerator {
    * Generate a starting current number that's reasonably close to target
    */
   private generateStartingCurrent(target: number): number {
-    const { min, max } = this.config.operandRange;
+    const { min, max } = this.config.startNumberRange;
     
-    // Starting current should be within a reasonable range of target
-    // to make the puzzle solvable with a few operations
-    const difference = Math.abs(target - this.randomInt(min, max));
-    const startingCurrent = Math.max(min, Math.min(max, target - difference + this.randomInt(-5, 5)));
+    // Generate a random start number within the configured range
+    const startingCurrent = this.randomInt(min, max);
     
     return startingCurrent;
   }
@@ -95,6 +93,9 @@ export class EquationGenerator {
         wavePhase: Math.random() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
+        isSolvable: true, // Solution path balls are solvable
+        lane: 1, // Will be set when spawning
+        originalLane: 1,
         container: null, // Will be set when creating
       };
       balls.push(ball);
@@ -321,6 +322,9 @@ export class EquationGenerator {
         wavePhase: Math.random() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
+        isSolvable: false, // Distractor balls are not solvable
+        lane: 1, // Will be set when spawning
+        originalLane: 1,
         container: null,
       };
       balls.push(ball);
@@ -353,6 +357,9 @@ export class EquationGenerator {
         wavePhase: Math.random() * Math.PI * 2,
         isCollected: false,
         isBomb: true, // This IS a bomb
+        isSolvable: false, // Bombs are not solvable
+        lane: 1, // Will be set when spawning
+        originalLane: 1,
         container: null,
       };
       balls.push(ball);

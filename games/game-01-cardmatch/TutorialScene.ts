@@ -38,11 +38,11 @@ export class TutorialScene extends Phaser.Scene {
         Object.values(this.emojiToAsset).forEach(assetName => {
             this.load.image(assetName, `/assets/images/cardmatch/${assetName}.png`);
         });
-        this.load.audio('card-flip', '/assets/sounds/card-flip.mp3');
-        this.load.audio('match-success', '/assets/sounds/match-success.mp3');
-        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
-        this.load.audio('bg-music', '/assets/sounds/bg-music.mp3');
+        this.load.audio('card-flip', '/assets/sounds/cardmatch/card-flip.mp3');
+        this.load.audio('match-success', '/assets/sounds/cardmatch/match-success.mp3');
+        this.load.audio('match-fail', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+        this.load.audio('bg-music', '/assets/sounds/global/bg-music.mp3');
     }
 
     create() {

@@ -15,15 +15,17 @@ export class LevelGenerator {
   }
 
   /**
-   * Manual level configurations for levels 1-10 (Introduction - Addition only)
+   * Manual level configurations for levels 1-10 (Introduction - Addition with subtraction)
    */
   private static generateManualLevel(level: number): FloatingBallMathLevelConfig {
     const baseConfig: FloatingBallMathLevelConfig = {
       level,
       targetRange: { min: 5, max: 10 },
       operandRange: { min: 1, max: 5 },
+      startNumberRange: { min: 1, max: 5 },
       operations: ['+'],
-      totalEquations: 5,
+      operationProbabilities: { '+': 0.6, '-': 0.4 },
+      totalEquations: 3,
       timeLimitSeconds: 60,
       waterSpeed: 1.0,
       waveAmplitude: 10,
@@ -41,7 +43,10 @@ export class LevelGenerator {
         ...baseConfig,
         targetRange: { min: 5, max: 10 },
         operandRange: { min: 1, max: 8 },
-        totalEquations: 3,  // Reduced from 5 for easier introduction
+        startNumberRange: { min: 1, max: 5 },
+        operations: ['+', '-'],
+        operationProbabilities: { '+': 0.9, '-': 0.1 }, // 90% +, 10% -
+        totalEquations: 1,  // Reduced from 5 for easier introduction
         timeLimitSeconds: 70,  // Increased from 60 to account for ball spawning time
         waterSpeed: 0.4,
         waveAmplitude: 5,
@@ -57,7 +62,10 @@ export class LevelGenerator {
         ...baseConfig,
         targetRange: { min: 8, max: 15 },
         operandRange: { min: 1, max: 7 },
-        totalEquations: 4,  // Reduced from 5 for gradual progression
+        startNumberRange: { min: 2, max: 6 },
+        operations: ['+', '-'],
+        operationProbabilities: { '+': 0.9, '-': 0.1 }, // 90% +, 10% -
+        totalEquations: 2,  // Reduced from 5 for gradual progression
         timeLimitSeconds: 70,  // Increased from 60 to account for ball spawning time
         waterSpeed: 0.5,
         waveAmplitude: 8,
@@ -73,7 +81,10 @@ export class LevelGenerator {
         ...baseConfig,
         targetRange: { min: 10, max: 20 },
         operandRange: { min: 2, max: 9 },
-        totalEquations: 5,  // Full set for levels 7-10
+        startNumberRange: { min: 2, max: 8 },
+        operations: ['+', '-'],
+        operationProbabilities: { '+': 0.9, '-': 0.1 }, // 90% +, 10% -
+        totalEquations: 3,  // Full set for levels 7-10
         timeLimitSeconds: 70,  // Increased from 60 to account for ball spawning time
         waterSpeed: 0.6,
         waveAmplitude: 10,
@@ -108,8 +119,18 @@ export class LevelGenerator {
         tierConfig.operandRange.end,
         levelProgress
       ),
+      startNumberRange: this.lerpRange(
+        tierConfig.startNumberRange.start,
+        tierConfig.startNumberRange.end,
+        levelProgress
+      ),
       operations: tierConfig.operations,
-      totalEquations: 5,
+      operationProbabilities: tierConfig.operationProbabilities,
+      totalEquations: Math.round(this.lerp(
+        tierConfig.totalEquations.start,
+        tierConfig.totalEquations.end,
+        levelProgress
+      )),
       timeLimitSeconds: 70,  // Increased from 60 to account for ball spawning time
       waterSpeed: this.lerp(tierConfig.waterSpeed.start, tierConfig.waterSpeed.end, levelProgress),
       waveAmplitude: this.lerp(tierConfig.waveAmplitude.start, tierConfig.waveAmplitude.end, levelProgress),
@@ -129,42 +150,57 @@ export class LevelGenerator {
     const tiers: Record<number, {
       targetRange: { start: { min: number; max: number }; end: { min: number; max: number } };
       operandRange: { start: { min: number; max: number }; end: { min: number; max: number } };
+      startNumberRange: { start: { min: number; max: number }; end: { min: number; max: number } };
       operations: Operation[];
+      operationProbabilities: Partial<Record<Operation, number>>;
       waterSpeed: { start: number; end: number };
       waveAmplitude: { start: number; end: number };
       starTime: { start: number; end: number };
+      totalEquations: { start: number; end: number };
     }> = {
-      1: { // Levels 11-20: Addition only (changed from subtraction)
+      1: { // Levels 11-20: Addition and subtraction
         targetRange: { start: { min: 10, max: 20 }, end: { min: 15, max: 30 } },
         operandRange: { start: { min: 3, max: 12 }, end: { min: 5, max: 15 } },
-        operations: ['+'],
-        waterSpeed: { start: 0.6, end: 0.8 },  // Reduced for easier clicking
-        waveAmplitude: { start: 10, end: 15 },  // Reduced for easier clicking
+        startNumberRange: { start: { min: 3, max: 10 }, end: { min: 5, max: 15 } },
+        operations: ['+', '-'],
+        operationProbabilities: { '+': 0.75, '-': 0.25 }, // 75% +, 25% -
+        waterSpeed: { start: 0.6, end: 0.8 },
+        waveAmplitude: { start: 10, end: 15 },
         starTime: { start: 9, end: 7 },
+        totalEquations: { start: 3, end: 5 },
       },
-      2: { // Levels 21-30: Multiplication only
-        targetRange: { start: { min: 6, max: 12 }, end: { min: 12, max: 25 } },
-        operandRange: { start: { min: 1, max: 6 }, end: { min: 1, max: 10 } },
-        operations: ['*'],
-        waterSpeed: { start: 0.7, end: 0.9 },  // Reduced for easier clicking
-        waveAmplitude: { start: 12, end: 18 },  // Reduced for easier clicking
-        starTime: { start: 8, end: 6 },
-      },
-      3: { // Levels 31-40: Mixed operations (changed from division)
+      2: { // Levels 21-30: Three operations (+, -, *)
         targetRange: { start: { min: 10, max: 25 }, end: { min: 15, max: 35 } },
-        operandRange: { start: { min: 3, max: 10 }, end: { min: 4, max: 12 } },
-        operations: ['+', '*'],
-        waterSpeed: { start: 0.8, end: 1.0 },  // Reduced for easier clicking
-        waveAmplitude: { start: 15, end: 22 },  // Reduced for easier clicking
+        operandRange: { start: { min: 5, max: 12 }, end: { min: 8, max: 15 } },
+        startNumberRange: { start: { min: 5, max: 12 }, end: { min: 8, max: 15 } },
+        operations: ['+', '-', '*'],
+        operationProbabilities: { '+': 0.4, '-': 0.3, '*': 0.3 }, // 40% +, 30% -, 30% *
+        waterSpeed: { start: 0.7, end: 0.9 },
+        waveAmplitude: { start: 12, end: 18 },
         starTime: { start: 8, end: 6 },
+        totalEquations: { start: 5, end: 6 },
       },
-      4: { // Levels 41-50: Addition and Multiplication only
-        targetRange: { start: { min: 10, max: 30 }, end: { min: 15, max: 40 } },
-        operandRange: { start: { min: 1, max: 12 }, end: { min: 2, max: 15 } },
-        operations: ['+', '*'] as Operation[],
-        waterSpeed: { start: 0.9, end: 1.2 },  // Reduced for easier clicking
-        waveAmplitude: { start: 18, end: 25 },  // Reduced for easier clicking
+      3: { // Levels 31-40: All operations (+, -, *, /)
+        targetRange: { start: { min: 15, max: 30 }, end: { min: 20, max: 40 } },
+        operandRange: { start: { min: 8, max: 15 }, end: { min: 10, max: 18 } },
+        startNumberRange: { start: { min: 8, max: 15 }, end: { min: 10, max: 20 } },
+        operations: ['+', '-', '*', '/'] as Operation[],
+        operationProbabilities: { '+': 0.3, '-': 0.25, '*': 0.25, '/': 0.2 }, // 30% +, 25% -, 25% *, 20% /
+        waterSpeed: { start: 0.8, end: 1.0 },
+        waveAmplitude: { start: 15, end: 22 },
+        starTime: { start: 8, end: 6 },
+        totalEquations: { start: 6, end: 7 },
+      },
+      4: { // Levels 41-50: Expert - All operations balanced
+        targetRange: { start: { min: 20, max: 40 }, end: { min: 25, max: 50 } },
+        operandRange: { start: { min: 10, max: 18 }, end: { min: 12, max: 20 } },
+        startNumberRange: { start: { min: 10, max: 20 }, end: { min: 12, max: 25 } },
+        operations: ['+', '-', '*', '/'] as Operation[],
+        operationProbabilities: { '+': 0.25, '-': 0.25, '*': 0.25, '/': 0.25 }, // 25% each operation
+        waterSpeed: { start: 0.9, end: 1.2 },
+        waveAmplitude: { start: 18, end: 25 },
         starTime: { start: 7, end: 5 },
+        totalEquations: { start: 7, end: 7 },
       },
     };
 

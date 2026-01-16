@@ -1,604 +1,1030 @@
 import * as Phaser from "phaser";
-import { FLOATING_BALL_MATH_LEVELS } from "./levels";
-import { EquationGenerator } from "./utils/EquationGenerator";
 import { WaterPhysics } from "./utils/WaterPhysics";
-import { BallSpawner } from "./utils/BallSpawner";
-import type { FloatingBall, Equation, FloatingBallMathLevelConfig, Operation } from "./types";
+
+type Lane = 0 | 1 | 2;
+type Op = "+" | "-" | "*" | "/";
+
+type TutorialBall = {
+  id: string;
+  container: Phaser.GameObjects.Container;
+  sprite?: Phaser.GameObjects.Image;
+  valueText: Phaser.GameObjects.Text;
+  op: Op;
+  value: number;
+  isBomb: boolean;
+  x: number;
+  y: number;
+  lane: Lane;
+  speedY: number;
+  waveT: number;
+  waveAmp: number;
+  waveSpeed: number;
+  destroyed: boolean;
+};
+
+type TutorialStep = {
+  title: string;
+  body: string;
+  // Called when the step becomes active
+  enter?: () => void;
+  // Called every frame while active
+  update?: (dt: number) => void;
+  // Return true to enable "Next"
+  isComplete?: () => boolean;
+  // Called when leaving the step
+  exit?: () => void;
+  // If true, "Next" is always enabled
+  allowNext?: boolean;
+};
 
 export class TutorialScene extends Phaser.Scene {
-  private step = 0;
-  private titleText!: Phaser.GameObjects.Text;
-  private descriptionText!: Phaser.GameObjects.Text;
-  private continueButton!: Phaser.GameObjects.Container;
-  private continueText!: Phaser.GameObjects.Text;
-  
-  // Demo balls
-  private demoBalls: FloatingBall[] = [];
-  private selectedDemoBalls: FloatingBall[] = [];
-  
-  // Game components reused from GameScene
-  private targetDisplay!: Phaser.GameObjects.Container;
-  private targetText!: Phaser.GameObjects.Text;
-  private operationText!: Phaser.GameObjects.Text;
-  private operationBg!: Phaser.GameObjects.Graphics;
-  private selectionCounter!: Phaser.GameObjects.Text;
-  private waterOverlay!: Phaser.GameObjects.Graphics;
-  
-  // Utilities
-  private equationGenerator!: EquationGenerator;
+  // Lanes
+  private lanes: { left: number; center: number; right: number } = {
+    left: 0,
+    center: 0,
+    right: 0,
+  };
+  private laneWidth = 0;
+  private currentLane: Lane = 1;
+
+  // Background
+  private bg!: Phaser.GameObjects.Graphics;
   private waterPhysics!: WaterPhysics;
-  private ballSpawner!: BallSpawner;
-  private currentLevelConfig!: FloatingBallMathLevelConfig;
+  private waterOverlay!: Phaser.GameObjects.Graphics;
+  private waterBackground!: Phaser.GameObjects.Graphics;
   
-  // Tutorial state
-  private demoEquation!: Equation;
-  private currentOperation: '+' | '*' = '+';
+  // Audio
+  private bgMusic!: Phaser.Sound.BaseSound;
+
+  // Boat
+  private boatContainer!: Phaser.GameObjects.Container;
+  private boatSprite!: Phaser.GameObjects.Image;
+  private isDraggingBoat = false;
+  private dragStartX = 0;
+
+  // HUD (Target/Current)
+  private targetBox!: Phaser.GameObjects.Container;
+  private currentBox!: Phaser.GameObjects.Container;
+  private targetText!: Phaser.GameObjects.Text;
+  private currentText!: Phaser.GameObjects.Text;
+  private target = 6;
+  private current = 0;
+
+  // Tutorial panel + buttons
+  private panel!: Phaser.GameObjects.Container;
+  private panelTitle!: Phaser.GameObjects.Text;
+  private panelBody!: Phaser.GameObjects.Text;
+  private nextBtn!: Phaser.GameObjects.Container;
+  private backBtn!: Phaser.GameObjects.Container;
+  private skipBtn!: Phaser.GameObjects.Container;
+  private nextBtnLabel!: Phaser.GameObjects.Text;
+
+  // Step state
+  private stepIndex = 0;
+  private steps: TutorialStep[] = [];
+  private stepEntered = false;
+  private stepCompleteOverride = false;
+
+  // Step-specific flags
+  private movedLeft = false;
+  private movedRight = false;
+  private collectedDemoBall = false;
+  private bombTriggered = false;
+  private collectedGoodBombsStep = false;
+
+  // Balls
+  private balls: TutorialBall[] = [];
+
+  // Thief demo
+  private thiefSprite!: Phaser.GameObjects.Image;
+  private armSprite!: Phaser.GameObjects.Image;
+  private blockBtn!: Phaser.GameObjects.Container;
+  private blockTimerBar!: Phaser.GameObjects.Graphics;
+  private thiefActive = false;
+  private thiefAppearTime = 0;
+  private thiefDecisionWindowMs = 3000;
+  private thiefTargetBallId: string | null = null;
+
+  // Input
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
 
   constructor() {
     super({ key: "TutorialScene" });
   }
 
-  create() {
-    console.log("[TutorialScene] create called");
-    const { width, height } = this.scale;
-
-    // Initialize utilities
-    this.currentLevelConfig = FLOATING_BALL_MATH_LEVELS[1];
-    this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
-    this.waterPhysics = new WaterPhysics(this, this.currentLevelConfig);
-    this.ballSpawner = new BallSpawner(this);
-
-    // Create water background
-    this.createWaterBackground();
-
-    // Create game UI components
-    this.createGameUI();
-
-    // Create tutorial text
-    this.createTutorialUI();
-
-    // Create continue button
-    this.createContinueButton();
-
-    // Add keyboard handler
-    this.input.keyboard!.once('keydown-SPACE', () => {
-      this.nextStep();
-    });
-
-    // Show first step
-    this.showStep(0);
-    console.log("[TutorialScene] create completed");
+  preload() {
+    // If your game scene already preloads these, Phaser will no-op.
+    this.load.image("ball-1", "/assets/images/floatingBallMath/Ball-1.png");
+    this.load.image("ball-2", "/assets/images/floatingBallMath/Ball-2.png");
+    this.load.image("ball-3", "/assets/images/floatingBallMath/Ball-3.png");
+    this.load.image("ball-4", "/assets/images/floatingBallMath/Ball-4.png");
+    this.load.image("bomb-ball", "/assets/images/floatingBallMath/Bomb.png");
+    this.load.image("boat", "/assets/images/floatingBallMath/Boat.png");
+    this.load.image("thief", "/assets/images/floatingBallMath/Thief.png");
+    this.load.image("arm", "/assets/images/floatingBallMath/Arm.png");
+    
+    // Load background music
+    this.load.audio("bg-music", "/assets/sounds/floatingball-math/bg-music.mp3");
   }
 
-  createWaterBackground() {
+  create() {
     const { width, height } = this.scale;
 
-    // Gradient background
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0xE3F2FD, 0xE3F2FD, 0xBBDEFB, 0xBBDEFB, 1);
-    bg.fillRect(0, 0, width, height);
-    bg.setDepth(-2);
+    this.setupLanes(width);
+
+    this.createBackground(width, height);
+    this.createHud(width, height);
+    this.createBoat(width, height);
+    this.createThiefUi(width, height);
+    this.createTutorialPanel(width, height);
+
+    this.cursors = this.input.keyboard?.createCursorKeys();
+
+    this.steps = this.buildSteps();
+
+    // Start background music
+    try {
+      this.bgMusic = this.sound.add("bg-music", {
+        volume: 0.3,
+        loop: true,
+      });
+      this.bgMusic.play();
+    } catch (e) {
+      console.warn("Background music failed to play", e);
+    }
+
+    // Resize
+    this.scale.on("resize", () => this.layout());
+
+    // Start first step
+    this.goToStep(0);
+  }
+
+  update(_time: number, delta: number) {
+    const dt = Math.max(0, delta);
+
+    // Update water overlay animation
+    if (this.waterOverlay) {
+      this.waterPhysics.updateWaterOverlay(this.waterOverlay);
+    }
+
+    // Step enter hook (deferred until update so layout is stable)
+    const step = this.steps[this.stepIndex];
+    if (!this.stepEntered) {
+      this.stepEntered = true;
+      this.stepCompleteOverride = false;
+      step.enter?.();
+      this.refreshPanel();
+    }
+
+    // Movement input always allowed in tutorial
+    this.handleBoatMovement();
+    this.updateBalls(dt);
+    this.checkCollisions();
+
+    // Thief timer
+    if (this.thiefActive) {
+      this.updateThiefTimer();
+      this.trackArmToBall();
+      const elapsed = Date.now() - this.thiefAppearTime;
+      if (elapsed >= this.thiefDecisionWindowMs) {
+        // Timeout: auto "adapt" for demo
+        this.resolveThiefDecision(false);
+      }
+    }
+
+    // Step update
+    step.update?.(dt);
+
+    // Next button enable/disable
+    const complete =
+      this.stepCompleteOverride ||
+      step.allowNext === true ||
+      (step.isComplete ? step.isComplete() : true);
+    this.setNextEnabled(complete);
+  }
+
+  // -----------------------------
+  // Layout / Setup
+  // -----------------------------
+  private setupLanes(width: number) {
+    this.laneWidth = width / 3;
+    this.lanes = {
+      left: this.laneWidth * 0.5,
+      center: width * 0.5,
+      right: width * 0.75 + this.laneWidth * 0.25,
+    };
+  }
+
+  private getLaneX(lane: Lane): number {
+    if (lane === 0) return this.lanes.left;
+    if (lane === 1) return this.lanes.center;
+    return this.lanes.right;
+  }
+
+  private createBackground(width: number, height: number) {
+    // Create gradient background
+    this.waterBackground = this.add.graphics();
+    this.waterBackground.fillGradientStyle(0xE3F2FD, 0xE3F2FD, 0xBBDEFB, 0xBBDEFB, 1);
+    this.waterBackground.fillRect(0, 0, width, height);
+    this.waterBackground.setDepth(-2);
+
+    // Initialize water physics
+    this.waterPhysics = new WaterPhysics(this, {
+      level: 1,
+      difficultyMultiplier: 1,
+      timeLimitSeconds: 60,
+      totalEquations: 5,
+      operandRange: { min: 1, max: 9 },
+      operations: ['+', '-', '*', '/'],
+      waterSpeed: 1.0,
+      waveAmplitude: 15,
+    } as any);
 
     // Create water wave overlay
     this.waterOverlay = this.waterPhysics.createWaterOverlay();
   }
 
-  createGameUI() {
-    const { width, height } = this.scale;
-
-    // Target display (top center)
-    this.targetDisplay = this.add.container(width / 2, height * 0.12);
-
-    const targetBg = this.add.graphics();
-    targetBg.fillStyle(0x42A5F5, 1);
-    targetBg.fillRoundedRect(-70, -40, 140, 80, 15);
-
-    this.targetText = this.add.text(0, 0, "0", {
-      fontFamily: "Arial, sans-serif",
-      fontSize: `${Math.min(48, width * 0.08)}px`,
-      color: "#FFFFFF",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
-
-    // Create attractive operation symbol background
-    const opRadius = Math.min(28, width * 0.05);
-    this.operationBg = this.add.graphics();
-    this.operationBg.fillStyle(0xFFC107, 1); // Golden yellow for +
-    this.operationBg.fillCircle(50, 0, opRadius);
-    this.operationBg.lineStyle(3, 0xFFF59D, 0.8);
-    this.operationBg.strokeCircle(50, 0, opRadius);
-    this.operationBg.lineStyle(2, 0xFFFFFF, 0.6);
-    this.operationBg.strokeCircle(50, 0, opRadius - 3);
-
-    this.operationText = this.add.text(50, 0, "+", {
-      fontFamily: "Arial, sans-serif",
-      fontSize: `${Math.min(36, width * 0.06)}px`,
-      color: "#1565C0",
-      fontStyle: "bold",
-      shadow: {
-        offsetX: 1,
-        offsetY: 1,
-        blur: 2,
-        color: "#FFFFFF",
-        fill: true,
-      },
-    }).setOrigin(0.5);
-
-    this.targetDisplay.add([targetBg, this.targetText, this.operationBg, this.operationText]);
-
-    // Selection counter
-    this.selectionCounter = this.add
-      .text(width / 2, height * 0.22, "เลือก 0/2", {
-        fontFamily: "Sarabun, sans-serif",
-        fontSize: `${Math.min(24, width * 0.04)}px`,
-        color: "#2c3e50",
-        stroke: "#FFFFFF",
-        strokeThickness: 2,
+  private createHud(width: number, height: number) {
+    // Target
+    this.targetBox = this.add.container(width * 0.5, height * 0.18);
+    const targetLabel = this.add
+      .text(0, -42, "เป้าหมาย", {
+        fontFamily: "Sarabun, Arial, sans-serif",
+        fontSize: `${Math.min(22, width * 0.04)}px`,
+        color: "#1976D2",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
+
+    const targetBg = this.add.graphics();
+    targetBg.fillStyle(0x1976d2, 1);
+    targetBg.fillRoundedRect(-110, -24, 220, 58, 14);
+
+    this.targetText = this.add
+      .text(0, 2, String(this.target), {
+        fontFamily: "Arial, sans-serif",
+        fontSize: `${Math.min(44, width * 0.085)}px`,
+        color: "#FFFFFF",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.targetBox.add([targetLabel, targetBg, this.targetText]);
+
+    // Current
+    this.currentBox = this.add.container(width * 0.85, height * 0.15);
+    this.currentBox.setDepth(50);
+
+    const currentLabel = this.add
+      .text(0, -30, "คะแนนปัจจุบัน", {
+        fontFamily: "Sarabun, Arial, sans-serif",
+        fontSize: `${Math.min(18, width * 0.032)}px`,
+        color: "#2b2b2b",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.currentText = this.add
+      .text(0, 0, String(this.current), {
+        fontFamily: "Arial, sans-serif",
+        fontSize: `${Math.min(30, width * 0.055)}px`,
+        color: "#555555",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.currentBox.add([currentLabel, this.currentText]);
   }
 
-  createTutorialUI() {
+  private createBoat(width: number, height: number) {
+    const boatY = height * 0.78;
+
+    this.boatSprite = this.add.image(0, 0, "boat");
+    this.boatSprite.setOrigin(0.5);
+    this.boatSprite.setScale(0.25);
+
+    this.boatContainer = this.add.container(this.getLaneX(1), boatY, [
+      this.boatSprite,
+    ]);
+
+    // Drag movement
+    this.boatSprite.setInteractive({ useHandCursor: true });
+    this.input.setDraggable(this.boatSprite);
+
+    this.boatSprite.on("dragstart", (pointer: Phaser.Input.Pointer) => {
+      this.isDraggingBoat = true;
+      this.dragStartX = pointer.x;
+    });
+
+    this.boatSprite.on("drag", (pointer: Phaser.Input.Pointer) => {
+      if (!this.isDraggingBoat) return;
+      const dx = pointer.x - this.dragStartX;
+      const newX = this.boatContainer.x + dx;
+
+      const boatW = 80;
+      const minX = boatW / 2;
+      const maxX = this.scale.width - boatW / 2;
+
+      this.boatContainer.x = Phaser.Math.Clamp(newX, minX, maxX);
+      this.dragStartX = pointer.x;
+
+      this.updateLaneFromX(this.boatContainer.x);
+    });
+
+    this.boatSprite.on("dragend", () => {
+      this.isDraggingBoat = false;
+      this.snapBoatToLane();
+    });
+
+    // A tiny “hit circle” for collision
+    const hit = this.add.circle(0, -10, 35, 0x000000, 0);
+    hit.setName("boatHit");
+    this.boatContainer.add(hit);
+  }
+
+  private updateLaneFromX(x: number) {
+    const d0 = Math.abs(x - this.lanes.left);
+    const d1 = Math.abs(x - this.lanes.center);
+    const d2 = Math.abs(x - this.lanes.right);
+    const min = Math.min(d0, d1, d2);
+    const lane: Lane = min === d0 ? 0 : min === d1 ? 1 : 2;
+    if (lane !== this.currentLane) {
+      this.currentLane = lane;
+      // Track movement step completion
+      if (lane === 0) this.movedLeft = true;
+      if (lane === 2) this.movedRight = true;
+    }
+  }
+
+  private snapBoatToLane() {
+    const targetX = this.getLaneX(this.currentLane);
+    this.tweens.add({
+      targets: this.boatContainer,
+      x: targetX,
+      duration: 150,
+      ease: "Quad.easeInOut",
+    });
+  }
+
+  private handleBoatMovement() {
+    if (!this.cursors) return;
+
+    if (this.cursors.left?.isDown && this.currentLane > 0) {
+      this.moveBoatToLane((this.currentLane - 1) as Lane);
+    } else if (this.cursors.right?.isDown && this.currentLane < 2) {
+      this.moveBoatToLane((this.currentLane + 1) as Lane);
+    }
+  }
+
+  private moveBoatToLane(lane: Lane) {
+    if (lane === this.currentLane) return;
+    this.currentLane = lane;
+
+    if (lane === 0) this.movedLeft = true;
+    if (lane === 2) this.movedRight = true;
+
+    this.tweens.add({
+      targets: this.boatContainer,
+      x: this.getLaneX(lane),
+      duration: 160,
+      ease: "Quad.easeInOut",
+    });
+  }
+
+  private createThiefUi(width: number, height: number) {
+    this.thiefSprite = this.add.image(width - 80, 180, "thief");
+    this.thiefSprite.setVisible(false);
+    this.thiefSprite.setDepth(900);
+
+    this.tweens.add({
+      targets: this.thiefSprite,
+      scale: { from: 1, to: 1.1 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    this.armSprite = this.add.image(width * 0.5, height * 0.3, "arm");
+    this.armSprite.setVisible(false);
+    this.armSprite.setDepth(950);
+    this.armSprite.setScale(1.3);
+
+    // BLOCK button
+    this.blockBtn = this.makeButton("ห้ามขโมย", 140, 54, 0xff5252);
+    this.blockBtn.setDepth(2000);
+    this.blockBtn.setVisible(false);
+    this.blockBtn.on("pointerdown", () => {
+      if (!this.thiefActive) return;
+      this.resolveThiefDecision(true);
+    });
+
+    this.blockTimerBar = this.add.graphics();
+    this.blockTimerBar.setDepth(1999);
+    this.blockTimerBar.setVisible(false);
+  }
+
+  private createTutorialPanel(width: number, height: number) {
+    this.panel = this.add.container(width * 0.5, height * 0.5);
+    this.panel.setDepth(0);
+
+    this.panelTitle = this.add
+      .text(-width * 0.31, -height * 0.14, "แนะนำการเล่น", {
+        fontFamily: "Sarabun, Arial, sans-serif",
+        fontSize: `${Math.min(24, width * 0.04)}px`,
+        color: "#111111",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0);
+
+    this.panelBody = this.add
+      .text(-width * 0.31, -height * 0.095, "", {
+        fontFamily: "Sarabun, Arial, sans-serif",
+        fontSize: `${Math.min(17, width * 0.3)}px`,
+        color: "#222222",
+        wordWrap: { width: width * 0.59 },
+        lineSpacing: 5,
+      })
+      .setOrigin(0, 0);
+
+    // Buttons
+    this.backBtn = this.makeButton("ย้อนกลับ", 100, 42, 0x90a4ae);
+    this.nextBtn = this.makeButton("ถัดไป", 100, 42, 0x1976d2);
+    this.skipBtn = this.makeButton("ข้าม", 100, 42, 0x455a64);
+
+    this.backBtn.setPosition(-110, height * 0.115);
+    this.nextBtn.setPosition(0, height * 0.115);
+    this.skipBtn.setPosition(110, height * 0.115);
+
+    this.nextBtnLabel = this.nextBtn.getByName("label") as Phaser.GameObjects.Text;
+
+    this.backBtn.on("pointerdown", () => this.goToStep(this.stepIndex - 1));
+    this.nextBtn.on("pointerdown", () => this.goToStep(this.stepIndex + 1));
+    this.skipBtn.on("pointerdown", () => this.finishTutorial());
+
+    this.panel.add([  this.panelTitle, this.panelBody, this.backBtn, this.nextBtn, this.skipBtn]);
+  }
+
+  private makeButton(label: string, w: number, h: number, color: number) {
+    const c = this.add.container(0, 0);
+    c.setSize(w, h);
+    c.setInteractive({ useHandCursor: true });
+
+    const g = this.add.graphics();
+    g.fillStyle(color, 1);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
+
+    const t = this.add
+      .text(0, 0, label, {
+        fontFamily: "Sarabun, Arial, sans-serif",
+        fontSize: "18px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    t.setName("label");
+
+    c.add([g, t]);
+    return c;
+  }
+
+  private layout() {
     const { width, height } = this.scale;
 
-    // Title
-    this.titleText = this.add.text(width / 2, height * 0.35, "", {
-      fontFamily: "Sarabun, sans-serif",
-      fontSize: `${Math.min(32, width * 0.05)}px`,
-      color: "#1565C0",
-      stroke: "#FFFFFF",
-      strokeThickness: 3,
-      fontStyle: "bold",
-    }).setOrigin(0.5);
+    this.setupLanes(width);
 
-    // Description
-    this.descriptionText = this.add.text(width / 2, height * 0.55, "", {
-      fontFamily: "Sarabun, sans-serif",
-      fontSize: `${Math.min(24, width * 0.04)}px`,
-      color: "#2c3e50",
-      stroke: "#FFFFFF",
-      strokeThickness: 2,
-      align: "center",
-      wordWrap: { width: width * 0.8 },
-    }).setOrigin(0.5);
+    // Background
+    if (this.waterBackground) {
+      this.waterBackground.clear();
+      this.waterBackground.fillGradientStyle(0xE3F2FD, 0xE3F2FD, 0xBBDEFB, 0xBBDEFB, 1);
+      this.waterBackground.fillRect(0, 0, width, height);
+    }
+
+    // HUD
+    this.targetBox?.setPosition(width * 0.5, height * 0.18);
+    this.currentBox?.setPosition(width * 0.16, height * 0.12);
+
+    // Boat
+    this.boatContainer?.setPosition(this.getLaneX(this.currentLane), height * 0.78);
+
+    // Thief sprites
+    this.thiefSprite?.setPosition(width - 80, 180);
+
+    // Panel
+    this.panel?.setPosition(width * 0.5, height * 0.5);
+
+    // If block UI visible, keep timer bar aligned
+    if (this.blockBtn?.visible) {
+      this.drawBlockTimerBar(this.getThiefRemainingPct());
+    }
+
+    this.refreshPanel();
   }
 
-  createContinueButton() {
-    const { width, height } = this.scale;
-
-    this.continueButton = this.add.container(width / 2, height * 0.85);
-
-    const buttonBg = this.add.graphics();
-    buttonBg.fillStyle(0x42A5F5, 1);
-    buttonBg.fillRoundedRect(-100, -30, 200, 60, 15);
-
-    this.continueText = this.add.text(0, 0, "กดเพื่อดำเนินการ", {
-      fontFamily: "Sarabun, sans-serif",
-      fontSize: `${Math.min(28, width * 0.045)}px`,
-      color: "#FFFFFF",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
-
-    this.continueButton.add([buttonBg, this.continueText]);
-
-    // Add click handler
-    this.continueButton.setInteractive();
-    this.continueButton.on('pointerdown', () => {
-      this.nextStep();
-    });
-
-    this.continueButton.on('pointerover', () => {
-      this.continueButton.setScale(1.05);
-    });
-
-    this.continueButton.on('pointerout', () => {
-      this.continueButton.setScale(1);
-    });
-  }
-
-  showStep(step: number) {
-    this.step = step;
-    this.clearDemoBalls();
-    this.selectedDemoBalls = [];
-
-    const steps = [
+  // -----------------------------
+  // Steps
+  // -----------------------------
+  private buildSteps(): TutorialStep[] {
+    return [
       {
-        title: "ยินดีต้อนรับสู่ Floating Ball Math!",
-        description: "ในเกมนี้ คุณจะต้องเลือกลูกบอลสองลูกที่บวกหรือคูณกันแล้วเท่ากับเลขเป้าหมาย\nเลือกลูกบอลที่ถูกต้องให้ได้คะแนนมากที่สุด!",
-      },
-      {
-        title: "เลขเป้าหมายอยู่ด้านบน",
-        description: "ดูที่เลขที่แสดงด้านบนสุด\nนี่คือเลขที่คุณต้องทำให้ได้\nเช่น: 10",
-        showTarget: 10,
-      },
-      {
-        title: "เครื่องหมายคือบวก (+)",
-        description: "เครื่องหมายมีสีทองคือบวก (+)\nคุณต้องหาลูกบอลสองลูกที่บวกกันแล้วได้เป้าหมาย\nเช่น: 3 + 5 = 8",
-        operation: '+',
-        equation: { 
-          target: 8, 
-          operation: '+' as const,
-          correctPair: [3, 5] as [number, number],
-          allNumbers: [3, 5, 1],
+        title: "แนะนำการเล่น",
+        body:
+          "เก็บลูกบอลเพื่อทำคะแนนให้ถึงเป้าหมาย\n\nแต่ละลูกบอลใช้ + − × ÷",
+        allowNext: true,
+        enter: () => {
+          this.resetDemoState();
+          this.setEquation(6, 0);
+          this.clearBalls();
+          this.hideThiefUi();
         },
       },
       {
-        title: "บวกลูกบอลให้ได้เป้าหมาย",
-        description: "ลองเลือกลูกบอลที่บวกกันแล้วได้ 8\nลูกบอลจะลอยตามคลื่นน้ำ\nคลิกที่ลูกบอลที่คิดว่าถูก!",
-        operation: '+',
-        interactive: true,
-      },
-      {
-        title: "ยอดเยี่ยม! 3 + 5 = 8",
-        description: "คุณทำถูกแล้ว!\nเมื่อเลือกถูก ลูกบอลจะเคลื่นไปหาเป้าหมาย\nและคุณจะได้ 1 คะแนน",
-        showSuccess: true,
-      },
-      {
-        title: "เครื่องหมายที่สองคือคูณ (×)",
-        description: "เครื่องหมายสีม่วงคือคูณ (×)\nคุณต้องหาลูกบอลสองลูกที่คูณกันแล้วได้เป้าหมาย\nเช่น: 4 × 2 = 8\n× มีสีม่วง ต่างจาก +",
-        operation: '*',
-        equation: { 
-          target: 8, 
-          operation: '*' as const,
-          correctPair: [2, 4] as [number, number],
-          allNumbers: [2, 4, 1],
+        title: "เคลื่อนที่เรือ",
+        body:
+          "เคลื่อนที่ด้วยการลากเรือแนวนอน\n\nเพื่อดำเนินการต่อ: ให้เรือไปที่เลนซ้ายและเลนขวาอย่างหนึ่งครั้ง",
+        enter: () => {
+          this.movedLeft = false;
+          this.movedRight = false;
+          this.clearBalls();
+          this.hideThiefUi();
         },
+        isComplete: () => this.movedLeft && this.movedRight,
       },
       {
-        title: "คูณลูกบอลให้ได้เป้าหมาย",
-        description: "ลองเลือกลูกบอลที่คูณกันแล้วได้ 8\nจำไว้ × มีสีม่วง!",
-        operation: '*',
-        interactive: true,
+        title: "เก็บลูกบอลดี",
+        body:
+          "เก็บลูกบอล +3 เพื่อเพิ่มคะแนน\n\nเพื่อดำเนินการต่อ: เก็บลูกบอล +3",
+        enter: () => {
+          this.collectedDemoBall = false;
+          this.setEquation(6, 0);
+          this.clearBalls();
+          this.hideThiefUi();
+          this.spawnBall({ op: "+", value: 3, lane: 1, isBomb: false, y: -80 });
+        },
+        isComplete: () => this.collectedDemoBall,
       },
       {
-        title: "ยอดเยี่ยม! 2 × 4 = 8",
-        description: "คุณทำถูกแล้ว!\nคุณรู้เรื่องบวก (+) และคูณ (×) แล้ว",
-        showSuccess: true,
+        title: "หลีกเลี่ยงระเบิด",
+        body:
+          "ลูกระเบิดอันตราย ถ้าโดนระเบิด ความคืบหน้าจะรีเซ็ต\n\nเพื่อดำเนินการต่อ: เก็บลูกบอล +2 ทั้งสอง และหลีกเลี่ยงระเบิด",
+        enter: () => {
+          this.bombTriggered = false;
+          this.collectedGoodBombsStep = false;
+          this.setEquation(6, 0);
+          this.clearBalls();
+          this.hideThiefUi();
+          this.spawnBall({ op: "+", value: 2, lane: 0, isBomb: false, y: -180 });
+          this.spawnBall({ op: "+", value: 2, lane: 2, isBomb: false, y: -260 });
+          this.spawnBall({ op: "+", value: 1, lane: 1, isBomb: true, y: -120 }); // bomb
+        },
+        isComplete: () => this.collectedGoodBombsStep && !this.bombTriggered,
       },
       {
-        title: "ถ้าตอบผิด",
-        description: "ถ้าลูกบอลที่เลือกไม่ได้เป้าหมาย\nลูกบอลจะสั่นและไม่ได้คะแนน\nคุณต้องพยายามเลือกใหม่",
-        showWrong: true,
+        title: "โจรขโมย (ห้ามขโมย)",
+        body:
+          "บางครั้งจะมีโจรปรากฏและพยายามรบกวน\n\nกดปุ่ม 'ห้ามขโมย' ภายในเวลาที่กำหนดเพื่อยกเลิกโจร\n\nเพื่อดำเนินการต่อ: กดห้ามขโมยทันเวลา",
+        enter: () => {
+          this.setEquation(6, 0);
+          this.clearBalls();
+          this.startThiefDemo();
+        },
+        isComplete: () => this.stepCompleteOverride,
       },
       {
-        title: "ครบ 5 คะแนนเพื่อผ่านด่าน",
-        description: "เมื่อทำถูกครบ 5 ข้อ เกมจะจบ\nคุณจะได้ 1-3 ดาวขึ้นกับความเร็วและความถูกต้อง\nพร้อมเล่นแล้วหรือยัง?",
+        title: "เรียบร้อย",
+        body:
+          "สิ้นสุดการแนะนำ\n\nกดถัดไปเพื่อเริ่มเล่นจริง",
+        allowNext: true,
+        enter: () => {
+          this.clearBalls();
+          this.hideThiefUi();
+        },
+        exit: () => {
+          // no-op
+        },
       },
     ];
+  }
 
-    if (step >= steps.length) {
-      this.startGame();
+  private refreshPanel() {
+    const step = this.steps[this.stepIndex];
+    this.panelTitle.setText(step.title);
+    this.panelBody.setText(step.body);
+
+    // Back disabled on first step
+    this.backBtn.setAlpha(this.stepIndex === 0 ? 0.5 : 1);
+    this.backBtn.disableInteractive();
+    if (this.stepIndex !== 0) this.backBtn.setInteractive({ useHandCursor: true });
+
+    // Next label for last step
+    const isLast = this.stepIndex === this.steps.length - 1;
+    this.nextBtnLabel.setText(isLast ? "เริ่มเกม" : "ถัดไป");
+
+    // Skip always available
+    this.skipBtn.setAlpha(1);
+  }
+
+  private goToStep(index: number) {
+    // Check if we're trying to go past the last step
+    const isLastStep = this.stepIndex === this.steps.length - 1;
+    const isMovingForward = index > this.stepIndex;
+
+    // If on last step and trying to go forward, finish tutorial
+    if (isLastStep && isMovingForward) {
+      const current = this.steps[this.stepIndex];
+      current.exit?.();
+      this.finishTutorial();
       return;
     }
 
-    const currentStep = steps[step];
-    this.titleText.setText(currentStep.title);
-    this.descriptionText.setText(currentStep.description);
+    const clamped = Phaser.Math.Clamp(index, 0, this.steps.length - 1);
+    if (clamped === this.stepIndex && this.stepEntered) return;
 
-    // Handle different step types
-    if (currentStep.showTarget) {
-      this.updateTargetDisplay(currentStep.showTarget, '+');
-    } else if (currentStep.equation) {
-      this.updateTargetDisplay(currentStep.equation.target, currentStep.equation.operation);
-      this.spawnDemoBalls(currentStep.equation, false);
-    } else if (currentStep.interactive) {
-      this.setupInteractiveStep(this.currentOperation);
-    } else if (currentStep.showWrong) {
-      this.showWrongDemo();
-    } else if (currentStep.showSuccess) {
-      // Just continue, success is already shown
-      this.updateContinueButton("ต่อไป");
-    } else {
-      this.updateContinueButton("ถัดไป");
-    }
+    // Exit current
+    const current = this.steps[this.stepIndex];
+    current.exit?.();
+
+    this.stepIndex = clamped;
+    this.stepEntered = false;
+
+    this.refreshPanel();
   }
 
-  updateTargetDisplay(target: number, operation: Operation) {
-    this.targetText.setText(target.toString());
+  private setNextEnabled(enabled: boolean) {
+    this.nextBtn.setAlpha(enabled ? 1 : 0.45);
+    this.nextBtn.disableInteractive();
+    if (enabled) this.nextBtn.setInteractive({ useHandCursor: true });
+  }
 
-    const operationDisplay: Record<Operation, string> = {
-      "+": "+",
-      "-": "-",
-      "*": "×",
-      "/": "÷",
-    };
-    const op = operationDisplay[operation];
-    this.operationText.setText(op);
-
-    // Update operation background color
-    const { width } = this.scale;
-    const opRadius = Math.min(28, width * 0.05);
-    
-    if (this.operationBg) {
-      this.operationBg.clear();
-      
-      let bgColor = 0xFFC107; // Golden yellow for +
-      let textColor = "#1565C0"; // Blue for +
-      
-      if (operation === "*") {
-        bgColor = 0x9C27B0; // Purple for multiplication
-        textColor = "#FFFFFF"; // White text for better contrast
-      }
-      
-      this.operationBg.fillStyle(bgColor, 1);
-      this.operationBg.fillCircle(50, 0, opRadius);
-      this.operationBg.lineStyle(3, this.lightenColor(bgColor, 40), 0.8);
-      this.operationBg.strokeCircle(50, 0, opRadius);
-      this.operationBg.lineStyle(2, 0xFFFFFF, 0.6);
-      this.operationBg.strokeCircle(50, 0, opRadius - 3);
-      
-      this.operationText.setColor(textColor);
+  private finishTutorial() {
+    // Stop background music before transitioning to game
+    if (this.bgMusic && this.bgMusic.isPlaying) {
+      this.bgMusic.stop();
     }
 
-    // Pulse animation
+    // Call the tutorial complete callback (like other tutorials)
+    const onTutorialComplete = this.registry.get('onTutorialComplete');
+    if (onTutorialComplete) {
+      onTutorialComplete();
+    }
+
+    // Start the real game scene
+    const levelFromRegistry = this.registry.get("level");
+    const level = typeof levelFromRegistry === "number" ? levelFromRegistry :1;
+
+    // Clean up
+    this.clearBalls();
+    this.hideThiefUi();
+
+    this.scene.start("FloatingBallMathGameScene", { level });
+  }
+
+    private resetDemoState() {
+    this.movedLeft = false;
+    this.movedRight = false;
+    this.collectedDemoBall = false;
+    this.bombTriggered = false;
+    this.collectedGoodBombsStep = false;
+    this.stepCompleteOverride = false;
+  }
+
+  // -----------------------------
+  // Equation + HUD updates
+  // -----------------------------
+  private setEquation(target: number, current: number) {
+    this.target = target;
+    this.current = current;
+    this.targetText.setText(String(this.target));
+    this.currentText.setText(String(this.current));
+  }
+
+  private applyBall(op: Op, value: number) {
+    switch (op) {
+      case "+":
+        this.current += value;
+        break;
+      case "-":
+        this.current -= value;
+        break;
+      case "*":
+        this.current *= value;
+        break;
+      case "/":
+        if (value !== 0) this.current = Math.round(this.current / value);
+        break;
+    }
+    this.currentText.setText(String(this.current));
+
     this.tweens.add({
-      targets: this.targetDisplay,
-      scale: { from: 1, to: 1.1 },
-      duration: 200,
+      targets: this.currentBox,
+      scale: { from: 1, to: 1.12 },
+      duration: 120,
       yoyo: true,
       ease: "Sine.easeInOut",
     });
   }
 
-  spawnDemoBalls(equation: Equation, interactive: boolean) {
-    this.clearDemoBalls();
-    this.currentOperation = equation.operation as '+' | '*';
+  // -----------------------------
+  // Balls
+  // -----------------------------
+  private spawnBall(opts: { op: Op; value: number; lane: Lane; isBomb: boolean; y?: number }) {
+    const id = `ball-${Math.random().toString(16).slice(2)}`;
+    const x = this.getLaneX(opts.lane);
+    const y = typeof opts.y === "number" ? opts.y : -120;
 
-    const { width, height } = this.scale;
-    const startY = -100;
-    const margin = 80;
+    const container = this.add.container(x, y);
+    container.setDepth(100);
 
-    // Spawn correct pair and some distractors
-    const allNumbers = [...equation.correctPair];
-    
-    // Add 1 distractor for demo
-    const { min, max } = this.currentLevelConfig.operandRange;
-    let distractor;
-    do {
-      distractor = min + Math.floor(Math.random() * (max - min + 1));
-    } while (allNumbers.includes(distractor));
-    allNumbers.push(distractor);
+    const key = opts.isBomb
+      ? "bomb-ball"
+      : (["ball-1", "ball-2", "ball-3", "ball-4"][Phaser.Math.Between(0, 3)] as string);
 
-    // Shuffle
-    for (let i = allNumbers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
+    const sprite = this.textures.exists(key) ? this.add.image(0, 0, key) : undefined;
+    if (sprite) {
+      sprite.setOrigin(0.5);
+      const ballRadius = Math.min(60, this.scale.width * 0.12);
+      sprite.setDisplaySize(ballRadius * 2, ballRadius * 2);
+      container.add(sprite);
+    } else {
+      const ballRadius = Math.min(60, this.scale.width * 0.12);
+      const fallback = this.add.circle(0, 0, ballRadius, opts.isBomb ? 0x000000 : 0x42a5f5, 1);
+      container.add(fallback);
     }
 
-    // Spawn all balls
-    allNumbers.forEach((value, index) => {
-      const x = margin + Math.random() * (width - margin * 2);
-      const y = startY - (index * 120);
-      const color = this.equationGenerator.getRandomColor();
+    const valueText = this.add
+      .text(0, 0, `${opts.op}${opts.value}`, {
+        fontFamily: "Arial, sans-serif",
+        fontSize: `${Math.min(42, this.scale.width * 0.075)}px`,
+        color: "#ffffff",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
 
-      const ball = this.ballSpawner.createBall(value, color, x, y);
-      ball.originalX = x;
-      ball.originalY = y;
-      ball.isDemo = true;
+    container.add(valueText);
 
-      if (ball.container && interactive) {
-        ball.container.on("pointerdown", () => {
-          this.handleDemoBallClick(ball);
-        });
+    const ball: TutorialBall = {
+      id,
+      container,
+      sprite,
+      valueText,
+      op: opts.op,
+      value: opts.value,
+      isBomb: opts.isBomb,
+      x,
+      y,
+      lane: opts.lane,
+      speedY: opts.isBomb ? 210 : 170,
+      waveT: Phaser.Math.FloatBetween(0, 10),
+      waveAmp: Phaser.Math.FloatBetween(10, 22),
+      waveSpeed: Phaser.Math.FloatBetween(0.004, 0.006),
+      destroyed: false,
+    };
+
+    this.balls.push(ball);
+    return ball;
+  }
+
+  private clearBalls() {
+    this.balls.forEach((b) => {
+      if (!b.destroyed) {
+        b.container.destroy();
+        b.destroyed = true;
       }
-
-      this.demoBalls.push(ball);
     });
+    this.balls = [];
+    this.thiefTargetBallId = null;
   }
 
-  setupInteractiveStep(operation: '+' | '*') {
-    // Generate simple equation
-    const target = operation === '+' ? 8 : 8;
-    const correctPair: [number, number] = operation === '+' ? [3, 5] : [2, 4];
-    
-    this.demoEquation = {
-      target,
-      operation,
-      correctPair,
-      allNumbers: [...correctPair, 1],
-    } as Equation;
+  private updateBalls(dt: number) {
+    const { height } = this.scale;
+    for (const b of this.balls) {
+      if (b.destroyed) continue;
 
-    this.updateTargetDisplay(target, operation);
-    this.spawnDemoBalls(this.demoEquation, true);
-    this.selectedDemoBalls = [];
-    this.updateContinueButton("ผมจะทำเอง");
-    this.continueButton.setVisible(false); // Hide button during interactive step
+      b.waveT += dt * b.waveSpeed;
+      const waveX = Math.sin(b.waveT) * b.waveAmp;
+
+      b.y += (b.speedY * dt) / 1000;
+      b.x = this.getLaneX(b.lane) + waveX;
+
+      b.container.setPosition(b.x, b.y);
+
+      // Cleanup if off-screen
+      if (b.y > height + 120) {
+        b.container.destroy();
+        b.destroyed = true;
+      }
+    }
+
+    this.balls = this.balls.filter((b) => !b.destroyed);
   }
 
-  handleDemoBallClick(ball: FloatingBall) {
-    if (this.selectedDemoBalls.includes(ball)) {
-      // Deselect
-      const index = this.selectedDemoBalls.indexOf(ball);
-      this.selectedDemoBalls.splice(index, 1);
-      ball.isSelected = false;
-      this.ballSpawner.unhighlightBall(ball);
-      this.ballSpawner.animateToOriginal(ball);
-      this.updateSelectionCounter();
+  private checkCollisions() {
+    // Simple circle collision
+    const bx = this.boatContainer.x;
+    const by = this.boatContainer.y - 10;
+
+    for (const b of this.balls) {
+      if (b.destroyed) continue;
+
+      const dx = b.x - bx;
+      const dy = b.y - by;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist <= 60) {
+        this.onBallHit(b);
+      }
+    }
+  }
+
+  private onBallHit(ball: TutorialBall) {
+    if (ball.destroyed) return;
+
+    if (ball.isBomb) {
+      ball.container.destroy();
+      ball.destroyed = true;
+
+      // Bomb feedback
+      this.cameras.main.shake(350, 0.015);
+      this.setEquation(this.target, 0);
+
+      this.bombTriggered = true;
       return;
     }
 
-    if (this.selectedDemoBalls.length >= 2) return;
+    // Apply operation
+    this.applyBall(ball.op, ball.value);
 
-    // Select
-    this.selectedDemoBalls.push(ball);
-    ball.isSelected = true;
-    this.ballSpawner.highlightBall(ball);
-    
-    const { width, height } = this.scale;
-    const spacing = 120;
-    const startX = width / 2 - spacing;
-    const targetX = startX + this.selectedDemoBalls.length * spacing;
-    const targetY = height * 0.4;
-
-    this.ballSpawner.animateToPosition(ball, targetX, targetY);
-    this.updateSelectionCounter();
-
-    // Check if 2 selected
-    if (this.selectedDemoBalls.length === 2) {
-      this.time.delayedCall(500, () => {
-        this.checkDemoAnswer();
-      });
-    }
-  }
-
-  checkDemoAnswer() {
-    const [ball1, ball2] = this.selectedDemoBalls;
-    const num1 = ball1.value;
-    const num2 = ball2.value;
-    const target = this.demoEquation.target;
-    const operation = this.demoEquation.operation;
-
-    let result: number;
-    let isCorrect: boolean;
-
-    if (operation === '+') {
-      result = num1 + num2;
-    } else {
-      result = num1 * num2;
+    // Mark step completion if it's the +3 demo
+    if (ball.op === "+" && ball.value === 3) {
+      this.collectedDemoBall = true;
     }
 
-    isCorrect = result === target;
-
-    if (isCorrect) {
-      // Success
-      this.selectedDemoBalls.forEach(ball => {
-        this.ballSpawner.showCorrectFeedback(ball);
-      });
+    // Track if both +2 balls are collected in bomb avoidance step
+    if (ball.op === "+" ) {
       
-      this.time.delayedCall(1500, () => {
-        this.nextStep();
+        this.collectedGoodBombsStep = true;
+    }
+
+    ball.container.destroy();
+    ball.destroyed = true;
+
+    // If thief is targeting this ball, end thief UI cleanly
+    if (this.thiefActive && this.thiefTargetBallId === ball.id) {
+      this.hideThiefUi();
+      this.thiefActive = false;
+      this.thiefTargetBallId = null;
+    }
+  }
+
+  // -----------------------------
+  // Thief demo
+  // -----------------------------
+  private startThiefDemo() {
+    this.hideThiefUi();
+
+    // Spawn a target ball near 40% height
+    const { height } = this.scale;
+    const warningY = height * 0.4;
+
+    const ball = this.spawnBall({ op: "+", value: 2, lane: 1, isBomb: false, y: warningY - 10 });
+    ball.speedY = 60; // slow so player can react
+
+    this.thiefTargetBallId = ball.id;
+    this.thiefActive = true;
+    this.thiefAppearTime = Date.now();
+
+    this.thiefSprite.setVisible(true);
+    this.armSprite.setVisible(true);
+
+    // Place arm and block UI above the ball
+    this.armSprite.setPosition(ball.x, warningY);
+
+    this.blockBtn.setVisible(true);
+    this.blockBtn.setPosition(ball.x, warningY - 44);
+
+    this.blockTimerBar.setVisible(true);
+    this.drawBlockTimerBar(100);
+  }
+
+  private hideThiefUi() {
+    this.thiefActive = false;
+    this.thiefSprite?.setVisible(false);
+    this.armSprite?.setVisible(false);
+    this.blockBtn?.setVisible(false);
+    this.blockTimerBar?.setVisible(false);
+    this.blockTimerBar?.clear();
+  }
+
+  private trackArmToBall() {
+    if (!this.thiefActive || !this.thiefTargetBallId) return;
+
+    const { height } = this.scale;
+    const warningY = height * 0.4;
+
+    const b = this.balls.find((x) => x.id === this.thiefTargetBallId && !x.destroyed);
+    if (!b) return;
+
+    this.armSprite.setPosition(b.x, warningY);
+    this.blockBtn.setPosition(b.x, warningY - 44);
+  }
+
+  private updateThiefTimer() {
+    this.drawBlockTimerBar(this.getThiefRemainingPct());
+  }
+
+  private getThiefRemainingPct() {
+    if (!this.thiefActive) return 0;
+    const elapsed = Date.now() - this.thiefAppearTime;
+    const remaining = Math.max(0, this.thiefDecisionWindowMs - elapsed);
+    return (remaining / this.thiefDecisionWindowMs) * 100;
+  }
+
+  private drawBlockTimerBar(pct: number) {
+    if (!this.blockTimerBar || !this.blockBtn) return;
+
+    this.blockTimerBar.clear();
+    const barW = 140;
+    const barH = 9;
+    const x = this.blockBtn.x - barW / 2;
+    const y = this.blockBtn.y + 40;
+
+    this.blockTimerBar.fillStyle(0x000000, 0.25);
+    this.blockTimerBar.fillRoundedRect(x, y, barW, barH, 5);
+
+    if (pct > 0) {
+      const fillW = barW * (pct / 100);
+      const color = pct < 30 ? 0xff4444 : 0x76d13d;
+      this.blockTimerBar.fillStyle(color, 1);
+      this.blockTimerBar.fillRoundedRect(x, y, fillW, barH, 5);
+    }
+  }
+
+  /**
+   * @param didBlock true = player pressed BLOCK on time, false = timeout (auto adapt)
+   */
+  private resolveThiefDecision(didBlock: boolean) {
+    if (!this.thiefActive) return;
+
+    const elapsed = Date.now() - this.thiefAppearTime;
+    const onTime = elapsed <= this.thiefDecisionWindowMs;
+
+    // For tutorial: success condition is "BLOCK on time"
+    if (didBlock && onTime) {
+      // Visual confirmation
+      this.flashPanelSuccess();
+      this.stepCompleteOverride = true;
+
+      // Clean up thief UI, keep ball as-is (BLOCK cancels)
+      this.hideThiefUi();
+      return;
+    }
+
+    // Timeout / fail: demonstrate “adapt” effect by moving ball lane
+    const b = this.thiefTargetBallId
+      ? this.balls.find((x) => x.id === this.thiefTargetBallId && !x.destroyed)
+      : undefined;
+
+    if (b) {
+      const newLane: Lane = b.lane === 1 ? 2 : 1;
+      b.lane = newLane;
+
+      // Tween x shift for clarity
+      this.tweens.add({
+        targets: [b.container, this.armSprite, this.blockBtn],
+        x: this.getLaneX(newLane),
+        duration: 450,
+        ease: "Quad.easeInOut",
+        onComplete: () => {
+          this.hideThiefUi();
+        },
       });
     } else {
-      // Wrong
-      this.selectedDemoBalls.forEach(ball => {
-        this.ballSpawner.showIncorrectFeedback(ball);
-      });
-
-      // Shake target
-      this.tweens.add({
-        targets: this.targetDisplay,
-        x: "+=10",
-        duration: 50,
-        yoyo: true,
-        repeat: 3,
-        ease: "Power2.easeInOut",
-      });
-
-      this.time.delayedCall(1500, () => {
-        // Reset selection
-        this.selectedDemoBalls.forEach(ball => {
-          this.ballSpawner.clearFeedback(ball);
-          this.ballSpawner.unhighlightBall(ball);
-          this.ballSpawner.animateToOriginal(ball);
-          ball.isSelected = false;
-        });
-        this.selectedDemoBalls = [];
-        this.updateSelectionCounter();
-      });
+      this.hideThiefUi();
     }
   }
 
-  showWrongDemo() {
-    // Show wrong answer example
-    this.updateTargetDisplay(10, '+');
-    
+  private flashPanelSuccess() {
+    // Light green flash on inner panel
     const { width, height } = this.scale;
-    const margin = 80;
-
-    // Spawn wrong balls (2 + 3 = 5, but target is 10)
-    const wrongBalls = [2, 3];
-    wrongBalls.forEach((value, index) => {
-      const x = width / 2 - 50 + (index * 100);
-      const y = height * 0.45;
-      const color = this.equationGenerator.getRandomColor();
-
-      const ball = this.ballSpawner.createBall(value, color, x, y);
-      ball.originalX = x;
-      ball.originalY = y;
-      ball.isDemo = true;
-
-      this.demoBalls.push(ball);
-    });
-
-    // Show wrong feedback
-    this.time.delayedCall(500, () => {
-      this.demoBalls.forEach(ball => {
-        this.ballSpawner.showIncorrectFeedback(ball);
-      });
-
-      // Shake
-      this.tweens.add({
-        targets: this.demoBalls.map(b => b.container),
-        x: "+=10",
-        duration: 50,
-        yoyo: true,
-        repeat: 3,
-        ease: "Power2.easeInOut",
-      });
-    });
-  }
-
-  updateSelectionCounter() {
-    this.selectionCounter.setText(`เลือก ${this.selectedDemoBalls.length}/2`);
-  }
-
-  updateContinueButton(text: string) {
-    this.continueText.setText(text);
-    this.continueButton.setVisible(true);
-  }
-
-  clearDemoBalls() {
-    this.demoBalls.forEach(ball => {
-      if (ball && ball.container) {
-        ball.container.removeAllListeners();
-        ball.container.destroy();
-      }
-    });
-    this.demoBalls = [];
-  }
-
-  nextStep() {
-    // Reset interactive state
-    if (this.continueButton.visible) {
-      this.input.keyboard!.once('keydown-SPACE', () => {
-        this.nextStep();
-      });
-    }
-    
-    this.showStep(this.step + 1);
-  }
-
-  startGame() {
-    this.scene.start("FloatingBallMathGameScene");
-  }
-
-  // Helper to lighten a hex color
-  private lightenColor(color: number, percent: number): number {
-    const num = color >>> 0;
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return 0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-           (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-           (B < 255 ? B < 1 ? 0 : B : 255);
-  }
-
-  update(time: number, delta: number) {
-    // Update water overlay
-    if (this.waterOverlay) {
-      this.waterPhysics.updateWaterOverlay(this.waterOverlay);
-    }
-
-    // Update ball positions
-    const activeBalls = this.demoBalls.filter(ball => ball && ball.container);
-    
-    activeBalls.forEach(ball => {
-      this.waterPhysics.updateBall(ball, delta);
-      if (ball.container) {
-        ball.container.setPosition(ball.x, ball.y);
-      }
+    const flash = this.add.graphics();
+    flash.setDepth(4999);
+    flash.fillStyle(0x4caf50, 0.18);
+    flash.fillRoundedRect(
+      this.panel.x - width * 0.42,
+      this.panel.y - height * 0.18,
+      width * 0.84,
+      height * 0.36,
+      16
+    );
+    this.tweens.add({
+      targets: flash,
+      alpha: { from: 1, to: 0 },
+      duration: 450,
+      ease: "Quad.easeOut",
+      onComplete: () => flash.destroy(),
     });
   }
 }

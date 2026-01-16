@@ -18,42 +18,51 @@ export class HandController {
    * @returns The hand ID for reference
    */
   showWarningHand(ball: FloatingBall, defendTimeMs: number = 2500): string {
+    // Safety check: don't create hand if ball doesn't exist or is already destroyed
+    if (!ball || !ball.container) {
+      console.warn('[HandController] Cannot show warning hand - ball or container is null');
+      return '';
+    }
+
     const handId = `hand-${ball.id}`;
     const { width, height } = this.scene.scale;
 
     // Create hand container positioned near the ball
-    const container = this.scene.add.container(ball.x, ball.y - 80);
+    const container = this.scene.add.container(ball.x, ball.y - 140);
     container.setDepth(100); // Above balls
 
-    // Create hand graphics (simple hand reaching down)
-    const handGraphics = this.scene.add.graphics();
+    // Load and create Arm.png sprite
+    const armSprite = this.scene.add.image(0, 0, 'arm');
+    armSprite.setScale(0.1); // Made smaller (was 0.2)
+    armSprite.setOrigin(0.5, 0.5);
+    container.add(armSprite);
+
+    // Create thief popup at left-top of screen
+    const thiefPopup = this.scene.add.container(width * 0.15, height * 0.15);
+    thiefPopup.setDepth(150); // Above hand
     
-    // Arm
-    handGraphics.lineStyle(8, 0xFFA500, 1);
-    handGraphics.beginPath();
-    handGraphics.moveTo(0, -40);
-    handGraphics.lineTo(0, 0);
-    handGraphics.strokePath();
-
-    // Palm
-    handGraphics.fillStyle(0xFFCC80, 1);
-    handGraphics.fillCircle(0, 0, 25);
-
-    // Fingers
-    handGraphics.lineStyle(6, 0xFFA500, 1);
-    [-30, -15, 0, 15, 30].forEach((xOffset) => {
-      handGraphics.beginPath();
-      handGraphics.moveTo(xOffset, 0);
-      handGraphics.lineTo(xOffset, 20);
-      handGraphics.strokePath();
+    const thiefSprite = this.scene.add.image(0, 0, 'thief');
+    thiefSprite.setScale(0.15); // Reduced from 0.25 for smaller size
+    thiefSprite.setOrigin(0.5, 0.5);
+    thiefPopup.add(thiefSprite);
+    
+    // Animate thief popup appearance
+    thiefPopup.setScale(0);
+    this.scene.tweens.add({
+      targets: thiefPopup,
+      scale: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
     });
 
-    container.add(handGraphics);
+    container.add(thiefPopup);
 
-    // Create DEFEND button
+    // Create DEFEND button positioned near thief popup (within hand container to follow it)
     const defendButton = this.createDefendButton(handId, ball);
-    defendButton.setPosition(width / 2, height * 0.6);
+    defendButton.setPosition(0, -100); // Position above the hand (relative to container)
+    defendButton.setDepth(200); // Above everything else, including the hand
     defendButton.setVisible(true);
+    container.add(defendButton); // Add to hand container so it follows the hand
 
     // Create warning text
     const warningText = this.scene.add.text(0, -60, '!', {
@@ -73,13 +82,14 @@ export class HandController {
       isStealing: false,
       retreatDelay: defendTimeMs,
       defendButton,
+      thiefPopup, // Store reference to thief popup
     };
 
     this.activeHands.set(handId, warningHand);
     this.defendButtons.set(handId, defendButton);
 
     // Set up automatic stealing after timeout
-    const stealTimer = this.scene.time.delayedCall(defendTimeMs, () => {
+    const stealTimer = this.scene.time.delayedCall(defendTimeMs/1.4, () => {
       this.stealBall(handId);
     });
 
@@ -120,7 +130,7 @@ export class HandController {
     container.add(bg);
 
     // Button text
-    const text = this.scene.add.text(0, 0, 'DEFEND!', {
+    const text = this.scene.add.text(0, 0, 'ห้ามขโมย!', {
       fontFamily: 'Arial, sans-serif',
       fontSize: `${Math.min(24, width * 0.05)}px`,
       color: '#FFFFFF',
@@ -190,6 +200,17 @@ export class HandController {
       },
     });
 
+    // Animate thief popup hiding
+    if (hand.thiefPopup) {
+      this.scene.tweens.add({
+        targets: hand.thiefPopup,
+        scale: 0,
+        alpha: 0,
+        duration: 200,
+        ease: 'Sine.easeIn',
+      });
+    }
+
     // Trigger defend callback
     const callback = this.onDefendCallbacks.get(handId);
     if (callback) {
@@ -202,21 +223,48 @@ export class HandController {
    */
   private stealBall(handId: string): void {
     const hand = this.activeHands.get(handId);
-    if (!hand || hand.isStealing) return;
+    
+    // Safety checks
+    if (!hand || hand.isStealing) {
+      console.warn('[HandController] stealBall called but hand is null or already stealing');
+      return;
+    }
+
+    // Check if ball still exists
+    if (!hand.targetBall || !hand.targetBall.container) {
+      console.warn('[HandController] Ball was already destroyed, skipping steal animation');
+      this.hideHand(handId);
+      return;
+    }
 
     hand.isStealing = true;
 
-    // Animate hand grabbing ball
+    // Animate thief popup hiding
+    if (hand.thiefPopup) {
+      this.scene.tweens.add({
+        targets: hand.thiefPopup,
+        scale: 0,
+        alpha: 0,
+        duration: 200,
+        ease: 'Sine.easeIn',
+      });
+    }
+
+    // Get boat Y position (boat is at height * 0.75)
+    const { height } = this.scene.scale;
+    const boatY = height * 0.75;
+
+    // Animate hand grabbing ball at boat Y level
     this.scene.tweens.add({
       targets: [hand.container, hand.targetBall.container],
-      y: hand.targetBall.y + 100,
+      y: boatY,
       alpha: 0,
       scale: 0.8,
       duration: 400,
       ease: 'Sine.easeIn',
       onComplete: () => {
-        // Destroy ball
-        if (hand.targetBall.container) {
+        // Destroy ball if it still exists
+        if (hand.targetBall && hand.targetBall.container) {
           hand.targetBall.container.destroy();
           hand.targetBall.container = null;
         }
@@ -271,6 +319,13 @@ export class HandController {
    */
   getHand(ballId: string): WarningHand | undefined {
     return this.activeHands.get(`hand-${ballId}`);
+  }
+
+  /**
+   * Get count of active hands
+   */
+  getActiveHandCount(): number {
+    return this.activeHands.size;
   }
 
   /**

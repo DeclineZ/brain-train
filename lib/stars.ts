@@ -165,9 +165,38 @@ export async function upsertLevelStars(
     newStars: number
 ) {
     const supabase = await createClient();
-    // 3. Upsert (Insert or Update)
     
-    const { error } = await supabase
+    // First, fetch existing stars to compare
+    const { data: existingData, error: fetchError } = await supabase
+        .from('user_game_stars')
+        .select('star')
+        .eq('user_id', userId)
+        .eq('game_id', gameId)
+        .eq('level', level)
+        .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "not found" error, which is okay for new levels
+        console.error('[upsertLevelStars] Error fetching existing stars:', fetchError);
+        return { success: false, error: fetchError };
+    }
+
+    const existingStars = existingData?.star ?? 0;
+
+    // Only update if new stars are greater than or equal to existing stars
+    if (newStars < existingStars) {
+        console.log(`[upsertLevelStars] Skipping update - newStars (${newStars}) < existingStars (${existingStars})`);
+        return { 
+            success: true, 
+            updated: false, 
+            stars: existingStars, 
+            skipped: true,
+            reason: 'New stars are less than existing stars'
+        };
+    }
+
+    // Perform upsert
+    const { error: upsertError } = await supabase
         .from('user_game_stars')
         .upsert({
             user_id: userId,
@@ -178,9 +207,9 @@ export async function upsertLevelStars(
             onConflict: 'user_id, game_id, level'
         });
 
-    if (error) {
-        console.error('[upsertLevelStars] Upsert failed:', error);
-        return { success: false, error };
+    if (upsertError) {
+        console.error('[upsertLevelStars] Upsert failed:', upsertError);
+        return { success: false, error: upsertError };
     }
 
     return { success: true, updated: true, stars: newStars };

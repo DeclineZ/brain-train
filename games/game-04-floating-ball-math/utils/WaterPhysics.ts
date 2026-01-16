@@ -23,11 +23,11 @@ export class WaterPhysics {
     let speedMultiplier: number;
     
     if (ball.y < fastZoneThreshold) {
-      speedMultiplier = 4.0; // Increased from 3.0 to 5.0
+      speedMultiplier = 3.0; // Very fast at top
     } else if (ball.y < mediumZoneThreshold) {
-      speedMultiplier = 2.5; // Medium speed in middle
+      speedMultiplier = 4.0; // Fast in middle
     } else {
-      speedMultiplier = 1.5; // Increased from 1.0 to 1.8
+      speedMultiplier = 5.0; // Normal speed at bottom
     }
     
     // Vertical movement (float down) - FASTER
