@@ -38,6 +38,7 @@ export class ScoringSystem {
     public registerMistake(type: string) {
         this.mistakeCount++;
         console.log(`Mistake recorded: ${type}`);
+        this.scene.events.emit('MISTAKE_OCCURRED', type);
     }
 
     private onMistake() {

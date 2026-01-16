@@ -254,7 +254,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div
         id="game-container"
         ref={gameRef}
-        className="w-full h-full"
+        className="w-full h-full min-w-[1px] min-h-[1px]"
       />
     </div>
   );

@@ -49,6 +49,27 @@ export default class GameScene extends Phaser.Scene {
     this.load.image('hole_yellow', '/games/game-05-wormtrain/Yellowhole.webp');
     this.load.image('hole_pink', '/games/game-05-wormtrain/Pinkhole.webp');
     this.load.image('hole_purple', '/games/game-05-wormtrain/Purplehole.webp');
+    // Preload Small Worm Holes (User provided)
+    this.load.image('hole_blue_s', '/games/game-05-wormtrain/sBluehole.webp');
+    this.load.image('hole_green_s', '/games/game-05-wormtrain/sGreenhole.webp');
+    this.load.image('hole_orange_s', '/games/game-05-wormtrain/sOrangehole.webp');
+    this.load.image('hole_pink_s', '/games/game-05-wormtrain/sPinkhole.webp');
+    this.load.image('hole_purple_s', '/games/game-05-wormtrain/sPurplehole.webp');
+    this.load.image('hole_yellow_s', '/games/game-05-wormtrain/sYellowhole.webp');
+
+    // Traps
+    this.load.image('spider_trap', '/games/game-05-wormtrain/SpiderTrap.webp');
+
+    // Preload Worm Heads (Base white, to be tinted)
+    this.load.image('worm_head_s', '/games/game-05-wormtrain/worm_head_s.png');
+    this.load.image('worm_head_m', '/games/game-05-wormtrain/worm_head_m.png');
+
+    // Audio Assets
+    this.load.audio('bg-music', '/games/game-05-wormtrain/bg-music.mp3');
+    this.load.audio('rotate', '/games/game-05-wormtrain/rotate.mp3');
+    this.load.audio('match-success', '/games/game-05-wormtrain/match-success.mp3');
+    this.load.audio('match-fail', '/games/game-05-wormtrain/match-fail.mp3');
+    this.load.audio('level-pass', '/games/game-05-wormtrain/level-pass.mp3');
   }
 
   create() {
@@ -89,6 +110,60 @@ export default class GameScene extends Phaser.Scene {
 
     // Apply responsive camera zoom to fit content on any screen
     this.setupResponsiveCamera(levelData);
+
+    // Audio System
+    this.sound.stopAll(); // Ensure clean slate
+    const bgMusic = this.sound.add('bg-music', { loop: true, volume: 0.2 }); // Lowered BGM
+    bgMusic.play();
+
+    // Sound Event Listeners
+    this.events.on('JUNCTION_SWITCHED', (data: any) => {
+      if (data.source === 'USER') { // Only user interaction makes sound
+        this.sound.play('rotate', { volume: 0.5 });
+      }
+    });
+
+    this.events.on('WORM_RESOLVED', (data: any) => {
+      const { x, y, success } = data;
+
+      // Sound
+      if (success) {
+        this.sound.play('match-success', { volume: 0.7 });
+      } else {
+        this.sound.play('match-fail', { volume: 1.5 });
+      }
+
+      // Float Text
+      const textStr = success ? 'GOOD' : 'MISS';
+      const textColor = success ? '#44ff44' : '#ff4444';
+
+      const label = this.add.text(x, y - 60, textStr, { // Start higher
+        fontSize: '32px',
+        color: textColor,
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontFamily: 'Arial',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(200); // Ensure on top
+
+      this.tweens.add({
+        targets: label,
+        y: y - 150, // Floating higher
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => label.destroy()
+      });
+    });
+
+    this.events.on('GAME_WIN', () => {
+      bgMusic.stop();
+      this.sound.play('level-pass', { volume: 0.8 });
+    });
+
+    // Cleanup
+    this.events.on('shutdown', () => {
+      this.sound.stopAll();
+    });
 
     // Listen for resize events
     this.scale.on('resize', () => {

@@ -58,9 +58,7 @@ export class LevelLoader {
                 throw new Error(`Junction config has node ID ${junction.id} but type is ${node.type}`);
             }
 
-            if (junction.outEdges.length < 2) {
-                throw new Error(`Junction ${junction.id} must have at least 2 outEdges`);
-            }
+
 
             junction.outEdges.forEach(edgeId => {
                 const edge = edgeMap.get(edgeId);

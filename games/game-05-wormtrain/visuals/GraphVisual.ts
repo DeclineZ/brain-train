@@ -90,8 +90,12 @@ export class GraphVisual {
                     holeTextureKey = 'hole_purple';
                 }
 
-                // Size multiplier based on hole size (S=smaller, M=normal)
-                const sizeMultiplier = node.size === 'S' ? 6 : 8;
+                // If small hole, append _s to key to use specific user-provided asset
+                if (node.size === 'S') {
+                    holeTextureKey += '_s';
+                }
+
+                const sizeMultiplier = node.size === 'S' ? 2.8 : 4.5;
 
                 // Use color-specific hole sprite if available
                 if (this.scene.textures.exists(holeTextureKey)) {
@@ -100,6 +104,7 @@ export class GraphVisual {
                     const textureWidth = holeSprite.width || 512;
                     holeSprite.setScale(targetSize / textureWidth);
                     this.nodeSprites.add(holeSprite);
+
                 } else if (this.scene.textures.exists('hole')) {
                     // Fallback to generic hole with tint
                     const holeSprite = this.scene.add.image(node.x, node.y, 'hole');

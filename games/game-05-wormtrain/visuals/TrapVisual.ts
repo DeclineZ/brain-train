@@ -48,32 +48,35 @@ export class TrapVisual {
         const trapContainer = this.scene.add.container(nodePos?.x || 0, nodePos?.y || 0);
 
         if (trap.type === 'SPIDER') {
-            // Spider: Red-ish danger zone indicator (placeholder for spider sprite)
-            const body = this.scene.add.circle(0, -20, 12, 0x8B0000);
-            body.setAlpha(0.8);
-            const legs = this.scene.add.graphics();
-            legs.lineStyle(3, 0x333333, 1);
-            // Simple leg lines
-            for (let i = 0; i < 4; i++) {
-                const angle = (i / 4) * Math.PI + Math.PI / 8;
-                legs.moveTo(0, -20);
-                legs.lineTo(Math.cos(angle) * 18, -20 + Math.sin(angle) * 12);
-                legs.moveTo(0, -20);
-                legs.lineTo(-Math.cos(angle) * 18, -20 + Math.sin(angle) * 12);
+            // Create spider image DIRECTLY on scene (not in container) for proper depth sorting
+            if (this.scene.textures.exists('spider_trap')) {
+                const spider = this.scene.add.image(nodePos?.x || 0, nodePos?.y || 0, 'spider_trap');
+                // Target size - make it big
+                const targetSize = 200;
+                const textureWidth = spider.width || 512;
+                spider.setScale(targetSize / textureWidth);
+
+                // Set very high depth so it's above everything
+                spider.setDepth(1000);
+
+                // Store spider reference in trapContainer for animation
+                trapContainer.setData('spiderImage', spider);
+
+                // Add idle animation
+                this.scene.tweens.add({
+                    targets: spider,
+                    y: spider.y - 5,
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            } else {
+                // Fallback
+                const body = this.scene.add.circle(0, -30, 30, 0x8B0000);
+                const text = this.scene.add.text(0, -30, "X", { fontSize: '40px', color: '#ffffff' }).setOrigin(0.5);
+                trapContainer.add([body, text]);
             }
-            legs.strokePath();
-
-            trapContainer.add([legs, body]);
-
-            // Add idle animation (bobbing)
-            this.scene.tweens.add({
-                targets: trapContainer,
-                y: trapContainer.y - 5,
-                duration: 800,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
         } else if (trap.type === 'EARTHQUAKE') {
             // Earthquake: Warning indicator around junction
             const warningRing = this.scene.add.circle(0, 0, 35, 0x000000, 0);
@@ -134,6 +137,41 @@ export class TrapVisual {
                 yoyo: true,
                 repeat: 3
             });
+        } else if (data.type === 'SPIDER') {
+            // Check if we have a warning indicator (e.g., web or exclamation) - currently we use the spider itself maybe?
+            // If spider is hidden, we can show a "web" or "shadow" or just flash the container slightly visible?
+            // Let's fade in a "!" or simply set Alpha to 0.3 and shake?
+
+            // Let's create a temporary warning text if not exists
+            if (!data.warningIndicator) {
+                // Get spider position from stored data
+                const spiderImage = data.graphics.getData('spiderImage') as Phaser.GameObjects.Image;
+                const x = spiderImage ? spiderImage.x : data.graphics.x;
+                const y = spiderImage ? spiderImage.y - 120 : data.graphics.y - 120;
+
+                const text = this.scene.add.text(x, y, "!", {
+                    fontSize: '80px',
+                    fontStyle: 'bold',
+                    color: '#ff0000',
+                    stroke: '#ffffff',
+                    strokeThickness: 6
+                }).setOrigin(0.5);
+                text.setDepth(1001); // Above spider
+                data.warningIndicator = text as any;
+            }
+
+            if (data.warningIndicator) {
+                // Ensure visible
+                (data.warningIndicator as any).setVisible(true);
+                this.scene.tweens.add({
+                    targets: data.warningIndicator,
+                    scale: 1.5,
+                    alpha: { from: 1, to: 0.5 },
+                    duration: 300,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
         }
     }
 
@@ -171,13 +209,26 @@ export class TrapVisual {
                 }
             }
         } else if (type === 'SPIDER') {
-            // Spider attack animation
+            // Remove warning if exists
+            if (data.warningIndicator) {
+                (data.warningIndicator as any).setVisible(false);
+            }
+
+            // Spider APPEARS
+            data.graphics.setVisible(true);
+            data.graphics.setAlpha(1);
+            data.graphics.setScale(0.1); // Start small
+
+            // Drop down animation
             this.scene.tweens.add({
                 targets: data.graphics,
-                scaleX: 1.5,
-                scaleY: 1.5,
-                duration: 150,
-                yoyo: true
+                scaleX: 1,
+                scaleY: 1,
+                y: { from: data.graphics.y - 100, to: data.graphics.y }, // Drop from above? NO, graphics.y is container pos. 
+                // We should animate the sprite inside? 
+                // Easier: just scale up
+                ease: 'Back.out',
+                duration: 500
             });
         } else if (type === 'COLLAPSING_HOLE') {
             // Show collapse overlay
@@ -197,7 +248,19 @@ export class TrapVisual {
         const data = this.trapVisuals.get(trapId);
         if (!data) return;
 
-        if (type === 'COLLAPSING_HOLE') {
+        if (type === 'SPIDER') {
+            // Spider HIDES
+            this.scene.tweens.add({
+                targets: data.graphics,
+                scaleX: 0,
+                scaleY: 0,
+                alpha: 0,
+                duration: 300,
+                onComplete: () => {
+                    data.graphics.setVisible(false);
+                }
+            });
+        } else if (type === 'COLLAPSING_HOLE') {
             // Hide collapse overlay
             const overlay = data.graphics.list[0] as Phaser.GameObjects.Arc;
             if (overlay) {

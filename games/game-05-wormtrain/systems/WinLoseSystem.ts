@@ -13,36 +13,48 @@ export class WinLoseSystem {
         this.scene = scene;
     }
 
+    private totalWorms: number = 0;
+    private lostCount: number = 0;
+
     public init(levelData: LevelData) {
         this.ruleSet = levelData.rules;
         this.winCondition = levelData.winCondition;
         this.arrivedCount = 0;
+        this.lostCount = 0;
+        this.totalWorms = levelData.worms.length;
         this.gameOver = false;
+
+        // Reset Score System
+        this.scene.scoringSystem.init();
     }
 
     // Called when worm reaches a HOLE
     public checkHoleArrival(wormColor: string, holeColor: string, wormSize?: string, holeSize?: string): boolean {
         if (this.gameOver) return false;
 
-        // Color must match
-        if (wormColor !== holeColor) {
-            this.triggerFail("WRONG_HOLE");
-            return false;
-        }
+        let mismatch = false;
 
-        // Size matching (if hole has size specified)
-        // M worm can go to holes without size (backwards compatibility)
-        // S worm must go to S hole, M worm must go to M hole
-        if (holeSize) {
-            const wormSizeNorm = wormSize || 'M'; // Default to M if not specified
+        // Color must match (Case insensitive)
+        if (wormColor.toLowerCase() !== holeColor.toLowerCase()) {
+            mismatch = true;
+            this.scene.scoringSystem.registerMistake('WRONG_HOLE');
+        } else if (holeSize) {
+            // Size matching
+            const wormSizeNorm = wormSize || 'M';
             if (wormSizeNorm !== holeSize) {
-                this.triggerFail("WRONG_SIZE");
-                return false;
+                mismatch = true;
+                this.scene.scoringSystem.registerMistake('WRONG_SIZE');
             }
         }
 
+        if (mismatch) {
+            this.registerLoss();
+            return false; // Result is FAIL (Worm Disappears)
+        }
+
         this.arrivedCount++;
-        this.checkWinCondition();
+        this.scene.events.emit('WORM_ARRIVED');
+        this.checkEndCondition();
         return true; // Success
     }
 
@@ -51,37 +63,51 @@ export class WinLoseSystem {
         if (this.gameOver) return;
 
         if (trapType === 'SPIDER') {
-            this.triggerFail("TRAP_SPIDER");
+            this.scene.scoringSystem.registerMistake('TRAP_SPIDER');
+            this.registerLoss();
         }
     }
 
-    public checkWinCondition() {
-        if (this.arrivedCount >= this.winCondition.requiredCount) {
-            this.triggerWin();
+    // External Trigger for JAM/BLOCK
+    public triggerFail(reason: string) {
+        if (this.gameOver) return;
+
+        console.log(`Mistake: ${reason}`);
+        this.scene.scoringSystem.registerMistake(reason);
+        this.registerLoss();
+    }
+
+    private registerLoss() {
+        this.lostCount++;
+        this.checkEndCondition();
+    }
+
+    public checkEndCondition() {
+        // If all worms processed
+        if (this.arrivedCount + this.lostCount >= this.totalWorms) {
+            this.finishLevel();
         }
     }
 
-    private triggerWin() {
+    private finishLevel() {
         if (this.gameOver) return;
         this.gameOver = true;
         this.scene.gameOver = true;
-        console.log("GAME WON!");
 
-        // Calculate score using ScoringSystem
+        // Calculate score
         const scoreResult = this.scene.scoringSystem.calculateScore();
+        console.log(`Level Finished. Arrived: ${this.arrivedCount}, Lost: ${this.lostCount}, Stars: ${scoreResult.stars}`);
 
-        // Emit internal event (for Phaser-based visuals if needed)
-        this.scene.events.emit('GAME_WIN', { arrived: this.arrivedCount });
+        this.scene.events.emit('GAME_WIN', { arrived: this.arrivedCount, lost: this.lostCount });
 
-        // Call React onGameOver callback via game registry
         const onGameOver = this.scene.game.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
-                success: true,
+                success: true, // Always "Success" in terms of completion? Or depend on Stars?
+                // Let's assume completion = success. Stars determine quality.
                 level: this.scene.game.registry.get('level') || 1,
                 stars: scoreResult.stars,
                 score: scoreResult.score,
-                // This game focuses on planning skills
                 stat_planning: scoreResult.score,
                 stat_memory: null,
                 stat_speed: null,
@@ -93,40 +119,12 @@ export class WinLoseSystem {
         }
     }
 
-    public triggerFail(reason: string) {
-        if (this.gameOver) return;
-        this.gameOver = true;
-        this.scene.gameOver = true;
-        console.log(`GAME OVER: ${reason}`);
-
-        // Emit internal event
-        this.scene.events.emit('GAME_OVER', { reason });
-
-        // Call React onGameOver callback
-        const onGameOver = this.scene.game.registry.get('onGameOver');
-        if (onGameOver) {
-            onGameOver({
-                success: false,
-                level: this.scene.game.registry.get('level') || 1,
-                stars: 0,
-                score: 0,
-                stat_planning: null,
-                stat_memory: null,
-                stat_speed: null,
-                stat_focus: null,
-                stat_visual: null,
-                stat_emotion: null,
-                failReason: reason
-            });
-        }
-    }
-
     private getStarHint(stars: number): string | null {
         if (stars >= 3) return null;
         if (stars === 2) {
-            return 'ลดจำนวนครั้งที่กดเปลี่ยนทาง\nจะได้ 3 ดาว';
+            return 'ลองลดความผิดพลาดลง\nจะได้ 3 ดาว';
         }
-        return 'ลองวางแผนก่อนกด\nเพื่อลดความผิดพลาด';
+        return 'วางแผนเส้นทางให้ดี\nหนอนหายไปเยอะเลย';
     }
 }
 

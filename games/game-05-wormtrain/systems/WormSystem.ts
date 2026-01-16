@@ -128,6 +128,14 @@ export class WormSystem {
             if (this.scene.trapSystem.isTrapActive(trap.id)) {
                 if (trap.type === 'SPIDER') {
                     this.setWormState(worm, 'DEAD');
+
+                    this.scene.events.emit('WORM_RESOLVED', {
+                        x: node.x,
+                        y: node.y,
+                        success: false,
+                        reason: 'TRAP'
+                    });
+
                     this.scene.winLoseSystem.checkTrapCollision(trap.id, 'SPIDER');
                     return;
                 }
@@ -143,6 +151,13 @@ export class WormSystem {
                 node.size
             );
             this.setWormState(worm, success ? 'ARRIVED' : 'DEAD');
+
+            this.scene.events.emit('WORM_RESOLVED', {
+                x: node.x,
+                y: node.y,
+                success: success,
+                reason: success ? 'ARRIVED' : 'WRONG_HOLE'
+            });
             return;
         }
 
@@ -160,23 +175,35 @@ export class WormSystem {
         if (nextEdge) {
             // Check Narrow Constraint
             if (this.isBlocked(worm, nextEdge)) {
-                // JAMMED Logic
-                // Snap to end of current edge
+                // JAMMED Logic -> FAIL immediately for clarity
                 worm.distanceOnEdge = this.scene.graphSystem.getEdge(worm.currentEdgeId)!.length;
-                this.setWormState(worm, 'JAMMED');
+                this.setWormState(worm, 'DEAD');
 
-                // Register Mistake for Jam?
-                this.scene.scoringSystem.registerMistake('JAM');
+                this.scene.events.emit('WORM_RESOLVED', {
+                    x: node.x,
+                    y: node.y,
+                    success: false,
+                    reason: 'BLOCKED'
+                });
+
+                // Trigger Fail with clear reason
+                this.scene.winLoseSystem.triggerFail("SIZE_MISMATCH_JAM");
             } else {
                 // Move to next edge
                 worm.currentEdgeId = nextEdge.id;
                 worm.distanceOnEdge = 0; // Reset dist
-                // We technically overshot 'dp', could preserve excess dist but simplifying for now.
             }
         } else {
             // No active edge? Dead end?
-            // Should not happen in valid graph unless 'blocked' logically?
             this.setWormState(worm, 'DEAD'); // Fall off map
+
+            this.scene.events.emit('WORM_RESOLVED', {
+                x: node.x,
+                y: node.y,
+                success: false,
+                reason: 'DEAD_END'
+            });
+
             this.scene.winLoseSystem.triggerFail("DEAD_END");
         }
     }

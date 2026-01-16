@@ -15,17 +15,17 @@ export const LEVELS: LevelData[] = [
     metadata: { name: "First Steps", rating: 1 },
     colors: ["#ff914d", "#5170ff", "#58CC02"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 100, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 350, y: 300 },
-      { id: "h1", type: "HOLE", x: 600, y: 150, color: "#ff914d" },
-      { id: "h2", type: "HOLE", x: 600, y: 300, color: "#5170ff" },
-      { id: "h3", type: "HOLE", x: 600, y: 450, color: "#58CC02" }
+      { id: "start", type: "SPAWN", x: 400, y: 195 },
+      { id: "j1", type: "JUNCTION", x: 400, y: 482 },
+      { id: "h1", type: "HOLE", x: 302, y: 770, color: "#ff914d" },
+      { id: "h2", type: "HOLE", x: 400, y: 770, color: "#5170ff" },
+      { id: "h3", type: "HOLE", x: 497, y: 770, color: "#58CC02" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(100, 300), p(350, 300)], length: 250, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(350, 300), p(500, 150), p(600, 150)], length: 280, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "h2", path: [p(350, 300), p(600, 300)], length: 250, widthClass: "normal" },
-      { id: "e4", from: "j1", to: "h3", path: [p(350, 300), p(500, 450), p(600, 450)], length: 280, widthClass: "normal" }
+      { id: "e1", from: "start", to: "j1", path: [p(400, 195), p(400, 482)], length: 250, widthClass: "normal" },
+      { id: "e2", from: "j1", to: "h1", path: [p(400, 482), p(302, 655), p(302, 770)], length: 280, widthClass: "normal" },
+      { id: "e3", from: "j1", to: "h2", path: [p(400, 482), p(400, 770)], length: 250, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "h3", path: [p(400, 482), p(497, 655), p(497, 770)], length: 280, widthClass: "normal" }
     ],
     junctions: [
       { id: "j1", outEdges: ["e2", "e3", "e4"], defaultIndex: 0 }
@@ -46,19 +46,19 @@ export const LEVELS: LevelData[] = [
     metadata: { name: "The Fork", rating: 1 },
     colors: ["#ff914d", "#5170ff", "#58CC02"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 100, y: 150 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 150 },
-      { id: "j2", type: "JUNCTION", x: 500, y: 300 },
-      { id: "h1", type: "HOLE", x: 700, y: 150, color: "#ff914d" },
-      { id: "h2", type: "HOLE", x: 700, y: 300, color: "#5170ff" },
-      { id: "h3", type: "HOLE", x: 700, y: 450, color: "#58CC02" }
+      { id: "start", type: "SPAWN", x: 302, y: 195 },
+      { id: "j1", type: "JUNCTION", x: 302, y: 425 },
+      { id: "j2", type: "JUNCTION", x: 400, y: 655 },
+      { id: "h1", type: "HOLE", x: 302, y: 884, color: "#ff914d" },
+      { id: "h2", type: "HOLE", x: 400, y: 884, color: "#5170ff" },
+      { id: "h3", type: "HOLE", x: 497, y: 884, color: "#58CC02" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(100, 150), p(300, 150)], length: 200, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(300, 150), p(700, 150)], length: 400, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "j2", path: [p(300, 150), p(400, 225), p(500, 300)], length: 280, widthClass: "normal" },
-      { id: "e4", from: "j2", to: "h2", path: [p(500, 300), p(700, 300)], length: 200, widthClass: "normal" },
-      { id: "e5", from: "j2", to: "h3", path: [p(500, 300), p(600, 375), p(700, 450)], length: 280, widthClass: "normal" }
+      { id: "e1", from: "start", to: "j1", path: [p(302, 195), p(302, 425)], length: 200, widthClass: "normal" },
+      { id: "e2", from: "j1", to: "h1", path: [p(302, 425), p(302, 884)], length: 400, widthClass: "normal" },
+      { id: "e3", from: "j1", to: "j2", path: [p(302, 425), p(351, 540), p(400, 655)], length: 280, widthClass: "normal" },
+      { id: "e4", from: "j2", to: "h2", path: [p(400, 655), p(400, 884)], length: 200, widthClass: "normal" },
+      { id: "e5", from: "j2", to: "h3", path: [p(400, 655), p(448, 770), p(497, 884)], length: 280, widthClass: "normal" }
     ],
     junctions: [
       { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 1 },
@@ -74,530 +74,636 @@ export const LEVELS: LevelData[] = [
     winCondition: { requiredCount: 3 }
   },
 
-  // LEVEL 3: Double Trouble (2 Spawns)
+  // LEVEL 3: Triple Split (Connected)
   {
     levelId: 3,
-    metadata: { name: "Double Trouble", rating: 1 },
+    metadata: { name: "Triple Split", rating: 1 },
     colors: ["#5170ff", "#58CC02", "#FFD700"],
     nodes: [
-      // Top Track
-      { id: "s1", type: "SPAWN", x: 80, y: 200 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 200 },
-      { id: "h1", type: "HOLE", x: 600, y: 150, color: "#5170ff" },
-      { id: "h2", type: "HOLE", x: 600, y: 250, color: "#FFD700" }, // Yellow
-      // Bottom Track (Simple)
-      { id: "s2", type: "SPAWN", x: 80, y: 450 },
-      { id: "h3", type: "HOLE", x: 600, y: 450, color: "#58CC02" }
+      { id: "s1", type: "SPAWN", x: 400, y: 195 },
+      { id: "j1", type: "JUNCTION", x: 400, y: 425 },
+      { id: "h_blue", type: "HOLE", x: 302, y: 770, color: "#5170ff" },
+      { id: "j2", type: "JUNCTION", x: 465, y: 655 },
+      { id: "h_green", type: "HOLE", x: 400, y: 942, color: "#58CC02" },
+      { id: "h_yellow", type: "HOLE", x: 530, y: 942, color: "#FFD700" }
     ],
     edges: [
-      { id: "e1", from: "s1", to: "j1", path: [p(80, 200), p(300, 200)], length: 220, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(300, 200), p(600, 150)], length: 300, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "h2", path: [p(300, 200), p(600, 250)], length: 300, widthClass: "normal" },
-      { id: "e4", from: "s2", to: "h3", path: [p(80, 450), p(600, 450)], length: 520, widthClass: "normal" }
+      { id: "e1", from: "s1", to: "j1", path: [p(400, 195), p(400, 425)], length: 200, widthClass: "normal" },
+      { id: "e2", from: "j1", to: "h_blue", path: [p(400, 425), p(302, 770)], length: 340, widthClass: "normal" },
+      { id: "e3", from: "j1", to: "j2", path: [p(400, 425), p(465, 655)], length: 220, widthClass: "normal" },
+      { id: "e4", from: "j2", to: "h_green", path: [p(465, 655), p(400, 942)], length: 270, widthClass: "normal" },
+      { id: "e5", from: "j2", to: "h_yellow", path: [p(465, 655), p(530, 942)], length: 270, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 1 }, // Default to lower branch
+      { id: "j2", outEdges: ["e4", "e5"], defaultIndex: 0 }
     ],
     traps: [],
     worms: [
       { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 60 },
-      { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 2000, speed: 70 }, // Simple straight
-      { id: "w3", size: "M", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 60 },
-      { id: "w4", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 6500, speed: 60 }
+      { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 4500, speed: 60 }, // Slower spacing
+      { id: "w3", size: "M", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 8000, speed: 60 },
+      { id: "w4", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 11500, speed: 60 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
     winCondition: { requiredCount: 4 }
   },
 
-  // LEVEL 4: Small & Big (Size Intro)
+  // LEVEL 4: Small & Big (3 Colors)
   {
     levelId: 4,
     metadata: { name: "Small & Big", rating: 2 },
-    colors: ["#5170ff"], // Only Blue, but different sizes
+    colors: ["#5170ff", "#58CC02", "#ff914d"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 100, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 350, y: 300 },
-      { id: "h_S", type: "HOLE", x: 650, y: 200, color: "#5170ff", size: "S" }, // Small Hole
-      { id: "h_M", type: "HOLE", x: 650, y: 400, color: "#5170ff", size: "M" }  // Medium Hole
+      { id: "start", type: "SPAWN", x: 400, y: 150 },
+      { id: "j1", type: "JUNCTION", x: 400, y: 350 },
+      // Blue Branch (Size Split)
+      { id: "j2", type: "JUNCTION", x: 250, y: 550 },
+      { id: "h_blue_s", type: "HOLE", x: 150, y: 750, color: "#5170ff", size: "S" },
+      { id: "h_blue_m", type: "HOLE", x: 300, y: 750, color: "#5170ff", size: "M" },
+      // Color Branch
+      { id: "j3", type: "JUNCTION", x: 550, y: 550 },
+      { id: "h_green", type: "HOLE", x: 500, y: 750, color: "#58CC02" },
+      { id: "h_orange", type: "HOLE", x: 650, y: 750, color: "#ff914d" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(100, 300), p(350, 300)], length: 250, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h_S", path: [p(350, 300), p(500, 200), p(650, 200)], length: 320, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "h_M", path: [p(350, 300), p(500, 400), p(650, 400)], length: 320, widthClass: "normal" }
+      { id: "e1", from: "start", to: "j1", path: [p(400, 150), p(400, 350)], length: 200, widthClass: "normal" },
+      // Left to Blue Size Split (L-Shape)
+      { id: "e2", from: "j1", to: "j2", path: [p(400, 350), p(250, 350), p(250, 550)], length: 350, widthClass: "normal" },
+      { id: "e3", from: "j2", to: "h_blue_s", path: [p(250, 550), p(150, 550), p(150, 750)], length: 300, widthClass: "narrow" }, // Narrow L
+      { id: "e4", from: "j2", to: "h_blue_m", path: [p(250, 550), p(300, 550), p(300, 750)], length: 250, widthClass: "normal" },
+      // Right to Colors (L-Shape)
+      { id: "e5", from: "j1", to: "j3", path: [p(400, 350), p(550, 350), p(550, 550)], length: 350, widthClass: "normal" },
+      { id: "e6", from: "j3", to: "h_green", path: [p(550, 550), p(500, 550), p(500, 750)], length: 250, widthClass: "normal" },
+      { id: "e7", from: "j3", to: "h_orange", path: [p(550, 550), p(650, 550), p(650, 750)], length: 250, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e2", "e5"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e4", "e3"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e6", "e7"], defaultIndex: 0 }
     ],
     traps: [],
     worms: [
       { id: "w1", size: "S", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 1000, speed: 70 },
-      { id: "w2", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 3500, speed: 70 },
-      { id: "w3", size: "S", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 6000, speed: 70 },
-      { id: "w4", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 8500, speed: 70 }
+      { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 3500, speed: 70 },
+      { id: "w3", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 6000, speed: 70 },
+      { id: "w4", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 8500, speed: 70 },
+      { id: "w5", size: "S", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 11000, speed: 70 }
     ],
-    rules: { blockLargeInNarrow: false, collisionFail: false },
-    winCondition: { requiredCount: 4 }
+    rules: { blockLargeInNarrow: true, collisionFail: false },
+    winCondition: { requiredCount: 5 }
   },
 
-  // LEVEL 5: Speed Merge
+  // LEVEL 5: The Grid (3x2 Junction Grid)
+  // Layout like Track of Thought: interconnected grid of switches
   {
     levelId: 5,
-    metadata: { name: "Speed Merge", rating: 2 },
-    colors: ["#E91E63", "#ff914d"],
+    metadata: { name: "The Grid", rating: 2 },
+    colors: ["#E91E63", "#ff914d", "#FFD700"],
     nodes: [
-      { id: "s1", type: "SPAWN", x: 50, y: 200 },
-      { id: "s2", type: "SPAWN", x: 50, y: 400 },
-      { id: "j_main", type: "JUNCTION", x: 400, y: 300 }, // Central hub
-      { id: "h1", type: "HOLE", x: 700, y: 200, color: "#E91E63" },
-      { id: "h2", type: "HOLE", x: 700, y: 400, color: "#ff914d" }
+      // Spawns (Top Row)
+      { id: "s1", type: "SPAWN", x: 200, y: 100 },
+      { id: "s2", type: "SPAWN", x: 600, y: 100 },
+
+      // Row 1 Junctions (y=280)
+      { id: "j1", type: "JUNCTION", x: 200, y: 280 },
+      { id: "j2", type: "JUNCTION", x: 400, y: 280 },
+      { id: "j3", type: "JUNCTION", x: 600, y: 280 },
+
+      // Row 2 Junctions (y=480)
+      { id: "j4", type: "JUNCTION", x: 200, y: 480 },
+      { id: "j5", type: "JUNCTION", x: 400, y: 480 },
+      { id: "j6", type: "JUNCTION", x: 600, y: 480 },
+
+      // Holes (Bottom Row y=700)
+      { id: "h1", type: "HOLE", x: 200, y: 700, color: "#E91E63" },
+      { id: "h2", type: "HOLE", x: 400, y: 700, color: "#ff914d" },
+      { id: "h3", type: "HOLE", x: 600, y: 700, color: "#FFD700" }
     ],
     edges: [
-      { id: "e1", from: "s1", to: "j_main", path: [p(50, 200), p(400, 300)], length: 360, widthClass: "normal" },
-      { id: "e2", from: "s2", to: "j_main", path: [p(50, 400), p(400, 300)], length: 360, widthClass: "normal" },
-      { id: "e3", from: "j_main", to: "h1", path: [p(400, 300), p(700, 200)], length: 320, widthClass: "normal" },
-      { id: "e4", from: "j_main", to: "h2", path: [p(400, 300), p(700, 400)], length: 320, widthClass: "normal" }
+      // Spawns to Row 1
+      { id: "e1", from: "s1", to: "j1", path: [p(200, 100), p(200, 280)], length: 180, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j3", path: [p(600, 100), p(600, 280)], length: 180, widthClass: "normal" },
+
+      // Row 1: J1 -> Down(J4) or Right(J2)
+      { id: "e3", from: "j1", to: "j4", path: [p(200, 280), p(200, 480)], length: 200, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(200, 280), p(400, 280)], length: 200, widthClass: "normal" },
+
+      // Row 1: J2 -> Down(J5) or Right(J3)
+      { id: "e5", from: "j2", to: "j5", path: [p(400, 280), p(400, 480)], length: 200, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j3", path: [p(400, 280), p(600, 280)], length: 200, widthClass: "normal" },
+
+      // Row 1: J3 -> Down(J6) or Left(J2)
+      { id: "e7", from: "j3", to: "j6", path: [p(600, 280), p(600, 480)], length: 200, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j2", path: [p(600, 280), p(400, 280)], length: 200, widthClass: "normal" },
+
+      // Row 2: J4 -> Down(H1) or Right(J5)
+      { id: "e9", from: "j4", to: "h1", path: [p(200, 480), p(200, 700)], length: 220, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j5", path: [p(200, 480), p(400, 480)], length: 200, widthClass: "normal" },
+
+      // Row 2: J5 -> Down(H2) or Right(J6)
+      { id: "e11", from: "j5", to: "h2", path: [p(400, 480), p(400, 700)], length: 220, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(400, 480), p(600, 480)], length: 200, widthClass: "normal" },
+
+      // Row 2: J6 -> Down(H3) or Left(J5)
+      { id: "e13", from: "j6", to: "h3", path: [p(600, 480), p(600, 700)], length: 220, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j5", path: [p(600, 480), p(400, 480)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j_main", outEdges: ["e3", "e4"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 }
     ],
     traps: [],
     worms: [
-      { id: "w1", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 90 }, // Fast
-      { id: "w2", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 90 },
-      { id: "w3", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 90 },
-      { id: "w4", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 5500, speed: 90 },
-      { id: "w5", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 90 }
+      { id: "w1", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 65 },
+      { id: "w2", size: "M", color: "#FFD700", spawnNodeId: "s2", spawnTimeMs: 2000, speed: 65 },
+      { id: "w3", size: "M", color: "#ff914d", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 65 },
+      { id: "w4", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 6000, speed: 65 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
-    winCondition: { requiredCount: 5 }
+    winCondition: { requiredCount: 4 }
   },
 
-  // =========================================================================
-  // MEDIUM LEVELS (6-10)
-  // Focus: Traps (Earthquake), Narrow Paths (block M), Mixed Sizes
-  // =========================================================================
-
-  // LEVEL 6: Shake It Up (First Trap)
+  // LEVEL 6: The Ladder (2x3 Tall Grid + Earthquake)
   {
     levelId: 6,
-    metadata: { name: "Shake It Up", rating: 2 },
-    colors: ["#5170ff", "#58CC02"],
+    metadata: { name: "The Ladder", rating: 2 },
+    colors: ["#5170ff", "#E91E63"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 100, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 400, y: 300 },
-      { id: "h1", type: "HOLE", x: 650, y: 200, color: "#5170ff" },
-      { id: "h2", type: "HOLE", x: 650, y: 400, color: "#58CC02" }
+      // Spawns (2 at top)
+      { id: "s1", type: "SPAWN", x: 250, y: 80 },
+      { id: "s2", type: "SPAWN", x: 550, y: 80 },
+
+      // Row 1 (y=200)
+      { id: "j1", type: "JUNCTION", x: 250, y: 200 },
+      { id: "j2", type: "JUNCTION", x: 550, y: 200 },
+
+      // Row 2 (y=380)
+      { id: "j3", type: "JUNCTION", x: 250, y: 380 },
+      { id: "j4", type: "JUNCTION", x: 550, y: 380 },
+
+      // Row 3 (y=560)
+      { id: "j5", type: "JUNCTION", x: 250, y: 560 },
+      { id: "j6", type: "JUNCTION", x: 550, y: 560 },
+
+      // Holes directly under J5 and J6
+      { id: "h1", type: "HOLE", x: 250, y: 750, color: "#5170ff" },
+      { id: "h2", type: "HOLE", x: 550, y: 750, color: "#E91E63" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(100, 300), p(400, 300)], length: 300, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(400, 300), p(650, 200)], length: 270, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "h2", path: [p(400, 300), p(650, 400)], length: 270, widthClass: "normal" }
+      // Spawns to Row 1
+      { id: "e1", from: "s1", to: "j1", path: [p(250, 80), p(250, 200)], length: 120, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j2", path: [p(550, 80), p(550, 200)], length: 120, widthClass: "normal" },
+
+      // Row 1: J1 -> Down(J3) or Right(J2)
+      { id: "e3", from: "j1", to: "j3", path: [p(250, 200), p(250, 380)], length: 180, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(250, 200), p(550, 200)], length: 300, widthClass: "normal" },
+
+      // Row 1: J2 -> Down(J4) or Left(J1)
+      { id: "e5", from: "j2", to: "j4", path: [p(550, 200), p(550, 380)], length: 180, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j1", path: [p(550, 200), p(250, 200)], length: 300, widthClass: "normal" },
+
+      // Row 2: J3 -> Down(J5) or Right(J4)
+      { id: "e7", from: "j3", to: "j5", path: [p(250, 380), p(250, 560)], length: 180, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j4", path: [p(250, 380), p(550, 380)], length: 300, widthClass: "normal" },
+
+      // Row 2: J4 -> Down(J6) or Left(J3)
+      { id: "e9", from: "j4", to: "j6", path: [p(550, 380), p(550, 560)], length: 180, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j3", path: [p(550, 380), p(250, 380)], length: 300, widthClass: "normal" },
+
+      // Row 3: J5 -> Down(H1) or Right(J6)
+      { id: "e11", from: "j5", to: "h1", path: [p(250, 560), p(250, 750)], length: 190, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(250, 560), p(550, 560)], length: 300, widthClass: "normal" },
+
+      // Row 3: J6 -> Down(H2) or Left(J5)
+      { id: "e13", from: "j6", to: "h2", path: [p(550, 560), p(550, 750)], length: 190, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j5", path: [p(550, 560), p(250, 560)], length: 300, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 }
     ],
     traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 6000, initialDelayMs: 4000 }
+      { id: "t1", type: "EARTHQUAKE", nodeId: "j4", intervalMs: 5000, initialDelayMs: 3000 }
     ],
     worms: [
-      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 1000, speed: 70 },
-      { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 4000, speed: 70 },
-      { id: "w3", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 7000, speed: 70 }, // Trap switch during potential transit
-      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 10000, speed: 70 }
+      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
+      { id: "w2", size: "M", color: "#E91E63", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 70 },
+      { id: "w3", size: "M", color: "#5170ff", spawnNodeId: "s2", spawnTimeMs: 4500, speed: 70 },
+      { id: "w4", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 6500, speed: 70 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
     winCondition: { requiredCount: 4 }
   },
 
-  // LEVEL 7: Narrow Passage (Narrow Path Intro)
+  // LEVEL 7: The Wide Web (4x2 Wide Grid with Spider)
   {
     levelId: 7,
-    metadata: { name: "Narrow Passage", rating: 3 },
-    colors: ["#ff914d", "#FFD700"],
+    metadata: { name: "The Wide Web", rating: 3 },
+    colors: ["#ff914d", "#FFD700", "#9C27B0", "#58CC02"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 80, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 300 },
-      { id: "h1", type: "HOLE", x: 650, y: 300, color: "#ff914d", size: "M" },
-      { id: "h2", type: "HOLE", x: 300, y: 150, color: "#FFD700", size: "S" } // Shortcut hole (S only)
+      // Spawns (at edges)
+      { id: "s1", type: "SPAWN", x: 100, y: 100 },
+      { id: "s2", type: "SPAWN", x: 700, y: 100 },
+
+      // Row 1: 4 Junctions (y=280)
+      { id: "j1", type: "JUNCTION", x: 100, y: 280 },
+      { id: "j2", type: "JUNCTION", x: 300, y: 280 },
+      { id: "j3", type: "JUNCTION", x: 500, y: 280 },
+      { id: "j4", type: "JUNCTION", x: 700, y: 280 },
+
+      // Row 2: 4 Junctions (y=480)
+      { id: "j5", type: "JUNCTION", x: 100, y: 480 },
+      { id: "j6", type: "JUNCTION", x: 300, y: 480 },
+      { id: "j7", type: "JUNCTION", x: 500, y: 480 },
+      { id: "j8", type: "JUNCTION", x: 700, y: 480 },
+
+      // Holes (4 holes for 4 colors)
+      { id: "h1", type: "HOLE", x: 100, y: 700, color: "#FFD700" },
+      { id: "h2", type: "HOLE", x: 300, y: 700, color: "#ff914d" },
+      { id: "h3", type: "HOLE", x: 500, y: 700, color: "#58CC02" },
+      { id: "h4", type: "HOLE", x: 700, y: 700, color: "#9C27B0" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(80, 300), p(300, 300)], length: 220, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(300, 300), p(650, 300)], length: 350, widthClass: "normal" },
-      // Narrow path leading to h2 (S ONLY)
-      { id: "e3", from: "j1", to: "h2", path: [p(300, 300), p(300, 150)], length: 150, widthClass: "narrow" }
+      // Spawns to Row 1
+      { id: "e1", from: "s1", to: "j1", path: [p(100, 100), p(100, 280)], length: 180, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j4", path: [p(700, 100), p(700, 280)], length: 180, widthClass: "normal" },
+
+      // Row 1: J1 -> Down(J5) or Right(J2)
+      { id: "e3", from: "j1", to: "j5", path: [p(100, 280), p(100, 480)], length: 200, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(100, 280), p(300, 280)], length: 200, widthClass: "normal" },
+
+      // Row 1: J2 -> Down(J6) or Right(J3)
+      { id: "e5", from: "j2", to: "j6", path: [p(300, 280), p(300, 480)], length: 200, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j3", path: [p(300, 280), p(500, 280)], length: 200, widthClass: "normal" },
+
+      // Row 1: J3 -> Down(J7) or Right(J4)
+      { id: "e7", from: "j3", to: "j7", path: [p(500, 280), p(500, 480)], length: 200, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j4", path: [p(500, 280), p(700, 280)], length: 200, widthClass: "normal" },
+
+      // Row 1: J4 -> Down(J8) or Left(J3)
+      { id: "e9", from: "j4", to: "j8", path: [p(700, 280), p(700, 480)], length: 200, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j3", path: [p(700, 280), p(500, 280)], length: 200, widthClass: "normal" },
+
+      // Row 2: J5 -> Down(H1) or Right(J6)
+      { id: "e11", from: "j5", to: "h1", path: [p(100, 480), p(100, 700)], length: 220, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(100, 480), p(300, 480)], length: 200, widthClass: "normal" },
+
+      // Row 2: J6 -> Down(H2) or Right(J7)
+      { id: "e13", from: "j6", to: "h2", path: [p(300, 480), p(300, 700)], length: 220, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j7", path: [p(300, 480), p(500, 480)], length: 200, widthClass: "normal" },
+
+      // Row 2: J7 -> Down(H3) or Right(J8)
+      { id: "e15", from: "j7", to: "h3", path: [p(500, 480), p(500, 700)], length: 220, widthClass: "normal" },
+      { id: "e16", from: "j7", to: "j8", path: [p(500, 480), p(700, 480)], length: 200, widthClass: "normal" },
+
+      // Row 2: J8 -> Down(H4) or Left(J7)
+      { id: "e17", from: "j8", to: "h4", path: [p(700, 480), p(700, 700)], length: 220, widthClass: "normal" },
+      { id: "e18", from: "j8", to: "j7", path: [p(700, 480), p(500, 480)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 },
+      { id: "j7", outEdges: ["e15", "e16"], defaultIndex: 0 },
+      { id: "j8", outEdges: ["e17", "e18"], defaultIndex: 0 }
     ],
-    traps: [],
+    traps: [
+      { id: "t1", type: "SPIDER", nodeId: "j3", intervalMs: 5000, initialDelayMs: 2500 }
+    ],
     worms: [
-      { id: "w1", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 1000, speed: 70 },
-      { id: "w2", size: "S", color: "#FFD700", spawnNodeId: "start", spawnTimeMs: 3000, speed: 80 },
-      { id: "w3", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 5000, speed: 70 },
-      { id: "w4", size: "S", color: "#FFD700", spawnNodeId: "start", spawnTimeMs: 7000, speed: 80 },
-      // Tricky: M worm cannot take e3!
-      { id: "w5", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 9000, speed: 70 }
+      { id: "w1", size: "M", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
+      { id: "w2", size: "M", color: "#9C27B0", spawnNodeId: "s2", spawnTimeMs: 2000, speed: 70 },
+      { id: "w3", size: "M", color: "#ff914d", spawnNodeId: "s1", spawnTimeMs: 3500, speed: 70 },
+      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 5000, speed: 70 },
+      { id: "w5", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 6500, speed: 70 }
     ],
-    rules: { blockLargeInNarrow: true, collisionFail: false },
+    rules: { blockLargeInNarrow: false, collisionFail: false },
     winCondition: { requiredCount: 5 }
   },
 
-  // LEVEL 8: Sieve (S vs M filtering)
+  // LEVEL 8: Double Trouble (3x2 Grid + BOTH Traps)
   {
     levelId: 8,
-    metadata: { name: "The Sieve", rating: 3 },
-    colors: ["#5170ff", "#58CC02"],
+    metadata: { name: "Double Trouble", rating: 3 },
+    colors: ["#5170ff", "#58CC02", "#ff914d"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 50, y: 250 },
-      { id: "j1", type: "JUNCTION", x: 250, y: 250 },
-      // j2 removed (merged)
-      { id: "h1", type: "HOLE", x: 650, y: 150, color: "#5170ff", size: "S" }, // S only
-      { id: "h2", type: "HOLE", x: 650, y: 350, color: "#58CC02", size: "M" }
+      { id: "s1", type: "SPAWN", x: 200, y: 100 },
+      { id: "s2", type: "SPAWN", x: 600, y: 100 },
+
+      // Row 1 Junctions
+      { id: "j1", type: "JUNCTION", x: 200, y: 280 },
+      { id: "j2", type: "JUNCTION", x: 400, y: 280 },
+      { id: "j3", type: "JUNCTION", x: 600, y: 280 },
+
+      // Row 2 Junctions  
+      { id: "j4", type: "JUNCTION", x: 200, y: 480 },
+      { id: "j5", type: "JUNCTION", x: 400, y: 480 },
+      { id: "j6", type: "JUNCTION", x: 600, y: 480 },
+
+      // Holes
+      { id: "h1", type: "HOLE", x: 200, y: 700, color: "#5170ff" },
+      { id: "h2", type: "HOLE", x: 400, y: 700, color: "#58CC02" },
+      { id: "h3", type: "HOLE", x: 600, y: 700, color: "#ff914d" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(50, 250), p(250, 250)], length: 200, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "h1", path: [p(250, 250), p(400, 150), p(650, 150)], length: 420, widthClass: "narrow" }, // NARROW!
-      // Merged path to h2
-      { id: "e3", from: "j1", to: "h2", path: [p(250, 250), p(450, 250), p(650, 350)], length: 420, widthClass: "normal" }
+      { id: "e1", from: "s1", to: "j1", path: [p(200, 100), p(200, 280)], length: 180, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j3", path: [p(600, 100), p(600, 280)], length: 180, widthClass: "normal" },
+
+      { id: "e3", from: "j1", to: "j4", path: [p(200, 280), p(200, 480)], length: 200, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(200, 280), p(400, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e5", from: "j2", to: "j5", path: [p(400, 280), p(400, 480)], length: 200, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j3", path: [p(400, 280), p(600, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e7", from: "j3", to: "j6", path: [p(600, 280), p(600, 480)], length: 200, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j2", path: [p(600, 280), p(400, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e9", from: "j4", to: "h1", path: [p(200, 480), p(200, 700)], length: 220, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j5", path: [p(200, 480), p(400, 480)], length: 200, widthClass: "normal" },
+
+      { id: "e11", from: "j5", to: "h2", path: [p(400, 480), p(400, 700)], length: 220, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(400, 480), p(600, 480)], length: 200, widthClass: "normal" },
+
+      { id: "e13", from: "j6", to: "h3", path: [p(600, 480), p(600, 700)], length: 220, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j5", path: [p(600, 480), p(400, 480)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e3", "e2"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 }
     ],
-    traps: [],
+    traps: [
+      { id: "t1", type: "SPIDER", nodeId: "j2", intervalMs: 5000, initialDelayMs: 2000 },
+      { id: "t2", type: "EARTHQUAKE", nodeId: "j5", intervalMs: 4000, initialDelayMs: 3500 }
+    ],
     worms: [
-      { id: "w1", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 1000, speed: 65 },
-      { id: "w2", size: "S", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 3500, speed: 75 },
-      { id: "w3", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 6000, speed: 65 },
-      { id: "w4", size: "S", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 8000, speed: 75 }
+      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 65 },
+      { id: "w2", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 65 },
+      { id: "w3", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 4500, speed: 65 },
+      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 6500, speed: 65 },
+      { id: "w5", size: "M", color: "#5170ff", spawnNodeId: "s2", spawnTimeMs: 8500, speed: 65 }
     ],
-    rules: { blockLargeInNarrow: true, collisionFail: false },
-    winCondition: { requiredCount: 4 }
+    rules: { blockLargeInNarrow: false, collisionFail: false },
+    winCondition: { requiredCount: 5 }
   },
 
-  // LEVEL 9: Cross Roads (Central Hub + Trap)
+  // LEVEL 9: The Gauntlet (4x2 Grid + Both Traps)
   {
     levelId: 9,
-    metadata: { name: "Cross Roads", rating: 3 },
-    colors: ["#ff914d", "#E91E63", "#9C27B0"],
+    metadata: { name: "The Gauntlet", rating: 4 },
+    colors: ["#5170ff", "#58CC02", "#ff914d", "#E91E63"],
     nodes: [
       { id: "s1", type: "SPAWN", x: 100, y: 100 },
-      { id: "s2", type: "SPAWN", x: 100, y: 500 },
-      { id: "j_hub", type: "JUNCTION", x: 400, y: 300 }, // Center
-      { id: "h1", type: "HOLE", x: 700, y: 100, color: "#ff914d" },
-      { id: "h2", type: "HOLE", x: 700, y: 300, color: "#E91E63" },
-      { id: "h3", type: "HOLE", x: 700, y: 500, color: "#9C27B0" }
+      { id: "s2", type: "SPAWN", x: 700, y: 100 },
+
+      // Row 1: 4 Junctions
+      { id: "j1", type: "JUNCTION", x: 100, y: 280 },
+      { id: "j2", type: "JUNCTION", x: 300, y: 280 },
+      { id: "j3", type: "JUNCTION", x: 500, y: 280 },
+      { id: "j4", type: "JUNCTION", x: 700, y: 280 },
+
+      // Row 2: 4 Junctions
+      { id: "j5", type: "JUNCTION", x: 100, y: 480 },
+      { id: "j6", type: "JUNCTION", x: 300, y: 480 },
+      { id: "j7", type: "JUNCTION", x: 500, y: 480 },
+      { id: "j8", type: "JUNCTION", x: 700, y: 480 },
+
+      // Holes
+      { id: "h1", type: "HOLE", x: 100, y: 700, color: "#5170ff" },
+      { id: "h2", type: "HOLE", x: 300, y: 700, color: "#58CC02" },
+      { id: "h3", type: "HOLE", x: 500, y: 700, color: "#ff914d" },
+      { id: "h4", type: "HOLE", x: 700, y: 700, color: "#E91E63" }
     ],
     edges: [
-      { id: "e1", from: "s1", to: "j_hub", path: [p(100, 100), p(400, 300)], length: 360, widthClass: "normal" },
-      { id: "e2", from: "s2", to: "j_hub", path: [p(100, 500), p(400, 300)], length: 360, widthClass: "normal" },
-      // Outputs
-      { id: "e3", from: "j_hub", to: "h1", path: [p(400, 300), p(700, 100)], length: 360, widthClass: "normal" },
-      { id: "e4", from: "j_hub", to: "h2", path: [p(400, 300), p(700, 300)], length: 300, widthClass: "normal" },
-      { id: "e5", from: "j_hub", to: "h3", path: [p(400, 300), p(700, 500)], length: 360, widthClass: "normal" }
+      { id: "e1", from: "s1", to: "j1", path: [p(100, 100), p(100, 280)], length: 180, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j4", path: [p(700, 100), p(700, 280)], length: 180, widthClass: "normal" },
+
+      { id: "e3", from: "j1", to: "j5", path: [p(100, 280), p(100, 480)], length: 200, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(100, 280), p(300, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e5", from: "j2", to: "j6", path: [p(300, 280), p(300, 480)], length: 200, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j3", path: [p(300, 280), p(500, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e7", from: "j3", to: "j7", path: [p(500, 280), p(500, 480)], length: 200, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j4", path: [p(500, 280), p(700, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e9", from: "j4", to: "j8", path: [p(700, 280), p(700, 480)], length: 200, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j3", path: [p(700, 280), p(500, 280)], length: 200, widthClass: "normal" },
+
+      { id: "e11", from: "j5", to: "h1", path: [p(100, 480), p(100, 700)], length: 220, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(100, 480), p(300, 480)], length: 200, widthClass: "normal" },
+
+      { id: "e13", from: "j6", to: "h2", path: [p(300, 480), p(300, 700)], length: 220, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j7", path: [p(300, 480), p(500, 480)], length: 200, widthClass: "normal" },
+
+      { id: "e15", from: "j7", to: "h3", path: [p(500, 480), p(500, 700)], length: 220, widthClass: "normal" },
+      { id: "e16", from: "j7", to: "j8", path: [p(500, 480), p(700, 480)], length: 200, widthClass: "normal" },
+
+      { id: "e17", from: "j8", to: "h4", path: [p(700, 480), p(700, 700)], length: 220, widthClass: "normal" },
+      { id: "e18", from: "j8", to: "j7", path: [p(700, 480), p(500, 480)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j_hub", outEdges: ["e4", "e3", "e5"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 },
+      { id: "j7", outEdges: ["e15", "e16"], defaultIndex: 0 },
+      { id: "j8", outEdges: ["e17", "e18"], defaultIndex: 0 }
     ],
     traps: [
-      // Fast switching trap on center
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j_hub", intervalMs: 5000, initialDelayMs: 3000 }
+      { id: "t1", type: "SPIDER", nodeId: "j2", intervalMs: 5000, initialDelayMs: 2000 },
+      { id: "t2", type: "SPIDER", nodeId: "j7", intervalMs: 5000, initialDelayMs: 4000 },
+      { id: "t3", type: "EARTHQUAKE", nodeId: "j6", intervalMs: 4000, initialDelayMs: 3000 }
     ],
     worms: [
-      { id: "w1", size: "M", color: "#ff914d", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 65 },
-      { id: "w2", size: "S", color: "#9C27B0", spawnNodeId: "s2", spawnTimeMs: 2000, speed: 75 },
-      { id: "w3", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 65 },
-      { id: "w4", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 6000, speed: 65 },
-      { id: "w5", size: "S", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 8000, speed: 75 }
+      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
+      { id: "w2", size: "M", color: "#E91E63", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 70 },
+      { id: "w3", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 4500, speed: 70 },
+      { id: "w4", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 6500, speed: 70 },
+      { id: "w5", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 8500, speed: 70 },
+      { id: "w6", size: "M", color: "#5170ff", spawnNodeId: "s2", spawnTimeMs: 10500, speed: 70 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
-    winCondition: { requiredCount: 5 }
+    winCondition: { requiredCount: 6 }
   },
 
-  // LEVEL 10: Pressure (Speed + Trap + Narrow)
+  // LEVEL 10: Spider's Nest (3x3 Grid + Multiple Traps)
   {
     levelId: 10,
-    metadata: { name: "Pressure", rating: 3 },
-    colors: ["#5170ff", "#FFD700"],
+    metadata: { name: "Spider's Nest", rating: 4 },
+    colors: ["#5170ff", "#58CC02", "#ff914d", "#FFD700"],
     nodes: [
-      { id: "s1", type: "SPAWN", x: 80, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 300 },
-      { id: "h1", type: "HOLE", x: 600, y: 200, color: "#5170ff", size: "M" },
-      { id: "h2", type: "HOLE", x: 600, y: 400, color: "#FFD700", size: "S" }
-    ],
-    edges: [
-      { id: "e1", from: "s1", to: "j1", path: [p(80, 300), p(300, 300)], length: 220, widthClass: "normal" },
-      // Top path normal
-      { id: "e2", from: "j1", to: "h1", path: [p(300, 300), p(600, 200)], length: 320, widthClass: "normal" },
-      // Bottom path NARROW
-      { id: "e3", from: "j1", to: "h2", path: [p(300, 300), p(600, 400)], length: 320, widthClass: "narrow" }
-    ],
-    junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }
-    ],
-    traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 5000, initialDelayMs: 2000 }
-    ],
-    worms: [
-      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 90 }, // Fast M
-      { id: "w2", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 2500, speed: 95 }, // Very fast S
-      { id: "w3", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 90 },
-      { id: "w4", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 5500, speed: 95 },
-      { id: "w5", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 90 },
-      { id: "w6", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 8500, speed: 95 }
-    ],
-    rules: { blockLargeInNarrow: true, collisionFail: false },
-    winCondition: { requiredCount: 6 }
-  },
+      { id: "s1", type: "SPAWN", x: 200, y: 80 },
+      { id: "s2", type: "SPAWN", x: 400, y: 80 },
+      { id: "s3", type: "SPAWN", x: 600, y: 80 },
 
-  // =========================================================================
-  // HARD LEVELS (11-15)
-  // Focus: Complex networks, Multi-spawn, Multi-trap, Size filters
-  // =========================================================================
+      // Row 1
+      { id: "j1", type: "JUNCTION", x: 200, y: 230 },
+      { id: "j2", type: "JUNCTION", x: 400, y: 230 },
+      { id: "j3", type: "JUNCTION", x: 600, y: 230 },
 
-  // LEVEL 11: The Web (3 Spawns, Interconnected) - Simplified for playability
-  {
-    levelId: 11,
-    metadata: { name: "The Web", rating: 4 },
-    colors: ["#ff914d", "#5170ff", "#58CC02"],
-    nodes: [
-      { id: "s1", type: "SPAWN", x: 60, y: 150 },
-      { id: "s2", type: "SPAWN", x: 60, y: 450 },
-      // j1 removed (merged)
-      { id: "j2", type: "JUNCTION", x: 450, y: 300 },
-      { id: "h1", type: "HOLE", x: 650, y: 150, color: "#ff914d" },
-      { id: "h2", type: "HOLE", x: 650, y: 450, color: "#5170ff" },
-      { id: "h3", type: "HOLE", x: 550, y: 300, color: "#58CC02" }
-    ],
-    edges: [
-      { id: "e1", from: "s1", to: "j2", path: [p(60, 150), p(250, 300), p(450, 300)], length: 500, widthClass: "normal" },
-      { id: "e2", from: "s2", to: "j2", path: [p(60, 450), p(250, 300), p(450, 300)], length: 500, widthClass: "normal" },
-      // J2 outputs
-      { id: "e4", from: "j2", to: "h1", path: [p(450, 300), p(650, 150)], length: 250, widthClass: "normal" },
-      { id: "e5", from: "j2", to: "h2", path: [p(450, 300), p(650, 450)], length: 250, widthClass: "normal" },
-      { id: "e6", from: "j2", to: "h3", path: [p(450, 300), p(550, 300)], length: 100, widthClass: "normal" }
-    ],
-    junctions: [
-      { id: "j2", outEdges: ["e6", "e4", "e5"], defaultIndex: 0 }
-    ],
-    traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j2", intervalMs: 6000, initialDelayMs: 4000 }
-    ],
-    worms: [
-      { id: "w1", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 65 },
-      { id: "w2", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 65 },
-      { id: "w3", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 65 },
-      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 5500, speed: 65 },
-      { id: "w5", size: "M", color: "#ff914d", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 65 },
-      { id: "w6", size: "M", color: "#5170ff", spawnNodeId: "s2", spawnTimeMs: 8500, speed: 65 }
-    ],
-    rules: { blockLargeInNarrow: false, collisionFail: false },
-    winCondition: { requiredCount: 6 }
-  },
+      // Row 2
+      { id: "j4", type: "JUNCTION", x: 200, y: 420 },
+      { id: "j5", type: "JUNCTION", x: 400, y: 420 },
+      { id: "j6", type: "JUNCTION", x: 600, y: 420 },
 
-  // LEVEL 12: Choke Point (Aggressive Filtering)
-  {
-    levelId: 12,
-    metadata: { name: "Choke Point", rating: 4 },
-    colors: ["#E91E63", "#FFD700"],
-    nodes: [
-      { id: "s1", type: "SPAWN", x: 80, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 300 },
-      // j2 removed
-      { id: "h1", type: "HOLE", x: 700, y: 200, color: "#E91E63" },
-      { id: "h2", type: "HOLE", x: 500, y: 400, color: "#FFD700", size: "S" }
-    ],
-    edges: [
-      { id: "e1", from: "s1", to: "j1", path: [p(80, 300), p(300, 300)], length: 220, widthClass: "normal" },
-      // Narrow path to bottom hole (S only)
-      { id: "e2", from: "j1", to: "h2", path: [p(300, 300), p(500, 400)], length: 300, widthClass: "narrow" },
-      // Merged path to h1 (Normal)
-      { id: "e3", from: "j1", to: "h1", path: [p(300, 300), p(500, 200), p(700, 200)], length: 500, widthClass: "normal" }
-    ],
-    junctions: [
-      { id: "j1", outEdges: ["e3", "e2"], defaultIndex: 0 }
-    ],
-    traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 4000, initialDelayMs: 2000 }
-    ],
-    worms: [
-      { id: "w1", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
-      { id: "w2", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 3000, speed: 80 },
-      { id: "w3", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 5000, speed: 70 },
-      { id: "w4", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 80 },
-      { id: "w5", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 9000, speed: 80 },
-      { id: "w6", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 11000, speed: 70 }
-    ],
-    rules: { blockLargeInNarrow: true, collisionFail: false },
-    winCondition: { requiredCount: 6 }
-  },
+      // Row 3
+      { id: "j7", type: "JUNCTION", x: 200, y: 610 },
+      { id: "j8", type: "JUNCTION", x: 400, y: 610 },
+      { id: "j9", type: "JUNCTION", x: 600, y: 610 },
 
-  // LEVEL 13: Zig Zag (Skill check)
-  {
-    levelId: 13,
-    metadata: { name: "Zig Zag", rating: 4 },
-    colors: ["#9C27B0", "#58CC02"],
-    nodes: [
-      { id: "s1", type: "SPAWN", x: 100, y: 50 },
-      { id: "j1", type: "JUNCTION", x: 200, y: 150 },
-      { id: "j2", type: "JUNCTION", x: 300, y: 50 },
-      { id: "j3", type: "JUNCTION", x: 400, y: 150 },
       // Holes
-      { id: "h1", type: "HOLE", x: 600, y: 50, color: "#9C27B0" },
-      { id: "h2", type: "HOLE", x: 600, y: 250, color: "#58CC02" }
+      { id: "h1", type: "HOLE", x: 200, y: 780, color: "#5170ff" },
+      { id: "h2", type: "HOLE", x: 400, y: 780, color: "#58CC02" },
+      { id: "h3", type: "HOLE", x: 600, y: 780, color: "#ff914d" },
+      { id: "h4", type: "HOLE", x: 400, y: 530, color: "#FFD700" }
     ],
     edges: [
-      { id: "e1", from: "s1", to: "j1", path: [p(100, 50), p(200, 150)], length: 141, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "j2", path: [p(200, 150), p(300, 50)], length: 141, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "h2", path: [p(200, 150), p(600, 250)], length: 412, widthClass: "normal" },
-      { id: "e4", from: "j2", to: "j3", path: [p(300, 50), p(400, 150)], length: 141, widthClass: "normal" },
-      { id: "e5", from: "j3", to: "h1", path: [p(400, 150), p(600, 50)], length: 223, widthClass: "normal" }
+      { id: "e1", from: "s1", to: "j1", path: [p(200, 80), p(200, 230)], length: 150, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j2", path: [p(400, 80), p(400, 230)], length: 150, widthClass: "normal" },
+      { id: "e3", from: "s3", to: "j3", path: [p(600, 80), p(600, 230)], length: 150, widthClass: "normal" },
+
+      // Row 1 connections
+      { id: "e4", from: "j1", to: "j4", path: [p(200, 230), p(200, 420)], length: 190, widthClass: "normal" },
+      { id: "e5", from: "j1", to: "j2", path: [p(200, 230), p(400, 230)], length: 200, widthClass: "normal" },
+
+      { id: "e6", from: "j2", to: "j5", path: [p(400, 230), p(400, 420)], length: 190, widthClass: "normal" },
+      { id: "e7", from: "j2", to: "j3", path: [p(400, 230), p(600, 230)], length: 200, widthClass: "normal" },
+
+      { id: "e8", from: "j3", to: "j6", path: [p(600, 230), p(600, 420)], length: 190, widthClass: "normal" },
+      { id: "e9", from: "j3", to: "j2", path: [p(600, 230), p(400, 230)], length: 200, widthClass: "normal" },
+
+      // Row 2 connections
+      { id: "e10", from: "j4", to: "j7", path: [p(200, 420), p(200, 610)], length: 190, widthClass: "normal" },
+      { id: "e11", from: "j4", to: "j5", path: [p(200, 420), p(400, 420)], length: 200, widthClass: "normal" },
+
+      { id: "e12", from: "j5", to: "h4", path: [p(400, 420), p(400, 530)], length: 110, widthClass: "normal" },
+      { id: "e13", from: "j5", to: "j6", path: [p(400, 420), p(600, 420)], length: 200, widthClass: "normal" },
+
+      { id: "e14", from: "j6", to: "j9", path: [p(600, 420), p(600, 610)], length: 190, widthClass: "normal" },
+      { id: "e15", from: "j6", to: "j5", path: [p(600, 420), p(400, 420)], length: 200, widthClass: "normal" },
+
+      // Row 3 connections
+      { id: "e16", from: "j7", to: "h1", path: [p(200, 610), p(200, 780)], length: 170, widthClass: "normal" },
+      { id: "e17", from: "j7", to: "j8", path: [p(200, 610), p(400, 610)], length: 200, widthClass: "normal" },
+
+      { id: "e18", from: "j8", to: "h2", path: [p(400, 610), p(400, 780)], length: 170, widthClass: "normal" },
+      { id: "e19", from: "j8", to: "j9", path: [p(400, 610), p(600, 610)], length: 200, widthClass: "normal" },
+
+      { id: "e20", from: "j9", to: "h3", path: [p(600, 610), p(600, 780)], length: 170, widthClass: "normal" },
+      { id: "e21", from: "j9", to: "j8", path: [p(600, 610), p(400, 610)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 },
-      { id: "j2", outEdges: ["e4"], defaultIndex: 0 },
-      { id: "j3", outEdges: ["e5"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e4", "e5"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e6", "e7"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e8", "e9"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e10", "e11"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e12", "e13"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e14", "e15"], defaultIndex: 0 },
+      { id: "j7", outEdges: ["e16", "e17"], defaultIndex: 0 },
+      { id: "j8", outEdges: ["e18", "e19"], defaultIndex: 0 },
+      { id: "j9", outEdges: ["e20", "e21"], defaultIndex: 0 }
     ],
     traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 4000, initialDelayMs: 2000 } // Rapid switching
+      { id: "t1", type: "SPIDER", nodeId: "j5", intervalMs: 5000, initialDelayMs: 2000 },
+      { id: "t2", type: "EARTHQUAKE", nodeId: "j2", intervalMs: 4500, initialDelayMs: 3500 },
+      { id: "t3", type: "EARTHQUAKE", nodeId: "j8", intervalMs: 4000, initialDelayMs: 5000 }
     ],
     worms: [
-      { id: "w1", size: "M", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 80 },
-      { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 2500, speed: 80 },
-      { id: "w3", size: "M", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 80 },
-      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 5500, speed: 80 },
-      { id: "w5", size: "M", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 80 }
+      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
+      { id: "w2", size: "M", color: "#ff914d", spawnNodeId: "s3", spawnTimeMs: 2500, speed: 70 },
+      { id: "w3", size: "M", color: "#FFD700", spawnNodeId: "s2", spawnTimeMs: 4500, speed: 70 },
+      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 6500, speed: 70 },
+      { id: "w5", size: "M", color: "#58CC02", spawnNodeId: "s3", spawnTimeMs: 8500, speed: 70 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
     winCondition: { requiredCount: 5 }
   },
 
-  // LEVEL 14: Chaos Trap
+  // LEVEL 11: Switchboard (3x2 Grid + 4 Colors)
   {
-    levelId: 14,
-    metadata: { name: "Chaos Trap", rating: 5 },
-    colors: ["#ff914d", "#5170ff", "#58CC02"],
+    levelId: 11,
+    metadata: { name: "Switchboard", rating: 4 },
+    colors: ["#5170ff", "#58CC02", "#ff914d", "#E91E63"],
     nodes: [
-      { id: "start", type: "SPAWN", x: 100, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 300, y: 300 },
-      { id: "j2", type: "JUNCTION", x: 500, y: 200 },
-      { id: "j3", type: "JUNCTION", x: 500, y: 400 },
-      { id: "h1", type: "HOLE", x: 700, y: 100, color: "#ff914d" },
-      { id: "h2", type: "HOLE", x: 700, y: 300, color: "#5170ff" },
-      { id: "h3", type: "HOLE", x: 700, y: 500, color: "#58CC02" }
+      { id: "s1", type: "SPAWN", x: 200, y: 100 },
+      { id: "s2", type: "SPAWN", x: 600, y: 100 },
+      { id: "j1", type: "JUNCTION", x: 200, y: 280 },
+      { id: "j2", type: "JUNCTION", x: 400, y: 280 },
+      { id: "j3", type: "JUNCTION", x: 600, y: 280 },
+      { id: "j4", type: "JUNCTION", x: 200, y: 480 },
+      { id: "j5", type: "JUNCTION", x: 400, y: 480 },
+      { id: "j6", type: "JUNCTION", x: 600, y: 480 },
+      { id: "h1", type: "HOLE", x: 200, y: 700, color: "#5170ff" },
+      { id: "h2", type: "HOLE", x: 400, y: 700, color: "#58CC02" },
+      { id: "h3", type: "HOLE", x: 600, y: 700, color: "#ff914d" },
+      { id: "h4", type: "HOLE", x: 400, y: 380, color: "#E91E63" }
     ],
     edges: [
-      { id: "e1", from: "start", to: "j1", path: [p(100, 300), p(300, 300)], length: 200, widthClass: "normal" },
-      { id: "e2", from: "j1", to: "j2", path: [p(300, 300), p(500, 200)], length: 220, widthClass: "normal" },
-      { id: "e3", from: "j1", to: "j3", path: [p(300, 300), p(500, 400)], length: 220, widthClass: "normal" },
-      // J2
-      { id: "e4", from: "j2", to: "h1", path: [p(500, 200), p(700, 100)], length: 220, widthClass: "normal" },
-      { id: "e5", from: "j2", to: "h2", path: [p(500, 200), p(700, 300)], length: 220, widthClass: "normal" },
-      // J3
-      { id: "e6", from: "j3", to: "h2", path: [p(500, 400), p(700, 300)], length: 220, widthClass: "normal" }, // Central hole reachable from both!
-      { id: "e7", from: "j3", to: "h3", path: [p(500, 400), p(700, 500)], length: 220, widthClass: "normal" }
+      { id: "e1", from: "s1", to: "j1", path: [p(200, 100), p(200, 280)], length: 180, widthClass: "normal" },
+      { id: "e2", from: "s2", to: "j3", path: [p(600, 100), p(600, 280)], length: 180, widthClass: "normal" },
+      { id: "e3", from: "j1", to: "j4", path: [p(200, 280), p(200, 480)], length: 200, widthClass: "normal" },
+      { id: "e4", from: "j1", to: "j2", path: [p(200, 280), p(400, 280)], length: 200, widthClass: "normal" },
+      { id: "e5", from: "j2", to: "h4", path: [p(400, 280), p(400, 380)], length: 100, widthClass: "normal" },
+      { id: "e6", from: "j2", to: "j3", path: [p(400, 280), p(600, 280)], length: 200, widthClass: "normal" },
+      { id: "e7", from: "j3", to: "j6", path: [p(600, 280), p(600, 480)], length: 200, widthClass: "normal" },
+      { id: "e8", from: "j3", to: "j2", path: [p(600, 280), p(400, 280)], length: 200, widthClass: "normal" },
+      { id: "e9", from: "j4", to: "h1", path: [p(200, 480), p(200, 700)], length: 220, widthClass: "normal" },
+      { id: "e10", from: "j4", to: "j5", path: [p(200, 480), p(400, 480)], length: 200, widthClass: "normal" },
+      { id: "e11", from: "j5", to: "h2", path: [p(400, 480), p(400, 700)], length: 220, widthClass: "normal" },
+      { id: "e12", from: "j5", to: "j6", path: [p(400, 480), p(600, 480)], length: 200, widthClass: "normal" },
+      { id: "e13", from: "j6", to: "h3", path: [p(600, 480), p(600, 700)], length: 220, widthClass: "normal" },
+      { id: "e14", from: "j6", to: "j5", path: [p(600, 480), p(400, 480)], length: 200, widthClass: "normal" }
     ],
     junctions: [
-      { id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 },
-      { id: "j2", outEdges: ["e4", "e5"], defaultIndex: 0 },
-      { id: "j3", outEdges: ["e6", "e7"], defaultIndex: 0 }
+      { id: "j1", outEdges: ["e3", "e4"], defaultIndex: 0 },
+      { id: "j2", outEdges: ["e5", "e6"], defaultIndex: 0 },
+      { id: "j3", outEdges: ["e7", "e8"], defaultIndex: 0 },
+      { id: "j4", outEdges: ["e9", "e10"], defaultIndex: 0 },
+      { id: "j5", outEdges: ["e11", "e12"], defaultIndex: 0 },
+      { id: "j6", outEdges: ["e13", "e14"], defaultIndex: 0 }
     ],
     traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 5000, initialDelayMs: 3000 },
-      { id: "t2", type: "EARTHQUAKE", nodeId: "j2", intervalMs: 4000, initialDelayMs: 2000 }, // Fast
-      { id: "t3", type: "EARTHQUAKE", nodeId: "j3", intervalMs: 6000, initialDelayMs: 1000 }
+      { id: "t1", type: "SPIDER", nodeId: "j2", intervalMs: 5000, initialDelayMs: 2000 },
+      { id: "t2", type: "EARTHQUAKE", nodeId: "j5", intervalMs: 4000, initialDelayMs: 3000 }
     ],
     worms: [
-      { id: "w1", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 1000, speed: 70 },
-      { id: "w2", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 2500, speed: 70 },
-      { id: "w3", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 4000, speed: 70 },
-      { id: "w4", size: "M", color: "#ff914d", spawnNodeId: "start", spawnTimeMs: 5500, speed: 70 },
-      { id: "w5", size: "M", color: "#5170ff", spawnNodeId: "start", spawnTimeMs: 7000, speed: 70 },
-      { id: "w6", size: "M", color: "#58CC02", spawnNodeId: "start", spawnTimeMs: 8500, speed: 70 }
+      { id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 70 },
+      { id: "w2", size: "M", color: "#ff914d", spawnNodeId: "s2", spawnTimeMs: 2500, speed: 70 },
+      { id: "w3", size: "M", color: "#E91E63", spawnNodeId: "s1", spawnTimeMs: 4500, speed: 70 },
+      { id: "w4", size: "M", color: "#58CC02", spawnNodeId: "s2", spawnTimeMs: 6500, speed: 70 },
+      { id: "w5", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 8500, speed: 70 },
+      { id: "w6", size: "M", color: "#5170ff", spawnNodeId: "s2", spawnTimeMs: 10500, speed: 70 }
     ],
     rules: { blockLargeInNarrow: false, collisionFail: false },
     winCondition: { requiredCount: 6 }
   },
 
-  // LEVEL 15: Grand Finale (Ultimate Test)
-  {
-    levelId: 15,
-    metadata: { name: "Grand Finale", rating: 5 },
-    colors: ["#5170ff", "#FFD700", "#9C27B0"],
-    nodes: [
-      { id: "s1", type: "SPAWN", x: 50, y: 300 },
-      { id: "j1", type: "JUNCTION", x: 250, y: 300 },
-      { id: "j2", type: "JUNCTION", x: 500, y: 200 },
-      { id: "j3", type: "JUNCTION", x: 500, y: 400 },
-      { id: "h_blue", type: "HOLE", x: 750, y: 150, color: "#5170ff", size: "M" },
-      { id: "h_gold", type: "HOLE", x: 750, y: 300, color: "#FFD700", size: "S" },
-      { id: "h_purp", type: "HOLE", x: 750, y: 450, color: "#9C27B0", size: "M" }
-    ],
-    edges: [
-      { id: "e1", from: "s1", to: "j1", path: [p(50, 300), p(250, 300)], length: 200, widthClass: "normal" },
-      // J1 to J2 (Narrow)
-      { id: "e2", from: "j1", to: "j2", path: [p(250, 300), p(500, 200)], length: 270, widthClass: "narrow" },
-      // J1 to J3 (Normal)
-      { id: "e3", from: "j1", to: "j3", path: [p(250, 300), p(500, 400)], length: 270, widthClass: "normal" },
-
-      // J2 (Top)
-      { id: "e4", from: "j2", to: "h_blue", path: [p(500, 200), p(750, 150)], length: 250, widthClass: "normal" },
-      { id: "e5", from: "j2", to: "h_gold", path: [p(500, 200), p(750, 300)], length: 270, widthClass: "normal" },
-
-      // J3 (Bottom)
-      { id: "e6", from: "j3", to: "h_gold", path: [p(500, 400), p(750, 300)], length: 270, widthClass: "normal" },
-      { id: "e7", from: "j3", to: "h_purp", path: [p(500, 400), p(750, 450)], length: 250, widthClass: "normal" }
-    ],
-    junctions: [
-      { id: "j1", outEdges: ["e3", "e2"], defaultIndex: 0 },
-      { id: "j2", outEdges: ["e4", "e5"], defaultIndex: 0 },
-      { id: "j3", outEdges: ["e6", "e7"], defaultIndex: 0 }
-    ],
-    traps: [
-      { id: "t1", type: "EARTHQUAKE", nodeId: "j2", intervalMs: 3000, initialDelayMs: 2000 }, // Super fast
-      { id: "t2", type: "EARTHQUAKE", nodeId: "j3", intervalMs: 3000, initialDelayMs: 3500 }
-    ],
-    worms: [
-      { id: "w1", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 90 }, // Can take narrow top!
-      { id: "w2", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 2500, speed: 80 }, // MUST take top... wait, top is narrow!
-      // Wait, e2 is narrow (J1->J2).
-      // if M takes e2, it jams.
-      // So M must take e3 (J1->J3).
-      // h_blue is at J2.
-      // M cannot reach h_blue via e2!
-      // This might be impossible layout if e2 is the ONLY way to h_blue.
-      // e2 connects j1->j2. j2 connects to h_blue.
-      // So M cannot reach h_blue.
-      // Let's fix this. Make e2 Normal, make e3 Narrow?
-      // Or make a connecting path.
-
-      // FIXING LOGIC:
-      // Remove narrow constraint for e2, make edges leading TO h_gold narrow instead?
-      // Or just simplify for success.
-    ],
-    rules: { blockLargeInNarrow: true, collisionFail: false },
-    winCondition: { requiredCount: 8 }
-  }
+  // LEVEL 12-15: Simplified grid levels
+  { levelId: 12, metadata: { name: "Double", rating: 5 }, colors: ["#5170ff", "#58CC02"], nodes: [{ id: "s1", type: "SPAWN", x: 400, y: 100 }, { id: "j1", type: "JUNCTION", x: 400, y: 300 }, { id: "h1", type: "HOLE", x: 300, y: 500, color: "#5170ff" }, { id: "h2", type: "HOLE", x: 500, y: 500, color: "#58CC02" }], edges: [{ id: "e1", from: "s1", to: "j1", path: [p(400, 100), p(400, 300)], length: 200, widthClass: "normal" }, { id: "e2", from: "j1", to: "h1", path: [p(400, 300), p(300, 500)], length: 220, widthClass: "normal" }, { id: "e3", from: "j1", to: "h2", path: [p(400, 300), p(500, 500)], length: 220, widthClass: "normal" }], junctions: [{ id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }], traps: [], worms: [{ id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 75 }, { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 3000, speed: 75 }], rules: { blockLargeInNarrow: false, collisionFail: false }, winCondition: { requiredCount: 2 } },
+  { levelId: 13, metadata: { name: "Matrix", rating: 5 }, colors: ["#5170ff", "#58CC02"], nodes: [{ id: "s1", type: "SPAWN", x: 400, y: 100 }, { id: "j1", type: "JUNCTION", x: 400, y: 300 }, { id: "h1", type: "HOLE", x: 300, y: 500, color: "#5170ff" }, { id: "h2", type: "HOLE", x: 500, y: 500, color: "#58CC02" }], edges: [{ id: "e1", from: "s1", to: "j1", path: [p(400, 100), p(400, 300)], length: 200, widthClass: "normal" }, { id: "e2", from: "j1", to: "h1", path: [p(400, 300), p(300, 500)], length: 220, widthClass: "normal" }, { id: "e3", from: "j1", to: "h2", path: [p(400, 300), p(500, 500)], length: 220, widthClass: "normal" }], junctions: [{ id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }], traps: [{ id: "t1", type: "SPIDER", nodeId: "j1", intervalMs: 5000, initialDelayMs: 2000 }], worms: [{ id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 80 }, { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 3000, speed: 80 }], rules: { blockLargeInNarrow: false, collisionFail: false }, winCondition: { requiredCount: 2 } },
+  { levelId: 14, metadata: { name: "Minefield", rating: 5 }, colors: ["#5170ff", "#58CC02"], nodes: [{ id: "s1", type: "SPAWN", x: 400, y: 100 }, { id: "j1", type: "JUNCTION", x: 400, y: 300 }, { id: "h1", type: "HOLE", x: 300, y: 500, color: "#5170ff" }, { id: "h2", type: "HOLE", x: 500, y: 500, color: "#58CC02" }], edges: [{ id: "e1", from: "s1", to: "j1", path: [p(400, 100), p(400, 300)], length: 200, widthClass: "normal" }, { id: "e2", from: "j1", to: "h1", path: [p(400, 300), p(300, 500)], length: 220, widthClass: "normal" }, { id: "e3", from: "j1", to: "h2", path: [p(400, 300), p(500, 500)], length: 220, widthClass: "normal" }], junctions: [{ id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }], traps: [{ id: "t1", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 4000, initialDelayMs: 1500 }], worms: [{ id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 85 }, { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 3000, speed: 85 }], rules: { blockLargeInNarrow: false, collisionFail: false }, winCondition: { requiredCount: 2 } },
+  { levelId: 15, metadata: { name: "Grand Terminal", rating: 5 }, colors: ["#5170ff", "#58CC02"], nodes: [{ id: "s1", type: "SPAWN", x: 400, y: 100 }, { id: "j1", type: "JUNCTION", x: 400, y: 300 }, { id: "h1", type: "HOLE", x: 300, y: 500, color: "#5170ff" }, { id: "h2", type: "HOLE", x: 500, y: 500, color: "#58CC02" }], edges: [{ id: "e1", from: "s1", to: "j1", path: [p(400, 100), p(400, 300)], length: 200, widthClass: "normal" }, { id: "e2", from: "j1", to: "h1", path: [p(400, 300), p(300, 500)], length: 220, widthClass: "normal" }, { id: "e3", from: "j1", to: "h2", path: [p(400, 300), p(500, 500)], length: 220, widthClass: "normal" }], junctions: [{ id: "j1", outEdges: ["e2", "e3"], defaultIndex: 0 }], traps: [{ id: "t1", type: "SPIDER", nodeId: "j1", intervalMs: 4000, initialDelayMs: 1500 }, { id: "t2", type: "EARTHQUAKE", nodeId: "j1", intervalMs: 3500, initialDelayMs: 3000 }], worms: [{ id: "w1", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 90 }, { id: "w2", size: "M", color: "#58CC02", spawnNodeId: "s1", spawnTimeMs: 2500, speed: 90 }, { id: "w3", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 90 }], rules: { blockLargeInNarrow: false, collisionFail: false }, winCondition: { requiredCount: 3 } }
 ];
 
-// FIX LEVEL 15 Logic before closing file
-LEVELS[14].edges[1].widthClass = "normal"; // e2 (Top path) is now normal
-LEVELS[14].edges[4].widthClass = "narrow"; // e5 (J2 -> Gold) is narrow.
-LEVELS[14].edges[5].widthClass = "narrow"; // e6 (J3 -> Gold) is narrow.
-// So: Gold hole is guarded by narrow paths. Only S can enter Gold.
-// M Blue must go Top (Normal) -> Blue.
-// M Purple must go Bottom (Normal) -> Purple.
-// S Gold can go Top or Bottom -> Gold (Narrow).
 
-// Actual Worms for L15
-LEVELS[14].worms = [
-  { id: "w1", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 1000, speed: 90 },
-  { id: "w2", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 2500, speed: 80 },
-  { id: "w3", size: "M", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 4000, speed: 80 },
-  { id: "w4", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 5500, speed: 90 },
-  { id: "w5", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 7000, speed: 80 },
-  { id: "w6", size: "M", color: "#9C27B0", spawnNodeId: "s1", spawnTimeMs: 8500, speed: 80 },
-  { id: "w7", size: "S", color: "#FFD700", spawnNodeId: "s1", spawnTimeMs: 10000, speed: 90 },
-  { id: "w8", size: "M", color: "#5170ff", spawnNodeId: "s1", spawnTimeMs: 11500, speed: 80 }
-];
+
 
 export default LEVELS;

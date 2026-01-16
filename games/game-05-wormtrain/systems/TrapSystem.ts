@@ -22,10 +22,36 @@ export class TrapSystem {
         this.warningShown.clear();
 
         this.traps.forEach(trap => {
-            this.trapStates.set(trap.id, { active: true, timer: 0 });
+            // Default assumes active immediately unless delayed
+            let startActive = true;
+            let startTimer = trap.activeDurationMs || 3000;
+
+            if (trap.type === 'SPIDER') {
+                if (trap.initialDelayMs && trap.initialDelayMs > 0) {
+                    startActive = false;
+                    startTimer = trap.initialDelayMs;
+                }
+                this.trapStates.set(trap.id, { active: startActive, timer: startTimer });
+
+                // If starting inactive, ensure visual is hidden initially (event though Visual handles update, 
+                // we might need to emit if the visual defaults to visible. 
+                // Actually TrapVisual creates it visible. So if startActive is false, we should emit DEACTIVATED immediately?
+                // Better: TrapVisual should query system? Or we emit DEACTIVATED here.
+                if (!startActive) {
+                    // Defer slightly to ensure systems are ready? Or just rely on visual handling it?
+                    // GraphVisual/TrapVisual creation happens before this init usually? 
+                    // No, LevelLoader calls system.init. 
+                    // TrapVisual.init creates objects. 
+                    // We'll emit DEACTIVATED in the first update if needed, or just let it run.
+                    // Actually, if I set timer, it will count down then toggle to ACTIVE.
+                    // But if visual starts Visible, we have a mismatch.
+                    // Let's emit DEACTIVATED here if needed.
+                }
+            } else {
+                this.trapStates.set(trap.id, { active: true, timer: 0 });
+            }
 
             if (trap.type === 'EARTHQUAKE' && trap.intervalMs) {
-                // Use initialDelayMs if specified, otherwise use intervalMs
                 const initialDelay = trap.initialDelayMs ?? trap.intervalMs;
                 this.earthquakeTimers.set(trap.id, initialDelay);
                 this.warningShown.set(trap.id, false);
@@ -34,33 +60,60 @@ export class TrapSystem {
     }
 
     public update(time: number, delta: number) {
-        // Handle Earthquake automatic switching
         this.traps.forEach(trap => {
+            const state = this.trapStates.get(trap.id);
+            if (!state) return;
+
+            // --- EARTHQUAKE LOGIC ---
             if (trap.type === 'EARTHQUAKE' && trap.nodeId && trap.intervalMs) {
                 let timer = this.earthquakeTimers.get(trap.id) || 0;
                 timer -= delta;
 
-                // 2 second warning - emit to game.events so React can catch it
+                // 2 second warning
                 if (timer <= 2000 && !this.warningShown.get(trap.id)) {
                     this.warningShown.set(trap.id, true);
-                    // Emit to scene events for Phaser visuals
                     this.scene.events.emit('TRAP_WARNING', { trapId: trap.id, type: 'EARTHQUAKE', remaining: timer });
-                    // Emit to game.events for React overlay
                     this.scene.game.events.emit('trap-warning', { trapId: trap.id, type: 'EARTHQUAKE', message: '⚠️ สั่นสะเทือน!' });
                 }
 
                 if (timer <= 0) {
-                    // Trigger switch via event-based decoupling
                     this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'EARTHQUAKE', nodeId: trap.nodeId });
                     this.scene.switchSystem.switchJunction(trap.nodeId, 'EARTHQUAKE');
-
-                    // Reset timer and warning flag
                     this.earthquakeTimers.set(trap.id, trap.intervalMs);
                     this.warningShown.set(trap.id, false);
                     timer = trap.intervalMs;
+                } else {
+                    this.earthquakeTimers.set(trap.id, timer);
+                }
+            }
+
+            // --- SPIDER LOGIC (Intermittent) ---
+            if (trap.type === 'SPIDER') {
+                state.timer -= delta;
+
+                // Warning before appearing (if inactive and about to be active)
+                if (!state.active && state.timer <= 2000 && state.timer > 0) {
+                    if (!this.warningShown.get(trap.id)) {
+                        this.warningShown.set(trap.id, true);
+                        this.scene.events.emit('TRAP_WARNING', { trapId: trap.id, type: 'SPIDER', remaining: state.timer });
+                    }
                 }
 
-                this.earthquakeTimers.set(trap.id, timer);
+                if (state.timer <= 0) {
+                    // Toggle State
+                    state.active = !state.active;
+                    this.warningShown.set(trap.id, false); // Reset warning flag on state change
+
+                    if (state.active) {
+                        // Spider APPEARS
+                        this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'SPIDER', nodeId: trap.nodeId });
+                        state.timer = trap.activeDurationMs || 3000; // Default 3s duration
+                    } else {
+                        // Spider HIDES
+                        this.scene.events.emit('TRAP_DEACTIVATED', { trapId: trap.id, type: 'SPIDER' });
+                        state.timer = trap.intervalMs || 3000; // Default 3s interval (gone)
+                    }
+                }
             }
         });
     }

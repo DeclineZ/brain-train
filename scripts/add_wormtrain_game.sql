@@ -4,7 +4,7 @@
 INSERT INTO games (game_id, title, category, have_level, image, duration_min)
 VALUES (
   'game-05-wormtrain',
-  'พาหนอนน้อยกลับบ้าน',
+  'กลับหลุม',
   'attention',
   true,
   '/covers/wormtrain_cover.webp',
