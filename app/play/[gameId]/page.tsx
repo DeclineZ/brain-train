@@ -82,7 +82,9 @@ export default function GamePage({ params }: PageProps) {
     // Endless Mode Check
     const isEndless = gameId === 'game-02-sensorlock';
     // Determine max level based on game
-    const maxLevel = gameId === 'game-01-cardmatch' ? 30 : 60;
+    const maxLevel = gameId === 'game-01-cardmatch' ? 30
+        : gameId === 'game-05-wormtrain' ? 15
+            : 60;
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -394,6 +396,14 @@ export default function GamePage({ params }: PageProps) {
                     return {
                         ...prev,
                         ...stats,
+                        // Preserve optimistic statChanges if server doesn't return them
+                        statChanges: stats.statChanges || prev.statChanges,
+                        // Preserve stat values from game result
+                        stat_planning: prev.stat_planning ?? stats.stat_planning,
+                        stat_memory: prev.stat_memory ?? stats.stat_memory,
+                        stat_speed: prev.stat_speed ?? stats.stat_speed,
+                        stat_focus: prev.stat_focus ?? stats.stat_focus,
+                        stat_emotion: prev.stat_emotion ?? stats.stat_emotion,
                         // Prefer optimistic coins if server returns 0/undefined for some reason, or vice versa
                         // But server is truth.
                         earnedCoins: stats.earnedCoins !== undefined ? stats.earnedCoins : prev.earnedCoins
@@ -466,9 +476,16 @@ export default function GamePage({ params }: PageProps) {
                 </button>
             </div>
 
-            {/* Level & Difficulty Badge (Top Center) - ONLY for Game 01 */}
+            {/* Level & Difficulty Badge (Top Center) - For Game 01 with tier colors */}
             {!isLoadingLevel && activeLevel > 0 && gameId === 'game-01-cardmatch' && (
                 <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                    <span className="text-3xl">LEVEL {activeLevel}</span>
+                </div>
+            )}
+
+            {/* Level Badge (Top Center) - For Wormtrain */}
+            {!isLoadingLevel && activeLevel > 0 && gameId === 'game-05-wormtrain' && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
                     <span className="text-3xl">LEVEL {activeLevel}</span>
                 </div>
             )}
@@ -639,8 +656,8 @@ export default function GamePage({ params }: PageProps) {
                                                 ^ สมาธิ
                                             </div>
                                         )}
-                                        {result.statChanges?.stat_planning >
-                                            0 && (
+                                        {(result.statChanges?.stat_planning > 0 ||
+                                            (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
                                                 <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                                                     ^ การวางแผน
                                                 </div>
@@ -687,7 +704,8 @@ export default function GamePage({ params }: PageProps) {
                                 {((!isEndless &&
                                     (result.stat_speed !== null ||
                                         result.stat_focus !== null ||
-                                        result.stat_planning !== null)) ||
+                                        result.stat_planning !== null ||
+                                        gameId === 'game-05-wormtrain')) ||
                                     (isEndless &&
                                         result.stat_focus !== null)) && (
                                         <div className="flex flex-col gap-3 w-full">
@@ -727,7 +745,7 @@ export default function GamePage({ params }: PageProps) {
 
                                                     <button
                                                         onClick={handleNextLevel}
-                                                        className={`flex-1 bg-btn-success-bg hover:bg-btn-success-hover border-b-4 border-btn-success-border text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
+                                                        className={`flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
                                                     >
                                                         {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
                                                     </button>
@@ -737,11 +755,34 @@ export default function GamePage({ params }: PageProps) {
                                     )}
                             </>
                         ) : (
-                            // FALLBACK FAILURE (Should rarely show due to Timeout Popup)
-                            <div className="text-center">
-                                <h1 className="text-3xl">Game Over</h1>
-                                <button onClick={handleRestartLevel}>Restart</button>
-                            </div>
+                            // FAILURE POPUP
+                            <>
+                                <h1 className="text-4xl font-extrabold text-red-600 drop-shadow-sm mt-2 mb-4">
+                                    เกมโอเวอร์
+                                </h1>
+                                <p className="text-brown-primary font-bold text-lg mb-6">
+                                    ลองอีกครั้งนะ!
+                                </p>
+
+                                {/* Buttons */}
+                                <div className="flex gap-4 w-full justify-center">
+                                    {/* Back to Home Button */}
+                                    <button
+                                        onClick={handleHomeClick}
+                                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
+                                    >
+                                        <Home className="w-8 h-8" />
+                                    </button>
+
+                                    {/* Restart Button */}
+                                    <button
+                                        onClick={handleRestartLevel}
+                                        className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
+                                    >
+                                        เล่นอีกครั้ง
+                                    </button>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

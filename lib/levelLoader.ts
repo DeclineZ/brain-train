@@ -8,6 +8,7 @@ const gameLevelModules = {
   'game-00-example': () => import('@/games/game-00-example/levels'),
   'game-01-cardmatch': () => import('@/games/game-01-cardmatch/levels'),
   'game-03-billiards-math': () => import('@/games/game-03-billiards-math/levels'),
+  'game-05-wormtrain': () => import('@/games/game-05-wormtrain/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -37,16 +38,24 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
 
     // Dynamically import the game's levels
     const levelModule = await gameLevelModules[gameId]();
-    
+
     // Extract levels from the module (each game exports different level object names)
     let levelConfigs: Record<number, any> = {};
-    
+
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
       levelConfigs = levelModule.MEMORY_LEVELS;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
       levelConfigs = levelModule.MATCHING_LEVELS;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
+      // Wormtrain exports LEVELS as an array with levelId property
+      const levelsArray = levelModule.LEVELS as any[];
+      levelsArray.forEach((level: any) => {
+        if (typeof level.levelId === 'number') {
+          levelConfigs[level.levelId] = level;
+        }
+      });
     } else {
       // Fallback: try to find any exported levels object
       const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS'];
@@ -65,7 +74,7 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
 
     // Get user progress
     const userProgress = await getUserProgressForGame(gameId, userId);
-    
+
     // Convert to GameLevel format with user progress
     const levels: GameLevel[] = [];
     const levelNumbers = Object.keys(levelConfigs)
@@ -103,7 +112,7 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
     }
 
     const levelModule = await gameLevelModules[gameId]();
-    
+
     // Extract level config based on game type
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
       return levelModule.MEMORY_LEVELS[levelNumber] || null;
@@ -111,6 +120,10 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelModule.MATCHING_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       return levelModule.BILLIARDS_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
+      // Wormtrain exports LEVELS as an array with levelId property
+      const levelsArray = levelModule.LEVELS as any[];
+      return levelsArray.find((l: any) => l.levelId === levelNumber) || null;
     }
 
     return null;
@@ -126,7 +139,7 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
 async function getUserProgressForGame(gameId: string, userId?: string) {
   try {
     const supabase = await createClient();
-    
+
     let currentUserId = userId;
     if (!currentUserId) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -169,7 +182,7 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
 
     const levelModule = await gameLevelModules[gameId]();
     let levelConfigs: Record<number, any> = {};
-    
+
     // Extract level configs based on game type
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
       levelConfigs = levelModule.MEMORY_LEVELS;
@@ -177,6 +190,14 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = levelModule.MATCHING_LEVELS;
     } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
       levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
+      // Wormtrain exports LEVELS as an array with levelId property
+      const levelsArray = levelModule.LEVELS as any[];
+      levelsArray.forEach((level: any) => {
+        if (typeof level.levelId === 'number') {
+          levelConfigs[level.levelId] = level;
+        }
+      });
     }
 
     // Count only positive level numbers (skip tutorial level 0)

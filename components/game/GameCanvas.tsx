@@ -31,6 +31,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   const [timerData, setTimerData] = useState<any>(0); // number or { remaining, total }
   const [currentLevel, setCurrentLevel] = useState(level);
   const [showTutorialNextButton, setShowTutorialNextButton] = useState(false);
+  const [trapWarning, setTrapWarning] = useState<string | null>(null);
 
   // Latest Ref Pattern to prevent game re-initialization when handlers change
   const onGameOverRef = useRef(onGameOver);
@@ -142,6 +143,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       newGame.events.on('tutorial-show-next-btn', (show: boolean) => {
         setShowTutorialNextButton(show);
       });
+
+      // Listen for Trap Warning Event (for wormtrain game)
+      newGame.events.on('trap-warning', (data: { message: string }) => {
+        setTrapWarning(data.message);
+        // Auto-hide after 2 seconds
+        setTimeout(() => setTrapWarning(null), 2000);
+      });
     }
 
     // Initialize
@@ -153,6 +161,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current.events.off('timer-update'); // Clean listener
         gameInstance.current.events.off('game-timeout');
         gameInstance.current.events.off('tutorial-show-next-btn');
+        gameInstance.current.events.off('trap-warning');
         gameInstance.current.destroy(true);
         gameInstance.current = null;
       }
@@ -180,8 +189,17 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
   const timerState = renderTimer();
 
+  // Get game-specific background color to fill any gaps from FIT mode scaling
+  const getContainerBackground = () => {
+    if (gameId === 'game-05-wormtrain') return '#4a7c4e'; // Match Phaser bg
+    return 'transparent';
+  };
+
   return (
-    <div className="relative w-full h-full">
+    <div
+      className="relative w-full h-full"
+      style={{ backgroundColor: getContainerBackground() }}
+    >
 
 
 
@@ -189,7 +207,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
 
         {/* Top: Level Indicator (Centered) */}
-        {gameId !== 'game-02-sensorlock' && gameId !== 'game-01-cardmatch' && mode !== 'tutorial' && (
+        {gameId !== 'game-02-sensorlock' && gameId !== 'game-01-cardmatch' && gameId !== 'game-05-wormtrain' && mode !== 'tutorial' && (
           <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
             LEVEL {currentLevel}
           </div>
@@ -221,13 +239,22 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
         {/* Bottom: Timer Bar - MOVED TO PHASER */}
         {/* Placeholder if needed for spacing, but removing for now */}
+
+        {/* Trap Warning Overlay (for wormtrain) */}
+        {trapWarning && (
+          <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
+            <div className="bg-red-600/90 text-white text-3xl font-black px-8 py-4 rounded-2xl shadow-2xl animate-pulse border-4 border-white/50">
+              {trapWarning}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Phaser Container */}
       <div
         id="game-container"
         ref={gameRef}
-        className="w-full h-full"
+        className="w-full h-full min-w-[1px] min-h-[1px]"
       />
     </div>
   );

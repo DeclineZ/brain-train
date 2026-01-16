@@ -28,6 +28,15 @@ export const useGameSession = () => {
       clinicalStats = calculateSensorLockStats(rawData as SensorLockGameStats);
     } else if (gameId === 'game-03-billiards-math') {
       clinicalStats = calculateBilliardsStats(rawData as BilliardsGameStats);
+    } else if (gameId === 'game-05-wormtrain') {
+      clinicalStats = {
+        stat_memory: rawData.stat_memory ?? null,
+        stat_speed: rawData.stat_speed ?? null,
+        stat_visual: rawData.stat_visual ?? null,
+        stat_focus: rawData.stat_focus ?? null,
+        stat_planning: rawData.stat_planning ?? null,
+        stat_emotion: rawData.stat_emotion ?? null
+      };
     }
     // Add 'else if' for other games here later...
 
