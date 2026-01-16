@@ -24,9 +24,24 @@ export class GraphSystem {
 
         levelData.edges.forEach(edge => {
             this.edges.set(edge.id, edge);
-            const out = this.outEdgesMap.get(edge.from);
-            if (out) {
-                out.push(edge.id);
+        });
+
+        // For junctions, use the explicit outEdges order from junction config
+        // This ensures visual indicator matches actual routing logic
+        levelData.junctions.forEach(junction => {
+            this.outEdgesMap.set(junction.id, [...junction.outEdges]);
+        });
+
+        // For non-junction nodes, build outEdges from edges
+        levelData.edges.forEach(edge => {
+            const fromNode = this.nodes.get(edge.from);
+            // Only add if not a junction (junctions already have explicit outEdges)
+            const isJunction = levelData.junctions.some(j => j.id === edge.from);
+            if (!isJunction) {
+                const out = this.outEdgesMap.get(edge.from);
+                if (out) {
+                    out.push(edge.id);
+                }
             }
         });
     }

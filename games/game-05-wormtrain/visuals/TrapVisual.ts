@@ -51,26 +51,21 @@ export class TrapVisual {
             // Create spider image DIRECTLY on scene (not in container) for proper depth sorting
             if (this.scene.textures.exists('spider_trap')) {
                 const spider = this.scene.add.image(nodePos?.x || 0, nodePos?.y || 0, 'spider_trap');
-                // Target size - make it big
-                const targetSize = 200;
+                // Target size - compact so it doesn't overwhelm
+                const targetSize = 70;
                 const textureWidth = spider.width || 512;
                 spider.setScale(targetSize / textureWidth);
 
                 // Set very high depth so it's above everything
                 spider.setDepth(1000);
 
-                // Store spider reference in trapContainer for animation
-                trapContainer.setData('spiderImage', spider);
+                // Start HIDDEN - will appear on TRAP_ACTIVATED event
+                spider.setVisible(false);
+                spider.setAlpha(0);
 
-                // Add idle animation
-                this.scene.tweens.add({
-                    targets: spider,
-                    y: spider.y - 5,
-                    duration: 800,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
+                // Store spider reference and initial position in trapContainer for animation
+                trapContainer.setData('spiderImage', spider);
+                trapContainer.setData('initialPos', { x: nodePos?.x || 0, y: nodePos?.y || 0 });
             } else {
                 // Fallback
                 const body = this.scene.add.circle(0, -30, 30, 0x8B0000);
@@ -124,7 +119,7 @@ export class TrapVisual {
         }
     }
 
-    private onTrapWarning({ trapId, remaining }: { trapId: string; remaining: number }) {
+    private onTrapWarning({ trapId, type, remaining, nodeId }: { trapId: string; type: string; remaining: number, nodeId?: string }) {
         const data = this.trapVisuals.get(trapId);
         if (!data) return;
 
@@ -132,23 +127,31 @@ export class TrapVisual {
             // Flash red warning
             this.scene.tweens.add({
                 targets: data.warningIndicator,
+                scale: 1.2, // Added scale to the warning indicator
                 strokeColor: { from: 0xFFAA00, to: 0xFF0000 },
                 duration: 100,
                 yoyo: true,
                 repeat: 3
             });
         } else if (data.type === 'SPIDER') {
-            // Check if we have a warning indicator (e.g., web or exclamation) - currently we use the spider itself maybe?
-            // If spider is hidden, we can show a "web" or "shadow" or just flash the container slightly visible?
-            // Let's fade in a "!" or simply set Alpha to 0.3 and shake?
+            // Determine warning position: use provided nodeId or fallback to spider image/default
+            let x = data.graphics.x;
+            let y = data.graphics.y - 120; // Default offset
+
+            if (nodeId && this.nodePositions.has(nodeId)) {
+                const pos = this.nodePositions.get(nodeId)!;
+                x = pos.x;
+                y = pos.y - 80; // Adjusted offset for spider warning
+            } else {
+                const spiderImage = data.graphics.getData('spiderImage') as Phaser.GameObjects.Image;
+                if (spiderImage) {
+                    x = spiderImage.x;
+                    y = spiderImage.y - 80;
+                }
+            }
 
             // Let's create a temporary warning text if not exists
             if (!data.warningIndicator) {
-                // Get spider position from stored data
-                const spiderImage = data.graphics.getData('spiderImage') as Phaser.GameObjects.Image;
-                const x = spiderImage ? spiderImage.x : data.graphics.x;
-                const y = spiderImage ? spiderImage.y - 120 : data.graphics.y - 120;
-
                 const text = this.scene.add.text(x, y, "!", {
                     fontSize: '80px',
                     fontStyle: 'bold',
@@ -158,6 +161,9 @@ export class TrapVisual {
                 }).setOrigin(0.5);
                 text.setDepth(1001); // Above spider
                 data.warningIndicator = text as any;
+            } else {
+                // Update position of existing indicator
+                (data.warningIndicator as any).setPosition(x, y);
             }
 
             if (data.warningIndicator) {
@@ -214,22 +220,44 @@ export class TrapVisual {
                 (data.warningIndicator as any).setVisible(false);
             }
 
-            // Spider APPEARS
-            data.graphics.setVisible(true);
-            data.graphics.setAlpha(1);
-            data.graphics.setScale(0.1); // Start small
+            // Get new position from nodeId (for relocating spiders)
+            const spiderImage = data.graphics.getData('spiderImage') as Phaser.GameObjects.Image;
+            if (spiderImage && nodeId) {
+                const newPos = this.nodePositions.get(nodeId);
+                if (newPos) {
+                    spiderImage.x = newPos.x;
+                    spiderImage.y = newPos.y;
+                }
+            }
 
-            // Drop down animation
-            this.scene.tweens.add({
-                targets: data.graphics,
-                scaleX: 1,
-                scaleY: 1,
-                y: { from: data.graphics.y - 100, to: data.graphics.y }, // Drop from above? NO, graphics.y is container pos. 
-                // We should animate the sprite inside? 
-                // Easier: just scale up
-                ease: 'Back.out',
-                duration: 500
-            });
+            // Spider APPEARS
+            if (spiderImage) {
+                spiderImage.setVisible(true);
+                spiderImage.setAlpha(1);
+                spiderImage.setScale(0.02); // Start tiny
+
+                // Scale up animation to final size (100px / 512 = ~0.2)
+                const finalScale = 100 / 512;
+                this.scene.tweens.add({
+                    targets: spiderImage,
+                    scaleX: finalScale,
+                    scaleY: finalScale,
+                    ease: 'Back.out',
+                    duration: 500
+                });
+            } else {
+                // Fallback for container-based spider
+                data.graphics.setVisible(true);
+                data.graphics.setAlpha(1);
+                data.graphics.setScale(0.1);
+
+                this.scene.tweens.add({
+                    targets: data.graphics,
+                    scaleX: 1,
+                    scaleY: 1,
+                    ease: 'Back.out',
+                });
+            }
         } else if (type === 'COLLAPSING_HOLE') {
             // Show collapse overlay
             const overlay = data.graphics.list[0] as Phaser.GameObjects.Arc;
@@ -249,17 +277,32 @@ export class TrapVisual {
         if (!data) return;
 
         if (type === 'SPIDER') {
-            // Spider HIDES
-            this.scene.tweens.add({
-                targets: data.graphics,
-                scaleX: 0,
-                scaleY: 0,
-                alpha: 0,
-                duration: 300,
-                onComplete: () => {
-                    data.graphics.setVisible(false);
-                }
-            });
+            // Spider HIDES - get the actual spider image
+            const spiderImage = data.graphics.getData('spiderImage') as Phaser.GameObjects.Image;
+            if (spiderImage) {
+                this.scene.tweens.add({
+                    targets: spiderImage,
+                    scaleX: 0,
+                    scaleY: 0,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => {
+                        spiderImage.setVisible(false);
+                    }
+                });
+            } else {
+                // Fallback for container-based spider
+                this.scene.tweens.add({
+                    targets: data.graphics,
+                    scaleX: 0,
+                    scaleY: 0,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => {
+                        data.graphics.setVisible(false);
+                    }
+                });
+            }
         } else if (type === 'COLLAPSING_HOLE') {
             // Hide collapse overlay
             const overlay = data.graphics.list[0] as Phaser.GameObjects.Arc;

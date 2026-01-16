@@ -3,7 +3,8 @@ import GameScene from '../GameScene';
 import { LevelData, WormConfig, WormSpawnConfig, WormSize, Point, Node, Edge } from '../types/level';
 import { WormGameConstants as WormGameConfig } from '../config';
 
-export type WormState = 'MOVING' | 'JAMMED' | 'NEAR_TRAP' | 'DEAD' | 'ARRIVED';
+// Add PAUSED_TUTORIAL to state
+export type WormState = 'MOVING' | 'JAMMED' | 'NEAR_TRAP' | 'DEAD' | 'ARRIVED' | 'PAUSED_TUTORIAL';
 
 export interface WormEntity {
     id: string;
@@ -18,7 +19,8 @@ export interface WormEntity {
     // Future path preview (optional)
     nextNodeId?: string;
 
-    // Visual ref (optional, but strictly we emit events)
+    // Tutorial tracking
+    visitedJunctions?: Set<string>;
 }
 
 export class WormSystem {
@@ -27,17 +29,47 @@ export class WormSystem {
     private spawnQueue: WormSpawnConfig[] = [];
     private timeElapsed: number = 0;
 
+    // Tutorial State
+    private isTutorial: boolean = false;
+    private isTutorialPaused: boolean = false; // Add Global Pause Flag
+
     constructor(scene: GameScene) {
         this.scene = scene;
+
+        // Listen for junction switches to resume tutorial
+        this.scene.events.on('JUNCTION_SWITCHED', this.onJunctionSwitched, this);
     }
 
     public init(levelData: LevelData) {
         this.worms.clear();
         this.spawnQueue = [...levelData.worms].sort((a, b) => a.spawnTimeMs - b.spawnTimeMs);
         this.timeElapsed = 0;
+        this.isTutorial = levelData.levelId === 0;
+        this.isTutorialPaused = false;
+    }
+
+    private onJunctionSwitched({ junctionId }: { junctionId: string }) {
+        if (!this.isTutorial) return;
+
+        // Check if any worm is paused at this junction (waiting for resume)
+        let resumed = false;
+        this.worms.forEach(worm => {
+            if (worm.state === 'PAUSED_TUTORIAL' && worm.nextNodeId === junctionId) {
+                this.setWormState(worm, 'MOVING');
+                resumed = true;
+            }
+        });
+
+        if (resumed) {
+            this.scene.events.emit('HIDE_TUTORIAL_HINT', { junctionId });
+            this.isTutorialPaused = false; // Resume Global Game
+        }
     }
 
     public update(time: number, delta: number) {
+        // GLOBAL TUTORIAL PAUSE: Stop everything if paused
+        if (this.isTutorialPaused) return;
+
         this.timeElapsed += delta;
 
         // 1. Spawning
@@ -45,7 +77,7 @@ export class WormSystem {
 
         // 2. Movement & Login
         this.worms.forEach(worm => {
-            if (worm.state === 'DEAD' || worm.state === 'ARRIVED') return;
+            if (worm.state === 'DEAD' || worm.state === 'ARRIVED' || worm.state === 'PAUSED_TUTORIAL') return;
 
             // Handle JAMMED state recovery check (if applicable)
             if (worm.state === 'JAMMED') {
@@ -105,10 +137,31 @@ export class WormSystem {
 
         worm.distanceOnEdge += dp;
 
-        // Check for End of Edge
+        // Check for node arrival or Tutorial Pause
         if (worm.distanceOnEdge >= edge.length) {
             const reachedNodeId = edge.to;
             this.handleNodeArrival(worm, reachedNodeId);
+        } else if (this.isTutorial && worm.distanceOnEdge >= edge.length - 80) {
+            // TUTORIAL PAUSE CHECK
+            // If near end of edge (approaching junction), check if we should pause
+            const nextNodeId = edge.to;
+            const nextNode = this.scene.graphSystem.getNode(nextNodeId);
+
+            if (nextNode && nextNode.type === 'JUNCTION') {
+                if (!worm.visitedJunctions) worm.visitedJunctions = new Set();
+
+                if (!worm.visitedJunctions.has(nextNodeId)) {
+                    // PAUSE!
+                    this.setWormState(worm, 'PAUSED_TUTORIAL');
+                    worm.visitedJunctions.add(nextNodeId);
+                    worm.nextNodeId = nextNodeId; // Store for resume check
+
+                    this.scene.events.emit('SHOW_TUTORIAL_HINT', { junctionId: nextNodeId });
+
+                    // Trigger Global Pause (Stop other worms / spawning)
+                    this.isTutorialPaused = true;
+                }
+            }
         } else {
             // Just update position event? 
             // Optimisation: Only emit position updates if visual layer needs precise sync, 
@@ -127,17 +180,15 @@ export class WormSystem {
         for (const trap of traps) {
             if (this.scene.trapSystem.isTrapActive(trap.id)) {
                 if (trap.type === 'SPIDER') {
-                    this.setWormState(worm, 'DEAD');
-
-                    this.scene.events.emit('WORM_RESOLVED', {
+                    // Spider is purely visual - worms pass through without blocking
+                    // Just emit event for visual feedback if needed
+                    this.scene.events.emit('WORM_PASSED_SPIDER', {
+                        wormId: worm.config.id,
+                        trapId: trap.id,
                         x: node.x,
-                        y: node.y,
-                        success: false,
-                        reason: 'TRAP'
+                        y: node.y
                     });
-
-                    this.scene.winLoseSystem.checkTrapCollision(trap.id, 'SPIDER');
-                    return;
+                    // Continue processing - don't block or return
                 }
             }
         }

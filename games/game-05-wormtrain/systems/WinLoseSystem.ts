@@ -122,9 +122,9 @@ export class WinLoseSystem {
     private getStarHint(stars: number): string | null {
         if (stars >= 3) return null;
         if (stars === 2) {
-            return 'ลองลดความผิดพลาดลง\nจะได้ 3 ดาว';
+            return 'พยายามอีกนิด\n3 ดาวอยู่ไม่ไกล!';
         }
-        return 'วางแผนเส้นทางให้ดี\nหนอนหายไปเยอะเลย';
+        return 'ลองวางแผนใหม่\nเธอทำได้แน่นอน!';
     }
 }
 

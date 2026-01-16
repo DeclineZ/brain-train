@@ -51,10 +51,12 @@ export interface TrapConfig {
   id: string;
   type: TrapType;
   nodeId?: string; // For SPIDER/EARTHQUAKE
+  nodePool?: string[]; // For SPIDER - can appear at any of these nodes
   edgeId?: string; // For specialized edge traps (if any)
   intervalMs?: number; // For EARTHQUAKE (auto-switch interval)
   activeDurationMs?: number; // For COLLAPSING_HOLE or SPIDER block duration
   initialDelayMs?: number;
+  maxAppearances?: number; // For SPIDER - limit how many times it appears (undefined = infinite)
   mode?: 'BLOCK' | 'KILL'; // For SPIDER
   radius?: number; // For SPIDER detection
 }

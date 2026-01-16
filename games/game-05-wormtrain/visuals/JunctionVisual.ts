@@ -15,6 +15,7 @@ export class JunctionVisual {
     private indicators: Map<string, JunctionIndicator> = new Map();
     // Cache junction outEdges from level config
     private junctionOutEdges: Map<string, string[]> = new Map();
+    private activeTutorialJunctions: Set<string> = new Set();
 
     // Colors matching the reference game
     private readonly BG_COLOR = 0x4ade80;        // Light green background
@@ -27,6 +28,8 @@ export class JunctionVisual {
         this.container.setDepth(WormGameConfig.DEPTH.JUNCTION_UI);
 
         this.scene.events.on('JUNCTION_SWITCHED', this.onSwitch, this);
+        this.scene.events.on('SHOW_TUTORIAL_HINT', this.onShowTutorialHint, this);
+        this.scene.events.on('HIDE_TUTORIAL_HINT', this.onHideTutorialHint, this);
     }
 
     public init(levelData: any) {
@@ -34,6 +37,7 @@ export class JunctionVisual {
         this.container.removeAll(true);
         this.indicators.clear();
         this.junctionOutEdges.clear();
+        this.activeTutorialJunctions.clear(); // Reset tutorial state
 
         levelData.junctions.forEach((j: any) => {
             const node = levelData.nodes.find((n: any) => n.id === j.id);
@@ -63,6 +67,12 @@ export class JunctionVisual {
             const hitArea = this.scene.add.circle(0, 0, 32, 0x000000, 0);
             hitArea.setInteractive({ useHandCursor: true });
             hitArea.on('pointerdown', () => {
+                // TUTORIAL RESTRICTION: Only allow click if highlighted
+                const currentLevel = this.scene.registry.get('level') ?? 1;
+                if (currentLevel === 0) {
+                    if (!this.activeTutorialJunctions.has(j.id)) return;
+                }
+
                 this.scene.switchSystem.switchJunction(j.id);
             });
             btnContainer.add(hitArea);
@@ -91,6 +101,43 @@ export class JunctionVisual {
             const edgesData = outEdges.map(edgeId => this.scene.graphSystem.getEdge(edgeId)).filter(e => e);
             this.updateTrackShape(junctionId, nextIndex, outEdges, edgesData, junctionNode);
         }
+    }
+
+    // --- TUTORIAL VISUALS ---
+    private onShowTutorialHint({ junctionId }: { junctionId: string }) {
+        this.activeTutorialJunctions.add(junctionId); // Mark as active
+
+        const indicator = this.indicators.get(junctionId);
+        if (!indicator) return;
+
+        // Visual Highlight: Pulse / Scale Up
+        this.scene.tweens.add({
+            targets: indicator.container,
+            scale: 1.15,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+            key: 'tutorial-pulse-' + junctionId // Unique key to stop later
+        });
+    }
+
+    private onHideTutorialHint({ junctionId }: { junctionId: string }) {
+        this.activeTutorialJunctions.delete(junctionId); // Mark as inactive
+
+        const indicator = this.indicators.get(junctionId);
+        if (!indicator) return;
+
+        // Stop Pulse
+        this.scene.tweens.killTweensOf(indicator.container);
+
+        // Reset Scale
+        this.scene.tweens.add({
+            targets: indicator.container,
+            scale: 1,
+            duration: 200,
+            ease: 'Back.out'
+        });
     }
 
     private updateTrackShape(
@@ -136,59 +183,48 @@ export class JunctionVisual {
         // Draw track shape inside the button (like the reference game)
         graphics.lineStyle(8, this.TRACK_COLOR, 1);
 
-        // Draw curved track shape
-        // The shape shows: entry from one side, curved exit to another side
-        const radius = 18;
+        // Draw simple, clear arrow from center-ish to edge
+        const radius = 20;
 
-        // Draw a curved arc showing the active direction
-        // Entry assumed from top (or we could calculate from previous edge)
-        const entryAngle = exitAngle + Math.PI; // Opposite of exit
-
-        // Draw curved track from entry to exit
+        // Shaft (Line)
         graphics.beginPath();
+        // Start slightly opposite to the target direction to give the arrow some length
+        const backX = Math.cos(exitAngle + Math.PI) * 5;
+        const backY = Math.sin(exitAngle + Math.PI) * 5;
 
-        // Start from entry side
-        const startX = Math.cos(entryAngle) * 10;
-        const startY = Math.sin(entryAngle) * 10;
+        // End point for the shaft (slightly before the tip to leave room for head)
+        const shaftEndX = Math.cos(exitAngle) * (radius - 5);
+        const shaftEndY = Math.sin(exitAngle) * (radius - 5);
 
-        // End at exit side
-        const endX = Math.cos(exitAngle) * radius;
-        const endY = Math.sin(exitAngle) * radius;
-
-        // Draw curved path using quadratic curve
-        graphics.moveTo(startX, startY);
-
-        // Control point for curve (perpendicular to midpoint)
-        const midAngle = (entryAngle + exitAngle) / 2;
-        const curveFactor = 0.3;
-        const ctrlX = Math.cos(midAngle) * radius * curveFactor;
-        const ctrlY = Math.sin(midAngle) * radius * curveFactor;
-
-        // Draw as simple line for now - can enhance with bezier later
-        graphics.lineTo(0, 0); // Center
-        graphics.lineTo(endX, endY);
+        graphics.moveTo(backX, backY);
+        graphics.lineTo(shaftEndX, shaftEndY);
         graphics.strokePath();
 
-        // Add arrowhead at exit
-        const arrowSize = 6;
-        const arrowAngle1 = exitAngle + Math.PI - 0.5;
-        const arrowAngle2 = exitAngle + Math.PI + 0.5;
+        // Arrowhead (Filled Triangle)
+        const tipX = Math.cos(exitAngle) * radius;
+        const tipY = Math.sin(exitAngle) * radius;
 
-        graphics.beginPath();
-        graphics.moveTo(endX, endY);
-        graphics.lineTo(
-            endX + Math.cos(arrowAngle1) * arrowSize,
-            endY + Math.sin(arrowAngle1) * arrowSize
-        );
-        graphics.strokePath();
+        // Base of the triangle
+        const baseCenterDist = radius - 8;
+        const baseX = Math.cos(exitAngle) * baseCenterDist;
+        const baseY = Math.sin(exitAngle) * baseCenterDist;
 
+        // Perpendicular vector for width
+        const perpX = Math.cos(exitAngle + Math.PI / 2);
+        const perpY = Math.sin(exitAngle + Math.PI / 2);
+
+        const corner1X = baseX + perpX * 8;
+        const corner1Y = baseY + perpY * 8;
+        const corner2X = baseX - perpX * 8;
+        const corner2Y = baseY - perpY * 8;
+
+        graphics.fillStyle(this.TRACK_COLOR);
         graphics.beginPath();
-        graphics.moveTo(endX, endY);
-        graphics.lineTo(
-            endX + Math.cos(arrowAngle2) * arrowSize,
-            endY + Math.sin(arrowAngle2) * arrowSize
-        );
-        graphics.strokePath();
+        graphics.moveTo(tipX, tipY);
+        graphics.lineTo(corner1X, corner1Y);
+        graphics.lineTo(corner2X, corner2Y);
+        graphics.closePath();
+        graphics.fillPath();
 
         // Animate button press
         this.scene.tweens.add({

@@ -5,7 +5,7 @@ import { LevelData, TrapConfig, TrapType } from '../types/level';
 export class TrapSystem {
     private scene: GameScene;
     private traps: TrapConfig[] = [];
-    private trapStates: Map<string, { active: boolean, timer: number }> = new Map();
+    private trapStates: Map<string, { active: boolean, timer: number, appearances?: number, nextSpawnNode?: string }> = new Map();
     // Helper for Earthquake auto-switch timers
     private earthquakeTimers: Map<string, number> = new Map();
     // Track if we've shown warning for current cycle
@@ -26,26 +26,21 @@ export class TrapSystem {
             let startActive = true;
             let startTimer = trap.activeDurationMs || 3000;
 
+            // Pre-calculate initial spawn node
+            let nextSpawnNode = trap.nodeId;
+            if (trap.nodePool && trap.nodePool.length > 0) {
+                nextSpawnNode = trap.nodePool[Math.floor(Math.random() * trap.nodePool.length)];
+            }
+
             if (trap.type === 'SPIDER') {
                 if (trap.initialDelayMs && trap.initialDelayMs > 0) {
                     startActive = false;
                     startTimer = trap.initialDelayMs;
                 }
-                this.trapStates.set(trap.id, { active: startActive, timer: startTimer });
+                this.trapStates.set(trap.id, { active: startActive, timer: startTimer, nextSpawnNode });
 
-                // If starting inactive, ensure visual is hidden initially (event though Visual handles update, 
-                // we might need to emit if the visual defaults to visible. 
-                // Actually TrapVisual creates it visible. So if startActive is false, we should emit DEACTIVATED immediately?
-                // Better: TrapVisual should query system? Or we emit DEACTIVATED here.
                 if (!startActive) {
-                    // Defer slightly to ensure systems are ready? Or just rely on visual handling it?
-                    // GraphVisual/TrapVisual creation happens before this init usually? 
-                    // No, LevelLoader calls system.init. 
-                    // TrapVisual.init creates objects. 
-                    // We'll emit DEACTIVATED in the first update if needed, or just let it run.
-                    // Actually, if I set timer, it will count down then toggle to ACTIVE.
-                    // But if visual starts Visible, we have a mismatch.
-                    // Let's emit DEACTIVATED here if needed.
+                    // Logic handled in update
                 }
             } else {
                 this.trapStates.set(trap.id, { active: true, timer: 0 });
@@ -65,23 +60,38 @@ export class TrapSystem {
             if (!state) return;
 
             // --- EARTHQUAKE LOGIC ---
-            if (trap.type === 'EARTHQUAKE' && trap.nodeId && trap.intervalMs) {
+            if (trap.type === 'EARTHQUAKE' && trap.intervalMs) {
                 let timer = this.earthquakeTimers.get(trap.id) || 0;
                 timer -= delta;
 
-                // 2 second warning
+                // Use pre-calculated nextSpawnNode or default nodeId
+                const targetNodeId = state.nextSpawnNode || trap.nodeId;
+
+                // Warning only shows ONCE (first time) per cycle
                 if (timer <= 2000 && !this.warningShown.get(trap.id)) {
                     this.warningShown.set(trap.id, true);
-                    this.scene.events.emit('TRAP_WARNING', { trapId: trap.id, type: 'EARTHQUAKE', remaining: timer });
+                    this.scene.events.emit('TRAP_WARNING', {
+                        trapId: trap.id,
+                        type: 'EARTHQUAKE',
+                        remaining: timer,
+                        nodeId: targetNodeId
+                    });
                     this.scene.game.events.emit('trap-warning', { trapId: trap.id, type: 'EARTHQUAKE', message: '⚠️ สั่นสะเทือน!' });
                 }
 
-                if (timer <= 0) {
-                    this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'EARTHQUAKE', nodeId: trap.nodeId });
-                    this.scene.switchSystem.switchJunction(trap.nodeId, 'EARTHQUAKE');
+                if (timer <= 0 && targetNodeId) {
+                    this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'EARTHQUAKE', nodeId: targetNodeId });
+                    this.scene.switchSystem.switchJunction(targetNodeId, 'EARTHQUAKE');
                     this.earthquakeTimers.set(trap.id, trap.intervalMs);
-                    this.warningShown.set(trap.id, false);
+
+                    // Reset warning for next cycle? NO, User wants ONLY ONCE per level.
+                    // this.warningShown.set(trap.id, false);
                     timer = trap.intervalMs;
+
+                    // Pick NEXT node for FUTURE appearance
+                    if (trap.nodePool && trap.nodePool.length > 0) {
+                        state.nextSpawnNode = trap.nodePool[Math.floor(Math.random() * trap.nodePool.length)];
+                    }
                 } else {
                     this.earthquakeTimers.set(trap.id, timer);
                 }
@@ -95,7 +105,13 @@ export class TrapSystem {
                 if (!state.active && state.timer <= 2000 && state.timer > 0) {
                     if (!this.warningShown.get(trap.id)) {
                         this.warningShown.set(trap.id, true);
-                        this.scene.events.emit('TRAP_WARNING', { trapId: trap.id, type: 'SPIDER', remaining: state.timer });
+                        // Use pre-calculated nextSpawnNode for warning
+                        this.scene.events.emit('TRAP_WARNING', {
+                            trapId: trap.id,
+                            type: 'SPIDER',
+                            remaining: state.timer,
+                            nodeId: state.nextSpawnNode
+                        });
                     }
                 }
 
@@ -105,12 +121,27 @@ export class TrapSystem {
                     this.warningShown.set(trap.id, false); // Reset warning flag on state change
 
                     if (state.active) {
-                        // Spider APPEARS
-                        this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'SPIDER', nodeId: trap.nodeId });
+                        // Spider APPEARS - use pre-calculated node
+                        const spawnNodeId = state.nextSpawnNode || trap.nodeId;
+
+                        this.scene.events.emit('TRAP_ACTIVATED', { trapId: trap.id, type: 'SPIDER', nodeId: spawnNodeId });
                         state.timer = trap.activeDurationMs || 3000; // Default 3s duration
+                        state.appearances = (state.appearances || 0) + 1; // Increment appearance count
                     } else {
                         // Spider HIDES
                         this.scene.events.emit('TRAP_DEACTIVATED', { trapId: trap.id, type: 'SPIDER' });
+
+                        // Check if this was the last appearance
+                        if (trap.maxAppearances && (state.appearances || 0) >= trap.maxAppearances) {
+                            state.timer = Infinity; // Puts trap to sleep forever
+                            return;
+                        }
+
+                        // Pick NEXT node for FUTURE appearance
+                        if (trap.nodePool && trap.nodePool.length > 0) {
+                            state.nextSpawnNode = trap.nodePool[Math.floor(Math.random() * trap.nodePool.length)];
+                        }
+
                         state.timer = trap.intervalMs || 3000; // Default 3s interval (gone)
                     }
                 }

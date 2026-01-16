@@ -74,7 +74,7 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     // Get level from registry (set by GameCanvas)
-    this.currentLevel = this.game.registry.get('level') || 1;
+    this.currentLevel = this.game.registry.get('level') ?? 1;
     console.log('Worm Train Game Started - Level', this.currentLevel);
 
     // Initialize Systems - Order Matters
