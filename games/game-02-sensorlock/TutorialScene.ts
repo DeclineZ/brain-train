@@ -20,10 +20,10 @@ export class TutorialScene extends Phaser.Scene {
 
     preload() {
         // Reuse assets from main game
-        this.load.audio('match-success', '/assets/sounds/match-success.mp3');
-        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
-        this.load.audio('bgm', '/assets/sounds/game-02-sensorlock/sensorlock-bg.mp3');
+        this.load.audio('match-success', '/assets/sounds/cardmatch/match-success.mp3');
+        this.load.audio('match-fail', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+        this.load.audio('bgm', '/assets/sounds/sensorlock/sensorlock-bg.mp3');
     }
 
     create() {

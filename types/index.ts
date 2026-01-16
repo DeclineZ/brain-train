@@ -55,6 +55,39 @@ export interface BilliardsGameStats {
   continuedAfterTimeout: boolean;
 }
 
+export interface FloatingBallMathGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  penaltyFactor: number;  // 0.7 if continuedAfterTimeout, else 1.0
+  
+  // Thief event tracking
+  thiefEvents: number;         // Total thief appearances
+  blockSuccessCount: number;   // Blocked correctly
+  adaptSuccessCount: number;   // Adapted correctly
+  decisionFailCount: number;    // Wrong decisions
+  
+  // Timing tracking
+  onTimeDecisionCount: number; // Decisions in time window
+  lateDecisionCount: number;   // Decisions too slow
+  timeLimitSeconds?: number;   // Time limit for level completion (for speed scoring)
+  
+  // Panic behavior tracking
+  panicBlock: number;          // 3+ bad blocks in a row
+  panicAdapt: number;         // 3+ bad adapts in a row
+  
+  // Ball interception tracking
+  bombHits: number;           // Total bombs intercepted
+  consecutiveErrors: number;    // Max errors in a row
+  
+  // Legacy fields (kept for compatibility)
+  totalEquations: number;
+  correctEquations: number;
+  wrongEquations: number;
+  totalTimeMs: number;
+  attempts: number;
+  continuedAfterTimeout: boolean;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;

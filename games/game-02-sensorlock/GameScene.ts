@@ -125,17 +125,17 @@ export class SensorLockGameScene extends Phaser.Scene {
     preload() {
         // Reuse assets if possible, or load new ones
         // Sounds
-        this.load.audio('match-success', '/assets/sounds/match-success.mp3');
-        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
+        this.load.audio('match-success', '/assets/sounds/cardmatch/match-success.mp3');
+        this.load.audio('match-fail', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
 
         // Placeholder for the background image - uncomment when image is ready
         // this.load.image('park-background', '/assets/images/park_background.png');
 
         // New Audio
-        this.load.audio('beep', '/assets/sounds/game-02-sensorlock/beep.mp3');
-        this.load.audio('bgm', '/assets/sounds/game-02-sensorlock/sensorlock-bg.mp3');
-        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
+        this.load.audio('beep', '/assets/sounds/sensorlock/beep.mp3');
+        this.load.audio('bgm', '/assets/sounds/sensorlock/sensorlock-bg.mp3');
+        this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
     }
 
     update(t: number, dt: number) {

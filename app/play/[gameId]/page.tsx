@@ -84,7 +84,7 @@ export default function GamePage({ params }: PageProps) {
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
-            : 60;
+            : (gameId === 'game-04-floating-ball-math' ? 10 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -147,11 +147,12 @@ export default function GamePage({ params }: PageProps) {
                     if (data && data.current_played) {
                         setActiveLevel(nextLevel);
                     } else {
-                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, and billiards
+                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, and floating ball math
                         if (
                             gameId === "game-01-cardmatch" ||
                             gameId === "game-02-sensorlock" ||
-                            gameId === "game-03-billiards-math"
+                            gameId === "game-03-billiards-math" ||
+                            gameId === "game-04-floating-ball-math"
                         ) {
                             setActiveLevel(0);
                         }

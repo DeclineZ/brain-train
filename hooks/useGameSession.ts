@@ -2,8 +2,9 @@ import { calculateClinicalStats } from '@/lib/scoring/example';
 import { calculateMatchingStats } from '@/lib/scoring/matching';
 import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
 import { calculateBilliardsStats } from '@/lib/scoring/billiards';
+import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats } from '@/types';
 
 export const useGameSession = () => {
 
@@ -37,6 +38,8 @@ export const useGameSession = () => {
         stat_planning: rawData.stat_planning ?? null,
         stat_emotion: rawData.stat_emotion ?? null
       };
+    } else if (gameId === 'game-04-floating-ball-math') {
+      clinicalStats = calculateFloatingBallMathStats(rawData as FloatingBallMathGameStats);
     }
     // Add 'else if' for other games here later...
 
