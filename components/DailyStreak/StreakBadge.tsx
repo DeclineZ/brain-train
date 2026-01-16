@@ -131,7 +131,7 @@ export default function StreakBadge({
 
     if (isLoading) {
         return (
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 animate-pulse">
+            <div className="bg-[var(--color-card-item-bg)]/60 backdrop-blur-sm rounded-xl p-4 animate-pulse">
                 <div className="h-6 bg-gray-300 rounded mb-3"></div>
                 <div className="h-4 bg-gray-300 rounded mb-3"></div>
                 <div className="h-8 bg-gray-300 rounded"></div>
@@ -141,7 +141,7 @@ export default function StreakBadge({
 
     if (!status) {
         return (
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4">
+            <div className="bg-[var(--color-card-item-bg)]/60 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-brown-medium text-sm">
                     ไม่สามารถโหลดข้อมูลสตรีก
                 </p>
@@ -165,7 +165,7 @@ export default function StreakBadge({
     return (
         <>
             {/* Desktop View (Mobile-style) */}
-            <div className="hidden md:block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-white/70">
+            <div className="hidden md:block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-[var(--color-card-item-bg)]/70">
                 {/* Header with Streak Info and Calendar Button */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -278,7 +278,7 @@ export default function StreakBadge({
             </div>
             {/* Mobile View (Compact Mode) */}
             <div
-                className="md:hidden block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-white/70 active:scale-[0.99] cursor-pointer"
+                className="md:hidden block bg-white/60 backdrop-blur-sm rounded-xl p-4 shadow-sm transition-all hover:bg-[var(--color-card-item-bg)]/70 active:scale-[0.99] cursor-pointer"
                 onClick={() => setShowCalendar(true)}
             >
                 <div className="flex w-full items-center">

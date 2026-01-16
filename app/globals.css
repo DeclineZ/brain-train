@@ -148,6 +148,7 @@
   --color-brown-mute: #8c7e75;
   --color-gray-lighter: #F5F5F5;
   --color-gray-lightest: #F0F0F0;
+  --color-card-item-bg: #FFFEF9;
 
   --shadow-card-color: #5D4037;
   --color-topbar-text: #FFFFFF;
@@ -313,7 +314,105 @@
   --color-stats-bg: #F5F5F5;
 
   /* Borders */
-  --color-brown-border: #E0E0E0;
+  --color-brown-border: #E0D8C0;
+  --color-card-item-bg: #FFFFFF;
+}
+
+/* Neon/Dark High Contrast Theme */
+.theme-neon {
+  --color-cream: #050505;
+  /* Deep black background */
+
+  /* Main UI Elements */
+  --color-brown-900: #FFFFFF;
+  /* Main text white */
+  --color-brown-800: #F5F5F5;
+  /* Heading White/Off-white */
+  --color-brown-600: #BDBDBD;
+
+  --shadow-card-color: #000000;
+  /* Pure black shadow */
+  --color-topbar-text: #FFFFFF;
+
+  --color-balance-text: #FFFFFF;
+  --color-balance-label: #E0E0E0;
+  --color-balance-icon: #FFFFFF;
+  --color-balance-icon-bg: rgba(255, 255, 255, 0.1);
+
+  /* Neon Palette */
+  --color-tan: #121212;
+  /* Dark card background */
+  --color-tan-light: #1A1A1A;
+  /* Slightly lighter card bg for TopCard */
+  --color-card-item-bg: #212121;
+  /* Item Card Background */
+
+  --color-brown-light: #616161;
+  /* Dark Grey for subtle text/borders */
+  --color-brown-medium: #9E9E9E;
+  /* Medium light grey for secondary text */
+  --color-brown-lightest: #424242;
+  /* Dark grey for avatars/bgs */
+  --color-brown-darkest: #FFFFFF;
+  /* Critical: TopCard text must be white */
+
+  /* Top Bar specific overrides for Neon Theme */
+  --color-topbar-icon-primary: #FF00FF;
+  /* Neon Magenta */
+  --color-topbar-icon-secondary: #00FFFF;
+  /* Neon Cyan */
+
+  --icon-primary-stroke: #D500F9;
+  --icon-primary-fill: #EA80FC;
+
+  --icon-secondary-stroke: #00E5FF;
+  --icon-secondary-fill: #84FFFF;
+
+  /* Primary Colors - Neon */
+  --color-green: #00E676;
+  /* Neon Green */
+  --color-blue: #2979FF;
+  /* Neon Blue */
+  --color-red: #FF1744;
+  /* Neon Red */
+  --color-blue-dark: #2962FF;
+  --color-purple: #D500F9;
+  --color-yellow: #FFEA00;
+  /* Neon Yellow */
+
+  /* UI Accents */
+  --color-orange-action: #651FFF;
+  /* Deep Purple accent */
+  --color-orange-dark: #00B0FF;
+
+  /* Balance Card: Dark Neon Gradient instead of Yellow */
+  --color-yellow-highlight: #4A148C;
+  /* Deep Purple */
+  --color-yellow-highlight2: #7B1FA2;
+  /* Purple */
+
+  --color-green-success: #00C853;
+
+  /* Buttons and Chips */
+  --color-btn-success-bg: #00C853;
+  --color-btn-success-hover: #00E676;
+  --color-btn-success-border: #009624;
+
+  --color-btn-primary-bg: #2962FF;
+  --color-btn-primary-hover: #2979FF;
+  --color-btn-primary-border: #0D47A1;
+
+  --color-btn-warning-bg: #FF6D00;
+  --color-btn-warning-hover: #FF9100;
+  --color-btn-warning-border: #E65100;
+
+  /* Backgrounds */
+  --color-game-bg: #000000;
+  --color-popup-bg: #212121;
+  --color-stats-bg: #121212;
+
+  /* Borders */
+  --color-brown-border: #424242;
 }
 
 body {

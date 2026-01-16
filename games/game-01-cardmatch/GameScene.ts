@@ -21,6 +21,17 @@ export class MatchingGameScene extends Phaser.Scene {
     private timerEvent!: Phaser.Time.TimerEvent;
     private customTimerBar!: Phaser.GameObjects.Graphics;
     private lastTimerPct: number = 100; // Store for redraw handling
+    private turnsTaken = 0; // Track turns for periodic swaps
+
+    // Grid Metrics for swapping calculations
+    private gridMetrics: {
+        cardW: number;
+        cardH: number;
+        gap: number;
+        startX: number;
+        startY: number;
+        cols: number;
+    } | null = null;
 
     // Asset Mapping
     private emojiToAsset: { [key: string]: string } = {
@@ -79,6 +90,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.consecutiveErrors = 0;
         this.currentErrorRun = 0;
         this.currentStreak = 0;
+        this.turnsTaken = 0;
         this.maxStreak = 0;
         this.repeatedErrors = 0;
         this.seenCards.clear();
@@ -96,13 +108,13 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         // Load Audio
-        this.load.audio('card-flip', '/assets/sounds/card-flip.mp3');
-        this.load.audio('match-success', '/assets/sounds/match-success.mp3');
-        this.load.audio('match-fail', '/assets/sounds/match-fail.mp3');
-        this.load.audio('timer-warning', '/assets/sounds/timer-warning.mp3');
-        this.load.audio('level-pass', '/assets/sounds/level-pass.mp3');
-        this.load.audio('level-fail', '/assets/sounds/level-fail.mp3');
-        this.load.audio('bg-music', '/assets/sounds/bg-music.mp3');
+        this.load.audio('card-flip', '/assets/sounds/cardmatch/card-flip.mp3');
+        this.load.audio('match-success', '/assets/sounds/cardmatch/match-success.mp3');
+        this.load.audio('match-fail', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
+        this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+        this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
+        this.load.audio('bg-music', '/assets/sounds/global/bg-music.mp3');
     }
 
     create() {
@@ -127,6 +139,7 @@ export class MatchingGameScene extends Phaser.Scene {
         // 4. UI Layer
         this.createUI();
         this.customTimerBar = this.add.graphics();
+        this.customTimerBar.setDepth(150); // Ensure it's above cards (depth 100 during swap)
         this.customTimerBar.setVisible(false); // Hide initially
 
         // 5. Start Sequence (Preview)
@@ -172,33 +185,83 @@ export class MatchingGameScene extends Phaser.Scene {
     // --- GAME FLOW ---
 
     createCards() {
-        const { totalPairs } = this.currentLevelConfig;
-        // Prepare Emoji Deck
-        const emojis = ["🐙", "⭐", "🦫", "🐤", "🐘", "🐌", "🐢", "🐳", "🦊", "🐼", "🦁", "🐸"];
-        const selectedEmojis = emojis.slice(0, totalPairs);
-        const deck = [...selectedEmojis, ...selectedEmojis];
-        Phaser.Utils.Array.Shuffle(deck);
+        const { totalPairs, useHardVariations } = this.currentLevelConfig;
 
-        // Emoji Color Map (Pastel/Hay Day vibes)
-        const colorMap: { [key: string]: number } = {
-            "🐙": 0xFFB3BA, // Pastel Red
-            "⭐": 0xFFDFBA, // Pastel Orange
-            "🦫": 0xD2B48C, // Tan
-            "🐤": 0xFFFFBA, // Pastel Yellow
-            "🐘": 0xBaffC9, // Pastel Green (Mint)
-            "🐌": 0xEECBFF, // Lavender
-            "🐢": 0x97C1A9, // Sage
-            "🐳": 0xBAE1FF, // Pastel Blue
-            "🦊": 0xFFCCB6, // Peach
-            "🐼": 0xE0E0E0, // Light Gray
-            "🦁": 0xFDFD96, // Light Yellow
-            "🐸": 0xC1E1C1  // Tea Green
+        // Prepare Emoji Deck
+        // We need a stable list of assets
+        const assets = ["octopus", "beaver", "bird", "elephant", "snail", "turtle", "whale", "fox", "panda", "lion"];
+
+        // Color Map for Backgrounds (Pastel)
+        const assetColors: { [key: string]: number } = {
+            "octopus": 0xFFB3BA, "beaver": 0xD2B48C, "bird": 0xFFFFBA,
+            "elephant": 0xBaffC9, "snail": 0xEECBFF, "turtle": 0x97C1A9, "whale": 0xBAE1FF,
+            "fox": 0xFFCCB6, "panda": 0xE0E0E0, "lion": 0xFDFD96
         };
 
-        deck.forEach((emoji, i) => {
-            const color = colorMap[emoji] || 0xFFFFFF;
-            // Create off-screen initially
-            const card = this.createCard(-1000, -1000, 100, 100, emoji, i, color);
+        this.cards = [];
+        let deck: any[] = [];
+
+        if (useHardVariations) {
+            // HARD MODE: Create "Confusing Pairs"
+            // We need groups of 2 pairs that look similar.
+            // e.g. if totalPairs = 4, we want 2 "Concepts" (e.g. Octopus, Star)
+            // Concept 1 (Octopus): Pair A (Normal), Pair B (Variation)
+
+            const conceptsNeeded = Math.floor(totalPairs / 2);
+            const leftovers = totalPairs % 2;
+
+            // Shuffle assets to pick random concepts
+            Phaser.Utils.Array.Shuffle(assets);
+            const selectedAssets = assets.slice(0, conceptsNeeded + leftovers);
+
+            let assetHighIndex = 0;
+
+            // 1. Generate Confusing Sets
+            for (let i = 0; i < conceptsNeeded; i++) {
+                const asset = selectedAssets[assetHighIndex++];
+                const color = assetColors[asset] || 0xFFFFFF;
+
+                // Pick a variation type for this set
+                // Removed 'gray' as per user feedback
+                const varType = Phaser.Math.RND.pick(['quantity', 'orientation']);
+
+                // Pair 1: Base
+                deck.push({ asset, id: i * 4, color, variation: 'normal', matchId: `${asset}_normal` });
+                deck.push({ asset, id: i * 4 + 1, color, variation: 'normal', matchId: `${asset}_normal` });
+
+                // Pair 2: Modified
+                deck.push({ asset, id: i * 4 + 2, color, variation: varType, matchId: `${asset}_${varType}` });
+                deck.push({ asset, id: i * 4 + 3, color, variation: varType, matchId: `${asset}_${varType}` });
+            }
+
+            // 2. Handle Leftovers (Simple Pairs)
+            if (leftovers > 0) {
+                const asset = selectedAssets[assetHighIndex];
+                const color = assetColors[asset] || 0xFFFFFF;
+                deck.push({ asset, id: 900, color, variation: 'normal', matchId: `${asset}_normal` });
+                deck.push({ asset, id: 901, color, variation: 'normal', matchId: `${asset}_normal` });
+            }
+
+        } else {
+            // BASIC MODE: Distinct Assets
+            Phaser.Utils.Array.Shuffle(assets);
+            const selected = assets.slice(0, totalPairs);
+
+            selected.forEach((asset, i) => {
+                const color = assetColors[asset] || 0xFFFFFF;
+                // Add Pair
+                deck.push({ asset, id: i * 2, color, variation: 'normal', matchId: asset });
+                deck.push({ asset, id: i * 2 + 1, color, variation: 'normal', matchId: asset });
+            });
+        }
+
+        // Shuffle Deck Positions
+        Phaser.Utils.Array.Shuffle(deck);
+
+        // Instantiate
+        deck.forEach((data, i) => {
+            // Create off-screen
+            const card = this.createCard(-1000, -1000, 100, 100, data, i);
             this.cards.push(card);
         });
     }
@@ -213,7 +276,15 @@ export class MatchingGameScene extends Phaser.Scene {
             // In portrait, we usually want fewer columns (e.g. 2 or 3)
             // For small levels (6 cards), 2 cols is good.
             // For larger levels (10 cards), 2 cols is still safely readable on phones.
-            cols = 2;
+            // But for 12+ cards, 2 cols becomes too tall (2x6). Switch to 3 or 4 cols.
+            const totalCards = this.cards.length;
+            if (totalCards >= 16) {
+                cols = 4; // 4x4
+            } else if (totalCards >= 12) {
+                cols = 3; // 3x4
+            } else {
+                cols = 2; // 2x2, 2x3, 2x4, 2x5
+            }
         }
 
         const totalCards = this.cards.length;
@@ -247,6 +318,10 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const startX = (width - gridWidth) / 2 + cardW / 2;
         const startY = (height - gridHeight) / 2 + cardH / 2 + 30; // Small offset
+
+        this.gridMetrics = { cardW, cardH, gap, startX, startY, cols };
+
+        // Position Cards
 
         // Position Cards
         this.cards.forEach((cardObj, i) => {
@@ -307,6 +382,189 @@ export class MatchingGameScene extends Phaser.Scene {
         }
     }
 
+    performCardSwap(count: number, callback: () => void, onlyUnopened: boolean = false) {
+        if (!this.gridMetrics || this.cards.length < 2) {
+            callback();
+            return;
+        }
+
+        // Identify cards to swap
+        let eligibleIndices = this.cards.map((_, i) => i);
+        if (onlyUnopened) {
+            eligibleIndices = eligibleIndices.filter(i => {
+                const c = this.cards[i];
+                return !c.isMatched && !c.face.visible;
+            });
+        }
+
+        if (eligibleIndices.length < 2) {
+            callback();
+            return;
+        }
+
+        // Shuffle eligible indices to pick which ones to swap
+        Phaser.Utils.Array.Shuffle(eligibleIndices);
+
+        // We want to swap 'count' PAIRS, meaning 'count * 2' cards, but simpler:
+        // The input 'count' to this function usually meant "Total Cards to swap" in previous logic?
+        // Let's check call sites: 
+        // In periodic swap: "const count = pairsToSwap * 2;" -> So it receives Total Cards.
+        // In startPreviewPhase: "const count = ...swapAfterPreviewCount" -> Receives Total Cards.
+
+        // Let's determine how many PAIRS we can form
+        const pairsToForm = Math.floor(Math.min(count, eligibleIndices.length) / 2);
+
+        if (pairsToForm < 1) {
+            callback();
+            return;
+        }
+
+        // Create a sequence of swaps
+        const swapPairs: [number, number][] = [];
+        for (let i = 0; i < pairsToForm; i++) {
+            swapPairs.push([eligibleIndices[2 * i], eligibleIndices[2 * i + 1]]);
+        }
+
+        // Recursive function to execute swaps one by one
+        const executeNextSwap = (index: number) => {
+            if (index >= swapPairs.length) {
+                // All swaps done
+                callback();
+                return;
+            }
+
+            const [idx1, idx2] = swapPairs[index];
+            const card1 = this.cards[idx1];
+            const card2 = this.cards[idx2];
+
+            // Swap in array
+            this.cards[idx1] = card2;
+            this.cards[idx2] = card1;
+
+            // Calculate new positions
+            // We need to fetch Layout metrics again or just calculate target for these specific slots
+            // But wait, the 'cards' array index determines the grid slot.
+            // So card1 is now at slot idx2, and card2 is at slot idx1.
+
+            // We can reuse animateGridReorder BUT that reorders everyone.
+            // Efficient way: Just animate these two specific cards to their new slots.
+
+            this.animatePairSwap(card1, card2, idx2, idx1, () => {
+                // Wait a tiny bit then next
+                this.time.delayedCall(200, () => {
+                    executeNextSwap(index + 1);
+                });
+            });
+        };
+
+        executeNextSwap(0);
+    }
+
+    animatePairSwap(card1: any, card2: any, slot1: number, slot2: number, onComplete: () => void) {
+        if (!this.gridMetrics) { onComplete(); return; }
+        const { cardW, cardH, gap, startX, startY, cols } = this.gridMetrics;
+
+        const getPos = (i: number) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            return {
+                x: startX + col * (cardW + gap),
+                y: startY + row * (cardH + gap)
+            };
+        };
+
+        const target1 = getPos(slot1);
+        const target2 = getPos(slot2);
+
+        // Bring to top
+        card1.container.setDepth(100);
+        card2.container.setDepth(100);
+
+        // Safe visual reference for highlighting (Back of card)
+        const back1 = card1.container.list[1] as Phaser.GameObjects.Rectangle;
+        const back2 = card2.container.list[1] as Phaser.GameObjects.Rectangle;
+        const originalColor = 0xE86A33; // Default orange
+
+        // --- PHASE 1: HIGHLIGHT & LIFT ---
+        // Flash Gold
+        if (back1.fillColor === originalColor) back1.setFillStyle(0xFFD700);
+        if (back2.fillColor === originalColor) back2.setFillStyle(0xFFD700);
+
+        this.tweens.add({
+            targets: [card1.container, card2.container],
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 350,
+            ease: 'Back.out',
+            onComplete: () => {
+                // --- PHASE 2: MOVE ---
+                // Play "swish"
+                this.sound.play('card-flip', { volume: 0.6, rate: 1.2 });
+
+                this.tweens.add({
+                    targets: card1.container,
+                    x: target1.x,
+                    y: target1.y,
+                    duration: 700, // Slower for readability
+                    ease: 'Cubic.inOut'
+                });
+
+                this.tweens.add({
+                    targets: card2.container,
+                    x: target2.x,
+                    y: target2.y,
+                    duration: 700,
+                    ease: 'Cubic.inOut',
+                    onComplete: () => {
+                        // --- PHASE 3: DROP ---
+                        // Play "thump"
+                        this.sound.play('card-flip', { volume: 0.4, rate: 0.8 });
+
+                        this.tweens.add({
+                            targets: [card1.container, card2.container],
+                            scaleX: 1.0,
+                            scaleY: 1.0,
+                            duration: 250,
+                            ease: 'Back.in',
+                            onComplete: () => {
+                                // Restore visuals
+                                back1.setFillStyle(originalColor);
+                                back2.setFillStyle(originalColor);
+                                card1.container.setDepth(0);
+                                card2.container.setDepth(0);
+
+                                onComplete();
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Keep animateGridReorder for full shuffles if needed, but it's less used now
+    animateGridReorder(callback: () => void) {
+        if (!this.gridMetrics) { callback(); return; }
+        const { cardW, cardH, gap, startX, startY, cols } = this.gridMetrics;
+
+        this.cards.forEach((cardObj, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const targetX = startX + col * (cardW + gap);
+            const targetY = startY + row * (cardH + gap);
+
+            this.tweens.add({
+                targets: cardObj.container,
+                x: targetX,
+                y: targetY,
+                duration: 600,
+                ease: 'Cubic.out'
+            });
+        });
+
+        this.time.delayedCall(650, callback);
+    }
+
     startPreviewPhase() {
         this.messageText.setText("จำตำแหน่งให้ดีนะ...");
         this.messageText.setVisible(true);
@@ -358,9 +616,21 @@ export class MatchingGameScene extends Phaser.Scene {
         });
 
         this.time.delayedCall(this.cards.length * 50 + 500, () => {
-            this.isLocked = false;
-            this.startTime = Date.now();
-            this.startTimer();
+            // Check for Post-Preview Swap Logic
+            const swapCount = this.currentLevelConfig.swapAfterPreviewCount || 0;
+
+            if (swapCount > 0) {
+                // Perform "Nice" Shuffle 1-by-1
+                this.performCardSwap(swapCount, () => {
+                    this.isLocked = false;
+                    this.startTime = Date.now();
+                    this.startTimer();
+                });
+            } else {
+                this.isLocked = false;
+                this.startTime = Date.now();
+                this.startTimer();
+            }
         });
     }
 
@@ -582,7 +852,28 @@ export class MatchingGameScene extends Phaser.Scene {
         this.isLocked = true;
         const [c1, c2] = this.openedCards;
 
-        const match = c1.emoji === c2.emoji;
+        // Strict match on matchId (handles Hard Variations)
+        const match = c1.matchId === c2.matchId;
+
+        // Callback to run after feedback animations
+        const finalizeTurn = () => {
+            this.openedCards = [];
+
+            // Check Periodic Swap
+            const interval = this.currentLevelConfig.periodicSwapInterval || 0;
+            if (interval > 0 && this.attempts > 0 && this.attempts % interval === 0) {
+                // Trigger swap
+                const pairsToSwap = this.currentLevelConfig.periodicSwapPairs || 1;
+                const count = pairsToSwap * 2;
+
+                this.performCardSwap(count, () => {
+                    this.isLocked = false;
+                }, true); // true = only unopened cards
+                return;
+            }
+
+            this.isLocked = false;
+        };
 
         if (match) {
             // MATCH
@@ -603,8 +894,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 this.time.delayedCall(1000, () => this.endGame());
             } else {
                 this.time.delayedCall(500, () => {
-                    this.openedCards = [];
-                    this.isLocked = false;
+                    finalizeTurn();
                 });
             }
 
@@ -622,13 +912,10 @@ export class MatchingGameScene extends Phaser.Scene {
             this.playShakeEffect(c1);
             this.playShakeEffect(c2);
 
-            this.playShakeEffect(c2);
-
             this.time.delayedCall(800, () => {
                 this.flipCard(c1, false, false);
                 this.flipCard(c2, false, false);
-                this.openedCards = [];
-                this.isLocked = false;
+                finalizeTurn();
             });
         }
 
@@ -676,8 +963,14 @@ export class MatchingGameScene extends Phaser.Scene {
 
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
 
-        if (!parExceeded && this.wrongFlips <= 1) return 3;
-        if (!parExceeded || this.wrongFlips <= 3) return 2;
+        // Dynamic mistake allowance based on level - Generous for older audience
+        let allowedMistakes = 2;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 7;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 5;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 3;
+
+        if (!parExceeded && this.wrongFlips <= allowedMistakes) return 3;
+        if (!parExceeded || this.wrongFlips <= allowedMistakes + 2) return 2;
         return 1;
     }
 
@@ -687,16 +980,24 @@ export class MatchingGameScene extends Phaser.Scene {
         }
 
         const parExceeded = duration > this.currentLevelConfig.parTimeSeconds * 1000;
-        const tooManyMistakes = this.wrongFlips > 1;
+
+        // Same dynamic logic matches calculateStars
+        // Dynamic mistake allowance based on level - Generous for older audience
+        let allowedMistakes = 2;
+        if (this.currentLevelConfig.level >= 19) allowedMistakes = 7;
+        else if (this.currentLevelConfig.level >= 13) allowedMistakes = 5;
+        else if (this.currentLevelConfig.level >= 6) allowedMistakes = 3;
+
+        const tooManyMistakes = this.wrongFlips > allowedMistakes;
 
         if (parExceeded && tooManyMistakes) {
-            return `ลองทำเวลาให้ดีกว่านี้\nและผิดไม่เกิน 1 ครั้ง`;
+            return `ลองทำเวลาให้ดีกว่านี้\nและผิดไม่เกิน ${allowedMistakes} ครั้ง`;
         }
         if (parExceeded) {
             return `ลองทำเวลาให้ดีกว่านี้`;
         }
         if (tooManyMistakes) {
-            return "ลองจับคู่ผิดให้ไม่เกิน 1 ครั้ง";
+            return `ลองจับคู่ผิดให้ไม่เกิน ${allowedMistakes} ครั้ง`;
         }
         return null;
     }
@@ -709,7 +1010,9 @@ export class MatchingGameScene extends Phaser.Scene {
 
     // --- VISUALS & HELPERS ---
 
-    createCard(x: number, y: number, w: number, h: number, emoji: string, id: number, color: number) {
+    createCard(x: number, y: number, w: number, h: number, data: any, index: number) {
+        const { asset, emoji, color, variation, variationValue, matchId, id } = data;
+
         const container = this.add.container(x, y);
 
         // Shadow
@@ -725,59 +1028,74 @@ export class MatchingGameScene extends Phaser.Scene {
         face.visible = false;
         face.scaleX = 0;
 
-        // Icon - Responsive Image
-        const assetName = this.emojiToAsset[emoji];
-        let icon: any;
+        // Icon Container (For managing multiple icons/variations)
+        const iconContainer = this.add.container(0, 0);
 
-        // Safety check: if image loaded, use it. Else text.
-        if (this.textures.exists(assetName)) {
-            icon = this.add.image(0, 0, assetName).setOrigin(0.5);
+        // Helper to Create One Icon
+        const createIcon = (ox: number, oy: number, scaleMult: number = 1.0) => {
+            // Asset Name from data usually, but fallback to emojiToAsset if using old path
+            const textureKey = asset || this.emojiToAsset[emoji];
+            let img: any;
 
-            // 1. Get REAL dimensions from Texture Manager (safer than GameObject)
-            const texture = this.textures.get(assetName);
-            const frame = texture.get();
-            const realW = frame.width || 0;
-            const realH = frame.height || 0;
+            if (this.textures.exists(textureKey)) {
+                img = this.add.image(ox, oy, textureKey).setOrigin(0.5);
+                const texture = this.textures.get(textureKey);
+                const frame = texture.get();
+                const realW = frame.width || 100;
+                const realH = frame.height || 100;
 
-            const maxW = w * 0.75; // 75% of card width
-            const maxH = h * 0.75; // 75% of card height
+                const maxW = w * 0.90 * scaleMult; // Increased to 90%
+                const maxH = h * 0.90 * scaleMult;
 
-            if (realW > 0 && realH > 0) {
-                // Valid texture found
-                const scaleX = maxW / realW;
-                const scaleY = maxH / realH;
-                const scale = Math.min(scaleX, scaleY);
-                icon.setScale(scale);
+                const scale = Math.min(maxW / realW, maxH / realH);
+                img.setScale(scale);
             } else {
-                // Fallback: Texture valid key but 0 dimensions? Force visual size.
-                // This prevents the "Giant Image" bug if dimensions are missing.
-                icon.setDisplaySize(maxW, maxH);
+                // Text fallback
+                const fs = Math.floor(Math.min(w, h) * 0.5 * scaleMult);
+                img = this.add.text(ox, oy, emoji || "?", { fontSize: `${fs}px` }).setOrigin(0.5);
             }
+            return img;
+        };
+
+        // --- APPLY VARIATIONS ---
+        if (variation === 'quantity') {
+            // Render 2 smaller icons
+            const i1 = createIcon(-w * 0.2, -h * 0.2, 0.6);
+            const i2 = createIcon(w * 0.2, h * 0.2, 0.6);
+            iconContainer.add([i1, i2]);
         } else {
-            // Fallback to text if missing
-            const fontSize = Math.floor(Math.min(w, h) * 0.5);
-            icon = this.add.text(0, 0, emoji, { fontSize: `${fontSize}px` }).setOrigin(0.5);
+            // Normal, Orientation, Gray
+            const icon = createIcon(0, 0, 1.0);
+
+            if (variation === 'orientation') {
+                if (icon.setFlipX) icon.setFlipX(true);
+            }
+            // Gray variation removed
+
+            iconContainer.add(icon);
         }
 
         // HITZONE: Transparent Interactive Layer
         const hitZone = this.add.rectangle(0, 0, w, h, 0x000000, 0).setOrigin(0.5);
         hitZone.setInteractive({ useHandCursor: true });
 
-        container.add([shadow, back, face, icon, hitZone]);
-        container.setSize(w, h); // Size for layout calc, not interaction
+        container.add([shadow, back, face, iconContainer, hitZone]);
+        container.setSize(w, h);
 
-        const cardObj = { container, back, face, icon, hitZone, emoji, id, isFlipped: true, isMatched: false, baseScale: icon.scale };
+        // Store Logic Data
+        const cardObj = {
+            container, back, face, icon: iconContainer, hitZone,
+            id, matchId, emoji, // matchId is key now
+            isFlipped: true, isMatched: false, baseScale: iconContainer.scaleX
+        };
 
         // Initial state is Face UP (for preview)
         back.visible = false;
         face.visible = true;
         face.scaleX = 1;
-        icon.visible = true;
+        iconContainer.visible = true;
 
-        // Initial scale must be set correctly
-        icon.scaleX = cardObj.baseScale;
-
-        // Listen on HitZone, not Container
+        // Listen on HitZone
         hitZone.on('pointerdown', () => this.handleCardClick(cardObj));
 
         return cardObj;
@@ -877,7 +1195,7 @@ export class MatchingGameScene extends Phaser.Scene {
             stroke: '#FFFFFF',
             strokeThickness: 6,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(100).setPadding(10, 14, 10, 18);
+        }).setOrigin(0.5).setDepth(200).setPadding(10, 14, 10, 18);
 
         this.streakText = this.add.text(0, 250, '', {
             fontFamily: 'Sarabun, sans-serif',
@@ -886,7 +1204,7 @@ export class MatchingGameScene extends Phaser.Scene {
             stroke: '#8B4513',
             strokeThickness: 4,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setVisible(false).setPadding(10, 14, 10, 18);
+        }).setOrigin(0.5).setDepth(200).setVisible(false).setPadding(10, 14, 10, 18);
 
         this.layoutUI();
     }

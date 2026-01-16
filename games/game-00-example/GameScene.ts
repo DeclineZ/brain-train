@@ -4,7 +4,7 @@ import type { MemoryLevelConfig } from '@/types';
 
 export class MemoryGameScene extends Phaser.Scene {
   private currentLevelConfig: MemoryLevelConfig = MEMORY_LEVELS[1];
-  
+
   // Game State
   private cards: Phaser.GameObjects.Sprite[] = [];
   private openedCards: Phaser.GameObjects.Sprite[] = [];
@@ -43,7 +43,7 @@ export class MemoryGameScene extends Phaser.Scene {
     for (let i = 0; i < totalPairs; i++) indices.push(i, i);
     Phaser.Utils.Array.Shuffle(indices);
 
-    const cardWidth = 64; 
+    const cardWidth = 64;
     const gap = 10;
     const totalWidth = (gridCols * cardWidth) + ((gridCols - 1) * gap);
     const startX = (this.scale.width - totalWidth) / 2 + 32;
@@ -65,7 +65,7 @@ export class MemoryGameScene extends Phaser.Scene {
 
   handleCardClick(card: Phaser.GameObjects.Sprite) {
     if (this.isLocked || card.getData('isFlipped')) return;
-    
+
     card.setTexture('card-faces', card.getData('id'));
     card.setData('isFlipped', true);
     this.openedCards.push(card);
@@ -90,7 +90,7 @@ export class MemoryGameScene extends Phaser.Scene {
       this.currentStreak++;
       this.consecutiveErrors = Math.max(this.consecutiveErrors, this.currentStreak);
       if (this.seenCards.has(card1.getData('index')) || this.seenCards.has(card2.getData('index'))) this.repeatedErrors++;
-      
+
       card1.setTexture('card-back'); card1.setData('isFlipped', false);
       card2.setTexture('card-back'); card2.setData('isFlipped', false);
     }
@@ -117,3 +117,5 @@ export class MemoryGameScene extends Phaser.Scene {
     }
   }
 }
+
+//update

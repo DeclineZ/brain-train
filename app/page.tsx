@@ -9,7 +9,7 @@ import ModernDashboard from "@/components/ModernDashboard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import QuestNotificationManager from "@/components/QuestNotificationManager";
-import { Trophy } from "lucide-react";
+import { Trophy, Grid3X3 } from "lucide-react";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -19,19 +19,28 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const games = await getGames();
-  const missions = await getDailyMissions(user.id);
+  const [games, missions] = await Promise.all([
+    getGames(user.id),
+    getDailyMissions(user.id),
+  ]);
 
-  // Filter games that have GIFs for the main page (featured games)
-  const featuredGames = games.filter(game => game.featured);
+  // Filter games that are part of today's missions
+  const dailyQuestGames = games.filter(game => missions.some(m => m.game_id === game.gameId));
 
-  // Fetch total stars for featured games
-  const featuredGameIds = featuredGames.map(game => game.gameId);
-  const featuredGameStars = await getMultipleGameTotalStars(featuredGameIds);
+  // Sort dailyQuestGames according to the mission slot_index
+  dailyQuestGames.sort((a, b) => {
+    const missionA = missions.find(m => m.game_id === a.gameId);
+    const missionB = missions.find(m => m.game_id === b.gameId);
+    return (missionA?.slot_index || 0) - (missionB?.slot_index || 0);
+  });
+
+  // Fetch total stars for daily quest games
+  const dailyQuestGameIds = dailyQuestGames.map(game => game.gameId);
+  const dailyQuestGameStars = await getMultipleGameTotalStars(dailyQuestGameIds);
 
   const completedCount = missions.filter(m => m.completed).length;
   const currentMission = missions.find(m => !m.completed);
-  const isAllComplete = completedCount === 2;
+  const isAllComplete = completedCount === 3;
 
   return (
     <div className="bg-cream overflow-hidden">
@@ -42,7 +51,7 @@ export default async function Home() {
 
         <ModernDashboard
           title={isAllComplete ? "ภารกิจวันนี้สำเร็จ!" : currentMission ? `ภารกิจ: ${currentMission.label}` : "ภารกิจวันนี้"}
-          totalGames={2}
+          totalGames={3}
           completedGames={completedCount}
           action={
             isAllComplete ? (
@@ -52,8 +61,8 @@ export default async function Home() {
                   className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                  <Trophy className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
-                  <span className="drop-shadow-sm relative z-10">เล่นเกมอื่นๆ</span>
+                  <Grid3X3 className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
+                  <span className="drop-shadow-sm relative z-10">ไปที่คลังเกม</span>
                 </Link>
               </div>
             ) : (
@@ -68,7 +77,7 @@ export default async function Home() {
         >
           {/* Game Cards Grid */}
           <div className="grid gap-6 grid-cols-1">
-            {featuredGames.map((game, index) => {
+            {dailyQuestGames.map((game, index) => {
               const mission = missions.find(m => m.game_id === game.gameId);
               const isCompleted = mission ? mission.completed : false;
 
@@ -82,7 +91,7 @@ export default async function Home() {
                   gameId={game.gameId}
                   currentLevel={game.currentLevel}
                   haveLevel={game.have_level}
-                  totalStars={game.have_level ? featuredGameStars[game.gameId] : undefined}
+                  totalStars={game.have_level ? dailyQuestGameStars[game.gameId] : undefined}
                   isCompleted={isCompleted}
                 />
               );

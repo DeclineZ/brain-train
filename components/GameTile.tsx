@@ -20,7 +20,8 @@ const categoryTranslations: Record<string, string> = {
   matching: "การจับคู่",
   pattern_recognition: "การจดจำรูปแบบ",
   logic: "ตรรกะ",
-  calculation: "การคำนวณ"
+  calculation: "การคำนวณ",
+  attention: "การใช้สมาธิ"
 };
 
 const getCategoryInThai = (category: string): string => {

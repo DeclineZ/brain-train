@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Theme = "default" | "pastel";
+type Theme = "default" | "pastel" | "neon";
 
 interface ThemeContextType {
     theme: Theme;
@@ -25,7 +25,7 @@ export function ThemeProvider({
     useEffect(() => {
         // Apply theme class to body
         const body = document.body;
-        body.classList.remove("theme-default", "theme-pastel");
+        body.classList.remove("theme-default", "theme-pastel", "theme-neon");
 
         if (theme !== "default") {
             body.classList.add(`theme-${theme}`);

@@ -95,16 +95,20 @@ export async function getGameStarsAuto(gameId: string): Promise<Record<string, n
 }
 
 // Get total stars for a specific game (sum of all levels)
-export async function getGameTotalStars(gameId: string): Promise<number> {
-    const user = await getCurrentUser();
-    if (!user) return 0;
-    
+export async function getGameTotalStars(gameId: string, userId?: string): Promise<number> {
+    let currentUserId = userId;
+    if (!currentUserId) {
+        const user = await getCurrentUser();
+        if (!user) return 0;
+        currentUserId = user.id;
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('user_game_stars')
         .select('star')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .eq('game_id', gameId);
 
     if (error) {
@@ -119,16 +123,20 @@ export async function getGameTotalStars(gameId: string): Promise<number> {
 }
 
 // Get total stars for multiple games at once
-export async function getMultipleGameTotalStars(gameIds: string[]): Promise<Record<string, number>> {
-    const user = await getCurrentUser();
-    if (!user) return {};
-    
+export async function getMultipleGameTotalStars(gameIds: string[], userId?: string): Promise<Record<string, number>> {
+    let currentUserId = userId;
+    if (!currentUserId) {
+        const user = await getCurrentUser();
+        if (!user) return {};
+        currentUserId = user.id;
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
         .from('user_game_stars')
         .select('game_id, star')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .in('game_id', gameIds);
 
     if (error) {
@@ -157,9 +165,9 @@ export async function upsertLevelStars(
     newStars: number
 ) {
     const supabase = await createClient();
-
-    // 1. Fetch existing row to determine logic
-    const { data: existing } = await supabase
+    
+    // First, fetch existing stars to compare
+    const { data: existingData, error: fetchError } = await supabase
         .from('user_game_stars')
         .select('star')
         .eq('user_id', userId)
@@ -167,16 +175,28 @@ export async function upsertLevelStars(
         .eq('level', level)
         .single();
 
-    const oldStars = existing ? existing.star : 0;
-
-    // 2. Only update if new score is higher
-    if (newStars <= oldStars) {
-        console.log(`[upsertLevelStars] No update needed. Old: ${oldStars}, New: ${newStars}`);
-        return { success: true, updated: false, stars: oldStars };
+    if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "not found" error, which is okay for new levels
+        console.error('[upsertLevelStars] Error fetching existing stars:', fetchError);
+        return { success: false, error: fetchError };
     }
 
-    // 3. Upsert (Insert or Update)
-    const { error } = await supabase
+    const existingStars = existingData?.star ?? 0;
+
+    // Only update if new stars are greater than or equal to existing stars
+    if (newStars < existingStars) {
+        console.log(`[upsertLevelStars] Skipping update - newStars (${newStars}) < existingStars (${existingStars})`);
+        return { 
+            success: true, 
+            updated: false, 
+            stars: existingStars, 
+            skipped: true,
+            reason: 'New stars are less than existing stars'
+        };
+    }
+
+    // Perform upsert
+    const { error: upsertError } = await supabase
         .from('user_game_stars')
         .upsert({
             user_id: userId,
@@ -187,9 +207,9 @@ export async function upsertLevelStars(
             onConflict: 'user_id, game_id, level'
         });
 
-    if (error) {
-        console.error('[upsertLevelStars] Upsert failed:', error);
-        return { success: false, error };
+    if (upsertError) {
+        console.error('[upsertLevelStars] Upsert failed:', upsertError);
+        return { success: false, error: upsertError };
     }
 
     return { success: true, updated: true, stars: newStars };

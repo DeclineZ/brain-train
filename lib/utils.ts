@@ -5,16 +5,17 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-// Avatar lookup similar to onboarding
 export const getAvatarSrc = (url: string | null) => {
-    if (!url) return "/avatars/avatar1.webp";
-    if (url === "avatar-1") return "/avatars/avatar-1.webp";
-    if (url === "avatar-2") return "/avatars/avatar-2.webp";
-    if (url === "avatar-3") return "/avatars/avatar-3.webp";
+    if (!url) return "/avatars/avatar-1.webp"; // Default to fox
 
-    // Check if it's a valid URL or path
+    // Check if it's already a full path or URL
     if (url.startsWith("http") || url.startsWith("/")) return url;
 
-    // Fallback for unknown strings to prevent crashes
-    return "/avatars/avatar-1.webp";
+    // Handle legacy keys explicitly if needed, but the dynamic fallback should cover them too 
+    // if the files are named consistent with the keys.
+    // However, keeping legacy mapping for safety if file names match keys exactly:
+    // avatar-1 -> /avatars/avatar-1.webp
+
+    // Dynamic mapping for all keys (e.g. avatar-knight-1 -> /avatars/avatar-knight-1.webp)
+    return `/avatars/${url}.webp`;
 };

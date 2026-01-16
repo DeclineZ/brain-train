@@ -9,22 +9,37 @@ export interface GameLevel {
   completed: boolean;
 }
 
-export async function getGames(): Promise<Game[]> {
+export async function getGames(userId?: string): Promise<Game[]> {
   try {
     const supabase = await createClient();
 
-    // Get current user (don't fail if no user, just return empty levels)
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    let currentUserId = userId;
+    let user = null;
 
-    if (userError) {
-      console.log("No authenticated user found, using default levels");
+    if (!currentUserId) {
+      // Get current user (don't fail if no user, just return empty levels)
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.log("No authenticated user found, using default levels");
+      } else if (authUser) {
+        currentUserId = authUser.id;
+        user = authUser;
+      }
+    } else {
+      // We have the ID, but for the logic below strictly we just need the ID for the query.
+      // However, the logic below checks "if (user)".
+      // Let's just set a dummy user object if we need compatibility with existing logic, or just key off ID.
+      // The logic uses: .eq('user_id', user.id);
+      // So we just need currentUserId.
     }
+
 
     // Fetch games
     const { data: games, error: gamesError } = await supabase
       .from("games")
       .select("id,game_id, title, category,have_level, image, duration_min")
       .order("id", { ascending: true });
+
 
     if (gamesError) {
       console.error("Games fetch error:", gamesError);
@@ -33,11 +48,11 @@ export async function getGames(): Promise<Game[]> {
 
     // Fetch user levels for all games in one efficient query using raw SQL
     let levelsByGame: Record<string, number> = {};
-    if (user) {
+    if (currentUserId) {
       const { data: levels, error: levelsError } = await supabase
         .from('game_sessions')
         .select('game_id, current_played')
-        .eq('user_id', user.id);
+        .eq('user_id', currentUserId);
       if (!levelsError && levels) {
         // Group by game_id and get max level for each game
         levelsByGame = levels.reduce((acc: Record<string, number>, session: any) => {
@@ -72,29 +87,41 @@ export async function getGames(): Promise<Game[]> {
   }
 }
 
-export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
+export async function getGameLevels(gameId: string, userId?: string): Promise<GameLevel[]> {
   try {
     const supabase = await createClient();
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    let currentUserId = userId;
+    let user = null;
 
-    if (userError || !user) {
-      console.log("No authenticated user found, returning default levels");
-      // Return default levels without user progress
-      return Array.from({ length: 12 }, (_, i) => ({
-        level: i + 1,
-        unlocked: i === 0, // Only first level unlocked
-        stars: 0,
-        completed: false
-      }));
+    // Determine total levels based on gameId
+    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+
+    if (!currentUserId) {
+      // Get current user
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !authUser) {
+        console.log("No authenticated user found, returning default levels");
+        // Return default levels without user progress
+        return Array.from({ length: totalLevels }, (_, i) => ({
+          level: i + 1,
+          unlocked: i === 0, // Only first level unlocked
+          stars: 0,
+          completed: false
+        }));
+      }
+      currentUserId = authUser.id;
+      user = authUser;
+    } else {
+      // We assume valid userId passed, so we construct a minimal user object if needed or just use ID
+      // The logic below uses user.id for stars fetch, so currentUserId is enough.
     }
 
     // Fetch user's current level for this game
     const { data: session, error: sessionError } = await supabase
       .from('game_sessions')
       .select('current_played')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .eq('game_id', gameId)
       .order('current_played', { ascending: false })
       .limit(1)
@@ -106,10 +133,13 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
     }
 
     // Fetch user's stars for this game
-    const userStars = await getGameStars(user.id, gameId);
+    const userStars = await getGameStars(currentUserId, gameId);
+
+    // Get the correct number of levels for this game
+    const levelCount = getDefaultLevelCount(gameId);
 
     // Generate levels with real star data
-    const levels: GameLevel[] = Array.from({ length: 12 }, (_, i) => {
+    const levels: GameLevel[] = Array.from({ length: totalLevels }, (_, i) => {
       const levelNum = i + 1;
       const isUnlocked = levelNum <= userCurrentLevel + 1; // Current level + next level
       const isCompleted = levelNum <= userCurrentLevel;
@@ -129,7 +159,8 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
   } catch (error) {
     console.error("Game levels API error:", error);
     // Return default levels as fallback
-    return Array.from({ length: 12 }, (_, i) => ({
+    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+    return Array.from({ length: totalLevels }, (_, i) => ({
       level: i + 1,
       unlocked: i === 0, // Only first level unlocked
       stars: 0,
@@ -138,18 +169,35 @@ export async function getGameLevels(gameId: string): Promise<GameLevel[]> {
   }
 }
 
-export async function hasUserPlayed(gameId: string): Promise<boolean> {
+// Helper function to get default level count based on game
+function getDefaultLevelCount(gameId: string): number {
+  switch (gameId) {
+    case 'game-03-billiards-math':
+      return 60; // Billiards has 60 levels
+    case 'game-04-floating-ball-math':
+      return 50; // Floating Pool Balls has 50 levels
+    default:
+      return 12; // Default for other games
+  }
+}
+
+export async function hasUserPlayed(gameId: string, userId?: string): Promise<boolean> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) return false;
+    let currentUserId = userId;
+
+    if (!currentUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      currentUserId = user.id;
+    }
 
     // Check game sessions
     const { count: sessionCount } = await supabase
       .from('game_sessions')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .eq('game_id', gameId);
 
     if (sessionCount && sessionCount > 0) return true;
@@ -158,7 +206,7 @@ export async function hasUserPlayed(gameId: string): Promise<boolean> {
     const { count: starCount } = await supabase
       .from('user_game_stars')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .eq('game_id', gameId);
 
     return (starCount || 0) > 0;

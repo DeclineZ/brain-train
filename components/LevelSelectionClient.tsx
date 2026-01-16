@@ -53,10 +53,10 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
     if (level.unlocked) {
       // If clicking level 1 and hasn't played before, go to tutorial (level 0)
       if (level.level === 1 && hasPlayedBefore === false) {
-        router.push(`/play/${gameId}?level=0`);
+        router.push(`/play/${gameId}?level=0&from=levels`);
         return;
       }
-      router.push(`/play/${gameId}?level=${level.level}`);
+      router.push(`/play/${gameId}?level=${level.level}&from=levels`);
     }
   };
 
@@ -111,20 +111,21 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
       <main className="flex-1 flex items-start justify-center px-4 py-4">
         <div className="relative w-full max-w-4xl">
           {/* Navigation Arrows */}
+          {/* Navigation Arrows */}
           <button
             onClick={handlePreviousPage}
             disabled={currentPage === 0}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full p-4 shadow-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 transition-all "
+            className="absolute left-0 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-20 bg-white rounded-full p-4 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 transition-all text-amber-600 hover:text-amber-700"
           >
-            <ChevronLeft className="w-7 h-7 text-amber-600" />
+            <ChevronLeft className="w-8 h-8" />
           </button>
 
           <button
             onClick={handleNextPage}
             disabled={currentPage >= totalPages - 1}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full p-4 shadow-2xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 transition-all "
+            className="absolute right-0 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-20 bg-white rounded-full p-4 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 transition-all text-amber-600 hover:text-amber-700"
           >
-            <ChevronRight className="w-7 h-7 text-amber-600" />
+            <ChevronRight className="w-8 h-8" />
           </button>
 
 
@@ -191,7 +192,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
       {/* Tutorial Button */}
       <div className="fixed bottom-25 right-4 z-50 flex flex-col items-center gap-1 group">
         <Link
-          href={`/play/${gameId}?level=0&tutorial_mode=review`}
+          href={`/play/${gameId}?level=0&tutorial_mode=review&from=levels`}
           className="bg-white hover:bg-gray-50 text-brown-primary border-4 border-brown-primary rounded-full w-14 h-14 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
         >
           <span className="text-2xl font-bold">?</span>

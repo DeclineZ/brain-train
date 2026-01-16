@@ -1,5 +1,6 @@
-import { getGameLevels, hasUserPlayed } from '@/lib/api';
-import { getGames } from '@/lib/api';
+import { hasUserPlayed, getGames } from '@/lib/api';
+import { getGameLevelsFromSource } from '@/lib/levelLoader';
+import { createClient } from '@/utils/supabase/server';
 import LevelSelectionClient from '@/components/LevelSelectionClient';
 import { notFound } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
@@ -46,7 +47,7 @@ function NoLevelsUI({ game }: { game: any }) {
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            <Link href={`/play/${game?.gameId}`}>
+            <Link href={`/play/${game?.gameId}?from=levels`}>
               <button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-3">
                 <Play className="w-6 h-6" />
                 <span>เริ่มเล่นเลย</span>
@@ -89,17 +90,19 @@ function NoLevelsUI({ game }: { game: any }) {
 
 export default async function LevelSelectionPage({ params }: PageProps) {
   const { gameId } = await params;
+  const supabase = await createClient();
 
   try {
-    // Load game levels (server-side)
-    const levels = await getGameLevels(gameId);
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Load game info (server-side)
-    const games = await getGames();
-    const game = games.find(g => g.gameId === gameId);
+    // Run all fetches in parallel, passing user.id if available
+    const [levels, games, hasPlayed] = await Promise.all([
+      getGameLevelsFromSource(gameId, user?.id),
+      getGames(user?.id),
+      hasUserPlayed(gameId, user?.id)
+    ]);
 
-    // Check if user has played before
-    const hasPlayed = await hasUserPlayed(gameId);
+    const game = games.find((g: any) => g.gameId === gameId);
 
     if (!game) {
       notFound();

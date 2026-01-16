@@ -1,12 +1,15 @@
 import { calculateClinicalStats } from '@/lib/scoring/example';
 import { calculateMatchingStats } from '@/lib/scoring/matching';
 import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
+import { calculateBilliardsStats } from '@/lib/scoring/billiards';
+import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats } from '@/types';
 
 export const useGameSession = () => {
 
   const submitSession = async (gameId: string, rawData: any) => {
+    console.log("[useGameSession] submitSession called", { gameId, rawData });
 
     let clinicalStats: ClinicalStats = {
       stat_memory: null,
@@ -24,6 +27,19 @@ export const useGameSession = () => {
       clinicalStats = { ...calculateMatchingStats(rawData as MatchingGameStats), stat_emotion: rawData.stat_emotion ?? null };
     } else if (gameId === 'game-02-sensorlock') {
       clinicalStats = calculateSensorLockStats(rawData as SensorLockGameStats);
+    } else if (gameId === 'game-03-billiards-math') {
+      clinicalStats = calculateBilliardsStats(rawData as BilliardsGameStats);
+    } else if (gameId === 'game-05-wormtrain') {
+      clinicalStats = {
+        stat_memory: rawData.stat_memory ?? null,
+        stat_speed: rawData.stat_speed ?? null,
+        stat_visual: rawData.stat_visual ?? null,
+        stat_focus: rawData.stat_focus ?? null,
+        stat_planning: rawData.stat_planning ?? null,
+        stat_emotion: rawData.stat_emotion ?? null
+      };
+    } else if (gameId === 'game-04-floating-ball-math') {
+      clinicalStats = calculateFloatingBallMathStats(rawData as FloatingBallMathGameStats);
     }
     // Add 'else if' for other games here later...
 
@@ -32,19 +48,20 @@ export const useGameSession = () => {
     const result = await submitGameSession(gameId, rawData, clinicalStats);
 
     if (!result.ok) {
-      console.error("Error submitting game session:", result.error);
+      console.error("[useGameSession] Error submitting game session:", result.error);
     } else {
-      console.log("Game session submitted successfully.", result);
+      console.log("[useGameSession] Game session submitted successfully.", result);
     }
 
     return {
       ...clinicalStats,
       statChanges: result.ok ? result.statChanges : null,
       dailyPlayedCount: result.ok ? (result as any).dailyPlayedCount : undefined,
-      allMissionsCompleted: result.ok ? (result as any).allMissionsCompleted : undefined
+      allMissionsCompleted: result.ok ? (result as any).allMissionsCompleted : undefined,
+      earnedCoins: result.ok ? (result as any).earnedCoins : undefined,
+      checkinResult: result.ok ? (result as any).checkinResult : undefined
     };
   };
 
   return { submitSession };
 };
-
