@@ -179,39 +179,56 @@ export async function submitGameSession(
             return { ok: false, error: "Failed to save game session" };
         }
 
-        // 6. Update Star Progression
+        // 6. Update Star Progression & Calculate Coins
         let starInfo = null;
+        let previousStars: number = 0;
 
         // Skip stars for Tutorial (Level 0)
-        if (levelPlayed > 0 && rawData.stars !== undefined) {
+        if (levelPlayed > 0) {
+            // A. Fetch Previous Stars logic (Moved UP)
             try {
-                const starsEarned = Number(rawData.stars);
-                if (!isNaN(starsEarned)) {
-                    starInfo = await upsertLevelStars(
-                        user.id,
-                        gameId,
-                        levelPlayed,
-                        starsEarned
-                    );
-                } else {
-                    console.warn(
-                        `[submitGameSession] Stars is NaN: ${rawData.stars}`
+                const { data } = await supabase
+                    .from("user_game_stars")
+                    .select("star")
+                    .eq("user_id", user.id)
+                    .eq("game_id", gameId)
+                    .eq("level", levelPlayed) // consistency: use levelPlayed
+                    .single();
+
+                previousStars = data?.star ?? 0;
+            } catch (err) {
+                console.error("Error checking previous stars:", err);
+                // Continue with previousStars = 0
+            }
+
+            // B. Upsert new Stars
+            if (rawData.stars !== undefined) {
+                try {
+                    const starsEarned = Number(rawData.stars);
+                    if (!isNaN(starsEarned)) {
+                        starInfo = await upsertLevelStars(
+                            user.id,
+                            gameId,
+                            levelPlayed,
+                            starsEarned
+                        );
+                    } else {
+                        console.warn(
+                            `[submitGameSession] Stars is NaN: ${rawData.stars}`
+                        );
+                    }
+                } catch (starErr) {
+                    console.error(
+                        "[submitGameSession] Error updating stars:",
+                        starErr
                     );
                 }
-            } catch (starErr) {
-                console.error(
-                    "[submitGameSession] Error updating stars:",
-                    starErr
+            } else {
+                // Warning if stars missing for non-tutorial
+                console.warn(
+                    `[submitGameSession] rawData.stars is undefined for level ${levelPlayed}`
                 );
             }
-        } else if (levelPlayed > 0) {
-            console.warn(
-                `[submitGameSession] rawData.stars is undefined for level ${levelPlayed}`
-            );
-            console.warn(
-                `[submitGameSession] rawData keys:`,
-                Object.keys(rawData)
-            );
         } else {
             console.log(
                 `[submitGameSession] Skipping star update for tutorial level ${levelPlayed}`
@@ -230,23 +247,8 @@ export async function submitGameSession(
             const validLevel = Math.max(1, levelPlayed || 1);
             const starsEarned = Math.max(0, Math.min(3, Number(rawData.stars) || 0));
             const score = Math.max(0, Number(rawData.score) || 0);
-            let previousStars: number = 0;
 
-            // Try to get previous stars for replay penalty calculation
-            try {
-                const { data } = await supabase
-                    .from("user_game_stars")
-                    .select("star")
-                    .eq("user_id", user.id)
-                    .eq("game_id", gameId)
-                    .eq("level", validLevel)
-                    .single();
-
-                previousStars = data?.star;
-            } catch (err) {
-                console.error("Error checking previous stars:", err);
-                // Continue with previousStars = null (treat as first-time play)
-            }
+            // Previous stars already fetched above in block 6.
 
             // Always use shared coin calculation function
             rewardAmount = calculateCoinReward({
