@@ -36,6 +36,7 @@ export class SensorLockGameScene extends Phaser.Scene {
     private isNegated: boolean = false;
     private NOT_THRESHOLD = 15000; // Enable after 15k points
     private NOT_CHANCE = 0.25; // 25% chance when enabled
+    private hasShownNotExplanation: boolean = false; // Track if we've explained NOT
     private notBadge!: Phaser.GameObjects.Container | null;
 
     // --- NEW MECHANIC: Drifting ---
@@ -46,6 +47,8 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     // --- NEW MECHANIC: Button Swap ---
     private buttonsSwapped: boolean = false;
+    private swapCount: number = 0; // Track swaps for intro warnings
+    private isSwapWarningActive: boolean = false; // Pause timer during swap warning
     private SWAP_COMBO_TRIGGER = 5;
 
     // Current Round Data
@@ -179,7 +182,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             }
         }
 
-        if (!this.isPlaying || this.isInputLocked || this.isTutorialMode) {
+        if (!this.isPlaying || this.isInputLocked || this.isTutorialMode || this.isSwapWarningActive) {
             return;
         }
 
@@ -487,6 +490,130 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.notBadge.setVisible(false);
     }
 
+    // Show one-time explanation for NOT operator
+    showNotExplanation(onComplete: () => void) {
+        const { width, height } = this.scale;
+
+        // Pause timer
+        this.isSwapWarningActive = true; // Reuse same pause flag
+        const pauseStartTime = Date.now();
+
+        // Pause input
+        if (this.yesBg) this.yesBg.disableInteractive();
+        if (this.noBg) this.noBg.disableInteractive();
+        if (this.yesFace) this.yesFace.y = 0;
+        if (this.noFace) this.noFace.y = 0;
+
+        // Semi-transparent overlay
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
+            .setDepth(400);
+
+        // Explanation box - wider and taller to fit Thai text
+        const explainBg = this.add.rectangle(width / 2, height / 2, width * 0.95, 260, 0xFFFFFF, 0.98)
+            .setDepth(401)
+            .setStrokeStyle(4, 0xD63031);
+
+        // Create a visual representation of the NOT badge
+        const badgeDemo = this.add.container(width / 2, height / 2 - 80).setDepth(402);
+
+        // Badge glow
+        const badgeGlow = this.add.graphics();
+        badgeGlow.fillStyle(0xFF0000, 0.25);
+        badgeGlow.fillRoundedRect(-78, -30, 156, 60, 30);
+        badgeDemo.add(badgeGlow);
+
+        // Badge background
+        const badgeBg = this.add.graphics();
+        badgeBg.fillStyle(0xD63031, 1);
+        badgeBg.lineStyle(4, 0xFFFFFF, 1);
+        badgeBg.fillRoundedRect(-70, -22, 140, 44, 22);
+        badgeBg.strokeRoundedRect(-70, -22, 140, 44, 22);
+        badgeDemo.add(badgeBg);
+
+        // Badge text
+        const badgeDemoText = this.add.text(0, 0, '❌ ไม่ใช่!', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '26px',
+            fontStyle: 'bold',
+            color: '#FFFFFF'
+        }).setOrigin(0.5);
+        badgeDemo.add(badgeDemoText);
+
+        // Explanation title
+        const titleText = this.add.text(width / 2, height / 2 - 20, 'เมื่อเห็นป้ายนี้ ให้ตอบ "ตรงข้าม"!', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '24px',
+            fontStyle: 'bold',
+            color: '#2d3436'
+        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+
+        // Explanation details - two lines for clarity
+        const explainText = this.add.text(width / 2, height / 2 + 30, 'ถ้าตรง → กดไม่ตรง\nถ้าไม่ตรง → กดตรง', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '22px',
+            color: '#636e72',
+            align: 'center'
+        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+
+        // Tap to continue
+        const tapText = this.add.text(width / 2, height / 2 + 100, '👆 แตะเพื่อเริ่มเล่น', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '20px',
+            color: '#888888',
+            fontStyle: 'italic'
+        }).setOrigin(0.5).setDepth(402);
+
+        // Entrance animation
+        explainBg.setScale(0);
+        titleText.setScale(0);
+        explainText.setAlpha(0);
+        tapText.setAlpha(0);
+
+        this.tweens.add({
+            targets: [explainBg, titleText],
+            scale: 1,
+            duration: 300,
+            ease: 'Back.out'
+        });
+        this.tweens.add({
+            targets: [explainText, tapText],
+            alpha: 1,
+            delay: 200,
+            duration: 300
+        });
+
+        // Tap to dismiss
+        overlay.setInteractive();
+        overlay.on('pointerdown', () => {
+            this.hasShownNotExplanation = true;
+
+            this.tweens.add({
+                targets: [overlay, explainBg, badgeDemo, titleText, explainText, tapText],
+                alpha: 0,
+                duration: 200,
+                onComplete: () => {
+                    overlay.destroy();
+                    explainBg.destroy();
+                    badgeDemo.destroy();
+                    titleText.destroy();
+                    explainText.destroy();
+                    tapText.destroy();
+
+                    // Resume timer
+                    const pauseDuration = Date.now() - pauseStartTime;
+                    this.cardStartTime += pauseDuration;
+                    this.isSwapWarningActive = false;
+
+                    // Re-enable input
+                    if (this.yesBg) this.yesBg.setInteractive({ useHandCursor: true });
+                    if (this.noBg) this.noBg.setInteractive({ useHandCursor: true });
+
+                    onComplete();
+                }
+            });
+        });
+    }
+
     createControls() {
         const { width, height } = this.scale;
 
@@ -593,6 +720,87 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     // Button Swap Animation (triggers on 5-combo)
     swapButtons() {
+        this.swapCount++;
+        const { width, height } = this.scale;
+
+        // For first 5 swaps, show warning popup first
+        if (this.swapCount <= 5) {
+            this.showSwapWarning(() => {
+                this.performSwapAnimation();
+            });
+        } else {
+            this.performSwapAnimation();
+        }
+    }
+
+    // Show warning popup before swap
+    showSwapWarning(onComplete: () => void) {
+        const { width, height } = this.scale;
+
+        // Pause timer by setting flag and storing current time
+        this.isSwapWarningActive = true;
+        const pauseStartTime = Date.now();
+
+        // Pause input during warning and reset button faces to unpressed state
+        if (this.yesFace) this.yesFace.y = 0;
+        if (this.noFace) this.noFace.y = 0;
+        if (this.yesBg) this.yesBg.disableInteractive();
+        if (this.noBg) this.noBg.disableInteractive();
+
+        // Semi-transparent overlay
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5)
+            .setDepth(400);
+
+        // Warning box
+        const warningBg = this.add.rectangle(width / 2, height - 100, width * 0.9, 80, 0xFFFFFF, 0.95)
+            .setDepth(401)
+            .setStrokeStyle(3, 0xFF6B6B);
+
+        // Warning text
+        const warningText = this.add.text(width / 2, height - 100, '⚠️ ปุ่มจะสลับตำแหน่ง!', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color: '#D63031'
+        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+
+        // Entrance animation
+        warningBg.setScale(0);
+        warningText.setScale(0);
+        this.tweens.add({
+            targets: [warningBg, warningText],
+            scale: 1,
+            duration: 200,
+            ease: 'Back.out'
+        });
+
+        // Auto-dismiss after 1.5s and perform swap
+        this.time.delayedCall(1500, () => {
+            this.tweens.add({
+                targets: [overlay, warningBg, warningText],
+                alpha: 0,
+                duration: 200,
+                onComplete: () => {
+                    overlay.destroy();
+                    warningBg.destroy();
+                    warningText.destroy();
+
+                    // Resume timer - compensate for pause duration
+                    const pauseDuration = Date.now() - pauseStartTime;
+                    this.cardStartTime += pauseDuration;
+                    this.isSwapWarningActive = false;
+
+                    // Re-enable input
+                    if (this.yesBg) this.yesBg.setInteractive({ useHandCursor: true });
+                    if (this.noBg) this.noBg.setInteractive({ useHandCursor: true });
+                    onComplete();
+                }
+            });
+        });
+    }
+
+    // Actual swap animation (slower: 800ms)
+    performSwapAnimation() {
         this.buttonsSwapped = !this.buttonsSwapped;
         const { width } = this.scale;
 
@@ -600,20 +808,20 @@ export class SensorLockGameScene extends Phaser.Scene {
         const leftPos = width * 0.25;
         const rightPos = width * 0.75;
 
-        // Play swap sound (use existing beep with detune)
+        // Play swap sound
         this.soundBeep.play({ detune: -400 });
 
-        // Animate both containers
+        // Slower animation (800ms instead of 400ms)
         this.tweens.add({
             targets: this.noContainer,
             x: this.buttonsSwapped ? rightPos : leftPos,
-            duration: 400,
+            duration: 800,
             ease: 'Back.inOut'
         });
         this.tweens.add({
             targets: this.yesContainer,
             x: this.buttonsSwapped ? leftPos : rightPos,
-            duration: 400,
+            duration: 800,
             ease: 'Back.inOut'
         });
     }
@@ -870,7 +1078,14 @@ export class SensorLockGameScene extends Phaser.Scene {
         // NOT Operator (after 15k points)
         this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
         if (this.isNegated) {
-            this.showNotBadge();
+            // Show explanation first time NOT appears
+            if (!this.hasShownNotExplanation) {
+                this.showNotExplanation(() => {
+                    this.showNotBadge();
+                });
+            } else {
+                this.showNotBadge();
+            }
         } else {
             this.hideNotBadge();
         }
@@ -923,7 +1138,13 @@ export class SensorLockGameScene extends Phaser.Scene {
         // NOT Operator (after 15k points)
         this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
         if (this.isNegated) {
-            this.showNotBadge();
+            if (!this.hasShownNotExplanation) {
+                this.showNotExplanation(() => {
+                    this.showNotBadge();
+                });
+            } else {
+                this.showNotBadge();
+            }
         } else {
             this.hideNotBadge();
         }
@@ -1005,7 +1226,13 @@ export class SensorLockGameScene extends Phaser.Scene {
         // NOT Operator (after 15k points)
         this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
         if (this.isNegated) {
-            this.showNotBadge();
+            if (!this.hasShownNotExplanation) {
+                this.showNotExplanation(() => {
+                    this.showNotBadge();
+                });
+            } else {
+                this.showNotBadge();
+            }
         } else {
             this.hideNotBadge();
         }
