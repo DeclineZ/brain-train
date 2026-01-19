@@ -68,6 +68,14 @@ export class MatchingGameScene extends Phaser.Scene {
     private messageText!: any; // Phaser.GameObjects.Text
     private streakText!: any; // Phaser.GameObjects.Text
 
+    // Level Hints - shown at key transition levels to explain new mechanics
+    private readonly levelHints: { [key: number]: string } = {
+        5: "⚠️ ตั้งใจดูภาพให้ดี!\nบางการ์ดอาจหันซ้าย/ขวา หรือมีจำนวนต่างกัน",
+        12: "⚠️ ไพ่จะสลับตำแหน่ง!\nหลังจากดูไพ่ ไพ่บางใบจะสลับที่กัน จงจำให้ดี",
+        14: "⚠️ ระหว่างเล่นไพ่จะสลับ!\nไพ่จะสลับที่ระหว่างที่คุณเล่นด้วย",
+        20: "⚠️ ด่านท้าทาย!\nรวมทุกความยาก: ภาพซ้าย/ขวา + สลับตำแหน่ง"
+    };
+
     constructor() { super({ key: 'MatchingGameScene' }); }
 
     init(data: { level: number }) {
@@ -114,7 +122,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
         this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
         this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
-        this.load.audio('bg-music', '/assets/sounds/global/bg-music.mp3');
+        this.load.audio('bg-music', '/assets/sounds/cardmatch/bg-music.mp3');
     }
 
     create() {
@@ -142,8 +150,13 @@ export class MatchingGameScene extends Phaser.Scene {
         this.customTimerBar.setDepth(150); // Ensure it's above cards (depth 100 during swap)
         this.customTimerBar.setVisible(false); // Hide initially
 
-        // 5. Start Sequence (Preview)
-        this.startPreviewPhase();
+        // 5. Start Sequence (Check for Level Hint first, then Preview)
+        const hintMessage = this.levelHints[this.currentLevelConfig.level];
+        if (hintMessage) {
+            this.showLevelHint(hintMessage);
+        } else {
+            this.startPreviewPhase();
+        }
 
         // 6. Handle Resize
         this.scale.on('resize', () => {
@@ -343,7 +356,24 @@ export class MatchingGameScene extends Phaser.Scene {
             face.setSize(cardW, cardH);
             const icon = cardObj.container.list[3];
 
-            if (icon instanceof Phaser.GameObjects.Image) {
+            // iconContainer is a Container, handle nested images
+            if (icon instanceof Phaser.GameObjects.Container) {
+                icon.list.forEach((child: any) => {
+                    if (child instanceof Phaser.GameObjects.Image) {
+                        const realW = child.frame.width;
+                        const realH = child.frame.height;
+                        const maxIconW = cardW * 0.75;
+                        const maxIconH = cardH * 0.75;
+                        if (realW > 0 && realH > 0) {
+                            const scale = Math.min(maxIconW / realW, maxIconH / realH);
+                            child.setScale(scale);
+                        }
+                    } else if (child instanceof Phaser.GameObjects.Text) {
+                        const fontSize = Math.floor(Math.min(cardW, cardH) * 0.5);
+                        child.setFontSize(fontSize);
+                    }
+                });
+            } else if (icon instanceof Phaser.GameObjects.Image) {
                 const realW = icon.frame.width;
                 const realH = icon.frame.height;
                 const maxIconW = cardW * 0.75;
@@ -1044,8 +1074,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 const realW = frame.width || 100;
                 const realH = frame.height || 100;
 
-                const maxW = w * 0.90 * scaleMult; // Increased to 90%
-                const maxH = h * 0.90 * scaleMult;
+                const maxW = w * 0.75 * scaleMult; // Reduced to 75% to prevent overflow
+                const maxH = h * 0.75 * scaleMult;
 
                 const scale = Math.min(maxW / realW, maxH / realH);
                 img.setScale(scale);
@@ -1059,9 +1089,9 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // --- APPLY VARIATIONS ---
         if (variation === 'quantity') {
-            // Render 2 smaller icons
-            const i1 = createIcon(-w * 0.2, -h * 0.2, 0.6);
-            const i2 = createIcon(w * 0.2, h * 0.2, 0.6);
+            // Render 2 smaller icons - reduced size and tighter positioning for small displays
+            const i1 = createIcon(-w * 0.15, -h * 0.15, 0.45);
+            const i2 = createIcon(w * 0.15, h * 0.15, 0.45);
             iconContainer.add([i1, i2]);
         } else {
             // Normal, Orientation, Gray
@@ -1207,6 +1237,82 @@ export class MatchingGameScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(200).setVisible(false).setPadding(10, 14, 10, 18);
 
         this.layoutUI();
+    }
+
+    showLevelHint(message: string) {
+        const { width, height } = this.scale;
+
+        // Semi-transparent overlay
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7)
+            .setDepth(300)
+            .setInteractive();
+
+        // Hint container
+        const hintBg = this.add.rectangle(width / 2, height / 2, width * 0.85, 200, 0xFFFFFF, 0.95)
+            .setDepth(301)
+            .setStrokeStyle(4, 0xE86A33);
+
+        // Hint text
+        const hintText = this.add.text(width / 2, height / 2 - 20, message, {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '28px',
+            color: '#2B2115',
+            align: 'center',
+            wordWrap: { width: width * 0.75 }
+        }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
+
+        // Tap to continue text
+        const tapText = this.add.text(width / 2, height / 2 + 70, '👆 แตะเพื่อเริ่มเล่น', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '22px',
+            color: '#888888',
+            fontStyle: 'italic'
+        }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
+
+        // Pulsing animation on tap text
+        this.tweens.add({
+            targets: tapText,
+            alpha: 0.5,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Entrance animation
+        hintBg.setScale(0);
+        hintText.setScale(0);
+        tapText.setAlpha(0);
+
+        this.tweens.add({
+            targets: [hintBg, hintText],
+            scale: 1,
+            duration: 300,
+            ease: 'Back.out'
+        });
+
+        this.tweens.add({
+            targets: tapText,
+            alpha: 1,
+            delay: 300,
+            duration: 300
+        });
+
+        // Tap to dismiss
+        overlay.on('pointerdown', () => {
+            // Exit animation - simple fade
+            this.tweens.add({
+                targets: [overlay, hintBg, hintText, tapText],
+                alpha: 0,
+                duration: 250,
+                onComplete: () => {
+                    overlay.destroy();
+                    hintBg.destroy();
+                    hintText.destroy();
+                    tapText.destroy();
+                    this.startPreviewPhase();
+                }
+            });
+        });
     }
 
     layoutUI() {
