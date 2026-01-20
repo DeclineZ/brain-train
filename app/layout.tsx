@@ -42,7 +42,7 @@ export default async function RootLayout({
   const themeCookie = cookieStore.get("theme");
 
   return (
-    <html lang="th">
+    <html lang="th" suppressHydrationWarning>
       <body
         className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >

@@ -337,7 +337,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             color: '#6c5ce7', // Purple/Blue text
             stroke: '#ffffff',
             strokeThickness: 5
-        }).setOrigin(1, 0.5);
+        }).setOrigin(1, 0.5).setDepth(100);
 
         // Streak Indicator (Center Top, initially hidden)
         // Streak Indicator (Center Top, initially hidden)
@@ -346,7 +346,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             color: '#ff7675',
             stroke: '#ffffff',
             strokeThickness: 6
-        }).setOrigin(0.5).setPadding(40).setAlpha(0);
+        }).setOrigin(0.5).setPadding(40).setAlpha(0).setDepth(100);
     }
 
     createStimulusArea() {
@@ -1273,7 +1273,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             color: '#00b894',
             stroke: '#ffffff',
             strokeThickness: 2
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(100);
 
         this.tweens.add({
             targets: popup,
@@ -1340,7 +1340,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             line2 = "(ตัวอักษรจะลอยไปมา)";
         }
 
-        const container = this.add.container(width / 2, height / 2).setAlpha(1);
+        const container = this.add.container(width / 2, height / 2).setAlpha(1).setDepth(200);
 
         const titleText = this.add.text(0, -80, title, {
             fontFamily: '"Mali", sans-serif',
