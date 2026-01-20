@@ -9,5 +9,6 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-01-cardmatch': MatchingGameConfig,
   'game-02-sensorlock': SensorLockGameConfig,
   'game-03-billiards-math': BilliardsGameConfig,
+  'game-05-wormtrain': WormGameConfig,
   'game-04-floating-ball-math': FloatingBallMathConfig
 };
