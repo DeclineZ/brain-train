@@ -70,10 +70,10 @@ export class MatchingGameScene extends Phaser.Scene {
 
     // Level Hints - shown at key transition levels to explain new mechanics
     private readonly levelHints: { [key: number]: string } = {
-        5: "⚠️ ตั้งใจดูภาพให้ดี!\nบางการ์ดอาจหันซ้าย/ขวา หรือมีจำนวนต่างกัน",
-        12: "⚠️ ไพ่จะสลับตำแหน่ง!\nหลังจากดูไพ่ ไพ่บางใบจะสลับที่กัน จงจำให้ดี",
-        14: "⚠️ ระหว่างเล่นไพ่จะสลับ!\nไพ่จะสลับที่ระหว่างที่คุณเล่นด้วย",
-        20: "⚠️ ด่านท้าทาย!\nรวมทุกความยาก: ภาพซ้าย/ขวา + สลับตำแหน่ง"
+        7: "⚠️ ตั้งใจดูภาพให้ดี!\nบางการ์ดอาจหันซ้าย/ขวา หรือมีจำนวนต่างกัน",
+        16: "⚠️ ไพ่จะสลับตำแหน่ง!\nหลังจากดูไพ่ ไพ่บางใบจะสลับที่กัน จงจำให้ดี",
+        27: "⚠️ ระหว่างเล่นไพ่จะสลับ!\nไพ่จะสลับที่ระหว่างที่คุณเล่นด้วย",
+        36: "⚠️ ด่านท้าทาย!\nรวมทุกความยาก: ภาพซ้าย/ขวา + สลับตำแหน่ง"
     };
 
     constructor() { super({ key: 'MatchingGameScene' }); }
@@ -1074,8 +1074,8 @@ export class MatchingGameScene extends Phaser.Scene {
                 const realW = frame.width || 100;
                 const realH = frame.height || 100;
 
-                const maxW = w * 0.75 * scaleMult; // Reduced to 75% to prevent overflow
-                const maxH = h * 0.75 * scaleMult;
+                const maxW = w * 0.90 * scaleMult; // Increased to 90% for larger icons
+                const maxH = h * 0.90 * scaleMult;
 
                 const scale = Math.min(maxW / realW, maxH / realH);
                 img.setScale(scale);
@@ -1247,24 +1247,25 @@ export class MatchingGameScene extends Phaser.Scene {
             .setDepth(300)
             .setInteractive();
 
-        // Hint container
-        const hintBg = this.add.rectangle(width / 2, height / 2, width * 0.85, 200, 0xFFFFFF, 0.95)
+        // Hint container - wider to fit Thai text
+        const hintBg = this.add.rectangle(width / 2, height / 2, width * 0.95, 180, 0xFFFFFF, 0.95)
             .setDepth(301)
             .setStrokeStyle(4, 0xE86A33);
 
-        // Hint text
-        const hintText = this.add.text(width / 2, height / 2 - 20, message, {
+        // Hint text - responsive font size
+        const fontSize = Math.min(24, width * 0.055);
+        const hintText = this.add.text(width / 2, height / 2 - 15, message, {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '28px',
+            fontSize: `${fontSize}px`,
             color: '#2B2115',
             align: 'center',
-            wordWrap: { width: width * 0.75 }
+            wordWrap: { width: width * 0.88 }
         }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
 
         // Tap to continue text
-        const tapText = this.add.text(width / 2, height / 2 + 70, '👆 แตะเพื่อเริ่มเล่น', {
+        const tapText = this.add.text(width / 2, height / 2 + 60, '👆 แตะเพื่อเริ่มเล่น', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '22px',
+            fontSize: '20px',
             color: '#888888',
             fontStyle: 'italic'
         }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
