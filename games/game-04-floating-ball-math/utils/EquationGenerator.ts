@@ -4,6 +4,10 @@ export class EquationGenerator {
   private config: FloatingBallMathLevelConfig;
   private colors: BallColor[] = ['coral', 'mint', 'yellow', 'lavender'];
   private usedCombinations: Set<string> = new Set();
+  
+  // Operation priority: / (division), * (multiplication), - (subtraction), + (addition)
+  private readonly OPERATION_PRIORITY: Operation[] = ['/', '*', '-', '+'];
+  private readonly PRIORITY_CHANCE = 0.9; // 90% chance to use priority order
 
   constructor(config: FloatingBallMathLevelConfig) {
     console.log('[EquationGenerator] Constructor called with config:', config);
@@ -38,12 +42,30 @@ export class EquationGenerator {
     console.log('[EquationGenerator] Bomb balls generated:', bombBalls.length);
 
     // Combine and shuffle
-    const allBalls = [...solutionBalls, ...distractorBalls, ...bombBalls];
+    const allBalls = [...distractorBalls,...solutionBalls,  ...bombBalls];
     this.shuffleArray(allBalls);
 
-    console.log('[EquationGenerator] Total balls generated:', allBalls.length, allBalls);
+    console.log('[EquationGenerator] Total balls generated:', allBalls.length);
     return allBalls;
     
+  }
+
+  /**
+   * Get operations ordered by priority (90%) or random (10%)
+   * Filters to only include operations available at current level
+   */
+  private getPrioritizedOperations(availableOps: Operation[]): Operation[] {
+    const usePriority = Math.random() < this.PRIORITY_CHANCE;
+    
+    if (usePriority) {
+      // 90% chance: use priority order
+      return this.OPERATION_PRIORITY.filter(op => availableOps.includes(op));
+    } else {
+      // 10% chance: random order
+      const shuffled = [...availableOps];
+      this.shuffleArray(shuffled);
+      return shuffled;
+    }
   }
 
   /**
@@ -59,8 +81,11 @@ export class EquationGenerator {
     const balls: FloatingBall[] = [];
     const difference = target - currentScore;
 
+    // Get operations in priority order (90%) or random (10%)
+    const prioritizedOperations = this.getPrioritizedOperations(operations);
+
     // For each operation, find values that help get closer to target
-    operations.forEach(operator => {
+    prioritizedOperations.forEach(operator => {
       let validValues: number[] = [];
 
       switch (operator) {
@@ -124,19 +149,29 @@ export class EquationGenerator {
 
         case '/':
           // Division: find divisors that get closer to target
-          const targetDividedByCurrentDiv = currentScore > 0 && target > 0 ? target / currentScore : 0;
-          const targetDividedByCurrentDivRounded = Math.round(targetDividedByCurrentDiv);
+          // Only include values that result in integer division
+          if (currentScore > 0) {
+            const targetDividedByCurrentDiv = target > 0 ? target / currentScore : 0;
+            const targetDividedByCurrentDivRounded = Math.round(targetDividedByCurrentDiv);
 
-          if (targetDividedByCurrentDivRounded >= 2) {
-            for (let v = min; v <= Math.min(max, Math.ceil(targetDividedByCurrentDiv)); v++) {
-              if (v !== 0 && currentScore % v === 0) {
-                const newScore = Math.round(currentScore / v);
-                const isPositive = newScore >= 0;
-                const notTooLarge = newScore <= target * 2;
-                const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
+            if (targetDividedByCurrentDivRounded >= 2) {
+              for (let v = min; v <= Math.min(max, Math.ceil(targetDividedByCurrentDiv)); v++) {
+                // Ensure v is not zero and division results in integer
+                if (v !== 0 && currentScore % v === 0) {
+                  const newScore = currentScore / v;
+                  
+                  // Verify result is integer (should be due to modulus check above)
+                  if (!Number.isInteger(newScore)) {
+                    continue;
+                  }
+                  
+                  const isPositive = newScore >= 0;
+                  const notTooLarge = newScore <= target * 2;
+                  const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
 
-                if (isPositive && notTooLarge && getsCloser) {
-                  validValues.push(v);
+                  if (isPositive && notTooLarge && getsCloser) {
+                    validValues.push(v);
+                  }
                 }
               }
             }
@@ -332,8 +367,11 @@ export class EquationGenerator {
   ): { operator: '+' | '-' | '*' | '/', value: number } | null {
     const operations = this.config.operations;
     
-    // Try each available operation to find a valid solution
-    for (const op of operations) {
+    // Get operations in priority order (90%) or random (10%)
+    const prioritizedOperations = this.getPrioritizedOperations(operations);
+    
+    // Try each operation in prioritized order to find a valid solution
+    for (const op of prioritizedOperations) {
       let value: number;
       let isValid = false;
       
@@ -341,30 +379,38 @@ export class EquationGenerator {
         case '+':
           // startingCurrent + value = target → value = target - startingCurrent
           value = target - startingCurrent;
-          isValid = value <= max;
+          isValid = value >= 0 && value <= max; // value must be positive
           break;
           
         case '-':
           // startingCurrent - value = target → value = startingCurrent - target
           value = startingCurrent - target;
-          isValid = value <= max;
+          isValid = value > 0 && value <= max; // value must be positive
           break;
           
         case '*':
           // startingCurrent * value = target → value = target / startingCurrent
           if (startingCurrent !== 0) {
             value = target / startingCurrent;
-            isValid = Number.isInteger(value)  && value <= max;
+            isValid = Number.isInteger(value) && value >= 0 && value <= max;
             if (isValid) value = Math.round(value);
           }
           break;
           
         case '/':
           // startingCurrent / value = target → value = startingCurrent / target
-          if (target !== 0) {
+          // Must result in integer division
+          if (target !== 0 && startingCurrent !== 0) {
             value = startingCurrent / target;
-            isValid = Number.isInteger(value)  && value <= max && value !== 0;
-            if (isValid) value = Math.round(value);
+            // Strict validation: must be integer, positive, within range, and not zero
+            isValid = Number.isInteger(value) && value > 0 && value <= max;
+            if (isValid) {
+              value = Math.round(value);
+              // Double-check: startingCurrent must be divisible by value
+              if (startingCurrent % value !== 0) {
+                isValid = false;
+              }
+            }
           }
           break;
         

@@ -89,6 +89,16 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   private timerEvent!: Phaser.Time.TimerEvent;
   private customTimerBar!: Phaser.GameObjects.Graphics;
   private lastTimerPct: number = 100;
+  private timerText!: Phaser.GameObjects.Text; // Numeric countdown display
+  
+  // Warning Toast System
+  private warningToast!: Phaser.GameObjects.Container;
+  private warningToastText!: Phaser.GameObjects.Text;
+  private warningToastBg!: Phaser.GameObjects.Graphics;
+  private lastWarningShown: { 10: boolean; 5: boolean; 3: boolean; 2: boolean; 1: boolean } = 
+    { 10: false, 5: false, 3: false, 2: false, 1: false };
+  private warningDisplayTime: number = 2000; // 2 seconds fade duration
+  private activeWarningTimerEvent: Phaser.Time.TimerEvent | null = null;
   
   // UI Elements
   private targetDisplay!: Phaser.GameObjects.Container;
@@ -127,6 +137,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   private soundLevelFail!: Phaser.Sound.BaseSound;
   private soundBlock!: Phaser.Sound.BaseSound;
   private soundAdapt!: Phaser.Sound.BaseSound;
+  private soundTimerTick!: Phaser.Sound.BaseSound;
 
   constructor() {
     super({ key: "FloatingBallMathGameScene" });
@@ -154,6 +165,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     console.log("[FloatingBallMathGameScene] resetGameState called");
     this.cleanupBalls();
     this.cleanupShadowBalls();
+    
+    // Reset warning state
+    this.lastWarningShown = { 10: false, 5: false, 3: false, 2: false, 1: false };
+    this.hideWarningToast();
     
     // Stop all timers
     if (this.thiefSpawnTimer) {
@@ -258,6 +273,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.load.audio("level-fail", "/assets/sounds/global/level-fail.mp3");
     this.load.audio("block", "/assets/sounds/global/error.mp3");
     this.load.audio("adapt", "/assets/sounds/floatingball-math/adapt.mp3");
+    this.load.audio("timer-tick", "/assets/sounds/floatingball-math/timertick.mp3");
   }
 
   create() {
@@ -330,6 +346,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       this.soundLevelFail = this.sound.add("level-fail", { volume: 0.8 });
       this.soundBlock = this.sound.add("block", { volume: 0.8 });
       this.soundAdapt = this.sound.add("adapt", { volume: 0.8 });
+      this.soundTimerTick = this.sound.add("timer-tick", { volume: 0.6 });
     } catch (e) {
       console.warn("Sound effects failed to initialize", e);
     }
@@ -374,13 +391,16 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         const minX = boatWidth / 2;
         const maxX = width - boatWidth / 2;
         
+        let clampedX = newX;
         if (newX < minX) {
-          floatboat.container.x = minX;
+          clampedX = minX;
         } else if (newX > maxX) {
-          floatboat.container.x = maxX;
-        } else {
-          floatboat.container.x = newX;
+          clampedX = maxX;
         }
+        
+        // Use lerp for smooth drag movement (reduces jitter)
+        const lerpFactor = 0.6; // 60% lerp for responsive but smooth drag
+        floatboat.container.x = Phaser.Math.Linear(floatboat.container.x, clampedX, lerpFactor);
         
         this.dragStartX = pointer.x;
         this.updateCurrentLaneBasedOnXPosition(floatboat.container.x);
@@ -529,11 +549,149 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.customTimerBar = this.add.graphics();
     this.customTimerBar.setVisible(false);
 
+    // Create timer text (numeric countdown)
+    this.createTimerText();
+
+    // Create warning toast system
+    this.createWarningToast();
+
     // Create shadow ball progress tracker
     this.createShadowBallTracker();
     
     // Create block button (hidden initially)
     this.createBlockButton();
+  }
+
+  /**
+   * Create numeric countdown timer text display
+   */
+  private createTimerText() {
+    const { width, height } = this.scale;
+    
+    // Position timer text above target display
+    this.timerText = this.add.text(width * 0.5, height * 0.12, "0:00", {
+      fontFamily: "Arial, sans-serif",
+      fontSize: `${Math.min(36, width * 0.07)}px`,
+      color: "#FF9800", // Orange color for visibility
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    this.timerText.setVisible(false); // Hidden until timer starts
+    this.timerText.setDepth(115); // Above target display (110)
+  }
+
+  /**
+   * Create warning toast UI elements
+   */
+  private createWarningToast() {
+    const { width, height } = this.scale;
+    
+    // Create container for warning toast
+    this.warningToast = this.add.container(width * 0.5, height * 0.28);
+    this.warningToast.setVisible(false);
+    this.warningToast.setDepth(150); // Below thief (900) but above target (110)
+
+    // Background with semi-transparent color
+    this.warningToastBg = this.add.graphics();
+    this.warningToastBg.fillStyle(0xFF6B00, 0.85); // Dark orange semi-transparent
+    this.warningToastBg.fillRoundedRect(-120, -20, 240, 40, 10);
+
+    // Text for warning message
+    this.warningToastText = this.add.text(0, 0, "", {
+      fontFamily: "Sarabun, sans-serif",
+      fontSize: "20px",
+      color: "#FFFFFF",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+
+    this.warningToast.add([this.warningToastBg, this.warningToastText]);
+  }
+
+  /**
+   * Show warning toast with message
+   */
+  private showWarningToast(message: string) {
+    if (!this.warningToast || this.warningToast.visible) return;
+    
+    // Update message
+    this.warningToastText.setText(message);
+    this.warningToast.setVisible(true);
+    
+    // Fade in animation
+    this.warningToast.setAlpha(0);
+    this.tweens.add({
+      targets: this.warningToast,
+      alpha: { from: 0, to: 1 },
+      duration: 300,
+      ease: "Quad.easeOut",
+    });
+    
+    // Auto-fade out after display time
+    if (this.activeWarningTimerEvent) {
+      this.activeWarningTimerEvent.remove();
+    }
+    
+    this.activeWarningTimerEvent = this.time.delayedCall(this.warningDisplayTime, () => {
+      this.hideWarningToast();
+    });
+  }
+
+  /**
+   * Hide warning toast with fade out
+   */
+  private hideWarningToast() {
+    if (!this.warningToast || !this.warningToast.visible) return;
+    
+    // Fade out animation
+    this.tweens.add({
+      targets: this.warningToast,
+      alpha: { from: 1, to: 0 },
+      duration: 400,
+      ease: "Quad.easeInOut",
+      onComplete: () => {
+        this.warningToast.setVisible(false);
+      },
+    });
+  }
+
+  /**
+   * Shake/pulse timer display at urgent moments
+   */
+  private shakeTimerDisplay() {
+    if (!this.timerText) return;
+    
+    // Shake effect on timer text
+    this.tweens.add({
+      targets: this.timerText,
+      x: { from: this.timerText.x, to: this.timerText.x + 5 },
+      duration: 50,
+      yoyo: true,
+      repeat: 3,
+      ease: "Power2.easeInOut",
+    });
+    
+    // Flash color between orange and red
+    const originalColor = 0xFF9800;
+    const urgentColor = 0xFF0000;
+    
+    let toggleColor = false;
+    const flashInterval = 150; // ms between color changes
+    
+    const flashTimes = 4; // Flash 4 times (2 cycles)
+    for (let i = 0; i < flashTimes; i++) {
+      this.time.delayedCall(i * flashInterval, () => {
+        if (this.timerText) {
+          this.timerText.setColor(toggleColor ? "#FF9800" : "#FF0000");
+          toggleColor = !toggleColor;
+        }
+      });
+    }
+    
+    // Reset to original color
+    this.time.delayedCall(flashTimes * flashInterval + 50, () => {
+      if (this.timerText) {
+        this.timerText.setColor("#FF9800");
+      }
+    });
   }
 
   createBlockButton() {
@@ -549,7 +707,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     bg.fillRoundedRect(-60, -25, 120, 50, 10);
     
     // Button text - LARGER font, Thai text
-    const text = this.add.text(0, 0, "ห้ามขโมย", {
+    const text = this.add.text(0, 0, "หยุดโจร", {
       fontFamily: "Sarabun, sans-serif",
       fontSize: "22px",
       color: "#FFFFFF",
@@ -718,6 +876,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const floatboat = this.floatboatController.getFloatboat();
     
     if (floatboat) {
+      // Cancel any existing tweens on the boat to prevent conflicts
+      this.tweens.killTweensOf(floatboat.container);
+      
       this.tweens.add({
         targets: floatboat.container,
         x: targetX,
@@ -790,7 +951,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         );
       }
       
-      // Set ALL properties BEFORE pushing to array (prevents race condition)
+      // FIX: Set ALL properties FIRST, then push to array
+      // This prevents race condition where physics loop runs before properties are set
       ballObj.lane = lane;
       ballObj.originalLane = lane;
       ballObj.originalX = x;
@@ -798,7 +960,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       ballObj.isSolvable = ballTemplate.isSolvable;
       ballObj.isBomb = ballTemplate.isBomb;
       
-      // Only push after all properties are set
+      // Only push AFTER all properties are set
       this.balls.push(ballObj);
       
       // Fade in ball
@@ -881,7 +1043,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       y
     );
     
-    // Explicitly mark all properties BEFORE pushing to array
+    // FIX: Set ALL properties FIRST, then push to array
+    // This prevents race condition where physics loop runs before properties are set
     ballObj.lane = lane;
     ballObj.originalLane = lane;
     ballObj.originalX = x;
@@ -889,6 +1052,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     ballObj.isSolvable = true;
     ballObj.isBomb = false;
     
+    // Only push AFTER all properties are set
     this.balls.push(ballObj);
     
     // Fade in ball
@@ -961,14 +1125,19 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (this.thiefSpawnTimer) this.thiefSpawnTimer.remove();
     if (this.blockTimerEvent) this.blockTimerEvent.remove();
     if (this.armTrackingTimer) this.armTrackingTimer.remove();
+    if (this.activeWarningTimerEvent) this.activeWarningTimerEvent.remove();
     
     // Hide all UI elements
     if (this.customTimerBar) {
       this.customTimerBar.setVisible(false);
     }
+    if (this.timerText) {
+      this.timerText.setVisible(false);
+    }
     if (this.blockTimerBar) {
       this.blockTimerBar.setVisible(false);
     }
+    this.hideWarningToast();
     
     // Clean up any active thief event
     if (this.activeThiefEvent) {
@@ -1051,7 +1220,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const minimumSafeY = 50; // Minimum Y before considering cleanup (prevents race condition)
 
     this.balls = this.balls.filter(ball => {
-      // FIX 2: Skip cleanup for balls that are still near the top (newly spawned)
+      // Skip cleanup for balls that are still near the top (newly spawned)
       // This prevents race condition where ball properties aren't fully initialized yet
       if (ball.y < minimumSafeY) {
         return true; // Keep the ball - it's too new to cleanup
@@ -1059,13 +1228,15 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       
       // Remove ball if it's off-screen and not collected
       if (ball && ball.container && ball.y > bottomThreshold) {
-        // FEATURE 1: Spawn replacement solvable ball if this was a solvable ball going off-screen
-
+        // Spawn replacement solvable ball if this was a solvable ball going off-screen
+        // FIX: Delay spawn to next frame to prevent race condition with cleanup logic
         ball.container.removeAllListeners();
         ball.container.destroy();
         if (ball.isSolvable) {
           console.log("[FloatingBallMathGameScene] Solvable ball went off-screen, spawning replacement");
-          this.spawnReplacementSolvableBall();
+          this.time.delayedCall(16, () => {  // 16ms = 1 frame at 60fps
+            this.spawnReplacementSolvableBall();
+          });
         }
         
         return false; // Remove from array
@@ -1657,7 +1828,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (this.activeThiefEvent && this.armSprite.visible && !this.isPaused) {
       const trackedBall = this.balls.find(b => b.id === this.activeThiefEvent!.ballId);
       if (trackedBall && !trackedBall.isCollected && trackedBall.container) {
-        const armOffset = 120; // Arm stays 120px above ball
+        const armOffset = 50; // Arm stays 120px above ball
         
         // Arm and button follow ball's position, staying above it
         const armY = trackedBall.y - armOffset;
@@ -1939,6 +2110,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     this.customTimerBar.setVisible(true);
     this.drawTimerBar(100);
+    
+    // Show timer text
+    if (this.timerText) {
+      this.timerText.setVisible(true);
+    }
 
     this.timerEvent = this.time.addEvent({
       delay: 100,
@@ -1951,13 +2127,93 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         const pct = Math.max(0, (remainingMs / limitMs) * 100);
         this.lastTimerPct = pct;
 
+        // Update timer text display
+        this.updateTimerText(remainingMs);
+
+        // Check warning thresholds
+        this.checkTimerThresholds(Math.ceil(remainingMs / 1000));
+
         this.game.events.emit("timer-update", {
           remaining: Math.ceil(remainingMs / 1000),
           total: this.currentLevelConfig.timeLimitSeconds,
         });
+
+        // End game with loss when timer reaches 0
+        if (remainingMs <= 0 && !this.continuedAfterTimeout) {
+          console.log("[FloatingBallMathGameScene] Timer reached 0, ending game with loss");
+          this.endGameWithLoss();
+        }
       },
       loop: true,
     });
+  }
+
+  /**
+   * Update numeric timer text display
+   */
+  private updateTimerText(remainingMs: number) {
+    if (!this.timerText) return;
+
+    const remainingSecs = Math.ceil(remainingMs / 1000);
+    
+    // Format as mm:ss if over 60 seconds, otherwise just ss
+    let timeString: string;
+    if (remainingSecs >= 60) {
+      const minutes = Math.floor(remainingSecs / 60);
+      const seconds = remainingSecs % 60;
+      timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      timeString = remainingSecs.toString();
+    }
+
+    this.timerText.setText(timeString);
+
+    // Change color to red when under 10 seconds
+    if (remainingSecs <= 10) {
+      this.timerText.setColor("#FF0000");
+    } else if (remainingSecs <= 20) {
+      this.timerText.setColor("#FF9800"); // Orange
+    } else {
+      this.timerText.setColor("#FF9800"); // Default orange
+    }
+  }
+
+  /**
+   * Check timer thresholds and trigger warnings
+   */
+  private checkTimerThresholds(remainingSecs: number) {
+    // 10 seconds warning - show toast once and start tick sound
+    if (remainingSecs === 10 && !this.lastWarningShown[10]) {
+      this.showWarningToast("คุณเหลือเวลาอีก 10 วิ");
+      this.lastWarningShown[10] = true;
+      
+      // Play timer tick sound once at 10 seconds
+      if (this.soundTimerTick) {
+        this.soundTimerTick.play();
+      }
+    }
+
+    // Play tick sound continuously from 10 to 0 seconds
+    if (remainingSecs <= 10 && remainingSecs > 0) {
+      // Play tick sound every second (10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+      if (this.soundTimerTick && !this.soundTimerTick.isPlaying) {
+        this.soundTimerTick.play();
+      }
+    }
+
+    // 5 seconds warning - show toast once
+    if (remainingSecs === 5 && !this.lastWarningShown[5]) {
+      this.showWarningToast("เหลือเวลา 5 วิ");
+      this.lastWarningShown[5] = true;
+    }
+
+    // 3, 2, 1 seconds - shake/pulse timer
+    if (remainingSecs <= 3 && remainingSecs >= 1) {
+      if (!this.lastWarningShown[remainingSecs as 3 | 2 | 1]) {
+        this.shakeTimerDisplay();
+        this.lastWarningShown[remainingSecs as 3 | 2 | 1] = true;
+      }
+    }
   }
 
   drawTimerBar(pct: number) {
@@ -1998,14 +2254,19 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (this.thiefSpawnTimer) this.thiefSpawnTimer.remove();
     if (this.blockTimerEvent) this.blockTimerEvent.remove();
     if (this.armTrackingTimer) this.armTrackingTimer.remove();
+    if (this.activeWarningTimerEvent) this.activeWarningTimerEvent.remove();
     
     // Hide all UI elements
     if (this.customTimerBar) {
       this.customTimerBar.setVisible(false);
     }
+    if (this.timerText) {
+      this.timerText.setVisible(false);
+    }
     if (this.blockTimerBar) {
       this.blockTimerBar.setVisible(false);
     }
+    this.hideWarningToast();
     
     // Clean up any active thief event
     if (this.activeThiefEvent) {
@@ -2174,6 +2435,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       if (this.customTimerBar) {
         this.customTimerBar.setVisible(false);
       }
+      
+      if (this.timerText) {
+        this.timerText.setVisible(false);
+      }
 
       if (this.timerEvent) {
         this.timerEvent.remove();
@@ -2225,6 +2490,14 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     if (this.currentDisplay) {
       this.currentDisplay.setPosition(width * 0.15, height * 0.12);
+    }
+
+    if (this.timerText) {
+      this.timerText.setPosition(width * 0.5, height * 0.12);
+    }
+
+    if (this.warningToast) {
+      this.warningToast.setPosition(width * 0.5, height * 0.28);
     }
 
     if (this.shadowBallContainer) {

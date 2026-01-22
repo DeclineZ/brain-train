@@ -17,13 +17,14 @@ export class LevelGenerator {
     /**
      * Calculate time limit based on number of equations
      * Formula: baseSecondsPerEquation * totalEquations + bufferSeconds
+     * Multiplied by 1.4x for more generous time limits
      */
     private static calculateTimeLimit(
         totalEquations: number,
         baseSecondsPerEquation: number = 20,
         bufferSeconds: number = 10
     ): number {
-        return Math.round(baseSecondsPerEquation * totalEquations + bufferSeconds);
+        return Math.round((baseSecondsPerEquation * totalEquations + bufferSeconds) * 1.4);
     }
 
     /**
