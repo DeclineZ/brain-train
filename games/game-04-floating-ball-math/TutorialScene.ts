@@ -61,6 +61,8 @@ export class TutorialScene extends Phaser.Scene {
   private boatSprite!: Phaser.GameObjects.Image;
   private isDraggingBoat = false;
   private dragStartX = 0;
+  private leftArrow!: Phaser.GameObjects.Graphics;
+  private rightArrow!: Phaser.GameObjects.Graphics;
 
   // HUD (Target/Current)
   private targetBox!: Phaser.GameObjects.Container;
@@ -84,6 +86,7 @@ export class TutorialScene extends Phaser.Scene {
   private steps: TutorialStep[] = [];
   private stepEntered = false;
   private stepCompleteOverride = false;
+  private autoAdvanceScheduled = false; // Flag to prevent multiple auto-advances
 
   // Step-specific flags
   private movedLeft = false;
@@ -173,6 +176,7 @@ export class TutorialScene extends Phaser.Scene {
     if (!this.stepEntered) {
       this.stepEntered = true;
       this.stepCompleteOverride = false;
+      this.autoAdvanceScheduled = false; // Reset auto-advance flag
       step.enter?.();
       this.refreshPanel();
     }
@@ -196,12 +200,20 @@ export class TutorialScene extends Phaser.Scene {
     // Step update
     step.update?.(dt);
 
-    // Next button enable/disable
+    // Next button enable/disable and auto-advance logic
     const complete =
       this.stepCompleteOverride ||
       step.allowNext === true ||
       (step.isComplete ? step.isComplete() : true);
     this.setNextEnabled(complete);
+
+    // AUTO-ADVANCE: If step has isComplete() and it's complete, auto-advance after delay
+    if (!this.autoAdvanceScheduled && step.isComplete && step.isComplete() && !step.allowNext) {
+      this.autoAdvanceScheduled = true;
+      this.time.delayedCall(500, () => {
+        this.goToStep(this.stepIndex + 1);
+      });
+    }
   }
 
   // -----------------------------
@@ -392,6 +404,97 @@ export class TutorialScene extends Phaser.Scene {
     });
   }
 
+  private createMovementArrows() {
+    const { height } = this.scale;
+    const boatY = height * 0.78;
+    const arrowSize = 40;
+    const arrowOffsetX = 120;
+    const arrowOffsetY = -20;
+
+    // Left arrow
+    this.leftArrow = this.add.graphics();
+    this.leftArrow.setDepth(100);
+    this.leftArrow.lineStyle(6, 0x2196F3, 1);
+    this.leftArrow.fillStyle(0x2196F3, 0.9);
+    
+    // Draw left arrow
+    this.leftArrow.beginPath();
+    const leftX = this.getLaneX(1) - arrowOffsetX;
+    this.leftArrow.moveTo(leftX + arrowSize/2, boatY + arrowOffsetY);
+    this.leftArrow.lineTo(leftX - arrowSize/2, boatY + arrowOffsetY);
+    this.leftArrow.lineTo(leftX - arrowSize/2 + 10, boatY + arrowOffsetY - 10);
+    this.leftArrow.lineTo(leftX - arrowSize/2 + 10, boatY + arrowOffsetY + 10);
+    this.leftArrow.lineTo(leftX - arrowSize/2, boatY + arrowOffsetY);
+    this.leftArrow.closePath();
+    this.leftArrow.fill();
+    this.leftArrow.stroke();
+
+    // Right arrow
+    this.rightArrow = this.add.graphics();
+    this.rightArrow.setDepth(100);
+    this.rightArrow.lineStyle(6, 0x2196F3, 1);
+    this.rightArrow.fillStyle(0x2196F3, 0.9);
+    
+    // Draw right arrow
+    this.rightArrow.beginPath();
+    const rightX = this.getLaneX(1) + arrowOffsetX;
+    this.rightArrow.moveTo(rightX - arrowSize/2, boatY + arrowOffsetY);
+    this.rightArrow.lineTo(rightX + arrowSize/2, boatY + arrowOffsetY);
+    this.rightArrow.lineTo(rightX + arrowSize/2 - 10, boatY + arrowOffsetY - 10);
+    this.rightArrow.lineTo(rightX + arrowSize/2 - 10, boatY + arrowOffsetY + 10);
+    this.rightArrow.lineTo(rightX + arrowSize/2, boatY + arrowOffsetY);
+    this.rightArrow.closePath();
+    this.rightArrow.fill();
+    this.rightArrow.stroke();
+
+    // Animate arrows
+    this.animateArrows();
+  }
+
+  private animateArrows() {
+    if (!this.leftArrow || !this.rightArrow) return;
+    
+    // Pulse animation for arrows
+    this.tweens.add({
+      targets: [this.leftArrow, this.rightArrow],
+      alpha: { from: 0.9, to: 0.5 },
+      yoyo: true,
+      repeat: -1,
+      duration: 800,
+      ease: "Sine.easeInOut",
+    });
+
+    // Slight horizontal movement
+    this.tweens.add({
+      targets: this.leftArrow,
+      x: { from: this.leftArrow.x, to: this.leftArrow.x - 10 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1000,
+      ease: "Sine.easeInOut",
+    });
+
+    this.tweens.add({
+      targets: this.rightArrow,
+      x: { from: this.rightArrow.x, to: this.rightArrow.x + 10 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1000,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  private hideMovementArrows() {
+    if (this.leftArrow) {
+      this.leftArrow.destroy();
+      this.leftArrow = null as any;
+    }
+    if (this.rightArrow) {
+      this.rightArrow.destroy();
+      this.rightArrow = null as any;
+    }
+  }
+
   private createThiefUi(width: number, height: number) {
     this.thiefSprite = this.add.image(width - 80, 180, "thief");
     this.thiefSprite.setVisible(false);
@@ -412,7 +515,7 @@ export class TutorialScene extends Phaser.Scene {
     this.armSprite.setScale(1.3);
 
     // BLOCK button
-    this.blockBtn = this.makeButton("ห้ามขโมย", 140, 54, 0xff5252);
+    this.blockBtn = this.makeButton("ห้ามโจร", 140, 54, 0xff5252);
     this.blockBtn.setDepth(2000);
     this.blockBtn.setVisible(false);
     this.blockBtn.on("pointerdown", () => {
@@ -432,38 +535,41 @@ export class TutorialScene extends Phaser.Scene {
     this.panelTitle = this.add
       .text(-width * 0.31, -height * 0.14, "แนะนำการเล่น", {
         fontFamily: "Sarabun, Arial, sans-serif",
-        fontSize: `${Math.min(24, width * 0.04)}px`,
+        fontSize: `${Math.min(32, width * 0.055)}px`, // INCREASED from 24px/0.04 to 32px/0.055
         color: "#111111",
         fontStyle: "bold",
       })
-      .setOrigin(0, 0);
+      .setOrigin(0, 0)
+      .setPadding({ top: 5, bottom: 5, left: 5, right: 5 }); // Add padding for Thai text
 
     this.panelBody = this.add
       .text(-width * 0.31, -height * 0.095, "", {
         fontFamily: "Sarabun, Arial, sans-serif",
-        fontSize: `${Math.min(17, width * 0.3)}px`,
+        fontSize: `${Math.min(22, width * 0.4)}px`, // INCREASED from 17px/0.3 to 22px/0.4
         color: "#222222",
         wordWrap: { width: width * 0.59 },
-        lineSpacing: 5,
+        lineSpacing: 8,
       })
-      .setOrigin(0, 0);
+      .setOrigin(0, 0)
+      .setPadding({ top: 5, bottom: 8, left: 5, right: 5 }); // Add padding for Thai diacritics
 
-    // Buttons
+    // Buttons - only Back and Next (Skip removed)
     this.backBtn = this.makeButton("ย้อนกลับ", 100, 42, 0x90a4ae);
     this.nextBtn = this.makeButton("ถัดไป", 100, 42, 0x1976d2);
-    this.skipBtn = this.makeButton("ข้าม", 100, 42, 0x455a64);
+    // Skip button removed - no longer needed with auto-advance
 
-    this.backBtn.setPosition(-110, height * 0.115);
-    this.nextBtn.setPosition(0, height * 0.115);
-    this.skipBtn.setPosition(110, height * 0.115);
+    // Position buttons: Back on left, Next on right (centered)
+    this.backBtn.setPosition(-60, height * 0.115);
+    this.nextBtn.setPosition(60, height * 0.115);
+    // Skip button position removed
 
     this.nextBtnLabel = this.nextBtn.getByName("label") as Phaser.GameObjects.Text;
 
     this.backBtn.on("pointerdown", () => this.goToStep(this.stepIndex - 1));
     this.nextBtn.on("pointerdown", () => this.goToStep(this.stepIndex + 1));
-    this.skipBtn.on("pointerdown", () => this.finishTutorial());
+    // Skip button handler removed
 
-    this.panel.add([  this.panelTitle, this.panelBody, this.backBtn, this.nextBtn, this.skipBtn]);
+    this.panel.add([this.panelTitle, this.panelBody, this.backBtn, this.nextBtn]); // Skip removed from panel
   }
 
   private makeButton(label: string, w: number, h: number, color: number) {
@@ -478,11 +584,12 @@ export class TutorialScene extends Phaser.Scene {
     const t = this.add
       .text(0, 0, label, {
         fontFamily: "Sarabun, Arial, sans-serif",
-        fontSize: "18px",
+        fontSize: "20px", // INCREASED from 18px to 20px
         color: "#ffffff",
         fontStyle: "bold",
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setPadding({ top: 3, bottom: 3, left: 3, right: 3 }); // Add padding for Thai text
     t.setName("label");
 
     c.add([g, t]);
@@ -530,7 +637,7 @@ export class TutorialScene extends Phaser.Scene {
       {
         title: "แนะนำการเล่น",
         body:
-          "เก็บลูกบอลเพื่อทำคะแนนให้ถึงเป้าหมาย\n\nแต่ละลูกบอลใช้ + − × ÷",
+          "เก็บลูกบอลเพื่อทำคะแนน\nให้ถึงเป้าหมาย\nแต่ละลูกบอลใช้ + − × ÷",
         allowNext: true,
         enter: () => {
           this.resetDemoState();
@@ -542,19 +649,36 @@ export class TutorialScene extends Phaser.Scene {
       {
         title: "เคลื่อนที่เรือ",
         body:
-          "เคลื่อนที่ด้วยการลากเรือแนวนอน\n\nเพื่อดำเนินการต่อ: ให้เรือไปที่เลนซ้ายและเลนขวาอย่างหนึ่งครั้ง",
+          "เคลื่อนที่ด้วยการลากเรือแนวนอน\nให้เรือไปที่เลนซ้ายและขวา\nอย่างละหนึ่งครั้ง",
         enter: () => {
           this.movedLeft = false;
           this.movedRight = false;
           this.clearBalls();
           this.hideThiefUi();
+          this.createMovementArrows();
+        },
+        update: (dt: number) => {
+            // Show arrows based on completed movements
+            if (this.movedLeft) {
+              this.leftArrow.setVisible(false);
+            }else{
+              this.leftArrow.setVisible(true);
+            }
+            if (this.movedRight) {
+              this.rightArrow.setVisible(false);
+            }else{
+              this.rightArrow.setVisible(true); 
+            }
+        },
+        exit: () => {
+          this.hideMovementArrows();
         },
         isComplete: () => this.movedLeft && this.movedRight,
       },
       {
         title: "เก็บลูกบอลดี",
         body:
-          "เก็บลูกบอล +3 เพื่อเพิ่มคะแนน\n\nเพื่อดำเนินการต่อ: เก็บลูกบอล +3",
+          "เก็บลูกบอล +3 เพื่อเพิ่มคะแนน",
         enter: () => {
           this.collectedDemoBall = false;
           this.setEquation(6, 0);
@@ -567,7 +691,7 @@ export class TutorialScene extends Phaser.Scene {
       {
         title: "หลีกเลี่ยงระเบิด",
         body:
-          "ลูกระเบิดอันตราย ถ้าโดนระเบิด ความคืบหน้าจะรีเซ็ต\n\nเพื่อดำเนินการต่อ: เก็บลูกบอล +2 ทั้งสอง และหลีกเลี่ยงระเบิด",
+          "ให้หลบระเบิด ถ้าโดนระเบิดคะแนนจะรีเซ็ต",
         enter: () => {
           this.bombTriggered = false;
           this.collectedGoodBombsStep = false;
@@ -583,7 +707,7 @@ export class TutorialScene extends Phaser.Scene {
       {
         title: "โจรขโมย (ห้ามขโมย)",
         body:
-          "บางครั้งจะมีโจรปรากฏและพยายามรบกวน\n\nกดปุ่ม 'ห้ามขโมย' ภายในเวลาที่กำหนดเพื่อยกเลิกโจร\n\nเพื่อดำเนินการต่อ: กดห้ามขโมยทันเวลา",
+          "กดปุ่ม 'ห้ามโจร' ภายในเวลา\nที่กำหนดเพื่อยกเลิกโจร",
         enter: () => {
           this.setEquation(6, 0);
           this.clearBalls();
@@ -594,7 +718,7 @@ export class TutorialScene extends Phaser.Scene {
       {
         title: "เรียบร้อย",
         body:
-          "สิ้นสุดการแนะนำ\n\nกดถัดไปเพื่อเริ่มเล่นจริง",
+          "สิ้นสุดการแนะนำ\nกดถัดไปเพื่อเริ่มเล่นจริง",
         allowNext: true,
         enter: () => {
           this.clearBalls();
@@ -617,20 +741,26 @@ export class TutorialScene extends Phaser.Scene {
     this.backBtn.disableInteractive();
     if (this.stepIndex !== 0) this.backBtn.setInteractive({ useHandCursor: true });
 
+    // Next button: show only for allowNext steps, hide for interactive steps (auto-advance)
+    const isInteractiveStep = step.isComplete !== undefined && !step.allowNext;
+    if (isInteractiveStep) {
+      this.nextBtn.setVisible(false); // Hide Next button on interactive steps
+    } else {
+      this.nextBtn.setVisible(true); // Show Next button on informational steps
+    }
+
     // Next label for last step
     const isLast = this.stepIndex === this.steps.length - 1;
     this.nextBtnLabel.setText(isLast ? "เริ่มเกม" : "ถัดไป");
-
-    // Skip always available
-    this.skipBtn.setAlpha(1);
   }
 
   private goToStep(index: number) {
-    // Check if we're trying to go past the last step
+    // Check if we're trying to go past last step
     const isLastStep = this.stepIndex === this.steps.length - 1;
     const isMovingForward = index > this.stepIndex;
 
     // If on last step and trying to go forward, finish tutorial
+    // This handles both manual Next button click and auto-advance
     if (isLastStep && isMovingForward) {
       const current = this.steps[this.stepIndex];
       current.exit?.();

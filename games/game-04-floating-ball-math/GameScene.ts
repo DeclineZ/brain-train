@@ -374,13 +374,16 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         const minX = boatWidth / 2;
         const maxX = width - boatWidth / 2;
         
+        let clampedX = newX;
         if (newX < minX) {
-          floatboat.container.x = minX;
+          clampedX = minX;
         } else if (newX > maxX) {
-          floatboat.container.x = maxX;
-        } else {
-          floatboat.container.x = newX;
+          clampedX = maxX;
         }
+        
+        // Use lerp for smooth drag movement (reduces jitter)
+        const lerpFactor = 0.6; // 60% lerp for responsive but smooth drag
+        floatboat.container.x = Phaser.Math.Linear(floatboat.container.x, clampedX, lerpFactor);
         
         this.dragStartX = pointer.x;
         this.updateCurrentLaneBasedOnXPosition(floatboat.container.x);
@@ -549,7 +552,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     bg.fillRoundedRect(-60, -25, 120, 50, 10);
     
     // Button text - LARGER font, Thai text
-    const text = this.add.text(0, 0, "ห้ามขโมย", {
+    const text = this.add.text(0, 0, "หยุดโจร", {
       fontFamily: "Sarabun, sans-serif",
       fontSize: "22px",
       color: "#FFFFFF",
@@ -718,6 +721,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const floatboat = this.floatboatController.getFloatboat();
     
     if (floatboat) {
+      // Cancel any existing tweens on the boat to prevent conflicts
+      this.tweens.killTweensOf(floatboat.container);
+      
       this.tweens.add({
         targets: floatboat.container,
         x: targetX,
@@ -1662,7 +1668,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (this.activeThiefEvent && this.armSprite.visible && !this.isPaused) {
       const trackedBall = this.balls.find(b => b.id === this.activeThiefEvent!.ballId);
       if (trackedBall && !trackedBall.isCollected && trackedBall.container) {
-        const armOffset = 120; // Arm stays 120px above ball
+        const armOffset = 50; // Arm stays 120px above ball
         
         // Arm and button follow ball's position, staying above it
         const armY = trackedBall.y - armOffset;

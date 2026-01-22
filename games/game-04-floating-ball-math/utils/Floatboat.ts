@@ -52,8 +52,14 @@ export class FloatboatController {
     container.on('drag', (pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
       // Only allow horizontal movement
       const newY = yPosition; // Keep at fixed Y position
-      container.setPosition(dragX, newY);
-      this.targetX = dragX;
+      
+      // Use lerp for smooth drag movement to reduce jitter
+      const lerpFactor = 0.6; // 60% lerp for responsive but smooth drag
+      const currentX = container.x;
+      const smoothedX = Phaser.Math.Linear(currentX, dragX, lerpFactor);
+      
+      container.setPosition(smoothedX, newY);
+      this.targetX = smoothedX;
       this.onBoatMoved();
     });
 
