@@ -790,7 +790,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         );
       }
       
-      // Set ALL properties BEFORE pushing to array (prevents race condition)
+      // FIX: Set ALL properties FIRST, then push to array
+      // This prevents race condition where physics loop runs before properties are set
       ballObj.lane = lane;
       ballObj.originalLane = lane;
       ballObj.originalX = x;
@@ -798,7 +799,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       ballObj.isSolvable = ballTemplate.isSolvable;
       ballObj.isBomb = ballTemplate.isBomb;
       
-      // Only push after all properties are set
+      // Only push AFTER all properties are set
       this.balls.push(ballObj);
       
       // Fade in ball
@@ -881,7 +882,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       y
     );
     
-    // Explicitly mark all properties BEFORE pushing to array
+    // FIX: Set ALL properties FIRST, then push to array
+    // This prevents race condition where physics loop runs before properties are set
     ballObj.lane = lane;
     ballObj.originalLane = lane;
     ballObj.originalX = x;
@@ -889,6 +891,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     ballObj.isSolvable = true;
     ballObj.isBomb = false;
     
+    // Only push AFTER all properties are set
     this.balls.push(ballObj);
     
     // Fade in ball
@@ -1051,7 +1054,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const minimumSafeY = 50; // Minimum Y before considering cleanup (prevents race condition)
 
     this.balls = this.balls.filter(ball => {
-      // FIX 2: Skip cleanup for balls that are still near the top (newly spawned)
+      // Skip cleanup for balls that are still near the top (newly spawned)
       // This prevents race condition where ball properties aren't fully initialized yet
       if (ball.y < minimumSafeY) {
         return true; // Keep the ball - it's too new to cleanup
@@ -1059,13 +1062,15 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       
       // Remove ball if it's off-screen and not collected
       if (ball && ball.container && ball.y > bottomThreshold) {
-        // FEATURE 1: Spawn replacement solvable ball if this was a solvable ball going off-screen
-
+        // Spawn replacement solvable ball if this was a solvable ball going off-screen
+        // FIX: Delay spawn to next frame to prevent race condition with cleanup logic
         ball.container.removeAllListeners();
         ball.container.destroy();
         if (ball.isSolvable) {
           console.log("[FloatingBallMathGameScene] Solvable ball went off-screen, spawning replacement");
-          this.spawnReplacementSolvableBall();
+          this.time.delayedCall(16, () => {  // 16ms = 1 frame at 60fps
+            this.spawnReplacementSolvableBall();
+          });
         }
         
         return false; // Remove from array
