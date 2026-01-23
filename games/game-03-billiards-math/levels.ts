@@ -27,7 +27,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 30,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.0,
     totalEquations: 1,
     starRequirements: { threeStars: 20, twoStars: 25 }
@@ -37,17 +37,22 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 30,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.0,
     totalEquations: 1,
-    starRequirements: { threeStars: 20, twoStars: 25 }
+    starRequirements: { threeStars: 20, twoStars: 25 },
+    layoutConfig: {
+      hazardCount: { min: 0, max: 0 },
+      obstacleCount: { min: 1, max: 2 },
+      decoyCount: 3
+    }
   },
   3: {
     level: 3,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 28,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.1,
     totalEquations: 1,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -57,7 +62,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 28,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.1,
     totalEquations: 1,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -67,7 +72,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 26,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.2,
     totalEquations: 1,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -77,7 +82,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 26,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.2,
     totalEquations: 1,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -87,7 +92,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.3,
     totalEquations: 1,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -97,7 +102,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.3,
     totalEquations: 1,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -107,7 +112,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.4,
     totalEquations: 1,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -117,7 +122,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.4,
     totalEquations: 1,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -129,7 +134,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.5,
     totalEquations: 2,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -139,7 +144,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.5,
     totalEquations: 2,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -149,7 +154,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.6,
     totalEquations: 2,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -159,7 +164,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.6,
     totalEquations: 2,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -169,7 +174,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.7,
     totalEquations: 2,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -179,7 +184,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.7,
     totalEquations: 2,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -189,7 +194,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.8,
     totalEquations: 2,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -199,7 +204,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.8,
     totalEquations: 2,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -209,7 +214,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.9,
     totalEquations: 2,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -219,7 +224,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 1.9,
     totalEquations: 2,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -231,7 +236,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.0,
     totalEquations: 3,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -241,7 +246,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 25,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.0,
     totalEquations: 3,
     starRequirements: { threeStars: 18, twoStars: 22 }
@@ -251,7 +256,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.1,
     totalEquations: 3,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -261,7 +266,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 24,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.1,
     totalEquations: 3,
     starRequirements: { threeStars: 17, twoStars: 21 }
@@ -271,7 +276,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.2,
     totalEquations: 3,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -281,7 +286,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.2,
     totalEquations: 3,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -291,7 +296,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.3,
     totalEquations: 3,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -301,7 +306,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.3,
     totalEquations: 3,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -311,7 +316,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.4,
     totalEquations: 3,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -321,7 +326,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.4,
     totalEquations: 3,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -333,7 +338,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.5,
     totalEquations: 3,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -343,7 +348,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.5,
     totalEquations: 3,
     starRequirements: { threeStars: 16, twoStars: 20 }
@@ -353,7 +358,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.6,
     totalEquations: 3,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -363,7 +368,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 21,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.6,
     totalEquations: 3,
     starRequirements: { threeStars: 15, twoStars: 19 }
@@ -373,7 +378,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 20,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.7,
     totalEquations: 4,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -383,7 +388,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 20,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.7,
     totalEquations: 4,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -393,7 +398,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.8,
     totalEquations: 4,
     starRequirements: { threeStars: 13, twoStars: 17 }
@@ -403,7 +408,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.8,
     totalEquations: 4,
     starRequirements: { threeStars: 13, twoStars: 17 }
@@ -413,7 +418,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.9,
     totalEquations: 4,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -423,7 +428,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 2.9,
     totalEquations: 4,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -435,7 +440,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.0,
     totalEquations: 4,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -445,7 +450,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.0,
     totalEquations: 4,
     starRequirements: { threeStars: 14, twoStars: 18 }
@@ -455,7 +460,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.1,
     totalEquations: 4,
     starRequirements: { threeStars: 13, twoStars: 17 }
@@ -465,7 +470,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.1,
     totalEquations: 4,
     starRequirements: { threeStars: 13, twoStars: 17 }
@@ -475,7 +480,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 17,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.2,
     totalEquations: 4,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -485,7 +490,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 17,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.2,
     totalEquations: 4,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -495,7 +500,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 16,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.3,
     totalEquations: 4,
     starRequirements: { threeStars: 11, twoStars: 15 }
@@ -505,7 +510,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 16,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.3,
     totalEquations: 4,
     starRequirements: { threeStars: 11, twoStars: 15 }
@@ -515,7 +520,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 15,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.4,
     totalEquations: 4,
     starRequirements: { threeStars: 10, twoStars: 14 }
@@ -525,7 +530,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 15,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.4,
     totalEquations: 4,
     starRequirements: { threeStars: 10, twoStars: 14 }
@@ -537,7 +542,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 16,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.5,
     totalEquations: 5,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -547,7 +552,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 16,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.5,
     totalEquations: 5,
     starRequirements: { threeStars: 12, twoStars: 16 }
@@ -557,7 +562,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 15,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.6,
     totalEquations: 5,
     starRequirements: { threeStars: 11, twoStars: 15 }
@@ -567,7 +572,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 15,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.6,
     totalEquations: 5,
     starRequirements: { threeStars: 11, twoStars: 15 }
@@ -577,7 +582,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 14,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.7,
     totalEquations: 5,
     starRequirements: { threeStars: 10, twoStars: 14 }
@@ -587,7 +592,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 14,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.7,
     totalEquations: 5,
     starRequirements: { threeStars: 10, twoStars: 14 }
@@ -597,7 +602,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 13,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.8,
     totalEquations: 5,
     starRequirements: { threeStars: 9, twoStars: 13 }
@@ -607,7 +612,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 13,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.8,
     totalEquations: 5,
     starRequirements: { threeStars: 9, twoStars: 13 }
@@ -617,7 +622,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 12,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.9,
     totalEquations: 5,
     starRequirements: { threeStars: 8, twoStars: 12 }
@@ -627,7 +632,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 12,
+    timeLimitSeconds: 90,
     difficultyMultiplier: 3.9,
     totalEquations: 5,
     starRequirements: { threeStars: 8, twoStars: 12 }

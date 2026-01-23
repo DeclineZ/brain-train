@@ -10,6 +10,33 @@ export interface BilliardsLevelConfig {
     threeStars: number;  // Time requirement in seconds
     twoStars: number;   // Time requirement in seconds
   };
+  layoutConfig?: {
+    hazardCount: { min: number; max: number };
+    obstacleCount: { min: number; max: number };
+    decoyCount: number;
+  };
+}
+
+export type ObstacleType = 'wall_h' | 'wall_v' | 'box';
+
+export interface LayoutObstacle {
+  type: ObstacleType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LayoutBall {
+  value: number;
+  x: number;
+  y: number;
+  isHazard?: boolean;
+}
+
+export interface GeneratedLayout {
+  balls: LayoutBall[];
+  obstacles: LayoutObstacle[];
 }
 
 // Enhanced equation types

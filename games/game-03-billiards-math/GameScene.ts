@@ -1,16 +1,52 @@
 import * as Phaser from "phaser";
 import { BILLIARDS_LEVELS } from "./levels";
 import { EquationGenerator } from "./equationGenerator";
-import type { BilliardsLevelConfig, Equation, ComplexEquation, Ball } from "./types";
+import { LayoutGenerator } from "./LayoutGenerator"; // NEW
+import type { BilliardsLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle } from "./types";
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
+
+// Physics constants for realistic billiards feel
+const PHYSICS_CONFIG = {
+    friction: 0.985, // Velocity multiplier per frame (0.98 = 2% slowdown)
+    minVelocity: 0.5, // Stop ball when below this speed
+    maxShootPower: 800, // Max velocity on shoot
+    aimLineLength: 120, // Length of aim trajectory line
+    wallBounce: 0.7, // Bounce coefficient off walls
+    ballCollisionBounce: 0.9, // Energy transfer on ball-to-ball collision
+    ballRadius: 25, // Standard ball radius for collision detection
+};
+
+interface PhysicsBall extends Ball {
+    sprite: Phaser.Physics.Arcade.Sprite | null;
+    velocityX: number;
+    velocityY: number;
+    isMoving: boolean;
+    isHazard?: boolean;
+}
+
+interface SlotZone {
+    x: number;
+    y: number;
+    radius: number;
+    index: number;
+    filled: boolean;
+    filledValue: number | null;
+    occupiedBall: PhysicsBall | null;
+    graphics: Phaser.GameObjects.Container;
+    checkmark: Phaser.GameObjects.Text | null;
+}
 
 export class BilliardsGameScene extends Phaser.Scene {
     private currentLevelConfig!: BilliardsLevelConfig;
     private equationGenerator!: EquationGenerator;
 
     // Game State
-    private balls: Ball[] = [];
+    private layoutGenerator!: LayoutGenerator;
+    private balls: PhysicsBall[] = [];
+    private slots: SlotZone[] = [];
+    private obstacles: { list: Phaser.GameObjects.Rectangle[], bodies: Phaser.Geom.Rectangle[] } = { list: [], bodies: [] };
+    private lastMineExplosionTime: number = 0; // NEW
     private currentEquation!: Equation | ComplexEquation;
     private placedBalls: number[] = [];
     private startTime = 0;
@@ -25,7 +61,16 @@ export class BilliardsGameScene extends Phaser.Scene {
     private isLocked = true;
     private continuedAfterTimeout = false;
     private isPaused = false;
-    private completedEquationResults: number[] = []; // Track results of completed equations
+    private completedEquationResults: number[] = [];
+
+    // Aiming state
+    private aimingBall: PhysicsBall | null = null;
+    private aimStartPoint: Phaser.Math.Vector2 | null = null;
+    private aimLine: Phaser.GameObjects.Graphics | null = null;
+    private powerIndicator: Phaser.GameObjects.Graphics | null = null;
+
+    // Table bounds
+    private tableBounds!: { left: number; right: number; top: number; bottom: number };
 
     // Timer
     private timerEvent!: Phaser.Time.TimerEvent;
@@ -33,14 +78,15 @@ export class BilliardsGameScene extends Phaser.Scene {
     private lastTimerPct: number = 100;
 
     // UI Elements
-    private messageText!: Phaser.GameObjects.Text;
-    private equationContainer!: Phaser.GameObjects.Container;
-    private equationBalls: { [key: string]: Phaser.GameObjects.Container } = {};
-    private operatorTexts: { [key: string]: string } = {};
-    private goalBall!: Phaser.GameObjects.Container;
+    private equationText!: Phaser.GameObjects.Text;
+    private operatorText!: Phaser.GameObjects.Text; // Operator between slots
+    private targetText!: Phaser.GameObjects.Text; // Target number (= X)
     private poolTable!: Phaser.GameObjects.Container;
-    private shadowBallContainer!: Phaser.GameObjects.Container; // Container for shadow ball progress tracker
-    private shadowBalls: Phaser.GameObjects.Container[] = []; // Individual shadow balls
+    private shadowBallContainer!: Phaser.GameObjects.Container;
+    private shadowBalls: Phaser.GameObjects.Container[] = [];
+
+    // Cue ball (white ball)
+    private cueBall: PhysicsBall | null = null;
 
     // Audio
     private bgMusic!: Phaser.Sound.BaseSound;
@@ -56,7 +102,6 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     init(data: { level: number }) {
-        // Get level from registry (set by GameCanvas)
         const level = this.registry.get("level");
         console.log(`[BilliardsGameScene] init called with level:`, {
             dataLevel: data.level,
@@ -64,19 +109,20 @@ export class BilliardsGameScene extends Phaser.Scene {
             finalLevel: level,
         });
 
-        this.currentLevelConfig =
-            BILLIARDS_LEVELS[level] || BILLIARDS_LEVELS[1];
+        this.currentLevelConfig = BILLIARDS_LEVELS[level] || BILLIARDS_LEVELS[1];
         this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
 
-        // Reset game state
         this.resetGameState();
     }
 
     resetGameState() {
         this.cleanupBalls();
+        this.cleanupSlots();
         this.cleanupShadowBalls();
+        this.cleanupObstacles();
 
         this.balls = [];
+        this.slots = [];
         this.currentEquation = {} as Equation;
         this.placedBalls = [];
         this.totalEquations = 0;
@@ -91,25 +137,38 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.isPaused = false;
         this.completedEquationResults = [];
         this.shadowBalls = [];
+        this.aimingBall = null;
+        this.aimStartPoint = null;
     }
 
     cleanupBalls() {
-        // Properly cleanup all ball containers and their event listeners
         this.balls.forEach((ball) => {
             if (ball && ball.container) {
-                // Remove all event listeners before destroying
                 ball.container.removeAllListeners();
                 ball.container.destroy();
             }
         });
         this.balls = [];
+
+        if (this.cueBall && this.cueBall.container) {
+            this.cueBall.container.removeAllListeners();
+            this.cueBall.container.destroy();
+            this.cueBall = null;
+        }
+    }
+
+    cleanupSlots() {
+        this.slots.forEach((slot) => {
+            if (slot.graphics) {
+                slot.graphics.destroy();
+            }
+        });
+        this.slots = [];
     }
 
     cleanupShadowBalls() {
-        // Properly cleanup all shadow ball containers and their event listeners
         this.shadowBalls.forEach((shadowBall) => {
             if (shadowBall) {
-                // Remove all event listeners before destroying
                 shadowBall.removeAllListeners();
                 shadowBall.destroy();
             }
@@ -123,25 +182,26 @@ export class BilliardsGameScene extends Phaser.Scene {
         }
     }
 
+    cleanupObstacles() {
+        if (this.obstacles && this.obstacles.list) {
+            this.obstacles.list.forEach(obs => obs.destroy());
+        }
+        this.obstacles = { list: [], bodies: [] };
+    }
+
     preload() {
         // Load pool ball assets (1-10)
         for (let i = 1; i <= 10; i++) {
-            this.load.image(
-                `ball-${i}`,
-                `/assets/images/billiards/ball-${i}.png`
-            );
+            this.load.image(`ball-${i}`, `/assets/images/billiards/ball-${i}.png`);
         }
         this.load.image("goal-ball", "/assets/images/billiards/goal-ball.png");
 
         // Load sounds
         this.load.audio("ball-drop", "/assets/sounds/billiards/ball-drop.mp3");
-        this.load.audio(
-            "ball-rattle",
-            "/assets/sounds/billiards/ball-rattle.mp3"
-        );
+        this.load.audio("ball-rattle", "/assets/sounds/billiards/ball-rattle.mp3");
         this.load.audio("success", "/assets/sounds/billiards/success.mp3");
         this.load.audio("bg-music", "/assets/sounds/billiards/bg-music.mp3");
-        this.load.audio("ball-click", "/assets/sounds/billiards/ball-rattle.mp3"); // Use ball-rattle for click
+        this.load.audio("ball-click", "/assets/sounds/billiards/ball-rattle.mp3");
         this.load.audio("level-pass", "/assets/sounds/global/level-pass.mp3");
         this.load.audio("level-fail", "/assets/sounds/global/level-fail.mp3");
     }
@@ -149,11 +209,19 @@ export class BilliardsGameScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // Create background
+        console.log("[BilliardsGameScene] create() called", { width, height });
+
+        // Create pool table visuals FIRST
         this.createPoolTable();
 
-        // Create UI elements
+        // Create UI
         this.createUI();
+
+        // Create graphics for aiming AFTER table so they're on top
+        this.aimLine = this.add.graphics();
+        this.aimLine.setDepth(100);
+        this.powerIndicator = this.add.graphics();
+        this.powerIndicator.setDepth(100);
 
         // Start the game
         this.startLevel();
@@ -182,49 +250,286 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Start background music
         try {
-            this.bgMusic = this.sound.add("bg-music", {
-                volume: 0.3,
-                loop: true,
-            });
+            this.bgMusic = this.sound.add("bg-music", { volume: 0.3, loop: true });
             this.bgMusic.play();
         } catch (e) {
             console.warn("Background music failed to play", e);
         }
+
+        // Setup pointer events for aiming
+        this.setupAimingControls();
+
+        console.log("[BilliardsGameScene] create() completed");
     }
 
-    update() {
+    update(time: number, delta: number) {
+        // Update timer bar
         if (
-            !this.customTimerBar ||
-            !this.customTimerBar.visible ||
-            this.isPaused ||
-            this.continuedAfterTimeout ||
-            this.startTime === 0
-        )
-            return;
+            this.customTimerBar &&
+            this.customTimerBar.visible &&
+            !this.isPaused &&
+            !this.continuedAfterTimeout &&
+            this.startTime !== 0
+        ) {
+            const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
+            const elapsed = Date.now() - this.startTime;
+            const remainingMs = Math.max(0, limitMs - elapsed);
+            const pct = Math.max(0, (remainingMs / limitMs) * 100);
+            this.drawTimerBar(pct);
+        }
 
-        const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
-        const elapsed = Date.now() - this.startTime;
-        const remainingMs = Math.max(0, limitMs - elapsed);
-        const pct = Math.max(0, (remainingMs / limitMs) * 100);
+        // Update ball physics (manual friction)
+        this.updateBallPhysics(delta);
 
-        this.drawTimerBar(pct);
+        // Update aim line if aiming
+        if (this.aimingBall && this.aimStartPoint) {
+            this.updateAimLine();
+        }
+    }
+
+    updateBallPhysics(delta: number) {
+        const dt = delta / 16.67; // Normalize to ~60fps
+
+        // Update all balls including cue ball
+        const allBalls = this.cueBall ? [this.cueBall, ...this.balls] : this.balls;
+
+        allBalls.forEach((ball) => {
+            if (!ball.container || ball.isPlaced) return;
+
+            // Apply friction
+            ball.velocityX *= Math.pow(PHYSICS_CONFIG.friction, dt);
+            ball.velocityY *= Math.pow(PHYSICS_CONFIG.friction, dt);
+
+            // Check if ball has stopped
+            const speed = Math.sqrt(ball.velocityX * ball.velocityX + ball.velocityY * ball.velocityY);
+            if (speed < PHYSICS_CONFIG.minVelocity) {
+                ball.velocityX = 0;
+                ball.velocityY = 0;
+                if (ball.isMoving) {
+                    ball.isMoving = false;
+                    // Check if ball landed in a slot
+                    this.checkBallInSlot(ball);
+                }
+                return;
+            }
+
+            ball.isMoving = true;
+
+            // Move ball
+            let newX = ball.container.x + ball.velocityX * dt;
+            let newY = ball.container.y + ball.velocityY * dt;
+
+            // Wall collision
+            const ballRadius = 25;
+            if (newX - ballRadius < this.tableBounds.left) {
+                newX = this.tableBounds.left + ballRadius;
+                ball.velocityX = -ball.velocityX * PHYSICS_CONFIG.wallBounce;
+                if (this.soundBallRattle) this.soundBallRattle.play();
+            }
+            if (newX + ballRadius > this.tableBounds.right) {
+                newX = this.tableBounds.right - ballRadius;
+                ball.velocityX = -ball.velocityX * PHYSICS_CONFIG.wallBounce;
+                if (this.soundBallRattle) this.soundBallRattle.play();
+            }
+            if (newY - ballRadius < this.tableBounds.top) {
+                newY = this.tableBounds.top + ballRadius;
+                ball.velocityY = -ball.velocityY * PHYSICS_CONFIG.wallBounce;
+                if (this.soundBallRattle) this.soundBallRattle.play();
+            }
+            if (newY + ballRadius > this.tableBounds.bottom) {
+                newY = this.tableBounds.bottom - ballRadius;
+                ball.velocityY = -ball.velocityY * PHYSICS_CONFIG.wallBounce;
+                if (this.soundBallRattle) this.soundBallRattle.play();
+            }
+
+            ball.container.setPosition(newX, newY);
+            ball.x = newX;
+            ball.y = newY;
+
+            // Obstacle collision
+            this.checkObstacleCollision(ball);
+        });
+
+        // Ball-to-ball collision detection
+        this.checkBallCollisions();
+    }
+
+    checkObstacleCollision(ball: PhysicsBall) {
+        // Simple Circle-AABB collision resolution
+        const radius = PHYSICS_CONFIG.ballRadius;
+
+        for (const body of this.obstacles.bodies) {
+            // Find closest point on rect to circle center
+            const closestX = Phaser.Math.Clamp(ball.x, body.x, body.x + body.width);
+            const closestY = Phaser.Math.Clamp(ball.y, body.y, body.y + body.height);
+
+            const dx = ball.x - closestX;
+            const dy = ball.y - closestY;
+            const distanceSq = dx * dx + dy * dy;
+
+            if (distanceSq < radius * radius && distanceSq > 0) {
+                // Collision!
+                const distance = Math.sqrt(distanceSq);
+                const overlap = radius - distance;
+
+                // Normal
+                const nx = dx / distance;
+                const ny = dy / distance;
+
+                // Push out
+                ball.x += nx * overlap;
+                ball.y += ny * overlap;
+                if (ball.container) ball.container.setPosition(ball.x, ball.y);
+
+                // Reflect velocity
+                // v' = v - 2 * (v . n) * n
+                const dot = ball.velocityX * nx + ball.velocityY * ny;
+
+                // Only bounce if moving towards the obstacle
+                if (dot < 0) {
+                    ball.velocityX = (ball.velocityX - 2 * dot * nx) * PHYSICS_CONFIG.wallBounce;
+                    ball.velocityY = (ball.velocityY - 2 * dot * ny) * PHYSICS_CONFIG.wallBounce;
+
+                    if (this.soundBallRattle) this.soundBallRattle.play();
+                }
+            }
+        }
+    }
+
+    checkBallCollisions() {
+        // Get all balls including cue ball
+        const allBalls = this.cueBall ? [this.cueBall, ...this.balls] : this.balls;
+        const ballRadius = PHYSICS_CONFIG.ballRadius;
+
+        for (let i = 0; i < allBalls.length; i++) {
+            const ballA = allBalls[i];
+            if (!ballA.container || ballA.isPlaced) continue;
+
+            for (let j = i + 1; j < allBalls.length; j++) {
+                const ballB = allBalls[j];
+                if (!ballB.container || ballB.isPlaced) continue;
+
+                const dx = ballB.x - ballA.x;
+                const dy = ballB.y - ballA.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = ballRadius * 2;
+
+                if (dist < minDist && dist > 0) {
+                    // Check for Mine Collision
+                    if (ballA.isHazard || ballB.isHazard) {
+                        const now = Date.now();
+                        if (now - this.lastMineExplosionTime > 3000) { // 3s Cooldown
+                            this.lastMineExplosionTime = now;
+                            this.handleMineExplosion();
+                        }
+                        return; // Stop processing frame to chaos
+                    }
+
+                    // Normal Collision Logic
+                    // Normalize collision vector
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    // Relative velocity
+                    const dvx = ballA.velocityX - ballB.velocityX;
+                    const dvy = ballA.velocityY - ballB.velocityY;
+
+                    // Relative velocity along collision normal
+                    const dvn = dvx * nx + dvy * ny;
+
+                    // Only resolve if balls are moving towards each other
+                    if (dvn > 0) {
+                        // Impulse scalar (assuming equal mass)
+                        const impulse = dvn * PHYSICS_CONFIG.ballCollisionBounce;
+
+                        // Apply impulse
+                        ballA.velocityX -= impulse * nx;
+                        ballA.velocityY -= impulse * ny;
+                        ballB.velocityX += impulse * nx;
+                        ballB.velocityY += impulse * ny;
+
+                        // Separate balls to prevent overlap
+                        const overlap = minDist - dist;
+                        const separationX = (overlap / 2) * nx;
+                        const separationY = (overlap / 2) * ny;
+
+                        ballA.x -= separationX;
+                        ballA.y -= separationY;
+                        ballB.x += separationX;
+                        ballB.y += separationY;
+
+                        if (ballA.container) ballA.container.setPosition(ballA.x, ballA.y);
+                        if (ballB.container) ballB.container.setPosition(ballB.x, ballB.y);
+
+                        // Mark both as moving
+                        ballA.isMoving = true;
+                        ballB.isMoving = true;
+
+                        // Play collision sound
+                        if (this.soundBallClick) this.soundBallClick.play();
+                    }
+                }
+            }
+        }
+    }
+
+    handleMineExplosion() {
+        console.log("BOOM! Mine Hit!");
+        this.cameras.main.shake(500, 0.02);
+        this.cameras.main.flash(500, 0xff0000);
+        if (this.soundLevelFail) this.soundLevelFail.play();
+
+        // Eject all balls from slots (Reset Equation)
+        this.slots.forEach(slot => {
+            if (slot.filled && slot.occupiedBall) {
+                const b = slot.occupiedBall;
+                if (b.container) this.tweens.killTweensOf(b.container);
+                b.isPlaced = false;
+                b.isMoving = true;
+                slot.filled = false;
+                slot.filledValue = null;
+                slot.occupiedBall = null;
+                // Reset visuals
+                if (slot.checkmark) slot.checkmark.setVisible(false);
+                const ph = slot.graphics.getAt(2) as Phaser.GameObjects.Text;
+                if (ph) ph.setVisible(true);
+            }
+        });
+        this.placedBalls = [];
+        this.updateEquationText();
+
+        // Fling ALL balls chaotically
+        const allBalls = this.cueBall ? [this.cueBall, ...this.balls] : this.balls;
+        allBalls.forEach(ball => {
+            if (ball.container) {
+                ball.velocityX = Phaser.Math.Between(-800, 800);
+                ball.velocityY = Phaser.Math.Between(-800, 800);
+                ball.isMoving = true;
+            }
+        });
     }
 
     createPoolTable() {
         const { width, height } = this.scale;
 
-        // Create pool table container
         this.poolTable = this.add.container(width / 2, height / 2);
 
-        // Table dimensions - responsive for phone and desktop
-        const tableWidth = width * 0.8;
-        const tableHeight = height * 0.7;
+        const tableWidth = width * 0.85;
+        const tableHeight = height * 0.55;
         const cornerRadius = Math.min(20, width * 0.03);
 
-        // Create table border (wooden frame)
+        // Store table bounds for physics
+        this.tableBounds = {
+            left: width / 2 - tableWidth / 2,
+            right: width / 2 + tableWidth / 2,
+            top: height / 2 - tableHeight / 2,
+            bottom: height / 2 + tableHeight / 2,
+        };
+
+        // Wooden frame
         const borderWidth = Math.min(15, width * 0.05);
         const borderBg = this.add.graphics();
-        borderBg.fillStyle(0x8b4513); // Saddle brown for wooden frame
+        borderBg.fillStyle(0x8b4513);
         borderBg.fillRoundedRect(
             -tableWidth / 2 - borderWidth,
             -tableHeight / 2 - borderWidth,
@@ -234,353 +539,792 @@ export class BilliardsGameScene extends Phaser.Scene {
         );
         this.poolTable.add(borderBg);
 
-        // Create table background (brown felt)
+        // Green felt
         const tableBg = this.add.graphics();
-        tableBg.fillStyle(0x0d5d3d); // Dark green felt color
+        tableBg.fillStyle(0x0d5d3d);
         tableBg.fillRoundedRect(-tableWidth / 2, -tableHeight / 2, tableWidth, tableHeight, cornerRadius);
         this.poolTable.add(tableBg);
 
-        // Add table pockets (6 pockets - 4 corners + 2 middle)
-        const pocketRadius = Math.min(25, width * 0.04);
-        const pocketColor = 0x000000; // Black pockets
-
-        // Corner pockets
-        const createPocket = (x: number, y: number) => {
-            const pocket = this.add.circle(x, y, pocketRadius, pocketColor);
-            this.poolTable.add(pocket);
-        };
-
-        // Top-left pocket
-        createPocket(-tableWidth / 2 + cornerRadius, -tableHeight / 2 + cornerRadius);
-        // Top-right pocket
-        createPocket(tableWidth / 2 - cornerRadius, -tableHeight / 2 + cornerRadius);
-        // Bottom-left pocket
-        createPocket(-tableWidth / 2 + cornerRadius, tableHeight / 2 - cornerRadius);
-        // Bottom-right pocket
-        createPocket(tableWidth / 2 - cornerRadius, tableHeight / 2 - cornerRadius);
-        // Middle-left pocket
-        createPocket(-tableWidth / 2 + cornerRadius, 0);
-        // Middle-right pocket
-        createPocket(tableWidth / 2 - cornerRadius, 0);
-
-        // Add table markings (head string and center spot)
+        // Center spot
         const centerSpot = this.add.circle(0, 0, Math.min(8, width * 0.015), 0xffffff, 0.5);
         this.poolTable.add(centerSpot);
+
+        console.log("[BilliardsGameScene] Pool table created", { tableBounds: this.tableBounds });
+
+        this.layoutGenerator = new LayoutGenerator(this.tableBounds);
     }
 
     createUI() {
         const { width, height } = this.scale;
 
-        // Create equation container for visual components (center of pool table)
-        this.equationContainer = this.add.container(width / 2, height * 0.5);
-
-        // Goal ball positioned after "=" (in equation area, center of pool table)
-        this.goalBall = this.add.container(width / 2, height * 0.5);
-        const goalBallRadius = Math.min(35, width * 0.06);
-        const goalBallBg = this.add.image(0, 0, "goal-ball");
-        goalBallBg.setDisplaySize(goalBallRadius * 2.2, goalBallRadius * 2.2); // Slightly larger for visibility
-        
-        // Add text overlay for result number
-        const goalText = this.add.text(0, 0, "0", {
-            fontFamily: "Arial, sans-serif",
-            fontSize: `${Math.min(20, width * 0.04)}px`,
-            color: "#ffffff",
-            fontStyle: "bold",
-            stroke: "#000000",
-            strokeThickness: 2,
-        }).setOrigin(0.5);
-       
-        this.goalBall.add([goalBallBg, goalText]);
-
-        // Message text
-        this.messageText = this.add
-            .text(0, 0, "", {
-                fontFamily: "Sarabun, sans-serif",
-                fontSize: `${Math.min(32, width * 0.05)}px`,
-                color: "#2B2115",
-                stroke: "#FFFFFF",
+        // Equation text - position it inside the table area at the top
+        // Since level indicator blocks top, we'll show equation result near the slots instead
+        this.equationText = this.add
+            .text(width / 2, this.tableBounds.top + 25, "", {
+                fontFamily: "Arial, sans-serif",
+                fontSize: `${Math.min(28, width * 0.05)}px`,
+                color: "#FFFFFF",
+                stroke: "#000000",
                 strokeThickness: 3,
                 fontStyle: "bold",
             })
             .setOrigin(0.5)
-            .setVisible(false);
+            .setDepth(50);
 
         // Timer bar
         this.customTimerBar = this.add.graphics();
         this.customTimerBar.setVisible(false);
 
-        // Create shadow ball progress tracker above timer bar
+        // Shadow ball progress tracker
         this.createShadowBallTracker();
+
+        console.log("[BilliardsGameScene] UI created");
     }
 
-    updateGoalBall(result: number) {
-        const goalText = this.goalBall.getAt(1) as Phaser.GameObjects.Text;
-        goalText.setText(result.toString());
-
-        // Add pulse animation when result updates
-        this.tweens.add({
-            targets: this.goalBall,
-            scale: { from: 1, to: 1.2 },
-            duration: 200,
-            yoyo: true,
-            ease: "Sine.easeInOut",
-        });
-    }
-
-    createShadowBallTracker() {
+    createSlotZones() {
         const { width, height } = this.scale;
 
-        // Position above timer bar
-        const barW = Math.min(width * 0.8, 400);
-        const barH = Math.min(12, height * 0.02);
-        const x = (width - barW) / 2;
-        const y = height - Math.min(80, height * 0.12); // Above timer bar
+        // Clean existing slots
+        this.cleanupSlots();
 
-        // Create container for shadow balls
-        this.shadowBallContainer = this.add.container(width / 2, y);
+        // Determine slot count based on equation type
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        const slotCount = isComplex ? (this.currentEquation as ComplexEquation).operators.length + 1 : 2;
 
-        // Create shadow balls based on total equations required
-        const totalBalls = this.currentLevelConfig.totalEquations;
-        const ballSpacing = Math.min(45, width * 0.08);
-        const startX = (-(totalBalls - 1) * ballSpacing) / 2;
+        // Position slots INSIDE the table, near the top of the green felt
+        // Position slots INSIDE the table, near the top of the green felt
+        const slotSpacing = Math.min(120, width * 0.2); // Increased spacing
+        const slotY = this.tableBounds.top + 80; // Inside table, near top
+        const startX = width / 2 - ((slotCount - 1) * slotSpacing) / 2;
+        const slotRadius = Math.min(32, width * 0.055);
 
-        for (let i = 0; i < totalBalls; i++) {
-            const shadowBall = this.createShadowBall(i);
-            shadowBall.setPosition(startX + i * ballSpacing, 0);
-            this.shadowBalls.push(shadowBall);
-            this.shadowBallContainer.add(shadowBall);
-        }
+        console.log("[BilliardsGameScene] Creating slots", { slotCount, slotY, startX, tableBoundsTop: this.tableBounds.top });
 
-        // Initialize with all balls showing "?" (incomplete)
-        this.updateShadowBallDisplay();
-    }
+        for (let i = 0; i < slotCount; i++) {
+            const slotX = startX + i * slotSpacing;
 
-    createShadowBall(index: number): Phaser.GameObjects.Container {
-        const container = this.add.container(0, 0);
-        const { width } = this.scale;
+            // Create slot visuals
+            const slotContainer = this.add.container(slotX, slotY);
+            slotContainer.setDepth(10);
 
-        // Make shadow balls bigger and more prominent
-        const ballRadius = Math.min(25, width * 0.05);
-        const shadowOffset = ballRadius * 0.1;
+            // Glowing circle background
+            const glowCircle = this.add.circle(0, 0, slotRadius + 8, 0x00ffff, 0.25);
+            const slotCircle = this.add.circle(0, 0, slotRadius, 0x1a1a2e, 0.9);
+            slotCircle.setStrokeStyle(4, 0x00ffff);
 
-        // Shadow
-        const shadow = this.add
-            .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3)
-            .setOrigin(0.5);
-
-        // Use generated circle for shadow balls (no PNG for unknown values)
-        const ball = this.add
-            .circle(0, 0, ballRadius, 0xcccccc)
-            .setStrokeStyle(2, 0x666666);
-
-        // Text (shows "?" or result number) - overlay on top of ball image
-        const text = this.add
-            .text(0, 0, "?", {
-                fontFamily: "Arial, sans-serif",
-                fontSize: `${Math.min(16, width * 0.03)}px`,
-                color: "#ffffff",
-                fontStyle: "bold",
-                stroke: "#000000",
-                strokeThickness: 2,
-            })
-            .setOrigin(0.5);
-
-        container.add([shadow, ball, text]);
-
-        // Set explicit size for proper hit area
-        container.setSize(ballRadius * 2, ballRadius * 2);
-
-        // Add interactive with explicit hit area to prevent hitAreaCallback error
-        container.setInteractive({
-            useHandCursor: true,
-            hitArea: new Phaser.Geom.Circle(0, 0, ballRadius),
-            hitAreaCallback: Phaser.Geom.Circle.Contains,
-        });
-
-        container.on("pointerover", () => {
-            this.tweens.add({
-                targets: container,
-                scale: 1.1,
-                duration: 150,
-                ease: "Sine.easeOut",
-            });
-        });
-
-        container.on("pointerout", () => {
-            this.tweens.add({
-                targets: container,
-                scale: 1,
-                duration: 150,
-                ease: "Sine.easeOut",
-            });
-        });
-
-        return container;
-    }
-
-    updateShadowBallDisplay() {
-        // Update all shadow balls based on completed equations
-        this.shadowBalls.forEach((shadowBall, index) => {
-            const text = shadowBall.getAt(2) as Phaser.GameObjects.Text;
-            const ball = shadowBall.getAt(1) as Phaser.GameObjects.Arc;
-
-            if (index < this.completedEquationResults.length) {
-                // Show completed result - replace with bigger goal-ball.png, no shadow
-                const result = this.completedEquationResults[index];
-
-                // Remove existing ball and shadow
-                shadowBall.removeAll(true);
-
-                // Add bigger goal-ball.png with result number, no shadow effect
-                const { width } = this.scale;
-                const ballRadius = Math.min(35, width * 0.08); // Much bigger
-
-                // Goal ball PNG - bigger size
-                const goalBall = this.add.image(0, 0, "goal-ball");
-                goalBall.setDisplaySize(ballRadius * 2.8, ballRadius * 2.8); // Much bigger
-
-                // Result number text (bigger, clean, no background)
-                const resultText = this.add
-                    .text(0, 0, result.toString(), {
-                        fontFamily: "Arial, sans-serif",
-                        fontSize: `${Math.min(24, width * 0.05)}px`, // Much bigger text
-                        color: "#ffffff",
-                        fontStyle: "bold",
-                    })
-                    .setOrigin(0.5);
-
-                shadowBall.add([goalBall, resultText]); // No shadow circle
-
-                // Add completion animation
-                this.tweens.add({
-                    targets: shadowBall,
-                    scale: { from: 0.8, to: 1 },
-                    duration: 300,
-                    ease: "Back.easeOut",
-                });
-            } else {
-                // Show incomplete - keep existing gray circle
-                text.setText("?");
-                text.setColor("#ffffff");
-                ball.setFillStyle(0xcccccc); // Gray fill for incomplete
-            }
-        });
-    }
-
-    trackCompletedEquation(result: number) {
-        this.completedEquationResults.push(result);
-        this.updateShadowBallDisplay();
-    }
-
-    // Create a miniature pool ball for equation display
-    private createEquationBall(
-        value: number | null,
-        position: string
-    ): Phaser.GameObjects.Container {
-        const container = this.add.container(0, 0);
-        const { width } = this.scale;
-
-        // Responsive sizing
-        const ballRadius = Math.min(30, width * 0.05);
-        const fontSize = Math.min(22, width * 0.035);
-        const shadowOffset = ballRadius * 0.1;
-
-        if (value === null) {
-            // Create empty slot placeholder
-            const shadow = this.add
-                .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.2)
-                .setOrigin(0.5);
-            const ball = this.add
-                .circle(0, 0, ballRadius, 0xe8e8e8)
-                .setStrokeStyle(3, 0xcccccc);
+            // Question mark placeholder
             const placeholder = this.add
                 .text(0, 0, "?", {
                     fontFamily: "Arial, sans-serif",
-                    fontSize: `${Math.min(24, width * 0.04)}px`,
-                    color: "#999999",
+                    fontSize: `${Math.min(26, width * 0.045)}px`,
+                    color: "#00ffff",
                     fontStyle: "bold",
                 })
                 .setOrigin(0.5);
-            container.add([shadow, ball, placeholder]);
 
-            // Add subtle idle animation for empty slots
+            // Checkmark (hidden initially)
+            const checkmark = this.add
+                .text(0, -slotRadius - 20, "✓", {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: `${Math.min(28, width * 0.05)}px`,
+                    color: "#00ff00",
+                    fontStyle: "bold",
+                    stroke: "#000000",
+                    strokeThickness: 2,
+                })
+                .setOrigin(0.5)
+                .setVisible(false);
+
+            slotContainer.add([glowCircle, slotCircle, placeholder, checkmark]);
+
+            // Pulsing animation for empty slots
             this.tweens.add({
-                targets: container,
-                scale: { from: 1, to: 1.05 },
-                duration: 1500,
+                targets: glowCircle,
+                alpha: { from: 0.25, to: 0.5 },
+                scale: { from: 1, to: 1.1 },
+                duration: 1000,
                 yoyo: true,
                 repeat: -1,
                 ease: "Sine.easeInOut",
             });
-        } else {
-            // Conditional ball creation: PNG only for known values (1-9), generated circle for unknown
-            let ball;
-            if (value >= 1 && value <= 10) {
-                // Use PNG with bigger display size for known values - NO text overlay since PNG has numbers
-                const shadow = this.add
-                    .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.4)
-                    .setOrigin(0.5);
-                ball = this.add.image(0, 0, `ball-${value}`);
-                ball.setDisplaySize(ballRadius * 2.5, ballRadius * 2.5); // 25% bigger
-                container.add([shadow, ball]);
-            } else {
-                // Use generated circle for unknown values
-                const shadow = this.add
-                    .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.4)
-                    .setOrigin(0.5);
-                ball = this.add
-                    .circle(0, 0, ballRadius, 0xffffff)
-                    .setStrokeStyle(3, 0x000000);
-                const text = this.add
-                    .text(0, 0, value.toString(), {
-                        fontFamily: "Arial, sans-serif",
-                        fontSize: `${fontSize}px`,
-                        color: "#000000",
-                        fontStyle: "bold",
-                    })
-                    .setOrigin(0.5);
-                container.add([shadow, ball, text]);
-            }
 
-            // Add entrance animation
-            container.setScale(0);
+            const slot: SlotZone = {
+                x: slotX,
+                y: slotY,
+                radius: slotRadius,
+                index: i,
+                filled: false,
+                filledValue: null,
+                occupiedBall: null,
+                graphics: slotContainer,
+                checkmark,
+            };
+
+            // Make slot interactive for ejection
+            const hitArea = new Phaser.Geom.Circle(0, 0, slotRadius);
+            slotContainer.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+            slotContainer.on('pointerdown', () => {
+                this.ejectBallFromSlot(slot);
+            });
+
+            this.slots.push(slot);
+
+            // Operator between slots
+            if (i < slotCount - 1) {
+                let opSymbol = "+";
+                if (isComplex) {
+                    const ce = this.currentEquation as ComplexEquation;
+                    opSymbol = ce.operators[i] || "+";
+                } else {
+                    const se = this.currentEquation as any;
+                    opSymbol = se.operator || "+";
+                }
+                if (opSymbol === "*") opSymbol = "×";
+                if (opSymbol === "/") opSymbol = "÷";
+
+                const opText = this.add.text(slotSpacing / 2, 0, opSymbol, {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: `${Math.min(32, width * 0.055)}px`,
+                    color: "#FFFFFF",
+                    fontStyle: "bold",
+                    stroke: "#000000",
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+                slotContainer.add(opText);
+            }
+        }
+
+        // Add target number (= X) ABOVE the table (wooden frame)
+        if (this.targetText) this.targetText.destroy();
+        this.targetText = this.add
+            // Position above the table frame
+            .text(width / 2, this.tableBounds.top - 40, `เป้าหมาย: ${this.currentEquation.result}`, {
+                fontFamily: "Arial, sans-serif",
+                fontSize: `${Math.min(36, width * 0.07)}px`,
+                color: "#2B2115", // Dark brown to match theme
+                fontStyle: "bold",
+                stroke: "#FFFFFF",
+                strokeThickness: 4,
+            })
+            .setOrigin(0.5)
+            .setDepth(15);
+
+        // Hide the old equation text since we now show it visually
+        if (this.equationText) this.equationText.setVisible(false);
+    }
+
+
+
+    updateEquationText() {
+        const { width } = this.scale;
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+
+        let displayText = "";
+        if (isComplex) {
+            const eq = this.currentEquation as ComplexEquation;
+            for (let i = 0; i < eq.operands.length; i++) {
+                const slotValue = this.slots[i]?.filled ? this.slots[i].filledValue : "?";
+                displayText += slotValue;
+                if (i < eq.operators.length) {
+                    let op: string = eq.operators[i];
+                    if (op === "*") op = "×";
+                    if (op === "/") op = "÷";
+                    displayText += ` ${op} `;
+                }
+            }
+        } else {
+            const eq = this.currentEquation as any;
+            const op = eq.operator || "+";
+            const slot1 = this.slots[0]?.filled ? this.slots[0].filledValue : "?";
+            const slot2 = this.slots[1]?.filled ? this.slots[1].filledValue : "?";
+            displayText = `${slot1} ${op} ${slot2}`;
+        }
+
+        displayText += ` = ${this.currentEquation.result}`;
+
+        this.equationText.setText(displayText);
+        this.equationText.setPosition(width / 2, this.scale.height * 0.06);
+    }
+
+    setupAimingControls() {
+        this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+            if (this.isLocked) return;
+
+            // Only allow aiming the cue ball (not numbered balls)
+            if (!this.cueBall || !this.cueBall.container) return;
+            if (this.cueBall.isMoving) return; // Can't aim while cue ball is moving
+
+            // Check if any balls are still moving
+            const anyBallsMoving = this.balls.some(b => b.isMoving);
+            if (anyBallsMoving) return;
+
+            // Check if clicking on the cue ball
+            const dist = Phaser.Math.Distance.Between(
+                pointer.x, pointer.y,
+                this.cueBall.container.x, this.cueBall.container.y
+            );
+
+            if (dist < 45) {
+                this.aimingBall = this.cueBall;
+                this.aimStartPoint = new Phaser.Math.Vector2(pointer.x, pointer.y);
+                if (this.soundBallClick) this.soundBallClick.play();
+
+                // Highlight the cue ball
+                this.tweens.add({
+                    targets: this.cueBall.container,
+                    scale: 1.15,
+                    duration: 100,
+                });
+            }
+        });
+
+        this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+            // Aim line is updated in update() loop
+        });
+
+        this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+            if (this.aimingBall && this.aimStartPoint) {
+                this.shootBall(pointer);
+
+                // Reset ball scale
+                this.tweens.add({
+                    targets: this.aimingBall.container,
+                    scale: 1,
+                    duration: 100,
+                });
+            }
+            this.aimingBall = null;
+            this.aimStartPoint = null;
+            this.clearAimLine();
+        });
+
+        console.log("[BilliardsGameScene] Aiming controls set up");
+    }
+
+    getBallAtPosition(x: number, y: number): PhysicsBall | null {
+        for (const ball of this.balls) {
+            if (!ball.container || ball.isPlaced) continue;
+            const dist = Phaser.Math.Distance.Between(x, y, ball.container.x, ball.container.y);
+            if (dist < 40) {
+                return ball;
+            }
+        }
+        return null;
+    }
+
+    updateAimLine() {
+        if (!this.aimLine || !this.aimingBall || !this.aimStartPoint || !this.aimingBall.container) return;
+
+        const pointer = this.input.activePointer;
+        const ballX = this.aimingBall.container.x;
+        const ballY = this.aimingBall.container.y;
+
+        // Direction is opposite of drag
+        const dragX = this.aimStartPoint.x - pointer.x;
+        const dragY = this.aimStartPoint.y - pointer.y;
+        const dragLength = Math.sqrt(dragX * dragX + dragY * dragY);
+
+        if (dragLength < 10) {
+            this.clearAimLine();
+            return;
+        }
+
+        const power = Math.min(dragLength / 150, 1);
+        const aimLength = PHYSICS_CONFIG.aimLineLength * power;
+
+        // Normalize direction
+        const dirX = dragX / dragLength;
+        const dirY = dragY / dragLength;
+
+        // Draw aim line
+        this.aimLine.clear();
+        this.aimLine.lineStyle(4, 0xffffff, 0.9);
+
+        // Dotted line effect
+        const segments = 8;
+        for (let i = 0; i < segments; i++) {
+            const startDist = (i / segments) * aimLength + 20;
+            const endDist = ((i + 0.6) / segments) * aimLength + 20;
+
+            const startX = ballX + dirX * startDist;
+            const startY = ballY + dirY * startDist;
+            const endX = ballX + dirX * endDist;
+            const endY = ballY + dirY * endDist;
+
+            this.aimLine.moveTo(startX, startY);
+            this.aimLine.lineTo(endX, endY);
+        }
+
+        this.aimLine.strokePath();
+
+        // Power indicator ring around ball
+        if (this.powerIndicator) {
+            this.powerIndicator.clear();
+
+            // Color from green to red based on power
+            const r = Math.floor(255 * power);
+            const g = Math.floor(255 * (1 - power));
+            const hexColor = (r << 16) | (g << 8) | 0;
+
+            this.powerIndicator.lineStyle(5, hexColor, 0.8);
+            this.powerIndicator.strokeCircle(ballX, ballY, 35 + power * 20);
+        }
+    }
+
+    clearAimLine() {
+        if (this.aimLine) this.aimLine.clear();
+        if (this.powerIndicator) this.powerIndicator.clear();
+    }
+
+    shootBall(pointer: Phaser.Input.Pointer) {
+        if (!this.aimingBall || !this.aimStartPoint) return;
+
+        const dragX = this.aimStartPoint.x - pointer.x;
+        const dragY = this.aimStartPoint.y - pointer.y;
+        const dragLength = Math.sqrt(dragX * dragX + dragY * dragY);
+
+        if (dragLength < 15) return; // Minimum drag threshold
+
+        const power = Math.min(dragLength / 150, 1);
+
+        // Normalize and apply power
+        const dirX = dragX / dragLength;
+        const dirY = dragY / dragLength;
+
+        this.aimingBall.velocityX = dirX * power * PHYSICS_CONFIG.maxShootPower / 60;
+        this.aimingBall.velocityY = dirY * power * PHYSICS_CONFIG.maxShootPower / 60;
+        this.aimingBall.isMoving = true;
+
+        if (this.soundBallDrop) this.soundBallDrop.play();
+
+        console.log("[BilliardsGameScene] Ball shot", {
+            power,
+            vx: this.aimingBall.velocityX,
+            vy: this.aimingBall.velocityY
+        });
+    }
+
+    checkBallInSlot(ball: PhysicsBall) {
+        if (ball.isPlaced || !ball.container) return;
+
+        // Cue ball cannot fill a slot
+        if (ball === this.cueBall) return;
+
+        for (const slot of this.slots) {
+            if (slot.filled) continue;
+
+            const dist = Phaser.Math.Distance.Between(
+                ball.container.x,
+                ball.container.y,
+                slot.x,
+                slot.y
+            );
+
+            if (dist < slot.radius * 1.5) { // Increased from 0.8 for easier entry
+                // Ball is in slot!
+                this.fillSlot(slot, ball);
+                return;
+            }
+        }
+    }
+
+    fillSlot(slot: SlotZone, ball: PhysicsBall) {
+        slot.filled = true;
+        slot.filledValue = ball.value;
+        slot.occupiedBall = ball;
+        ball.isPlaced = true;
+
+        console.log("[BilliardsGameScene] Slot filled", { slot: slot.index, value: ball.value });
+
+        // Animate ball snapping to slot center
+        if (ball.container) {
             this.tweens.add({
-                targets: container,
+                targets: ball.container,
+                x: slot.x,
+                y: slot.y,
+                scale: 0.85,
+                duration: 250,
+                ease: "Back.easeOut",
+            });
+        }
+
+        // Update slot visual - hide placeholder
+        const placeholder = slot.graphics.getAt(2) as Phaser.GameObjects.Text;
+        if (placeholder) placeholder.setVisible(false);
+
+        // Show checkmark with animation
+        if (slot.checkmark) {
+            slot.checkmark.setVisible(true);
+            slot.checkmark.setScale(0);
+            this.tweens.add({
+                targets: slot.checkmark,
                 scale: 1,
                 duration: 300,
                 ease: "Back.easeOut",
             });
         }
 
-        // Store reference
-        this.equationBalls[position] = container;
-        return container;
+        // Stop pulsing on glow
+        const glowCircle = slot.graphics.getAt(0) as Phaser.GameObjects.Arc;
+        this.tweens.killTweensOf(glowCircle);
+        glowCircle.setAlpha(0.6);
+
+        // Play sound
+        if (this.soundSuccess) this.soundSuccess.play();
+
+        // Make placed ball interactive for ejection
+        if (ball.container) {
+            ball.container.setInteractive({ useHandCursor: true });
+            ball.container.off('pointerdown');
+            ball.container.on('pointerdown', () => {
+                this.ejectBallFromSlot(slot);
+            });
+        }
+
+        // Update equation display
+        this.placedBalls.push(ball.value);
+        this.updateEquationText();
+
+        // Check answer if all slots are filled
+        if (this.slots.every(s => s.filled)) {
+            this.time.delayedCall(500, () => {
+                this.checkAnswer();
+            });
+        }
     }
 
-    // Create operator text (+ or -) - Much bigger for elderly play
-    private createOperatorText(
-        operator: string,
-        position: string
-    ): Phaser.GameObjects.Text {
+    ejectBallFromSlot(slot: SlotZone) {
+        if (!slot.filled || !slot.occupiedBall) return;
+
+        console.log("[BilliardsGameScene] Ejecting ball from slot", { slot: slot.index, value: slot.filledValue });
+
+        const ball = slot.occupiedBall;
+
+        // Remove ejection listener
+        if (ball.container) {
+            ball.container.off('pointerdown');
+        }
+
+        // Reset slot state
+        slot.filled = false;
+        slot.filledValue = null;
+        slot.occupiedBall = null;
+        if (slot.checkmark) {
+            slot.checkmark.setVisible(false);
+            slot.checkmark.setScale(0); // Reset scale for next animation
+        }
+
+        // Show placeholder again
+        const placeholder = slot.graphics.getAt(2) as Phaser.GameObjects.Text;
+        if (placeholder) placeholder.setVisible(true);
+
+        // Restart pulsating animation
+        const glowCircle = slot.graphics.getAt(0) as Phaser.GameObjects.Arc;
+        this.tweens.add({
+            targets: glowCircle,
+            alpha: { from: 0.25, to: 0.5 },
+            scale: { from: 1, to: 1.1 },
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+        });
+
+        // Reset ball state
+        ball.isPlaced = false;
+        ball.isMoving = true;
+
+        // Pop it out downwards
+        ball.velocityY = 150;
+        ball.velocityX = Phaser.Math.Between(-50, 50);
+
+        // Restore scale
+        if (ball.container) {
+            this.tweens.add({
+                targets: ball.container,
+                scale: 1,
+                duration: 200,
+            });
+        }
+
+        // Remove from current placed balls calculation logic
+        // placedBalls array is just a list of values, but order matters for equation check
+        // We'll need to rebuild placedBalls from slots
+        this.rebuildPlacedBalls();
+        this.updateEquationText();
+
+        // Play pop sound
+        if (this.soundBallClick) this.soundBallClick.play();
+    }
+
+    rebuildPlacedBalls() {
+        this.placedBalls = [];
+        // We need to preserve the order of slots
+        // Assuming slots are sorted by index
+        const sortedSlots = [...this.slots].sort((a, b) => a.index - b.index);
+
+        // Wait, updateEquationText uses this.slots directly to show display text
+        // But checkAnswer uses placedBalls?
+        // checkAnswer uses `this.placedBalls`.
+        // `fillSlot` pushes to `placedBalls`.
+        // If we remove one, `placedBalls` array logic is broken if we just pop.
+        // We should rebuild `placedBalls` from the current slot state.
+
+        // Actually, checkAnswer relies on placedBalls having the values in order?
+        // In `checkAnswer`: `this.placedBalls[0] + this.placedBalls[1]`
+        // This implies [Slot 0 Value, Slot 1 Value].
+        // But `fillSlot` just pushes: `this.placedBalls.push(ball.value)`.
+        // If I fill Slot 1 then Slot 0, placedBalls is [Slot1Val, Slot0Val].
+        // This seems WRONG if the equation is `? + ?`. Order usually doesn't matter for +, but for - and / it does.
+        // For `-`, `Slot0 - Slot1`.
+        // If I fill Slot 1 first, then Slot 0... the current logic `placedBalls[0]` would be the first one filled (Slot 1).
+        // This means the current implementation of `checkAnswer` DEPENDS on filling order!
+        // That is a bug if the user fills them out of order (which is possible).
+
+        // FIX: Rebuild placedBalls based on Slot Index order.
+
+        this.placedBalls = [];
+        // We can't easily map partial arrays if we rely on indices.
+        // But wait, `checkAnswer` is only called if `allFilled`.
+        // So if allFilled, we can map slots 0..N to placedBalls.
+
+        if (this.slots.every(s => s.filled)) {
+            this.placedBalls = this.slots
+                .sort((a, b) => a.index - b.index)
+                .map(s => s.filledValue as number);
+        } else {
+            // Partial filled - mostly for display?
+            // updateEquationText iterates slots directly.
+            // So placedBalls is mostly used for final check.
+            // We can just clear it here and let checkAnswer rebuild it?
+            // checkAnswer doesn't rebuild it. It reads it.
+
+            // So, `rebuildPlacedBalls` should just act as "sync placedBalls with slots"
+            // But `checkAnswer` expects a full array.
+            // If we eject, we are not full anymore.
+            // So `placedBalls` can be empty or partial.
+            // Let's just update it to match slots if we want to be safe.
+            this.placedBalls = this.slots
+                .filter(s => s.filled)
+                .sort((a, b) => a.index - b.index)
+                .map(s => s.filledValue as number);
+        }
+    }
+
+    checkAnswer() {
+        // First ensure placedBalls is accurate to slot order
+        this.rebuildPlacedBalls();
+
+        this.isLocked = true;
+        this.attempts++;
+
+        // ... rest of checkAnswer
+        // Copied checkAnswer logic here to be safe or just call existing?
+        // multi_replace can't reference existing function body unless I replace it too.
+        // I will just implement rebuildPlacedBalls and ensure checkAnswer calls it or I fix fillSlot to not push blindly.
+        // Actually, if I fix `fillSlot` to NOT push blindly either, that's better.
+        // But for now, let's just make `rebuild` work.
+
+        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        let isCorrect: boolean;
+
+        if (isComplex) {
+            const complexEquation = this.currentEquation as ComplexEquation;
+            isCorrect = this.equationGenerator.validateEquation(complexEquation, this.placedBalls);
+        } else {
+            const simpleEquation = this.currentEquation as any;
+            const op = simpleEquation.operator || "+";
+            let userAnswer: number;
+            // Ensure we have enough balls
+            if (this.placedBalls.length < this.slots.length) {
+                // Should not happen if checkAnswer called only on allFilled
+                isCorrect = false;
+            } else {
+                if (op === "+") {
+                    userAnswer = this.placedBalls[0] + this.placedBalls[1];
+                } else if (op === "-") {
+                    userAnswer = this.placedBalls[0] - this.placedBalls[1];
+                } else if (op === "*" || op === "×") {
+                    userAnswer = this.placedBalls[0] * this.placedBalls[1];
+                } else {
+                    userAnswer = this.placedBalls[0] / this.placedBalls[1];
+                }
+                isCorrect = userAnswer === simpleEquation.result;
+            }
+        }
+
+        console.log("[BilliardsGameScene] Answer checked", { isCorrect, placedBalls: this.placedBalls });
+
+        if (isCorrect) {
+            this.handleCorrectAnswer();
+        } else {
+            this.handleWrongAnswer();
+        }
+    }
+    createBalls() {
+        this.cleanupBalls();
+        this.cleanupObstacles();
+
+        const layout = this.layoutGenerator.generateLayout(this.currentEquation, this.currentLevelConfig);
         const { width } = this.scale;
-        const fontSize = Math.min(64, width * 0.12); // Much bigger for elderly play
+        const ballRadius = Math.min(28, width * 0.055);
 
-        const text = this.add
-            .text(0, 0, operator, {
-                fontFamily: "Sarabun, sans-serif",
-                fontSize: `${fontSize}px`,
-                color: "#2B2115",
-                stroke: "#FFFFFF",
-                strokeThickness: 3,
-                fontStyle: "bold",
-            })
-            .setOrigin(0.5);
+        // 1. Create Obstacles
+        layout.obstacles.forEach(obs => {
+            // Visual
+            const rect = this.add.rectangle(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.width, obs.height, 0x5c4033); // Dark wood color
+            rect.setStrokeStyle(2, 0x3e2b22);
+            rect.setDepth(18); // Below balls (20)
 
-        this.operatorTexts[position] = operator;
-        return text;
+            // Physics Body (Manual collision)
+            const body = new Phaser.Geom.Rectangle(obs.x, obs.y, obs.width, obs.height);
+
+            this.obstacles.list.push(rect);
+            this.obstacles.bodies.push(body);
+        });
+
+        // 2. Create Balls
+        layout.balls.forEach(b => {
+            const ball = this.createBall(b.value, b.x, b.y, ballRadius, b.isHazard);
+            this.balls.push(ball);
+        });
+
+        // 3. Create Cue Ball
+        this.createCueBall(ballRadius * 0.85);
+
+        console.log("[BilliardsGameScene] Level layout created", {
+            balls: this.balls.length,
+            obstacles: this.obstacles.list.length,
+            hazards: this.balls.filter(b => b.isHazard).length
+        });
+    }
+
+    createCueBall(radius: number) {
+        const { width } = this.scale;
+        const cueBallX = width / 2;
+        const cueBallY = this.tableBounds.bottom - radius * 2.5;
+
+        const container = this.add.container(cueBallX, cueBallY);
+
+        // Shadow
+        const shadow = this.add.circle(3, 3, radius, 0x000000, 0.3);
+        container.add(shadow);
+
+        // White cue ball - make it visually distinct
+        const ballCircle = this.add.circle(0, 0, radius, 0xffffff);
+        ballCircle.setStrokeStyle(2, 0xcccccc);
+        container.add(ballCircle);
+
+        // Small dot in center to show it's the cue ball
+        const centerDot = this.add.circle(0, 0, radius * 0.15, 0xdddddd);
+        container.add(centerDot);
+
+        container.setSize(radius * 2, radius * 2);
+        container.setDepth(25); // Slightly above other balls
+        container.setInteractive({ useHandCursor: true });
+
+        this.cueBall = {
+            id: 0,
+            value: 0, // Cue ball has no value
+            x: cueBallX,
+            y: cueBallY,
+            originalX: cueBallX,
+            originalY: cueBallY,
+            isDragging: false,
+            isPlaced: false,
+            container,
+            sprite: null,
+            velocityX: 0,
+            velocityY: 0,
+            isMoving: false,
+        };
+
+        console.log("[BilliardsGameScene] Cue ball created at", { x: cueBallX, y: cueBallY });
+
+        // Highlight cue ball at start
+        this.tweens.add({
+            targets: container,
+            scale: { from: 1, to: 1.3 },
+            alpha: { from: 1, to: 0.8 },
+            duration: 500,
+            yoyo: true,
+            repeat: 2,
+            ease: "Sine.easeInOut"
+        });
+
+        const hintRing = this.add.graphics();
+        hintRing.lineStyle(4, 0xffffff, 0.8);
+        hintRing.strokeCircle(0, 0, radius * 1.5);
+        container.add(hintRing);
+
+        this.tweens.add({
+            targets: hintRing,
+            alpha: { from: 0.8, to: 0 },
+            scale: { from: 1, to: 1.5 },
+            duration: 1500,
+            repeat: -1,
+        });
+    }
+
+    createBall(value: number, x: number, y: number, radius: number, isHazard?: boolean): PhysicsBall {
+        const container = this.add.container(x, y);
+
+        // Shadow
+        const shadow = this.add.circle(3, 3, radius, 0x000000, 0.3);
+        container.add(shadow);
+
+        if (isHazard || value === 99) {
+            // Hazard Ball (Red with Skull)
+            const ballCircle = this.add.circle(0, 0, radius, 0xff0000).setStrokeStyle(2, 0x000000);
+            const text = this.add.text(0, 0, "☠", {
+                fontFamily: "Arial, sans-serif",
+                fontSize: `${radius * 1.2}px`,
+                color: "#000000"
+            }).setOrigin(0.5);
+            container.add([ballCircle, text]);
+        } else if (value >= 1 && value <= 10) {
+            const ballImage = this.add.image(0, 0, `ball-${value}`);
+            ballImage.setDisplaySize(radius * 2.2, radius * 2.2);
+            container.add(ballImage);
+        } else {
+            const ballCircle = this.add.circle(0, 0, radius, 0xffffff).setStrokeStyle(2, 0x000000);
+            const text = this.add
+                .text(0, 0, value.toString(), {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: `${radius * 0.8}px`,
+                    color: "#000000",
+                    fontStyle: "bold",
+                })
+                .setOrigin(0.5);
+            container.add([ballCircle, text]);
+        }
+
+        container.setSize(radius * 2, radius * 2);
+        container.setDepth(20); // Below aim line (100) but above table
+
+        // Make interactive
+        container.setInteractive({ useHandCursor: true });
+
+        return {
+            id: value,
+            value,
+            x,
+            y,
+            originalX: x,
+            originalY: y,
+            isDragging: false,
+            isPlaced: false,
+            container,
+            sprite: null,
+            velocityX: 0,
+            velocityY: 0,
+            isMoving: false,
+            isHazard: isHazard || value === 99
+        };
     }
 
     startLevel() {
+        console.log("[BilliardsGameScene] Starting level");
         this.levelStartTime = Date.now();
         this.generateNewEquation();
         this.isLocked = false;
@@ -589,515 +1333,36 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     generateNewEquation() {
-        this.currentEquation =
-            this.equationGenerator.generateFillInTheBlanksEquation();
+        this.currentEquation = this.equationGenerator.generateFillInTheBlanksEquation();
 
-        // Update goal ball with target number using separate function
-        this.updateGoalBall(this.currentEquation.result);
+        console.log("[BilliardsGameScene] Generated equation", {
+            result: this.currentEquation.result,
+            displayText: this.currentEquation.displayText
+        });
 
-        // Update equation display with visual pool balls
+        // Create slot zones based on equation
+        this.createSlotZones();
 
-        // Create pool balls
+        // Create balls
         this.createBalls();
-        this.updateEquationDisplay();
+
+        // Reset placed balls
+        this.placedBalls = [];
     }
 
-    createBalls(
-        exclusionRadius: number = 180,
-        padding: number = 5,
-        maxAttempts: number = 50
-    ) {
-        // Clear existing balls using proper cleanup
-        this.cleanupBalls();
 
-        const requiredNumbers =
-            this.equationGenerator.getRequiredBallsForEquation(
-                this.currentEquation
-            );
-        const { width, height } = this.scale;
-
-        const centerX = width / 2;
-        const centerY = height / 2;
-
-        // Calculate pool table boundaries to ensure balls spawn inside
-        const tableWidth = width * 0.8;
-        const tableHeight = height * 0.7;
-        const tableLeft = centerX - tableWidth / 2;
-        const tableRight = centerX + tableWidth / 2;
-        const tableTop = centerY - tableHeight / 2;
-        const tableBottom = centerY + tableHeight / 2;
-
-        // We'll store placed positions + radii to prevent overlap
-        const placed: { x: number; y: number; r: number }[] = [];
-
-        const clamp = (v: number, min: number, max: number) =>
-            Math.max(min, Math.min(max, v));
-
-        const isOverlapping = (x: number, y: number, r: number) => {
-            for (const p of placed) {
-                const dx = x - p.x;
-                const dy = y - p.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist < r + p.r + padding) return true;
-            }
-            return false;
-        };
-
-        const pushOutsideCenterCircle = (x: number, y: number, r: number) => {
-            const dx = x - centerX;
-            const dy = y - centerY;
-            const dist = Math.hypot(dx, dy);
-
-            // keep ball fully outside exclusion circle
-            const minDist = exclusionRadius + r;
-
-            if (dist < minDist) {
-                const angle =
-                    dist === 0
-                        ? Math.random() * Math.PI * 2
-                        : Math.atan2(dy, dx);
-                const extra = 6 + Math.random() * 14; // small jitter outside circle
-                const rr = minDist + extra;
-                x = centerX + Math.cos(angle) * rr;
-                y = centerY + Math.sin(angle) * rr;
-            }
-            return { x, y };
-        };
-
-        // Create a grid of candidate positions within pool table bounds
-        const cols = 3;
-        const rows = Math.ceil(requiredNumbers.length / cols);
-
-        // Use pool table margins instead of screen margins
-        const marginX = Math.min(50, width * 0.05);
-        const marginY = Math.min(50, height * 0.05);
-
-        const cellWidth = (tableWidth - marginX * 2) / cols;
-        const cellHeight = (tableHeight - marginY * 2) / rows;
-
-        const candidates: { x: number; y: number }[] = [];
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                if (candidates.length >= requiredNumbers.length) break;
-
-                const x =
-                    tableLeft + marginX +
-                    col * cellWidth +
-                    cellWidth / 2 +
-                    (Math.random() - 0.5) * cellWidth * 0.35;
-
-                const y =
-                    tableTop + marginY +
-                    row * cellHeight +
-                    cellHeight / 2 +
-                    (Math.random() - 0.5) * cellHeight * 0.35;
-
-                candidates.push({ x, y });
-            }
-        }
-
-        // Shuffle candidates
-        for (let i = candidates.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-        }
-
-        const nextCandidate = () => {
-            // Use grid candidates first, then fallback to random within table bounds
-            if (candidates.length) return candidates.pop()!;
-            return {
-                x: tableLeft + marginX + Math.random() * (tableWidth - marginX * 2),
-                y: tableTop + marginY + Math.random() * (tableHeight - marginY * 2),
-            };
-        };
-
-        // Create and place balls with overlap-avoidance
-        requiredNumbers.forEach((num) => {
-            const ball = this.createBall(num);
-
-            // Determine this ball's radius from bounds (fallback if something is missing)
-            let r = Math.min(40, width * 0.08);
-            if (ball.container) {
-                const b = ball.container.getBounds();
-                r = Math.max(b.width, b.height) / 2;
-                if (!Number.isFinite(r) || r <= 0)
-                    r = Math.min(40, width * 0.08);
-            }
-
-            // Use table boundaries for clamping, not screen boundaries
-            const ballMarginX = r + marginX;
-            const ballMarginY = r + marginY;
-
-            let placedPos: { x: number; y: number } | null = null;
-
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                // Start from a candidate (grid-ish), then add small jitter on retries
-                const base = nextCandidate();
-
-                let x =
-                    base.x +
-                    (Math.random() - 0.5) * 18 * Math.min(1, attempt / 10);
-                let y =
-                    base.y +
-                    (Math.random() - 0.5) * 18 * Math.min(1, attempt / 10);
-
-                // Keep within pool table bounds (not screen bounds)
-                x = clamp(x, tableLeft + ballMarginX, tableRight - ballMarginX);
-                y = clamp(y, tableTop + ballMarginY, tableBottom - ballMarginY);
-
-                // Enforce center exclusion circle (ball fully outside)
-                const pushed = pushOutsideCenterCircle(x, y, r);
-                x = clamp(pushed.x, tableLeft + ballMarginX, tableRight - ballMarginX);
-                y = clamp(pushed.y, tableTop + ballMarginY, tableBottom - ballMarginY);
-
-                // Check overlaps
-                if (!isOverlapping(x, y, r)) {
-                    placedPos = { x, y };
-                    break;
-                }
-            }
-
-            // If we somehow failed, place it anyway at a safe spot within table bounds (last resort)
-            if (!placedPos) {
-                let x = clamp(
-                    centerX + (Math.random() - 0.5) * (tableWidth * 0.7),
-                    tableLeft + ballMarginX,
-                    tableRight - ballMarginX
-                );
-                let y = clamp(
-                    centerY + (Math.random() - 0.5) * (tableHeight * 0.7),
-                    tableTop + ballMarginY,
-                    tableBottom - ballMarginY
-                );
-                const pushed = pushOutsideCenterCircle(x, y, r);
-                placedPos = {
-                    x: clamp(pushed.x, tableLeft + ballMarginX, tableRight - ballMarginX),
-                    y: clamp(pushed.y, tableTop + ballMarginY, tableBottom - ballMarginY),
-                };
-            }
-
-            if (ball.container && placedPos) {
-                ball.container.setPosition(placedPos.x, placedPos.y);
-                ball.x = placedPos.x;
-                ball.y = placedPos.y;
-                ball.originalX = placedPos.x;
-                ball.originalY = placedPos.y;
-            }
-
-            placed.push({ x: placedPos.x, y: placedPos.y, r });
-            this.balls.push(ball);
-        });
-    }
-
-    createBall(value: number): Ball {
-        const container = this.add.container(0, 0);
-        const { width } = this.scale;
-
-        // Responsive sizing - Much bigger for elderly play
-        const ballRadius = Math.min(35, width * 0.08); // Much bigger
-        const fontSize = Math.min(22, width * 0.04); // Much bigger text
-        const shadowOffset = ballRadius * 0.12;
-
-        // Conditional ball creation: PNG only for known values (1-9), generated circle for unknown
-        let ball;
-        if (value >= 1 && value <= 10) {
-            // Use PNG with bigger display size for known values
-            ball = this.add.image(0, 0, `ball-${value}`);
-            ball.setDisplaySize(ballRadius * 2.5, ballRadius * 2.5); // 25% bigger
-
-            container.add([ball]);
-        } else {
-            // Use generated circle for unknown values
-            ball = this.add
-                .circle(0, 0, ballRadius, 0xffffff)
-                .setStrokeStyle(2, 0x000000);
-            // Ball shadow
-            const shadow = this.add
-                .circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3)
-                .setOrigin(0.5);
-            // Ball number (overlay on top of ball image for better visibility)
-            const text = this.add
-                .text(0, 0, value.toString(), {
-                    fontFamily: "Arial, sans-serif",
-                    fontSize: `${fontSize}px`,
-                    color: "#ffffff", // White text for better contrast on ball image
-                    fontStyle: "bold",
-                    stroke: "#000000",
-                    strokeThickness: 1,
-                })
-                .setOrigin(0.5);
-            container.add([shadow, ball, text]);
-        }
-
-        container.setSize(ballRadius * 2, ballRadius * 2);
-
-        // Make container itself interactive with sound effects
-        container.setInteractive({ useHandCursor: true });
-
-        // Add hover effect (no sound)
-        container.on("pointerover", () => {
-            this.tweens.add({
-                targets: container,
-                scale: 1.05,
-                duration: 150,
-                ease: "Sine.easeOut",
-            });
-        });
-
-        container.on("pointerout", () => {
-            this.tweens.add({
-                targets: container,
-                scale: 1,
-                duration: 150,
-                ease: "Sine.easeOut",
-            });
-        });
-
-        container.on("pointerdown", () => {
-            if (this.soundBallClick) {
-                this.soundBallClick.play();
-            }
-            this.handleBallClick(value);
-        });
-
-        return {
-            id: value,
-            value,
-            x: 0,
-            y: 0,
-            originalX: 0, // Store original position
-            originalY: 0, // Store original position
-            isDragging: false,
-            isPlaced: false,
-            container,
-        };
-    }
-
-    handleBallClick(value: number) {
-        if (this.isLocked) return;
-
-        // Check if this is a complex equation
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
-        const maxBalls = isComplex ? 
-            (this.currentEquation as ComplexEquation).operators.length + 1 : 2;
-
-        // Check if we have empty slots
-        if (this.placedBalls.length >= maxBalls) return;
-
-        // Place ball
-        this.placedBalls.push(value);
-        this.updateEquationDisplay();
-
-        // Play drop sound when ball is placed
-        if (this.soundBallDrop) {
-            this.soundBallDrop.play();
-        }
-
-        // Animate ball to blank position
-        this.animateBallToBlank(value, this.placedBalls.length - 1);
-
-        // Remove ball from available balls
-        const ballIndex = this.balls.findIndex((b) => b.value === value);
-        if (ballIndex !== -1) {
-            const ball = this.balls[ballIndex];
-            if (ball && ball.container) {
-                ball.container.setVisible(false);
-                ball.isPlaced = true;
-            }
-        }
-
-        // Check if equation is complete
-        if (this.placedBalls.length === maxBalls) {
-            this.checkAnswer();
-        }
-    }
-
-    updateEquationDisplay() {
-        const { width, height } = this.scale;
-
-        // Clear existing equation display
-        this.equationContainer.removeAll(true);
-        this.equationBalls = {};
-        this.operatorTexts = {};
-
-        // Check if this is a complex equation
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
-
-        if (isComplex) {
-            this.updateComplexEquationDisplay();
-        } else {
-            this.updateSimpleEquationDisplay();
-        }
-    }
-
-    private updateSimpleEquationDisplay() {
-        const equation = this.currentEquation as any; // Use any for backward compatibility
-        const { width } = this.scale;
-
-        // Calculate responsive spacing based on screen width (increased padding)
-        const baseSpacing = Math.min(140, width * 0.15);
-        const startX = -baseSpacing * 1.5; // Center the equation
-
-        // Get operator with backward compatibility
-        const operator = equation.operator || equation.leftOperand1 ? '+' : equation.leftOperand;
-
-        // Create first ball (placed or empty)
-        const firstValue =
-            this.placedBalls[0] !== undefined ? this.placedBalls[0] : null;
-        const firstBall = this.createEquationBall(firstValue, "first");
-        firstBall.setPosition(startX, 0);
-
-        // Create operator text
-        const operatorText = this.createOperatorText(operator, "operator");
-        operatorText.setPosition(startX + baseSpacing, 0);
-
-        // Create second ball (placed or empty)
-        const secondValue =
-            this.placedBalls[1] !== undefined ? this.placedBalls[1] : null;
-        const secondBall = this.createEquationBall(secondValue, "second");
-        secondBall.setPosition(startX + baseSpacing * 2, 0);
-
-        // Create equals sign
-        const equalsText = this.createOperatorText("=", "equals");
-        equalsText.setPosition(startX + baseSpacing * 3, 0);
-
-        // Add all elements to equation container
-        this.equationContainer.add([
-            firstBall,
-            operatorText,
-            secondBall,
-            equalsText,
-        ]);
-
-        // Position gold ball at result location
-        this.positionGoldBallAtResult(baseSpacing * 2.5);
-
-        // Animate entrance
-        this.equationContainer.setAlpha(0);
-        this.tweens.add({
-            targets: this.equationContainer,
-            alpha: 1,
-            duration: 300,
-            ease: "Linear",
-        });
-    }
-
-    private updateComplexEquationDisplay() {
-        const equation = this.currentEquation as ComplexEquation;
-        const { width } = this.scale;
-
-        // Show first 3 operands with operators for complex equations
-        const maxDisplayOperands = Math.min(3, equation.operands.length);
-        const baseSpacing = Math.min(80, width * 0.10); // Increased spacing for complex equations
-
-        const totalWidth = baseSpacing * (maxDisplayOperands * 2);
-        const startX = -totalWidth / 2;
-
-        let currentX = startX;
-
-        // Create equation elements without parentheses (following proper order of operations)
-        for (let i = 0; i < maxDisplayOperands; i++) {
-            // Create ball for operand
-            const ballValue = i < this.placedBalls.length ? this.placedBalls[i] : null;
-            const ball = this.createEquationBall(ballValue, `operand-${i}`);
-            ball.setPosition(currentX, 0);
-            this.equationContainer.add(ball);
-
-            currentX += baseSpacing;
-
-            // Add operator (except after last operand)
-            if (i < maxDisplayOperands - 1 && i < equation.operators.length) {
-                // Convert operator to proper display symbol
-                let displayOp: string = equation.operators[i];
-                if (equation.operators[i] === '*') displayOp = '×';
-                if (equation.operators[i] === '/') displayOp = '÷';
-
-                const operatorText = this.createOperatorText(displayOp, `operator-${i}`);
-                operatorText.setPosition(currentX, 0);
-                this.equationContainer.add(operatorText);
-                currentX += baseSpacing;
-            }
-        }
-
-        // Add equals sign
-        const equalsText = this.createOperatorText("=", "equals");
-        equalsText.setPosition(currentX, 0);
-        this.equationContainer.add(equalsText);
-
-        // Position gold ball at result location
-        this.positionGoldBallAtResult(currentX + baseSpacing);
-
-        // Animate entrance
-        this.equationContainer.setAlpha(0);
-        this.tweens.add({
-            targets: this.equationContainer,
-            alpha: 1,
-            duration: 300,
-            ease: "Linear",
-        });
-    }
-
-    positionGoldBallAtResult(equalsX: number) {
-        const { width, height } = this.scale;
-
-        // Position gold ball at the result location (after equals)
-        const equationX = width / 2;
-        this.goalBall.setPosition(equationX + equalsX, height * 0.5);
-
-        // Add pulsing animation to goal ball
-        this.tweens.add({
-            targets: this.goalBall,
-            scale: { from: 1, to: 1.1 },
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-            ease: "Sine.easeInOut",
-        });
-    }
-
-    checkAnswer() {
-        this.isLocked = true;
-        this.attempts++;
-
-        // Check if this is a complex equation
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
-        let isCorrect: boolean;
-
-        if (isComplex) {
-            const complexEquation = this.currentEquation as ComplexEquation;
-            // For complex equations, validate using the equation generator
-            isCorrect = this.equationGenerator.validateEquation(complexEquation, this.placedBalls);
-        } else {
-            const simpleEquation = this.currentEquation as any; // Use any for backward compatibility
-            // For simple equations, use the original logic
-            const leftOperand = simpleEquation.leftOperand || simpleEquation.leftOperand1;
-            const rightOperand = simpleEquation.rightOperand || simpleEquation.leftOperand2;
-            const userAnswer = this.placedBalls[0] + this.placedBalls[1];
-            isCorrect = userAnswer === simpleEquation.result;
-        }
-
-        if (isCorrect) {
-            this.handleCorrectAnswer();
-        } else {
-            this.handleWrongAnswer();
-        }
-    }
 
     handleCorrectAnswer() {
         this.correctEquations++;
         this.totalEquations++;
         this.currentErrorRun = 0;
-        if (this.soundBallDrop) {
-            this.soundBallDrop.play();
-        }
 
-        // Track completed equation result for shadow ball display
         this.trackCompletedEquation(this.currentEquation.result);
 
-        // Add success animation to equation balls
-        Object.values(this.equationBalls).forEach((ball) => {
+        // Success animation on all slots
+        this.slots.forEach((slot) => {
             this.tweens.add({
-                targets: ball,
+                targets: slot.graphics,
                 scale: 1.2,
                 duration: 200,
                 yoyo: true,
@@ -1105,9 +1370,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             });
         });
 
-        this.time.delayedCall(1500, () => {
-            this.nextEquation();
-        });
+        this.time.delayedCall(1200, () => this.nextEquation());
     }
 
     handleWrongAnswer() {
@@ -1118,122 +1381,164 @@ export class BilliardsGameScene extends Phaser.Scene {
             this.consecutiveErrors = this.currentErrorRun;
         }
         this.repeatedErrors++;
-        if (this.soundBallRattle) {
-            this.soundBallRattle.play();
-        }
 
-        // Add shake animation to indicate error
-        this.equationContainer.scene.tweens.add({
-            targets: this.equationContainer,
-            x: "+=10",
-            duration: 50,
-            yoyo: true,
-            repeat: 5,
-            ease: "Power2.easeInOut",
-        });
+        if (this.soundBallRattle) this.soundBallRattle.play();
 
-        this.time.delayedCall(1500, () => {
-            this.resetPlacedBalls();
-        });
+        // Shake camera
+        this.cameras.main.shake(200, 0.008);
+
+        this.time.delayedCall(1200, () => this.resetCurrentEquation());
     }
 
-    animateBallToBlank(value: number, blankIndex: number) {
-        const { width, height } = this.scale;
+    resetCurrentEquation() {
+        // Reset all slots
+        this.slots.forEach((slot) => {
+            slot.filled = false;
+            slot.filledValue = null;
+            if (slot.checkmark) slot.checkmark.setVisible(false);
 
-        // Find the ball that was clicked
-        const ballIndex = this.balls.findIndex((b) => b.value === value);
-        if (ballIndex === -1) return;
+            // Show placeholder again
+            const placeholder = slot.graphics.getAt(2) as Phaser.GameObjects.Text;
+            if (placeholder) {
+                placeholder.setVisible(true);
+                placeholder.setText("?");
+            }
 
-        const ball = this.balls[ballIndex];
-        if (!ball || !ball.container) return;
-
-        // Calculate target position in equation
-        const equationX = width / 2;
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
-        
-        let baseSpacing: number;
-        let targetX: number;
-        
-        if (isComplex) {
-            // For complex equations, use smaller spacing
-            baseSpacing = Math.min(60, width * 0.06);
-            const startX = -baseSpacing * 2; // Adjust for complex equation layout
-            targetX = equationX + startX + (blankIndex * baseSpacing * 2);
-        } else {
-            // For simple equations
-            baseSpacing = Math.min(120, width * 0.08);
-            const startX = -baseSpacing * 1.5;
-            targetX = equationX + (blankIndex === 0 ? startX : startX + baseSpacing * 2);
-        }
-        
-        const targetY = height * 0.5;
-
-        // Animate ball to blank position
-        this.tweens.add({
-            targets: ball.container,
-            x: targetX,
-            y: targetY,
-            scale: 1.2, // Slightly larger when in equation
-            duration: 400,
-            ease: "Back.easeOut",
-            onComplete: () => {
-                // Add bounce effect
-                this.tweens.add({
-                    targets: ball.container,
-                    scale: 1.2,
-                    duration: 200,
-                    ease: "Bounce.easeOut",
-                });
-            },
+            // Restart pulsing animation
+            const glowCircle = slot.graphics.getAt(0) as Phaser.GameObjects.Arc;
+            glowCircle.setAlpha(0.25);
+            this.tweens.add({
+                targets: glowCircle,
+                alpha: { from: 0.25, to: 0.5 },
+                scale: { from: 1, to: 1.1 },
+                duration: 1000,
+                yoyo: true,
+                repeat: -1,
+                ease: "Sine.easeInOut",
+            });
         });
-    }
 
-    resetPlacedBalls() {
-        // Reset placed balls
-        this.placedBalls = [];
-
-        // Make balls visible again and animate back to original positions
+        // Reset balls to original positions
         this.balls.forEach((ball) => {
-            if (ball.isPlaced && ball.container) {
-                ball.container.setVisible(true);
-                ball.isPlaced = false;
-
-                // Animate ball back to original position
+            if (ball.container) {
+                this.tweens.killTweensOf(ball.container);
                 this.tweens.add({
                     targets: ball.container,
                     x: ball.originalX,
                     y: ball.originalY,
                     scale: 1,
-                    duration: 600,
+                    duration: 400,
                     ease: "Back.easeOut",
                 });
             }
+            ball.velocityX = 0;
+            ball.velocityY = 0;
+            ball.isPlaced = false;
+            ball.isMoving = false;
         });
 
-        this.updateEquationDisplay();
+        // Reset cue ball
+        if (this.cueBall && this.cueBall.container) {
+            this.cueBall.container.setPosition(this.cueBall.originalX, this.cueBall.originalY);
+            this.cueBall.x = this.cueBall.originalX;
+            this.cueBall.y = this.cueBall.originalY;
+            this.cueBall.velocityX = 0;
+            this.cueBall.velocityY = 0;
+            this.cueBall.isMoving = false;
+
+            // Reset cue ball scale in case it was highlighted
+            this.cueBall.container.setScale(1);
+        }
+
+        this.placedBalls = [];
+        this.updateEquationText();
         this.isLocked = false;
     }
 
     nextEquation() {
-        // Check if level is complete using configurable total equations
-        console.log(
-            `nextEquation: totalEquations=${this.totalEquations}, correctEquations=${this.correctEquations}, required=${this.currentLevelConfig.totalEquations}`
-        );
-
-        // Reset placed balls for next equation
         this.placedBalls = [];
-        this.updateEquationDisplay();
 
         if (this.totalEquations >= this.currentLevelConfig.totalEquations) {
-            console.log("Level complete, ending level");
             this.endLevel();
         } else {
-            console.log("Generating next equation");
             this.generateNewEquation();
             this.isLocked = false;
         }
     }
 
+    // Shadow ball tracker (progress indicator)
+    createShadowBallTracker() {
+        const { width, height } = this.scale;
+        const y = height - Math.min(75, height * 0.11);
+
+        this.shadowBallContainer = this.add.container(width / 2, y);
+
+        const totalBalls = this.currentLevelConfig.totalEquations;
+        const ballSpacing = Math.min(40, width * 0.07);
+        const startX = (-(totalBalls - 1) * ballSpacing) / 2;
+
+        for (let i = 0; i < totalBalls; i++) {
+            const shadowBall = this.createShadowBall(i);
+            shadowBall.setPosition(startX + i * ballSpacing, 0);
+            this.shadowBalls.push(shadowBall);
+            this.shadowBallContainer.add(shadowBall);
+        }
+    }
+
+    createShadowBall(index: number): Phaser.GameObjects.Container {
+        const container = this.add.container(0, 0);
+        const { width } = this.scale;
+        const ballRadius = Math.min(18, width * 0.035);
+
+        const ball = this.add.circle(0, 0, ballRadius, 0xcccccc).setStrokeStyle(2, 0x666666);
+        const text = this.add
+            .text(0, 0, "?", {
+                fontFamily: "Arial, sans-serif",
+                fontSize: `${Math.min(12, width * 0.022)}px`,
+                color: "#ffffff",
+                fontStyle: "bold",
+            })
+            .setOrigin(0.5);
+
+        container.add([ball, text]);
+        return container;
+    }
+
+    trackCompletedEquation(result: number) {
+        this.completedEquationResults.push(result);
+
+        const index = this.completedEquationResults.length - 1;
+        if (index < this.shadowBalls.length) {
+            const shadowBall = this.shadowBalls[index];
+            shadowBall.removeAll(true);
+
+            const { width } = this.scale;
+            const ballRadius = Math.min(22, width * 0.04);
+
+            const goalBall = this.add.image(0, 0, "goal-ball");
+            goalBall.setDisplaySize(ballRadius * 2.2, ballRadius * 2.2);
+
+            const resultText = this.add
+                .text(0, 0, result.toString(), {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: `${Math.min(14, width * 0.025)}px`,
+                    color: "#ffffff",
+                    fontStyle: "bold",
+                })
+                .setOrigin(0.5);
+
+            shadowBall.add([goalBall, resultText]);
+
+            this.tweens.add({
+                targets: shadowBall,
+                scale: { from: 0.5, to: 1 },
+                duration: 300,
+                ease: "Back.easeOut",
+            });
+        }
+    }
+
+    // Timer methods
     startTimer() {
         if (this.continuedAfterTimeout) return;
 
@@ -1268,13 +1573,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         const barW = Math.min(width * 0.8, 400);
         const barH = Math.min(12, height * 0.02);
         const x = (width - barW) / 2;
-        const y = height - Math.min(50, height * 0.08);
+        const y = height - Math.min(45, height * 0.07);
 
-        // Background
         this.customTimerBar.fillStyle(0x8b4513, 0.2);
         this.customTimerBar.fillRoundedRect(x, y, barW, barH, 6);
 
-        // Fill
         const isWarning = pct < 25;
         const color = isWarning ? 0xff4444 : 0x76d13d;
 
@@ -1285,22 +1588,14 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         this.customTimerBar.fillStyle(color, alpha);
         if (pct > 0) {
-            this.customTimerBar.fillRoundedRect(
-                x,
-                y,
-                barW * (pct / 100),
-                barH,
-                6
-            );
+            this.customTimerBar.fillRoundedRect(x, y, barW * (pct / 100), barH, 6);
         }
     }
 
     endLevel() {
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.remove();
-        if (this.customTimerBar) {
-            this.customTimerBar.setVisible(false);
-        }
+        if (this.customTimerBar) this.customTimerBar.setVisible(false);
 
         const endTime = Date.now();
         const totalTime = endTime - this.levelStartTime;
@@ -1321,89 +1616,45 @@ export class BilliardsGameScene extends Phaser.Scene {
             this.continuedAfterTimeout
         );
 
-        // Add comprehensive logging for debugging
-        console.log("[BilliardsGameScene] endLevel called", {
-            level: this.currentLevelConfig.level,
-            stars,
-            totalTime,
-            correctEquations: this.correctEquations,
-            totalEquations: this.totalEquations,
-            continuedAfterTimeout: this.continuedAfterTimeout,
-        });
+        console.log("[BilliardsGameScene] Level ended", { stars, totalTime, correctEquations: this.correctEquations });
 
         const onGameOver = this.registry.get("onGameOver");
-        console.log(
-            "[BilliardsGameScene] onGameOver callback from registry:",
-            !!onGameOver
-        );
 
         if (onGameOver) {
             const gameStats: BilliardsGameStats = {
                 levelPlayed: this.currentLevelConfig.level,
-                difficultyMultiplier:
-                    this.currentLevelConfig.difficultyMultiplier,
+                difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
                 totalEquations: this.totalEquations,
                 correctEquations: this.correctEquations,
                 wrongEquations: this.wrongEquations,
                 totalTimeMs: totalTime,
-                parTimeMs:
-                    this.currentLevelConfig.starRequirements.threeStars * 1000,
+                parTimeMs: this.currentLevelConfig.starRequirements.threeStars * 1000,
                 consecutiveErrors: this.consecutiveErrors,
                 repeatedErrors: this.repeatedErrors,
                 attempts: this.attempts,
                 continuedAfterTimeout: this.continuedAfterTimeout,
             };
 
-            // Create the final data object with additional properties for compatibility
             const finalData = {
                 success: true,
                 stars,
                 starHint,
                 ...gameStats,
-                userTimeMs: totalTime, // Add for compatibility with server expectations
-                level: this.currentLevelConfig.level, // Add for compatibility with server expectations
+                userTimeMs: totalTime,
+                level: this.currentLevelConfig.level,
             };
-
-            console.log(
-                "[BilliardsGameScene] Calling onGameOver with final data:",
-                finalData
-            );
 
             try {
                 onGameOver(finalData);
-                console.log(
-                    "[BilliardsGameScene] onGameOver callback executed successfully"
-                );
             } catch (error) {
-                console.error(
-                    "[BilliardsGameScene] Error in onGameOver callback:",
-                    error
-                );
+                console.error("[BilliardsGameScene] Error in onGameOver callback:", error);
             }
-        } else {
-            console.error(
-                "[BilliardsGameScene] CRITICAL: onGameOver callback not found in registry!"
-            );
-            // Try to emit event as fallback
-            this.game.events.emit("game-over", {
-                level: this.currentLevelConfig.level,
-                stars,
-                success: true,
-                error: "Registry callback not found",
-            });
         }
 
-        // Play appropriate end game sound effect based on star rating
         if (stars >= 1) {
-            // Play level-pass sound for successful completion (1+ stars)
-            if (this.soundLevelPass) {
-                this.soundLevelPass.play();
-            }
+            if (this.soundLevelPass) this.soundLevelPass.play();
         } else {
-            // Play level-fail sound for failed completion (0 stars)
-            if (this.soundLevelFail) {
-                this.soundLevelFail.play();
-            }
+            if (this.soundLevelFail) this.soundLevelFail.play();
         }
 
         if (this.bgMusic && this.bgMusic.isPlaying) {
@@ -1417,18 +1668,9 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;
+            if (this.customTimerBar) this.customTimerBar.setVisible(false);
+            if (this.timerEvent) this.timerEvent.remove();
 
-            // Remove visual timer
-            if (this.customTimerBar) {
-                this.customTimerBar.setVisible(false);
-            }
-
-            // Stop timer event
-            if (this.timerEvent) {
-                this.timerEvent.remove();
-            }
-
-            // Emit safe timer update
             this.game.events.emit("timer-update", {
                 remaining: this.currentLevelConfig.timeLimitSeconds,
                 total: this.currentLevelConfig.timeLimitSeconds,
@@ -1439,31 +1681,29 @@ export class BilliardsGameScene extends Phaser.Scene {
     layoutGame() {
         const { width, height } = this.scale;
 
-        // Reposition pool table
+        // Update table bounds
+        const tableWidth = width * 0.85;
+        const tableHeight = height * 0.55;
+        this.tableBounds = {
+            left: width / 2 - tableWidth / 2,
+            right: width / 2 + tableWidth / 2,
+            top: height / 2 - tableHeight / 2,
+            bottom: height / 2 + tableHeight / 2,
+        };
+
         if (this.poolTable) {
             this.poolTable.setPosition(width / 2, height / 2);
         }
 
-        // Reposition equation container (center of pool table)
-        if (this.equationContainer) {
-            this.equationContainer.setPosition(width / 2, height * 0.5);
+        if (this.equationText) {
+            this.equationText.setPosition(width / 2, this.tableBounds.top + 25);
         }
 
-        if (this.goalBall) {
-            this.goalBall.setPosition(width / 2, height * 0.5);
-        }
-
-        if (this.messageText) {
-            this.messageText.setPosition(width / 2, height / 2);
-        }
-
-        // Reposition shadow ball tracker above timer bar
         if (this.shadowBallContainer) {
-            const y = height - Math.min(80, height * 0.12);
+            const y = height - Math.min(75, height * 0.11);
             this.shadowBallContainer.setPosition(width / 2, y);
         }
 
-        // Redraw timer bar if visible
         if (this.customTimerBar && this.customTimerBar.visible) {
             this.drawTimerBar(this.lastTimerPct);
         }
