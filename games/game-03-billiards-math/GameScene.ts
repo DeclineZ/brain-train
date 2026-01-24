@@ -63,6 +63,13 @@ export class BilliardsGameScene extends Phaser.Scene {
     private isPaused = false;
     private completedEquationResults: number[] = [];
 
+    // Shot limit tracking
+    private shotsRemaining: number = 0;
+    private shotsTakenThisEquation: number = 0;
+    private equationTimeRemaining: number = 0;
+    private equationStartTime: number = 0;
+    private equationTimerEvent!: Phaser.Time.TimerEvent;
+
     // Aiming state
     private aimingBall: PhysicsBall | null = null;
     private aimStartPoint: Phaser.Math.Vector2 | null = null;
@@ -84,6 +91,10 @@ export class BilliardsGameScene extends Phaser.Scene {
     private poolTable!: Phaser.GameObjects.Container;
     private shadowBallContainer!: Phaser.GameObjects.Container;
     private shadowBalls: Phaser.GameObjects.Container[] = [];
+
+    // Shot counter UI
+    private shotCounterText!: Phaser.GameObjects.Text;
+    private equationTimerText!: Phaser.GameObjects.Text;
 
     // Cue ball (white ball)
     private cueBall: PhysicsBall | null = null;
@@ -139,6 +150,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shadowBalls = [];
         this.aimingBall = null;
         this.aimStartPoint = null;
+        // Reset shot tracking
+        this.shotsRemaining = 0;
+        this.shotsTakenThisEquation = 0;
+        this.equationTimeRemaining = 0;
     }
 
     cleanupBalls() {
@@ -498,12 +513,12 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.placedBalls = [];
         this.updateEquationText();
 
-        // Fling ALL balls chaotically
+        // Fling ALL balls with reduced power for smoother appearance
         const allBalls = this.cueBall ? [this.cueBall, ...this.balls] : this.balls;
         allBalls.forEach(ball => {
             if (ball.container) {
-                ball.velocityX = Phaser.Math.Between(-800, 800);
-                ball.velocityY = Phaser.Math.Between(-800, 800);
+                ball.velocityX = Phaser.Math.Between(-200, 200);
+                ball.velocityY = Phaser.Math.Between(-200, 200);
                 ball.isMoving = true;
             }
         });
@@ -574,6 +589,18 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Timer bar
         this.customTimerBar = this.add.graphics();
         this.customTimerBar.setVisible(false);
+
+        // Shot counter - will be positioned in header card in createSlotZones
+        this.shotCounterText = this.add
+            .text(0, 0, "", {
+                fontFamily: "'Segoe UI', Arial, sans-serif",
+                fontSize: `${Math.min(22, width * 0.042)}px`,
+                color: "#FFFFFF",
+                fontStyle: "bold",
+            })
+            .setOrigin(0.5)
+            .setDepth(15)
+            .setVisible(false);
 
         // Shadow ball progress tracker
         this.createShadowBallTracker();
@@ -694,20 +721,42 @@ export class BilliardsGameScene extends Phaser.Scene {
             }
         }
 
-        // Add target number (= X) ABOVE the table (wooden frame)
+        // Add target number (= X) ABOVE the table with a clean card design
         if (this.targetText) this.targetText.destroy();
+
+        // Create a header container for clean UI
+        const headerY = this.tableBounds.top - 45;
+
+        // Background card for header
+        const headerBg = this.add.graphics();
+        headerBg.fillStyle(0x2B2115, 0.9);
+        headerBg.fillRoundedRect(width / 2 - 160, headerY - 22, 320, 44, 12);
+        headerBg.lineStyle(2, 0x8B7355, 1);
+        headerBg.strokeRoundedRect(width / 2 - 160, headerY - 22, 320, 44, 12);
+        headerBg.setDepth(14);
+
+        // Target value - centered in left half with Thai text
         this.targetText = this.add
-            // Position above the table frame
-            .text(width / 2, this.tableBounds.top - 40, `เป้าหมาย: ${this.currentEquation.result}`, {
-                fontFamily: "Arial, sans-serif",
-                fontSize: `${Math.min(36, width * 0.07)}px`,
-                color: "#2B2115", // Dark brown to match theme
+            .text(width / 2 - 80, headerY, `เป้าหมาย: ${this.currentEquation.result}`, {
+                fontFamily: "'Segoe UI', Arial, sans-serif",
+                fontSize: `${Math.min(24, width * 0.045)}px`,
+                color: "#FFFFFF",
                 fontStyle: "bold",
-                stroke: "#FFFFFF",
-                strokeThickness: 4,
             })
             .setOrigin(0.5)
             .setDepth(15);
+
+        // Divider line
+        const divider = this.add.graphics();
+        divider.lineStyle(2, 0x8B7355, 0.5);
+        divider.lineBetween(width / 2, headerY - 15, width / 2, headerY + 15);
+        divider.setDepth(15);
+
+        // Shot counter - centered in right half
+        if (this.shotCounterText) {
+            this.shotCounterText.setPosition(width / 2 + 80, headerY);
+            this.shotCounterText.setVisible(true);
+        }
 
         // Hide the old equation text since we now show it visually
         if (this.equationText) this.equationText.setVisible(false);
@@ -878,6 +927,13 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     shootBall(pointer: Phaser.Input.Pointer) {
         if (!this.aimingBall || !this.aimStartPoint) return;
+        if (this.isLocked) return;
+
+        // Check if shots remaining
+        if (this.shotsRemaining <= 0) {
+            console.log("[BilliardsGameScene] No shots remaining!");
+            return;
+        }
 
         const dragX = this.aimStartPoint.x - pointer.x;
         const dragY = this.aimStartPoint.y - pointer.y;
@@ -895,13 +951,84 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.aimingBall.velocityY = dirY * power * PHYSICS_CONFIG.maxShootPower / 60;
         this.aimingBall.isMoving = true;
 
+        // Track shot
+        this.shotsRemaining--;
+        this.shotsTakenThisEquation++;
+        this.updateShotCounter();
+
         if (this.soundBallDrop) this.soundBallDrop.play();
 
         console.log("[BilliardsGameScene] Ball shot", {
             power,
             vx: this.aimingBall.velocityX,
-            vy: this.aimingBall.velocityY
+            vy: this.aimingBall.velocityY,
+            shotsRemaining: this.shotsRemaining
         });
+
+        // Check if out of shots after a short delay (let ball settle)
+        this.time.delayedCall(2000, () => {
+            if (this.shotsRemaining <= 0 && !this.slots.every(s => s.filled)) {
+                this.handleOutOfShots();
+            }
+        });
+    }
+
+    handleOutOfShots() {
+        console.log("[BilliardsGameScene] Out of shots - resetting equation");
+
+        // Lock input during reset to prevent teleportation bugs
+        this.isLocked = true;
+
+        // Flash warning
+        if (this.shotCounterText) {
+            this.tweens.add({
+                targets: this.shotCounterText,
+                alpha: { from: 1, to: 0.2 },
+                duration: 150,
+                yoyo: true,
+                repeat: 3,
+            });
+        }
+
+        // Soft penalty - reset the current equation (not the whole level)
+        this.wrongEquations++;
+        this.totalEquations++;
+        this.currentErrorRun++;
+        if (this.currentErrorRun > this.consecutiveErrors) {
+            this.consecutiveErrors = this.currentErrorRun;
+        }
+
+        if (this.soundBallRattle) this.soundBallRattle.play();
+        this.cameras.main.shake(200, 0.008);
+
+        this.time.delayedCall(1200, () => this.resetCurrentEquation());
+    }
+
+    updateShotCounter() {
+        // Update visible shot counter text in header card
+        if (this.shotCounterText) {
+            const maxShots = this.currentLevelConfig.shotLimit;
+            const isLow = this.shotsRemaining <= 3;
+            // Thai text: "ยิง" means "shots"
+            this.shotCounterText.setText(`ยิง: ${this.shotsRemaining}/${maxShots}`);
+            this.shotCounterText.setColor(isLow ? "#FF6B6B" : "#FFFFFF");
+
+            // Pulse animation when low
+            if (isLow && !this.shotCounterText.getData('pulsing')) {
+                this.shotCounterText.setData('pulsing', true);
+                this.tweens.add({
+                    targets: this.shotCounterText,
+                    scale: { from: 1, to: 1.1 },
+                    duration: 400,
+                    yoyo: true,
+                    repeat: -1,
+                });
+            } else if (!isLow && this.shotCounterText.getData('pulsing')) {
+                this.tweens.killTweensOf(this.shotCounterText);
+                this.shotCounterText.setData('pulsing', false);
+                this.shotCounterText.setScale(1);
+            }
+        }
     }
 
     checkBallInSlot(ball: PhysicsBall) {
@@ -909,6 +1036,9 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Cue ball cannot fill a slot
         if (ball === this.cueBall) return;
+
+        // Hazard/bomb balls cannot fill a slot - they should just bounce off
+        if (ball.isHazard) return;
 
         for (const slot of this.slots) {
             if (slot.filled) continue;
@@ -1034,9 +1164,9 @@ export class BilliardsGameScene extends Phaser.Scene {
         ball.isPlaced = false;
         ball.isMoving = true;
 
-        // Pop it out downwards
-        ball.velocityY = 150;
-        ball.velocityX = Phaser.Math.Between(-50, 50);
+        // Pop it out gently downwards
+        ball.velocityY = 50;
+        ball.velocityX = Phaser.Math.Between(-20, 20);
 
         // Restore scale
         if (ball.container) {
@@ -1348,6 +1478,98 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Reset placed balls
         this.placedBalls = [];
+
+        // Initialize shot limit for this equation
+        this.shotsRemaining = this.currentLevelConfig.shotLimit;
+        this.shotsTakenThisEquation = 0;
+        this.updateShotCounter();
+    }
+
+    startEquationTimer() {
+        // Clear any existing equation timer
+        if (this.equationTimerEvent) {
+            this.equationTimerEvent.remove();
+        }
+
+        this.equationStartTime = Date.now();
+        this.equationTimeRemaining = this.currentLevelConfig.perEquationTimeSeconds;
+
+        // Update display immediately
+        this.updateEquationTimerDisplay();
+
+        // Update timer every 100ms
+        this.equationTimerEvent = this.time.addEvent({
+            delay: 100,
+            callback: () => {
+                if (this.isPaused || this.isLocked) return;
+
+                const elapsed = (Date.now() - this.equationStartTime) / 1000;
+                this.equationTimeRemaining = Math.max(0, this.currentLevelConfig.perEquationTimeSeconds - elapsed);
+
+                this.updateEquationTimerDisplay();
+
+                // Check if time expired
+                if (this.equationTimeRemaining <= 0) {
+                    this.handleEquationTimeExpired();
+                }
+            },
+            loop: true,
+        });
+    }
+
+    updateEquationTimerDisplay() {
+        if (this.equationTimerText) {
+            const seconds = Math.ceil(this.equationTimeRemaining);
+            const isWarning = seconds <= 10;
+            const isCritical = seconds <= 5;
+
+            let color = "#FFFFFF";
+            if (isCritical) color = "#FF4444";
+            else if (isWarning) color = "#FFAA44";
+
+            this.equationTimerText.setText(`⏱️ ${seconds}s`);
+            this.equationTimerText.setColor(color);
+
+            // Pulsing effect when critical
+            if (isCritical && !this.equationTimerText.getData('pulsing')) {
+                this.equationTimerText.setData('pulsing', true);
+                this.tweens.add({
+                    targets: this.equationTimerText,
+                    scale: { from: 1, to: 1.15 },
+                    duration: 300,
+                    yoyo: true,
+                    repeat: -1,
+                });
+            }
+        }
+    }
+
+    handleEquationTimeExpired() {
+        if (this.equationTimerEvent) {
+            this.equationTimerEvent.remove();
+        }
+
+        console.log("[BilliardsGameScene] Equation time expired - resetting equation");
+
+        // Flash timer warning
+        if (this.equationTimerText) {
+            this.tweens.killTweensOf(this.equationTimerText);
+            this.equationTimerText.setData('pulsing', false);
+            this.equationTimerText.setScale(1);
+        }
+
+        // Soft penalty - reset the current equation (not the whole level)
+        this.wrongEquations++;
+        this.totalEquations++;
+        this.currentErrorRun++;
+        if (this.currentErrorRun > this.consecutiveErrors) {
+            this.consecutiveErrors = this.currentErrorRun;
+        }
+
+        if (this.soundBallRattle) this.soundBallRattle.play();
+        this.cameras.main.shake(200, 0.008);
+
+        this.time.delayedCall(1200, () => this.resetCurrentEquation());
     }
 
 
@@ -1356,6 +1578,16 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.correctEquations++;
         this.totalEquations++;
         this.currentErrorRun = 0;
+
+        // Stop the equation timer
+        if (this.equationTimerEvent) {
+            this.equationTimerEvent.remove();
+        }
+        if (this.equationTimerText) {
+            this.tweens.killTweensOf(this.equationTimerText);
+            this.equationTimerText.setData('pulsing', false);
+            this.equationTimerText.setScale(1);
+        }
 
         this.trackCompletedEquation(this.currentEquation.result);
 
@@ -1395,6 +1627,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.slots.forEach((slot) => {
             slot.filled = false;
             slot.filledValue = null;
+            slot.occupiedBall = null;
             if (slot.checkmark) slot.checkmark.setVisible(false);
 
             // Show placeholder again
@@ -1422,15 +1655,13 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.balls.forEach((ball) => {
             if (ball.container) {
                 this.tweens.killTweensOf(ball.container);
-                this.tweens.add({
-                    targets: ball.container,
-                    x: ball.originalX,
-                    y: ball.originalY,
-                    scale: 1,
-                    duration: 400,
-                    ease: "Back.easeOut",
-                });
+                // Immediately set container position
+                ball.container.setPosition(ball.originalX, ball.originalY);
+                ball.container.setScale(1);
             }
+            // Update ball's internal position to match
+            ball.x = ball.originalX;
+            ball.y = ball.originalY;
             ball.velocityX = 0;
             ball.velocityY = 0;
             ball.isPlaced = false;
@@ -1453,6 +1684,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.placedBalls = [];
         this.updateEquationText();
         this.isLocked = false;
+
+        // Reset shot counter
+        this.shotsRemaining = this.currentLevelConfig.shotLimit;
+        this.shotsTakenThisEquation = 0;
+        this.updateShotCounter();
     }
 
     nextEquation() {
@@ -1469,12 +1705,12 @@ export class BilliardsGameScene extends Phaser.Scene {
     // Shadow ball tracker (progress indicator)
     createShadowBallTracker() {
         const { width, height } = this.scale;
-        const y = height - Math.min(75, height * 0.11);
+        const y = height - Math.min(85, height * 0.13);
 
         this.shadowBallContainer = this.add.container(width / 2, y);
 
         const totalBalls = this.currentLevelConfig.totalEquations;
-        const ballSpacing = Math.min(40, width * 0.07);
+        const ballSpacing = Math.min(55, width * 0.1); // Increased spacing
         const startX = (-(totalBalls - 1) * ballSpacing) / 2;
 
         for (let i = 0; i < totalBalls; i++) {
@@ -1488,13 +1724,14 @@ export class BilliardsGameScene extends Phaser.Scene {
     createShadowBall(index: number): Phaser.GameObjects.Container {
         const container = this.add.container(0, 0);
         const { width } = this.scale;
-        const ballRadius = Math.min(18, width * 0.035);
+        // Increased size from 18 to 28
+        const ballRadius = Math.min(28, width * 0.055);
 
         const ball = this.add.circle(0, 0, ballRadius, 0xcccccc).setStrokeStyle(2, 0x666666);
         const text = this.add
             .text(0, 0, "?", {
                 fontFamily: "Arial, sans-serif",
-                fontSize: `${Math.min(12, width * 0.022)}px`,
+                fontSize: `${Math.min(18, width * 0.035)}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
             })
@@ -1513,7 +1750,8 @@ export class BilliardsGameScene extends Phaser.Scene {
             shadowBall.removeAll(true);
 
             const { width } = this.scale;
-            const ballRadius = Math.min(22, width * 0.04);
+            // Increased size to match larger shadow balls
+            const ballRadius = Math.min(30, width * 0.06);
 
             const goalBall = this.add.image(0, 0, "goal-ball");
             goalBall.setDisplaySize(ballRadius * 2.2, ballRadius * 2.2);
@@ -1521,7 +1759,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             const resultText = this.add
                 .text(0, 0, result.toString(), {
                     fontFamily: "Arial, sans-serif",
-                    fontSize: `${Math.min(14, width * 0.025)}px`,
+                    fontSize: `${Math.min(18, width * 0.035)}px`,
                     color: "#ffffff",
                     fontStyle: "bold",
                 })
@@ -1597,6 +1835,9 @@ export class BilliardsGameScene extends Phaser.Scene {
         if (this.timerEvent) this.timerEvent.remove();
         if (this.customTimerBar) this.customTimerBar.setVisible(false);
 
+        // Cleanup equation timer
+        if (this.equationTimerEvent) this.equationTimerEvent.remove();
+
         const endTime = Date.now();
         const totalTime = endTime - this.levelStartTime;
 
@@ -1605,6 +1846,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             this.correctEquations,
             this.totalEquations,
             this.currentLevelConfig.starRequirements.threeStars,
+            this.currentLevelConfig.starRequirements.twoStars,
             this.continuedAfterTimeout
         );
 
