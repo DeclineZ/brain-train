@@ -113,52 +113,115 @@ export class EquationEngine {
   }
 
   /**
-   * Generate a complex multi-operand equation
-   * To ensure solvability, complex equations only use + and -
+   * Generate a complex multi-operand equation (3 operands)
+   * Uses backward generation: pick result first, then find operands that work
    */
   private generateComplexEquation(): ComplexEquation {
-    const numOperands = 3; // Fixed to 3 for complex equations
+    // Generate a guaranteed solvable 3-operand equation
+    // Strategy: Generate simple operations that we know will work
 
-    // Only use + and - for complex equations to ensure solvability
-    const safeOperations: Operation[] = ['+', '-'];
-    const operations: Operation[] = [];
-    for (let i = 0; i < numOperands - 1; i++) {
-      operations.push(safeOperations[Math.floor(Math.random() * safeOperations.length)]);
-    }
+    // Pick a target result between 1-10
+    const result = Math.floor(Math.random() * 10) + 1;
 
-    // Generate operands that ensure result is within 1-10
+    // Generate equation using one of these patterns:
+    // Pattern 1: a + b - c = result  (most flexible)
+    // Pattern 2: a - b + c = result
+    // Pattern 3: a + b + c = result (if result >= 3)
+    // Pattern 4: a - b - c = result (if we can find valid operands)
+
+    const pattern = Math.floor(Math.random() * 4);
     let operands: number[];
-    let result: number;
-    let attempts = 0;
+    let operators: Operation[];
 
-    do {
-      operands = [];
-      for (let i = 0; i < numOperands; i++) {
-        operands.push(Math.floor(Math.random() * 9) + 1); // 1-9
-      }
-      result = this.calculateComplexResult(operands, operations);
-      attempts++;
-    } while ((result < 1 || result > 10) && attempts < 50);
+    switch (pattern) {
+      case 0: // a + b - c = result → a + b = result + c
+        // Pick c between 1-5, then a + b = result + c
+        {
+          const c = Math.floor(Math.random() * 5) + 1;
+          const sum = result + c; // a + b must equal this
+          // Split sum into a and b (both 1-10)
+          const a = Math.min(10, Math.max(1, Math.floor(Math.random() * (sum - 1)) + 1));
+          const b = sum - a;
+          if (b >= 1 && b <= 10 && a >= 1 && a <= 10) {
+            operands = [a, b, c];
+            operators = ['+', '-'];
+          } else {
+            // Fallback to simple addition
+            operands = [result, 1, 1];
+            operators = ['+', '-'];
+          }
+        }
+        break;
 
-    // If we couldn't find a valid equation, use a guaranteed fallback
-    if (result < 1 || result > 10) {
-      operands = [5, 2, 1];
-      const op = operations[0] === '+' ? '+' : '+';
-      const op2 = operations[1] === '+' ? '+' : '-';
-      operations[0] = op;
-      operations[1] = op2;
-      result = this.calculateComplexResult(operands, operations);
+      case 1: // a - b + c = result → a + c = result + b
+        {
+          const b = Math.floor(Math.random() * 5) + 1;
+          const sum = result + b; // a + c must equal this
+          const a = Math.min(10, Math.max(1, Math.floor(Math.random() * (sum - 1)) + 1));
+          const c = sum - a;
+          if (c >= 1 && c <= 10 && a >= 1 && a <= 10 && a >= b) {
+            operands = [a, b, c];
+            operators = ['-', '+'];
+          } else {
+            // Fallback
+            operands = [result + 2, 1, 1];
+            operators = ['-', '+'];
+          }
+        }
+        break;
+
+      case 2: // a + b + c = result (only if result >= 3)
+        if (result >= 3) {
+          // Simple: distribute result among a, b, c
+          const a = Math.floor(Math.random() * (result - 2)) + 1;
+          const remaining = result - a;
+          const b = Math.floor(Math.random() * (remaining - 1)) + 1;
+          const c = remaining - b;
+          if (a >= 1 && a <= 10 && b >= 1 && b <= 10 && c >= 1 && c <= 10) {
+            operands = [a, b, c];
+            operators = ['+', '+'];
+          } else {
+            operands = [1, 1, result - 2 > 0 ? result - 2 : 1];
+            operators = ['+', '+'];
+          }
+        } else {
+          // Result too small for 3 additions, use pattern 0 instead
+          const c = 2;
+          const sum = result + c;
+          operands = [Math.ceil(sum / 2), Math.floor(sum / 2), c];
+          operators = ['+', '-'];
+        }
+        break;
+
+      case 3: // a - b - c = result → a = result + b + c
+      default:
+        {
+          const b = Math.floor(Math.random() * 3) + 1;
+          const c = Math.floor(Math.random() * 3) + 1;
+          const a = result + b + c;
+          if (a >= 1 && a <= 10) {
+            operands = [a, b, c];
+            operators = ['-', '-'];
+          } else {
+            // a is too big, fallback to pattern 0
+            const cFallback = 2;
+            const sum = result + cFallback;
+            operands = [Math.ceil(sum / 2), Math.floor(sum / 2), cFallback];
+            operators = ['+', '-'];
+          }
+        }
+        break;
     }
 
     const equation: ComplexEquation = {
       type: 'complex',
       operands,
-      operators: operations,
+      operators,
       result,
-      displayText: this.buildDisplayText(operands, operations),
+      displayText: this.buildDisplayText(operands, operators),
       difficulty: this.calculateDifficulty({
         type: 'complex',
-        operators: operations,
+        operators,
         operands
       })
     };

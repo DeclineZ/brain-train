@@ -433,7 +433,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                     // Check for Mine Collision
                     if (ballA.isHazard || ballB.isHazard) {
                         const now = Date.now();
-                        if (now - this.lastMineExplosionTime > 3000) { // 3s Cooldown
+                        if (now - this.lastMineExplosionTime > 5000) { // 5s Cooldown
                             this.lastMineExplosionTime = now;
                             this.handleMineExplosion();
                         }
@@ -517,8 +517,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         const allBalls = this.cueBall ? [this.cueBall, ...this.balls] : this.balls;
         allBalls.forEach(ball => {
             if (ball.container) {
-                ball.velocityX = Phaser.Math.Between(-200, 200);
-                ball.velocityY = Phaser.Math.Between(-200, 200);
+                ball.velocityX = Phaser.Math.Between(-80, 80);
+                ball.velocityY = Phaser.Math.Between(-80, 80);
                 ball.isMoving = true;
             }
         });
