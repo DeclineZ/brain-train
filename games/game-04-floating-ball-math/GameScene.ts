@@ -57,7 +57,6 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     decisionWindowMs: number;
   } | null = null;
   private thiefSpawnTimer!: Phaser.Time.TimerEvent;
-  private thiefSpawnInterval: number = 8000; // 8 seconds between thief spawns
   private lastThiefSpawnTime: number = 0;
   
   
@@ -503,8 +502,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.armSprite.setVisible(false); // Hidden until adapt
     this.armSprite.setDepth(950);
 
-    // Target display
+    // Target display - contains label, target number, and timer bar (timer text is outside)
     this.targetDisplay = this.add.container(width * 0.5, height * 0.2);
+    this.targetDisplay.setDepth(110); // Above balls (depth 0), boat (depth 10), shadow balls (depth 50), current (depth 100)
 
     const targetLabel = this.add.text(0, -50, "เป้าหมาย", {
       fontFamily: "Sarabun, sans-serif",
@@ -513,9 +513,12 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       fontStyle: "bold",
     }).setOrigin(0.5);
     targetLabel.setDepth(110);
+    
     const targetBg = this.add.graphics();
     targetBg.fillStyle(0x1976D2, 1); // More vibrant blue
-    targetBg.fillRoundedRect(-100, -25, 200, 60, 15);
+    // 70px height to accommodate label + target number + timer bar
+    targetBg.fillRoundedRect(-100, -25, 200, 65, 15);
+    targetBg.setDepth(110); // Same level as label
 
     this.targetText = this.add.text(0, 0, "0", {
       fontFamily: "Arial, sans-serif",
@@ -523,11 +526,28 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       color: "#FFFFFF",
       fontStyle: "bold",
     }).setOrigin(0.5);
+    this.targetText.setDepth(110); // Same level as other target elements
 
-    this.targetDisplay.add([targetLabel, targetBg, this.targetText]);
+    // Timer bar - positioned inside target badge at bottom
+    this.customTimerBar = this.add.graphics();
+    this.customTimerBar.setVisible(false);
+    this.customTimerBar.setDepth(111); // Above other elements in target display
+
+    this.targetDisplay.add([targetLabel, targetBg, this.targetText, this.customTimerBar]);
+
+    // Timer text - positioned OUTSIDE target badge below it
+    this.timerText = this.add.text(width * 0.5, height * 0.28, "0:00", {
+      fontFamily: "Arial, sans-serif",
+      fontSize: `${Math.min(32, width * 0.06)}px`, // Larger font for better visibility
+      color: "#09366C",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    this.timerText.setVisible(false); // Hidden until timer starts
+    this.timerText.setDepth(115); // Above target display (110)
 
     // Current display
-    this.currentDisplay = this.add.container(width * 0.15, height * 0.12);
+    this.currentDisplay = this.add.container(width * 0.85, height * 0.12);
+    this.currentDisplay.setDepth(100); // Above balls (depth 0) and boat (depth 10)
 
     const currentLabel = this.add.text(0, -35, "ปัจจุบัน", {
       fontFamily: "Sarabun, sans-serif",
@@ -543,14 +563,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       fontStyle: "bold",
     }).setOrigin(0.5);
 
+    // Set depths for current display elements
+    currentLabel.setDepth(101);
+    this.currentText.setDepth(101);
+
     this.currentDisplay.add([currentLabel, this.currentText]);
-
-    // Timer bar
-    this.customTimerBar = this.add.graphics();
-    this.customTimerBar.setVisible(false);
-
-    // Create timer text (numeric countdown)
-    this.createTimerText();
 
     // Create warning toast system
     this.createWarningToast();
@@ -562,22 +579,6 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     this.createBlockButton();
   }
 
-  /**
-   * Create numeric countdown timer text display
-   */
-  private createTimerText() {
-    const { width, height } = this.scale;
-    
-    // Position timer text above target display
-    this.timerText = this.add.text(width * 0.5, height * 0.12, "0:00", {
-      fontFamily: "Arial, sans-serif",
-      fontSize: `${Math.min(36, width * 0.07)}px`,
-      color: "#FF9800", // Orange color for visibility
-      fontStyle: "bold",
-    }).setOrigin(0.5);
-    this.timerText.setVisible(false); // Hidden until timer starts
-    this.timerText.setDepth(115); // Above target display (110)
-  }
 
   /**
    * Create warning toast UI elements
@@ -738,6 +739,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     const y = height - Math.min(100, height * 0.15);
 
     this.shadowBallContainer = this.add.container(width / 2, y);
+    this.shadowBallContainer.setDepth(50); // Above balls (depth 0) and boat (depth 10)
 
     const startX = (-(totalBalls - 1) * ballSpacing) / 2;
 
@@ -753,6 +755,8 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
   createShadowBall(index: number): Phaser.GameObjects.Container {
     const container = this.add.container(0, 0);
+    container.setDepth(51); // Above shadowBallContainer (depth 50) but below other UI
+    
     const { width } = this.scale;
 
     const ballRadius = Math.min(30, width * 0.06);
@@ -1332,14 +1336,17 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       this.thiefSpawnTimer.remove();
     }
 
+    // Use dynamic thief spawn interval from level config
+    const spawnInterval = this.currentLevelConfig.thiefSpawnIntervalMs;
+
     this.thiefSpawnTimer = this.time.addEvent({
-      delay: this.thiefSpawnInterval,
+      delay: spawnInterval,
       callback: this.spawnThiefEvent,
       callbackScope: this,
       loop: true,
     });
 
-    console.log(`[FloatingBallMathGameScene] Started thief spawning every ${this.thiefSpawnInterval}ms`);
+    console.log(`[FloatingBallMathGameScene] Started thief spawning every ${spawnInterval}ms (level ${this.currentLevelConfig.level})`);
   }
 
 
@@ -1350,9 +1357,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     // Only spawn if no active thief event
     if (this.activeThiefEvent) return;
     
-    // Check cooldown
+    // Check cooldown using level config interval
+    const spawnInterval = this.currentLevelConfig.thiefSpawnIntervalMs;
     const timeSinceLastSpawn = Date.now() - this.lastThiefSpawnTime;
-    if (timeSinceLastSpawn < this.thiefSpawnInterval) return;
+    if (timeSinceLastSpawn < spawnInterval) return;
     
     const { height } = this.scale;
     const warningHeight = height * 0.2; // 20% height - warning appears early
@@ -1521,13 +1529,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       // Flash to green
       targetBg.clear();
       targetBg.fillStyle(0x4CAF50, 1);
-      targetBg.fillRoundedRect(-100, -25, 200, 60, 15);
+      targetBg.fillRoundedRect(-100, -25, 200, 70, 15);
       
       // Reset to blue after 1.5 seconds
       this.time.delayedCall(1500, () => {
         targetBg.clear();
         targetBg.fillStyle(0x1976D2, 1); // Back to blue
-        targetBg.fillRoundedRect(-100, -25, 200, 60, 15);
+        targetBg.fillRoundedRect(-100, -25, 200, 70, 15);
       });
     }
   }
@@ -2168,13 +2176,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     this.timerText.setText(timeString);
 
-    // Change color to red when under 10 seconds
+    // Change color to red when under 10 seconds (better visibility for older people)
     if (remainingSecs <= 10) {
       this.timerText.setColor("#FF0000");
     } else if (remainingSecs <= 20) {
-      this.timerText.setColor("#FF9800"); // Orange
+      this.timerText.setColor("#FF9800"); // Orange warning
     } else {
-      this.timerText.setColor("#FF9800"); // Default orange
+      this.timerText.setColor("#09366C"); // Dark blue for better readability
     }
   }
 
@@ -2220,12 +2228,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (!this.customTimerBar) return;
     this.customTimerBar.clear();
 
-    const { width, height } = this.scale;
-    const barW = Math.min(width * 0.8, 400);
-    const barH = Math.min(12, height * 0.02);
-    const x = (width - barW) / 2;
-    const y = height - Math.min(60, height * 0.1);
+    const { height, width } = this.scale;
+    const barW = 200; // Match badge width (200px)
+    const barH = 12; // Standard height for timer bar
+    const x = -barW / 2; // Centered relative to targetDisplay container
+    const y = 28; // Position at bottom of badge (70px height: -25 to 45)
 
+    // Background bar with semi-transparent light blue
     this.customTimerBar.fillStyle(0x90CAF9, 0.2);
     this.customTimerBar.fillRoundedRect(x, y, barW, barH, 6);
 
@@ -2234,9 +2243,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     let alpha = 1;
     if (isWarning) {
+      // More noticeable pulsing for warning state
       alpha = 0.65 + 0.35 * Math.sin(this.time.now / 150);
     }
 
+    // Fill bar with color
     this.customTimerBar.fillStyle(color, alpha);
     if (pct > 0) {
       this.customTimerBar.fillRoundedRect(x, y, barW * (pct / 100), barH, 6);
@@ -2492,9 +2503,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
       this.currentDisplay.setPosition(width * 0.15, height * 0.12);
     }
 
+    // Reposition timer text (which is outside badge) independently
     if (this.timerText) {
-      this.timerText.setPosition(width * 0.5, height * 0.12);
+      this.timerText.setPosition(width * 0.5, height * 0.3);
     }
+
 
     if (this.warningToast) {
       this.warningToast.setPosition(width * 0.5, height * 0.28);

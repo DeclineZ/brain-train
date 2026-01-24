@@ -1,4 +1,4 @@
-import { FloatingBallMathLevelConfig, Operation } from "../types";
+import { FloatingBallMathLevelConfig, Operation, DifficultyTier } from "../types";
 
 export class LevelGenerator {
     /**
@@ -28,11 +28,37 @@ export class LevelGenerator {
     }
 
     /**
+     * Calculate thief spawn interval based on level
+     * Higher levels = more frequent thief spawns
+     */
+    private static calculateThiefSpawnInterval(level: number): number {
+        if (level <= 10) return 8000;      // 8 seconds
+        if (level <= 20) return 7000;      // 7 seconds
+        if (level <= 30) return 6000;      // 6 seconds
+        if (level <= 40) return 5000;      // 5 seconds
+        return 4000;                        // 4 seconds (levels 41-50)
+    }
+
+    /**
+     * Get difficulty tier based on level
+     */
+    private static getDifficultyTier(level: number): DifficultyTier {
+        if (level <= 10) return 'easy';
+        if (level <= 20) return 'normal';
+        if (level <= 30) return 'hard';
+        if (level <= 40) return 'hard';
+        return 'nightmare'; // levels 41-50
+    }
+
+    /**
      * Manual level configurations for levels 1-10 (Introduction - Addition with subtraction)
      */
     private static generateManualLevel(
         level: number
     ): FloatingBallMathLevelConfig {
+        const difficultyTier = this.getDifficultyTier(level);
+        const thiefSpawnIntervalMs = this.calculateThiefSpawnInterval(level);
+        
         const baseConfig: FloatingBallMathLevelConfig = {
             level,
             targetRange: { min: 5, max: 10 },
@@ -45,6 +71,8 @@ export class LevelGenerator {
             waterSpeed: 1.0,
             waveAmplitude: 10,
             difficultyMultiplier: 1.0,
+            difficultyTier,
+            thiefSpawnIntervalMs,
             starRequirements: {
                 threeStars: 0,
                 twoStars: 0,
@@ -69,6 +97,8 @@ export class LevelGenerator {
                 waterSpeed: 0.4,
                 waveAmplitude: 5,
                 difficultyMultiplier: 1.0,
+                difficultyTier,
+                thiefSpawnIntervalMs,
                 starRequirements: {
                     threeStars: 0,
                     twoStars: 0,
@@ -91,6 +121,8 @@ export class LevelGenerator {
                 waterSpeed: 0.5,
                 waveAmplitude: 8,
                 difficultyMultiplier: 1.1,
+                difficultyTier,
+                thiefSpawnIntervalMs,
                 starRequirements: {
                     threeStars: 0,
                     twoStars: 0,
@@ -113,6 +145,8 @@ export class LevelGenerator {
                 waterSpeed: 0.6,
                 waveAmplitude: 10,
                 difficultyMultiplier: 1.2,
+                difficultyTier,
+                thiefSpawnIntervalMs,
                 starRequirements: {
                     threeStars: 0,
                     twoStars: 0,
@@ -149,6 +183,9 @@ export class LevelGenerator {
         );
         const timeLimitSeconds = this.calculateTimeLimit(totalEquations, baseSecondsPerEquation, 10);
 
+        const difficultyTier = this.getDifficultyTier(level);
+        const thiefSpawnIntervalMs = this.calculateThiefSpawnInterval(level);
+
         return {
             level,
             targetRange: this.lerpRange(
@@ -181,6 +218,8 @@ export class LevelGenerator {
                 levelProgress
             ),
             difficultyMultiplier: 1 + level * 0.02,
+            difficultyTier,
+            thiefSpawnIntervalMs,
             starRequirements: {
                 threeStars: 0,
                 twoStars: 0,
