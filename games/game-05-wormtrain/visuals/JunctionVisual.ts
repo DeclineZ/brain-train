@@ -16,6 +16,7 @@ export class JunctionVisual {
     // Cache junction outEdges from level config
     private junctionOutEdges: Map<string, string[]> = new Map();
     private activeTutorialJunctions: Set<string> = new Set();
+    private tutorialHintElements: Map<string, Phaser.GameObjects.GameObject[]> = new Map();
 
     // Colors matching the reference game
     private readonly BG_COLOR = 0x4ade80;        // Light green background
@@ -110,7 +111,73 @@ export class JunctionVisual {
         const indicator = this.indicators.get(junctionId);
         if (!indicator) return;
 
-        // Visual Highlight: Pulse / Scale Up
+        const elements: Phaser.GameObjects.GameObject[] = [];
+        const container = indicator.container;
+        const junctionX = container.x;
+        const junctionY = container.y;
+
+        // 1. Create Pulsing Ring around the button
+        const ring = this.scene.add.circle(junctionX, junctionY, 50, 0x000000, 0);
+        ring.setStrokeStyle(4, 0xFFD700); // Yellow/gold ring
+        ring.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 5);
+        elements.push(ring);
+
+        // Animate ring pulsing
+        this.scene.tweens.add({
+            targets: ring,
+            scale: { from: 1, to: 1.3 },
+            alpha: { from: 1, to: 0.3 },
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+            key: 'tutorial-ring-pulse-' + junctionId
+        });
+
+        // 2. Create Arrow Line pointing to the button (from right side)
+        const arrowGraphics = this.scene.add.graphics();
+        arrowGraphics.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 4);
+        elements.push(arrowGraphics);
+
+        const arrowEndX = junctionX + 65;
+        const arrowStartX = junctionX + 140;
+        const arrowY = junctionY;
+
+        // Draw arrow line
+        arrowGraphics.lineStyle(4, 0xFFD700, 1);
+        arrowGraphics.beginPath();
+        arrowGraphics.moveTo(arrowStartX, arrowY);
+        arrowGraphics.lineTo(arrowEndX, arrowY);
+        arrowGraphics.strokePath();
+
+        // Draw arrow head (pointing left)
+        arrowGraphics.fillStyle(0xFFD700, 1);
+        arrowGraphics.beginPath();
+        arrowGraphics.moveTo(arrowEndX, arrowY);
+        arrowGraphics.lineTo(arrowEndX + 12, arrowY - 8);
+        arrowGraphics.lineTo(arrowEndX + 12, arrowY + 8);
+        arrowGraphics.closePath();
+        arrowGraphics.fillPath();
+
+        // 3. Create Text Label "กดเพื่อเปลี่ยนทาง"
+        const hintText = this.scene.add.text(arrowStartX + 10, arrowY, 'กดเพื่อเปลี่ยนทาง', {
+            fontSize: '22px',
+            color: '#FFD700',
+            fontFamily: 'Noto Sans Thai, Arial',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 5,
+            padding: { x: 8, y: 6 },
+            align: 'left'
+        });
+        hintText.setOrigin(0, 0.5);
+        hintText.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 5);
+        elements.push(hintText);
+
+        // Store elements for cleanup
+        this.tutorialHintElements.set(junctionId, elements);
+
+        // Visual Highlight: Pulse / Scale Up the button itself
         this.scene.tweens.add({
             targets: indicator.container,
             scale: 1.15,
@@ -128,8 +195,18 @@ export class JunctionVisual {
         const indicator = this.indicators.get(junctionId);
         if (!indicator) return;
 
-        // Stop Pulse
+        // Stop Pulse animation on button
         this.scene.tweens.killTweensOf(indicator.container);
+
+        // Cleanup tutorial hint elements (ring, arrow, text)
+        const elements = this.tutorialHintElements.get(junctionId);
+        if (elements) {
+            elements.forEach(el => {
+                this.scene.tweens.killTweensOf(el);
+                el.destroy();
+            });
+            this.tutorialHintElements.delete(junctionId);
+        }
 
         // Reset Scale
         this.scene.tweens.add({
