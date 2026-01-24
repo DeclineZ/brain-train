@@ -8,7 +8,7 @@ type TutorialBall = {
   id: string;
   container: Phaser.GameObjects.Container;
   sprite?: Phaser.GameObjects.Image;
-  valueText: Phaser.GameObjects.Text;
+  valueText?: Phaser.GameObjects.Text;
   op: Op;
   value: number;
   isBomb: boolean;
@@ -882,18 +882,22 @@ export class TutorialScene extends Phaser.Scene {
       container.add(fallback);
     }
 
-    const valueText = this.add
-      .text(0, 0, `${opts.op}${opts.value}`, {
-        fontFamily: "Arial, sans-serif",
-        fontSize: `${Math.min(42, this.scale.width * 0.075)}px`,
-        color: "#ffffff",
-        fontStyle: "bold",
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
+    // Only add value text for regular balls, not bombs
+    let valueText: Phaser.GameObjects.Text | undefined;
+    if (!opts.isBomb) {
+      valueText = this.add
+        .text(0, 0, `${opts.op}${opts.value}`, {
+          fontFamily: "Arial, sans-serif",
+          fontSize: `${Math.min(42, this.scale.width * 0.075)}px`,
+          color: "#ffffff",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5);
 
-    container.add(valueText);
+      container.add(valueText);
+    }
 
     const ball: TutorialBall = {
       id,
@@ -1014,6 +1018,9 @@ export class TutorialScene extends Phaser.Scene {
   // -----------------------------
   private startThiefDemo() {
     this.hideThiefUi();
+
+    // Disable thief timer for tutorial (set to very large value)
+    this.thiefDecisionWindowMs = 999999;
 
     // Spawn a target ball near 40% height
     const { height } = this.scale;
