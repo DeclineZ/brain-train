@@ -96,13 +96,14 @@ export function calculateStars(
   const avgTimePerEquation = (totalTimeMs / 1000) / Math.max(1, correctEquations);
   const accuracy = correctEquations / totalEquations;
 
-  // 3 Stars: Fast + Perfect accuracy
-  if (avgTimePerEquation <= threeStarThreshold && accuracy === 1) {
+  // 3 Stars: 100% Accuracy (Time is broken tie breaker but not primary blocker)
+  // We remove the strict time requirement for 3 stars to be fairer.
+  if (accuracy === 1) {
     return 3;
   }
 
-  // 2 Stars: Reasonable time OR good accuracy
-  if (avgTimePerEquation <= twoStarThreshold || accuracy >= 0.8) {
+  // 2 Stars: Good Accuracy (> 60%)
+  if (accuracy > 0.6) {
     return 2;
   }
 
@@ -130,14 +131,13 @@ export function getStarHint(
   const tooSlow = avgTimePerEquation > threeStarThreshold;
   const hasErrors = accuracy < 100;
 
-  if (tooSlow && hasErrors) {
-    return `ลองทำเวลาให้ดีกว่านี้\nและตอบถูกทุกข้อ`;
-  }
-  if (tooSlow) {
-    return `ลองทำเวลาให้ดีกว่านี้\nเป้าหมาย: ${threeStarThreshold} วินาทีต่อสมการ`;
-  }
   if (hasErrors) {
     return `ตอบถูกทุกข้อเพื่อรับ 3 ดาว\nปัจจุบัน: ${Math.round(accuracy)}%`;
+  }
+
+  // If perfect accuracy but slow (optional hint, or just say Good Job)
+  if (tooSlow) {
+    return `ยอดเยี่ยม! ลองทำเวลาให้ดีขึ้นในครั้งหน้า`;
   }
 
   return null;

@@ -10,7 +10,7 @@ import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
 const PHYSICS_CONFIG = {
     friction: 0.985, // Velocity multiplier per frame (0.98 = 2% slowdown)
     minVelocity: 0.5, // Stop ball when below this speed
-    maxShootPower: 800, // Max velocity on shoot
+    maxShootPower: 1200, // Max velocity on shoot
     aimLineLength: 120, // Length of aim trajectory line
     wallBounce: 0.7, // Bounce coefficient off walls
     ballCollisionBounce: 0.9, // Energy transfer on ball-to-ball collision
@@ -150,6 +150,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shadowBalls = [];
         this.aimingBall = null;
         this.aimStartPoint = null;
+
+        // Reset stuck ball helpers
+        this.balls.forEach(b => (b as any).stuckTime = 0);
+
         // Reset shot tracking
         this.shotsRemaining = 0;
         this.shotsTakenThisEquation = 0;
@@ -209,6 +213,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         for (let i = 1; i <= 10; i++) {
             this.load.image(`ball-${i}`, `/assets/images/billiards/ball-${i}.png`);
         }
+        this.load.image("ball-trap", "/assets/images/billiards/ball-trap.png");
         this.load.image("goal-ball", "/assets/images/billiards/goal-ball.png");
 
         // Load sounds
@@ -1050,7 +1055,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                 slot.y
             );
 
-            if (dist < slot.radius * 1.5) { // Increased from 0.8 for easier entry
+            if (dist < slot.radius * 2.0) { // Increased for easier entry
                 // Ball is in slot!
                 this.fillSlot(slot, ball);
                 return;
@@ -1320,7 +1325,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         });
 
         // 3. Create Cue Ball
-        this.createCueBall(ballRadius * 0.85);
+        this.createCueBall(ballRadius * 0.75);
 
         console.log("[BilliardsGameScene] Level layout created", {
             balls: this.balls.length,
@@ -1349,7 +1354,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         const centerDot = this.add.circle(0, 0, radius * 0.15, 0xdddddd);
         container.add(centerDot);
 
-        container.setSize(radius * 2, radius * 2);
+        // Reduce hitbox: make it tighter than the visual radius
+        container.setSize(radius * 1.6, radius * 1.6);
         container.setDepth(25); // Slightly above other balls
         container.setInteractive({ useHandCursor: true });
 
@@ -1404,14 +1410,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         container.add(shadow);
 
         if (isHazard || value === 99) {
-            // Hazard Ball (Red with Skull)
-            const ballCircle = this.add.circle(0, 0, radius, 0xff0000).setStrokeStyle(2, 0x000000);
-            const text = this.add.text(0, 0, "☠", {
-                fontFamily: "Arial, sans-serif",
-                fontSize: `${radius * 1.2}px`,
-                color: "#000000"
-            }).setOrigin(0.5);
-            container.add([ballCircle, text]);
+            // Hazard Ball (Trap)
+            const ballImage = this.add.image(0, 0, "ball-trap");
+            ballImage.setDisplaySize(radius * 2 * 1.05, radius * 2 * 1.05); // Slightly larger for emphasis
+            container.add(ballImage);
         } else if (value >= 1 && value <= 10) {
             const ballImage = this.add.image(0, 0, `ball-${value}`);
             ballImage.setDisplaySize(radius * 2.2, radius * 2.2);
@@ -1694,7 +1696,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     nextEquation() {
         this.placedBalls = [];
 
-        if (this.totalEquations >= this.currentLevelConfig.totalEquations) {
+        if (this.correctEquations >= this.currentLevelConfig.totalEquations) {
             this.endLevel();
         } else {
             this.generateNewEquation();

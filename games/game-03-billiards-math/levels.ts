@@ -20,7 +20,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 90,
+    timeLimitSeconds: 150, // Increased from 90
     difficultyMultiplier: 1.0,
     totalEquations: 1,
     starRequirements: { threeStars: 20, twoStars: 30 },
@@ -32,7 +32,7 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 90,
+    timeLimitSeconds: 180, // Increased from 90
     difficultyMultiplier: 1.1,
     totalEquations: 1,
     starRequirements: { threeStars: 20, twoStars: 30 },
@@ -49,12 +49,17 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 90,
+    timeLimitSeconds: 240, // Increased
     difficultyMultiplier: 1.2,
-    totalEquations: 1,
-    starRequirements: { threeStars: 18, twoStars: 28 },
-    shotLimit: 20,
-    perEquationTimeSeconds: 999
+    totalEquations: 2,
+    starRequirements: { threeStars: 40, twoStars: 60 },
+    shotLimit: 25,
+    perEquationTimeSeconds: 999,
+    layoutConfig: {
+      hazardCount: { min: 1, max: 1 },
+      obstacleCount: { min: 1, max: 3 },
+      decoyCount: 4
+    }
   },
   4: {
     level: 4,
