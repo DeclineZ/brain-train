@@ -3,7 +3,7 @@ import { ArrowType } from './config';
 export interface DreamDirectLevelConfig {
     level: number;
     bpm: number;
-    bgmTrack: string; // Path to BGM file
+    bgmTrack: { path: string; bpm: number }; // Path to BGM file and its native BPM
     arrowTypes: ArrowType[];
     arrowCount: number;
     timingWindowMultiplier: number; // 1.0 = normal windows, <1 = stricter
@@ -14,10 +14,10 @@ export interface DreamDirectLevelConfig {
 
 // BGM Tracks
 const BGM = {
-    SLOW: '/assets/sounds/dreamdirect/BGM_Slow_60BPM.mp3',
-    MED: '/assets/sounds/dreamdirect/BGM_Med_80BPM.mp3',
-    FAST: '/assets/sounds/dreamdirect/BGM_Fast_100BPM.mp3',
-    SWING: '/assets/sounds/dreamdirect/BGM_Swing.mp3',
+    SLOW: { path: '/assets/sounds/dreamdirect/BGM_Slow_60BPM.mp3', bpm: 60 },
+    MED: { path: '/assets/sounds/dreamdirect/BGM_Med_80BPM.mp3', bpm: 80 },
+    FAST: { path: '/assets/sounds/dreamdirect/BGM_Fast_100BPM.mp3', bpm: 100 },
+    SWING: { path: '/assets/sounds/dreamdirect/BGM_Swing.mp3', bpm: 100 }, // Assuming 100 base for Swing
 };
 
 export const DREAMDIRECT_LEVELS: { [key: number]: DreamDirectLevelConfig } = {
