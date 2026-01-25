@@ -17,6 +17,9 @@ export class BallSpawner {
 
     const container = this.scene.add.container(x, y);
     const id = `ball-${Date.now()}-${Math.random()}`;
+    
+    // Set ball depth to 0 so they appear below ALL UI elements (water background at -2)
+    container.setDepth(0);
 
     // Load and add ball image - randomly select one of 4 ball images
     const ballKeys = ['ball-1', 'ball-2', 'ball-3', 'ball-4'];
@@ -261,6 +264,9 @@ export class BallSpawner {
 
     const container = this.scene.add.container(x, y);
     const id = `bomb-${Date.now()}-${Math.random()}`;
+    
+    // Set bomb depth to 0 so it appears below ALL UI elements (water background at -2)
+    container.setDepth(0);
 
     // Load and add bomb image
     const bombImage = this.scene.add.image(0, 0, 'bomb-ball');

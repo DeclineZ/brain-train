@@ -27,6 +27,7 @@ export class FloatboatController {
     const x = width / 2;
 
     const container = this.scene.add.container(x, yPosition);
+    container.setDepth(10); // Above balls (depth 0) but below other UI elements
 
     // Load and add boat image sprite
     const boatSprite = this.scene.add.image(0, 0, 'boat');
@@ -400,6 +401,7 @@ export class FloatboatController {
   private createChildrenWithSign(boatWidth: number, boatHeight: number, screenWidth: number): Phaser.GameObjects.Container {
     // Position on left side of boat (negative x offset)
     const container = this.scene.add.container(-boatWidth / 2 + 30, -boatHeight / 2 - 20);
+    container.setDepth(11); // Above boat container (depth 10)
     
     const signWidth = Math.min(140, screenWidth * 0.25);
     const signHeight = Math.min(50, screenWidth * 0.2);

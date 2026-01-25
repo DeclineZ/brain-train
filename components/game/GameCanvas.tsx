@@ -212,13 +212,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       {/* React UI Overlay */}
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
 
-        {/* Top: Level Indicator (Centered) */}
-        {gameId !== 'game-02-sensorlock' && gameId !== 'game-01-cardmatch' && gameId !== 'game-05-wormtrain' && mode !== 'tutorial' && (
-          <div className="text-[#8B4513] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#8B4513]/10 backdrop-blur-sm shadow-sm mt-2">
-            LEVEL {currentLevel}
-          </div>
-        )}
-
+        {/* Tutorial Mode Indicator - Only show tutorial badge */}
         {mode === 'tutorial' && (
           <div className="text-[#58CC02] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#58CC02]/20 backdrop-blur-sm shadow-sm mt-2">
             โหมดฝึกสอน
