@@ -68,8 +68,8 @@ export class PinkCupGameScene extends Phaser.Scene {
   private swipeStart: {x: number, y: number} | null = null;
   private activeCup: CupData | null = null;
 
-  constructor() { 
-    super({ key: 'PinkCupGameScene' }); 
+  constructor() {
+    super({ key: 'PinkCupGameScene' });
   }
 
   init(data: { level: number; isTutorialComplete?: boolean }) {
