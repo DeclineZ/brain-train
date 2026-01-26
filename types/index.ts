@@ -113,6 +113,45 @@ export interface DreamDirectGameStats {
   continuedAfterTimeout: boolean;
 }
 
+// Game mode types for Pink Cup game
+export type GameMode = 'classic' | 'time_attack' | 'memory_focus' | 'planning_focus';
+
+export interface PinkCupGameStats {
+  telemetry: {
+    level: number;
+    mode: GameMode;
+    targetCell: {x: number, y: number};
+    pinkStart: {x: number, y: number};
+    t_start: number;
+    t_end: number;
+    moves: Array<{
+      timestamp: number;
+      from: {x: number, y: number};
+      to: {x: number, y: number};
+      valid: boolean;
+      distanceToTarget: number;
+      backtracked: boolean;
+    }>;
+    reveal: {
+      start: number;
+      end: number;
+      elements: {[cell: string]: number};
+    };
+    probes: Array<{
+      cell: {x: number, y: number};
+      probeTime: number;
+      answerTime: number;
+      correct: boolean;
+      playerAnswer?: number;
+      correctAnswer?: number;
+    }>;
+    metrics: any;
+  };
+  success: boolean;
+  level: number;
+  difficultyMultiplier: number;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;

@@ -9,6 +9,7 @@ const gameLevelModules = {
   'game-03-billiards-math': () => import('@/games/game-03-billiards-math/levels'),
   'game-05-wormtrain': () => import('@/games/game-05-wormtrain/levels'),
   'game-04-floating-ball-math': () => import('@/games/game-04-floating-ball-math/levels'),
+  'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -58,6 +59,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      levelConfigs = levelModule.PINKCUP_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
       const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS'];
@@ -128,6 +131,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelsArray.find((l: any) => l.levelId === levelNumber) || null;
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       return levelModule.FLOATING_BALL_MATH_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      return levelModule.PINKCUP_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -204,6 +209,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      levelConfigs = levelModule.PINKCUP_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)
