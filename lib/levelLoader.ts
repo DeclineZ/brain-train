@@ -46,8 +46,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = levelModule.MEMORY_LEVELS;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
       levelConfigs = levelModule.MATCHING_LEVELS;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as { STATIC_LEVELS: Record<number, any> }).STATIC_LEVELS;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
       const levelsArray = levelModule.LEVELS as any[];
@@ -120,8 +120,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelModule.MEMORY_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
       return levelModule.MATCHING_LEVELS[levelNumber] || null;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      return levelModule.BILLIARDS_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      return levelModule.STATIC_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
       const levelsArray = levelModule.LEVELS as any[];
@@ -192,8 +192,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = levelModule.MEMORY_LEVELS;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
       levelConfigs = levelModule.MATCHING_LEVELS;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      levelConfigs = levelModule.BILLIARDS_LEVELS;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as { STATIC_LEVELS: Record<number, any> }).STATIC_LEVELS;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
       const levelsArray = levelModule.LEVELS as any[];
