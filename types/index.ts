@@ -159,13 +159,19 @@ export interface MatchingLevelConfig {
 export interface MysterySoundOption {
   id: string;
   label: string;
+  isHybrid?: boolean;  // For hybrid animal images in Level 5
+}
+
+export interface MysterySoundQuestion {
+  sounds: string[];           // Single: ["cat"], Mixed: ["cat", "dog"]
+  correctAnswers: string[];   // Answers that must be selected
+  options: MysterySoundOption[];
+  isHybrid?: boolean;         // If true, options are hybrid images
 }
 
 export interface MysterySoundLevelConfig {
   level: number;
-  correctSound: string;
-  correctLabel: string;
-  options: MysterySoundOption[];
+  questions: MysterySoundQuestion[];  // 2 questions per level
   maxReplays: number;
   timeLimitSeconds: number;
   difficultyMultiplier: number;
@@ -174,7 +180,8 @@ export interface MysterySoundLevelConfig {
 export interface MysterySoundGameStats {
   levelPlayed: number;
   difficultyMultiplier: number;
-  correct: boolean;
+  questionsCorrect: number;   // How many questions answered correctly
+  totalQuestions: number;     // Total questions in level
   replaysUsed: number;
   responseTimeMs: number;
   timeLimitMs: number;
