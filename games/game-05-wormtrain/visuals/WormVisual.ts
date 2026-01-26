@@ -4,12 +4,12 @@ import { WormSystem, WormState, WormEntity } from '../systems/WormSystem';
 import { WormGameConstants as WormGameConfig } from '../config';
 import { Point } from '../types/level';
 
-// Number of body segments per worm (increased for longer tail)
-const SEGMENT_COUNT = 8;
+// Number of body segments per worm (increased for much longer tail)
+const SEGMENT_COUNT = 40;
 // Distance between segments (in pixels, increased for longer tail)
-const SEGMENT_SPACING = 16;
+const SEGMENT_SPACING = 20;
 // How many position samples to keep in history
-const HISTORY_SIZE = 80;
+const HISTORY_SIZE = 500;
 
 interface WormVisualData {
     id: string;
@@ -54,8 +54,11 @@ export class WormVisual {
 
         // 1. Create Body Segments FIRST (so they are visually behind the head)
         for (let i = 0; i < SEGMENT_COUNT - 1; i++) {
-            const bodyPart = this.scene.add.circle(0, 0, bodyRadius - i * 0.5 * sizeMultiplier, colorInt);
-            bodyPart.setAlpha(0.9 - i * 0.1);
+            // Gradually decrease radius toward tail, but keep full opacity
+            const segmentRadius = bodyRadius - i * 0.3 * sizeMultiplier;
+            const bodyPart = this.scene.add.circle(0, 0, Math.max(segmentRadius, bodyRadius * 0.4), colorInt);
+            // Keep full opacity - no fading
+            bodyPart.setAlpha(1);
             this.container.add(bodyPart);
             bodySegments.push(bodyPart);
         }

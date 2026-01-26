@@ -490,8 +490,8 @@ export default function GamePage({ params }: PageProps) {
                             <span className="text-3xl">LEVEL {activeLevel}</span>
                         </div>
                     )}
-                    {/* Game 05 with fixed amber styling */}
-                    {gameId === 'game-05-wormtrain' && (
+                    {/* Game 05 and 08 with fixed amber styling */}
+                    {(gameId === 'game-05-wormtrain' || gameId === 'game-08-mysterysound') && (
                         <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
                             <span className="text-3xl">LEVEL {activeLevel}</span>
                         </div>
@@ -756,7 +756,7 @@ export default function GamePage({ params }: PageProps) {
                                                         onClick={handleNextLevel}
                                                         className={`flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
                                                     >
-                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'ด่านถัดไป')}
                                                     </button>
                                                 </div>
                                             )}

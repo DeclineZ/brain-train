@@ -155,6 +155,38 @@ export interface MatchingLevelConfig {
   shuffleAfterPreview?: boolean;  // Force full grid shuffle after preview
 }
 
+// Mystery Sound Game types
+export interface MysterySoundOption {
+  id: string;
+  label: string;
+  isHybrid?: boolean;  // For hybrid animal images in Level 5
+}
+
+export interface MysterySoundQuestion {
+  sounds: string[];           // Single: ["cat"], Mixed: ["cat", "dog"]
+  correctAnswers: string[];   // Answers that must be selected
+  options: MysterySoundOption[];
+  isHybrid?: boolean;         // If true, options are hybrid images
+}
+
+export interface MysterySoundLevelConfig {
+  level: number;
+  questions: MysterySoundQuestion[];  // 2 questions per level
+  maxReplays: number;
+  timeLimitSeconds: number;
+  difficultyMultiplier: number;
+}
+
+export interface MysterySoundGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  questionsCorrect: number;   // How many questions answered correctly
+  totalQuestions: number;     // Total questions in level
+  replaysUsed: number;
+  responseTimeMs: number;
+  timeLimitMs: number;
+}
+
 // Daily streak types
 export interface CheckinStatus {
   checked_in_today: boolean;
