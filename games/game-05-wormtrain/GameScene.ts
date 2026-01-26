@@ -6,6 +6,7 @@ import { TrapSystem } from './systems/TrapSystem';
 import { WinLoseSystem } from './systems/WinLoseSystem';
 import { ScoringSystem } from './systems/ScoringSystem';
 import { WormSystem } from './systems/WormSystem';
+import { WormGameConstants } from './config';
 
 import { WormVisual } from './visuals/WormVisual';
 import { JunctionVisual } from './visuals/JunctionVisual';
@@ -39,6 +40,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    // Load background
+    this.load.image('bgdirt', '/games/game-05-wormtrain/bgdirt.webp');
+
     // Load game assets (WebP for faster loading)
     this.load.image('hole', '/games/game-05-wormtrain/hole.webp');
     this.load.image('spawn', '/games/game-05-wormtrain/spawn.webp');
@@ -76,6 +80,14 @@ export default class GameScene extends Phaser.Scene {
     // Get level from registry (set by GameCanvas)
     this.currentLevel = this.game.registry.get('level') ?? 1;
     console.log('Worm Train Game Started - Level', this.currentLevel);
+
+    // Add tiled background (before everything else so it's at the bottom)
+    if (this.textures.exists('bgdirt')) {
+      // Create a large tiling sprite to cover the game world
+      const bgTile = this.add.tileSprite(0, 0, 4000, 4000, 'bgdirt');
+      bgTile.setOrigin(0.5, 0.5);
+      bgTile.setDepth(WormGameConstants.DEPTH.GROUND - 1);
+    }
 
     // Initialize Systems - Order Matters
     this.levelLoader = new LevelLoader();
