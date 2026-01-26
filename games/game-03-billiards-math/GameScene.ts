@@ -1,8 +1,6 @@
 import * as Phaser from "phaser";
-import { BILLIARDS_LEVELS } from "./levels";
-import { EquationGenerator } from "./equationGenerator";
-import { LayoutGenerator } from "./LayoutGenerator"; // NEW
-import type { BilliardsLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle } from "./types";
+import { STATIC_LEVELS } from './levels';
+import type { StaticLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle } from './types';
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
 
@@ -38,11 +36,10 @@ interface SlotZone {
 }
 
 export class BilliardsGameScene extends Phaser.Scene {
-    private currentLevelConfig!: BilliardsLevelConfig;
-    private equationGenerator!: EquationGenerator;
+    private currentLevelConfig!: StaticLevelConfig;
+    private currentEquationIndex: number = 0;
 
     // Game State
-    private layoutGenerator!: LayoutGenerator;
     private balls: PhysicsBall[] = [];
     private slots: SlotZone[] = [];
     private obstacles: { list: Phaser.GameObjects.Rectangle[], bodies: Phaser.Geom.Rectangle[] } = { list: [], bodies: [] };
@@ -51,10 +48,10 @@ export class BilliardsGameScene extends Phaser.Scene {
     private placedBalls: number[] = [];
     private startTime = 0;
     private levelStartTime = 0;
-    private totalEquations = 0;
-    private correctEquations = 0;
-    private wrongEquations = 0;
-    private consecutiveErrors = 0;
+    private correctEquations: number = 0;
+    private wrongEquations: number = 0;
+    private equationAttempts: number = 0; // Total attempts (correct + wrong)
+    private consecutiveErrors: number = 0;
     private currentErrorRun = 0;
     private repeatedErrors = 0;
     private attempts = 0;
@@ -120,8 +117,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             finalLevel: level,
         });
 
-        this.currentLevelConfig = BILLIARDS_LEVELS[level] || BILLIARDS_LEVELS[1];
-        this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
+        this.currentLevelConfig = STATIC_LEVELS[level] || STATIC_LEVELS[1];
 
         this.resetGameState();
     }
@@ -136,9 +132,9 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.slots = [];
         this.currentEquation = {} as Equation;
         this.placedBalls = [];
-        this.totalEquations = 0;
         this.correctEquations = 0;
         this.wrongEquations = 0;
+        this.equationAttempts = 0;
         this.consecutiveErrors = 0;
         this.currentErrorRun = 0;
         this.repeatedErrors = 0;
@@ -570,8 +566,6 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.poolTable.add(centerSpot);
 
         console.log("[BilliardsGameScene] Pool table created", { tableBounds: this.tableBounds });
-
-        this.layoutGenerator = new LayoutGenerator(this.tableBounds);
     }
 
     createUI() {
@@ -620,7 +614,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.cleanupSlots();
 
         // Determine slot count based on equation type
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        const isComplex = this.currentEquation.type === 'complex';
         const slotCount = isComplex ? (this.currentEquation as ComplexEquation).operators.length + 1 : 2;
 
         // Position slots INSIDE the table, near the top of the green felt
@@ -771,7 +765,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     updateEquationText() {
         const { width } = this.scale;
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
+        const isComplex = this.currentEquation.type === 'complex';
 
         let displayText = "";
         if (isComplex) {
@@ -997,7 +991,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Soft penalty - reset the current equation (not the whole level)
         this.wrongEquations++;
-        this.totalEquations++;
+        this.equationAttempts++;
         this.currentErrorRun++;
         if (this.currentErrorRun > this.consecutiveErrors) {
             this.consecutiveErrors = this.currentErrorRun;
@@ -1260,12 +1254,31 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Actually, if I fix `fillSlot` to NOT push blindly either, that's better.
         // But for now, let's just make `rebuild` work.
 
-        const isComplex = this.equationGenerator.isComplexEquation(this.currentEquation);
-        let isCorrect: boolean;
+        const isComplex = this.currentEquation.type === 'complex';
+        let isCorrect: boolean = false;
 
         if (isComplex) {
             const complexEquation = this.currentEquation as ComplexEquation;
-            isCorrect = this.equationGenerator.validateEquation(complexEquation, this.placedBalls);
+            // Build expression: val1 op1 val2 op2 val3...
+            let expression = "";
+            for (let i = 0; i < this.placedBalls.length; i++) {
+                expression += this.placedBalls[i];
+                if (i < complexEquation.operators.length) {
+                    let op = complexEquation.operators[i] as string;
+                    if (op === "×") op = "*";
+                    if (op === "/") op = "/";
+                    expression += ` ${op} `;
+                }
+            }
+            try {
+                // Safe evaluation for simple math
+                // eslint-disable-next-line @typescript-eslint/no-implied-eval
+                const val = new Function('return ' + expression)();
+                isCorrect = Math.abs(val - this.currentEquation.result) < 0.001;
+            } catch (e) {
+                console.error("Error evaluating complex equation", e);
+                isCorrect = false;
+            }
         } else {
             const simpleEquation = this.currentEquation as any;
             const op = simpleEquation.operator || "+";
@@ -1300,27 +1313,34 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.cleanupBalls();
         this.cleanupObstacles();
 
-        const layout = this.layoutGenerator.generateLayout(this.currentEquation, this.currentLevelConfig);
         const { width } = this.scale;
         const ballRadius = Math.min(28, width * 0.055);
+        const tableWidth = this.tableBounds.right - this.tableBounds.left;
+        const tableHeight = this.tableBounds.bottom - this.tableBounds.top;
 
-        // 1. Create Obstacles
-        layout.obstacles.forEach(obs => {
+        // 1. Create Obstacles from Static Config
+        this.currentLevelConfig.obstacles.forEach(obs => {
+            const absX = this.tableBounds.left + obs.x * tableWidth;
+            const absY = this.tableBounds.top + obs.y * tableHeight;
+
             // Visual
-            const rect = this.add.rectangle(obs.x + obs.width / 2, obs.y + obs.height / 2, obs.width, obs.height, 0x5c4033); // Dark wood color
+            const rect = this.add.rectangle(absX, absY, obs.width, obs.height, 0x5c4033); // Dark wood color
             rect.setStrokeStyle(2, 0x3e2b22);
             rect.setDepth(18); // Below balls (20)
 
-            // Physics Body (Manual collision)
-            const body = new Phaser.Geom.Rectangle(obs.x, obs.y, obs.width, obs.height);
+            // Physics Body (Manual collision) - Center based coordinates
+            const body = new Phaser.Geom.Rectangle(absX - obs.width / 2, absY - obs.height / 2, obs.width, obs.height);
 
             this.obstacles.list.push(rect);
             this.obstacles.bodies.push(body);
         });
 
-        // 2. Create Balls
-        layout.balls.forEach(b => {
-            const ball = this.createBall(b.value, b.x, b.y, ballRadius, b.isHazard);
+        // 2. Create Balls from Static Config
+        this.currentLevelConfig.balls.forEach(b => {
+            const absX = this.tableBounds.left + b.x * tableWidth;
+            const absY = this.tableBounds.top + b.y * tableHeight;
+
+            const ball = this.createBall(b.value, absX, absY, ballRadius, b.isHazard);
             this.balls.push(ball);
         });
 
@@ -1458,6 +1478,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     startLevel() {
         console.log("[BilliardsGameScene] Starting level");
         this.levelStartTime = Date.now();
+        this.currentEquationIndex = 0;
         this.generateNewEquation();
         this.isLocked = false;
         this.startTime = Date.now();
@@ -1465,9 +1486,10 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     generateNewEquation() {
-        this.currentEquation = this.equationGenerator.generateFillInTheBlanksEquation();
+        this.currentEquation = this.currentLevelConfig.equations[this.currentEquationIndex];
 
         console.log("[BilliardsGameScene] Generated equation", {
+            index: this.currentEquationIndex,
             result: this.currentEquation.result,
             displayText: this.currentEquation.displayText
         });
@@ -1475,8 +1497,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Create slot zones based on equation
         this.createSlotZones();
 
-        // Create balls
-        this.createBalls();
+        // Create balls only on first equation of level
+        if (this.currentEquationIndex === 0) {
+            this.createBalls();
+        }
 
         // Reset placed balls
         this.placedBalls = [];
@@ -1488,35 +1512,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     startEquationTimer() {
-        // Clear any existing equation timer
-        if (this.equationTimerEvent) {
-            this.equationTimerEvent.remove();
-        }
-
-        this.equationStartTime = Date.now();
-        this.equationTimeRemaining = this.currentLevelConfig.perEquationTimeSeconds;
-
-        // Update display immediately
-        this.updateEquationTimerDisplay();
-
-        // Update timer every 100ms
-        this.equationTimerEvent = this.time.addEvent({
-            delay: 100,
-            callback: () => {
-                if (this.isPaused || this.isLocked) return;
-
-                const elapsed = (Date.now() - this.equationStartTime) / 1000;
-                this.equationTimeRemaining = Math.max(0, this.currentLevelConfig.perEquationTimeSeconds - elapsed);
-
-                this.updateEquationTimerDisplay();
-
-                // Check if time expired
-                if (this.equationTimeRemaining <= 0) {
-                    this.handleEquationTimeExpired();
-                }
-            },
-            loop: true,
-        });
+        // Disabled for static levels
     }
 
     updateEquationTimerDisplay() {
@@ -1562,7 +1558,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Soft penalty - reset the current equation (not the whole level)
         this.wrongEquations++;
-        this.totalEquations++;
+        this.equationAttempts++;
         this.currentErrorRun++;
         if (this.currentErrorRun > this.consecutiveErrors) {
             this.consecutiveErrors = this.currentErrorRun;
@@ -1578,7 +1574,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     handleCorrectAnswer() {
         this.correctEquations++;
-        this.totalEquations++;
+        this.equationAttempts++;
         this.currentErrorRun = 0;
 
         // Stop the equation timer
@@ -1609,7 +1605,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     handleWrongAnswer() {
         this.wrongEquations++;
-        this.totalEquations++;
+        this.equationAttempts++;
         this.currentErrorRun++;
         if (this.currentErrorRun > this.consecutiveErrors) {
             this.consecutiveErrors = this.currentErrorRun;
@@ -1639,7 +1635,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                 placeholder.setText("?");
             }
 
-            // Restart pulsing animation
+            // Restart pulsating animation
             const glowCircle = slot.graphics.getAt(0) as Phaser.GameObjects.Arc;
             glowCircle.setAlpha(0.25);
             this.tweens.add({
@@ -1694,9 +1690,34 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     nextEquation() {
-        this.placedBalls = [];
+        // Consume placed balls found in slots
+        this.slots.forEach(slot => {
+            if (slot.occupiedBall) {
+                const b = slot.occupiedBall;
+                if (b.container) {
+                    this.tweens.killTweensOf(b.container);
+                    b.container.destroy();
+                }
+                const idx = this.balls.indexOf(b);
+                if (idx > -1) this.balls.splice(idx, 1);
 
-        if (this.correctEquations >= this.currentLevelConfig.totalEquations) {
+                // Clear slot references
+                slot.occupiedBall = null;
+                slot.filled = false;
+                slot.filledValue = null;
+
+                // Reset slot visuals
+                const checkmark = slot.graphics.getAt(3) as Phaser.GameObjects.Text; // Checkmark is index 3
+                if (checkmark) checkmark.setVisible(false);
+                const placeholder = slot.graphics.getAt(2) as Phaser.GameObjects.Text;
+                if (placeholder) placeholder.setVisible(true);
+            }
+        });
+
+        this.placedBalls = [];
+        this.currentEquationIndex++;
+
+        if (this.currentEquationIndex >= this.currentLevelConfig.equations.length) {
             this.endLevel();
         } else {
             this.generateNewEquation();
@@ -1711,7 +1732,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         this.shadowBallContainer = this.add.container(width / 2, y);
 
-        const totalBalls = this.currentLevelConfig.totalEquations;
+        const totalBalls = this.currentLevelConfig.equations.length;
         const ballSpacing = Math.min(55, width * 0.1); // Increased spacing
         const startX = (-(totalBalls - 1) * ballSpacing) / 2;
 
@@ -1846,7 +1867,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         const stars = calculateStars(
             totalTime,
             this.correctEquations,
-            this.totalEquations,
+            this.equationAttempts,
             this.currentLevelConfig.starRequirements.threeStars,
             this.currentLevelConfig.starRequirements.twoStars,
             this.continuedAfterTimeout
@@ -1855,7 +1876,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         const starHint = getStarHint(
             totalTime,
             this.correctEquations,
-            this.totalEquations,
+            this.equationAttempts,
             this.currentLevelConfig.starRequirements.threeStars,
             this.continuedAfterTimeout
         );
@@ -1867,8 +1888,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         if (onGameOver) {
             const gameStats: BilliardsGameStats = {
                 levelPlayed: this.currentLevelConfig.level,
-                difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
-                totalEquations: this.totalEquations,
+                difficultyMultiplier: 1.0,
+                totalEquations: this.currentLevelConfig.equations.length,
                 correctEquations: this.correctEquations,
                 wrongEquations: this.wrongEquations,
                 totalTimeMs: totalTime,

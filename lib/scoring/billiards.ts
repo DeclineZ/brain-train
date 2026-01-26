@@ -102,8 +102,8 @@ export function calculateStars(
     return 3;
   }
 
-  // 2 Stars: Good Accuracy (> 60%)
-  if (accuracy > 0.6) {
+  // 2 Stars: Good Accuracy (>= 50%)
+  if (accuracy >= 0.5) {
     return 2;
   }
 

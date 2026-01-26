@@ -1,6 +1,4 @@
 import * as Phaser from "phaser";
-import { EquationGenerator } from "./equationGenerator";
-import { LayoutGenerator } from "./LayoutGenerator";
 import type { Equation, ComplexEquation, Ball } from "./types";
 
 // Physics constants (Matched to GameScene)
@@ -35,9 +33,6 @@ interface SlotZone {
 }
 
 export class TutorialScene extends Phaser.Scene {
-    private layoutGenerator!: LayoutGenerator;
-    private equationGenerator!: EquationGenerator;
-
     // Game State
     private balls: PhysicsBall[] = [];
     private slots: SlotZone[] = [];
@@ -115,15 +110,6 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
-        // Initialize Generator
-        this.equationGenerator = new EquationGenerator({
-            level: 1, operations: '+', numberRange: { min: 1, max: 10 },
-            equationComplexity: 'simple', timeLimitSeconds: 60,
-            difficultyMultiplier: 1, totalEquations: 5,
-            starRequirements: { threeStars: 30, twoStars: 60 },
-            shotLimit: 10, perEquationTimeSeconds: 60
-        });
-
         this.createPoolTable();
         this.createUI();
 
