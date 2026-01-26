@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { STATIC_LEVELS } from './levelData';
+import { STATIC_LEVELS } from './levels';
 import type { StaticLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle } from './types';
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
