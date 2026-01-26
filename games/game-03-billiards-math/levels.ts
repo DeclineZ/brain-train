@@ -1,13 +1,5 @@
 import type { BilliardsLevelConfig } from './types';
 
-// 60 progressive levels for Billiards Math Game
-// Levels 1-10: Introduction to Addition
-// Levels 11-20: Addition Mastery  
-// Levels 21-30: Subtraction Introduction
-// Levels 31-40: Mixed Operations
-// Levels 41-50: Advanced Operations
-// Levels 51-60: Mastery Challenge
-
 export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
   // Tutorial Level
   0: {
@@ -17,619 +9,515 @@ export const BILLIARDS_LEVELS: { [key: number]: BilliardsLevelConfig } = {
     equationComplexity: 'simple',
     timeLimitSeconds: 999,
     difficultyMultiplier: 1.0,
-    totalEquations: 3,
-    starRequirements: { threeStars: 999, twoStars: 999 }
+    totalEquations: 2,
+    starRequirements: { threeStars: 999, twoStars: 999 },
+    shotLimit: 99,
+    perEquationTimeSeconds: 999
   },
 
-  // Levels 1-10: Introduction to Addition
   1: {
     level: 1,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 30,
+    timeLimitSeconds: 150, // Increased from 90
     difficultyMultiplier: 1.0,
     totalEquations: 1,
-    starRequirements: { threeStars: 20, twoStars: 25 }
+    starRequirements: { threeStars: 20, twoStars: 30 },
+    shotLimit: 20,
+    perEquationTimeSeconds: 999
   },
   2: {
     level: 2,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 30,
-    difficultyMultiplier: 1.0,
+    timeLimitSeconds: 180, // Increased from 90
+    difficultyMultiplier: 1.1,
     totalEquations: 1,
-    starRequirements: { threeStars: 20, twoStars: 25 }
+    starRequirements: { threeStars: 20, twoStars: 30 },
+    shotLimit: 20,
+    perEquationTimeSeconds: 999,
+    layoutConfig: {
+      hazardCount: { min: 0, max: 0 },
+      obstacleCount: { min: 1, max: 2 },
+      decoyCount: 3
+    }
   },
   3: {
     level: 3,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 28,
-    difficultyMultiplier: 1.1,
-    totalEquations: 1,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    timeLimitSeconds: 240, // Increased
+    difficultyMultiplier: 1.2,
+    totalEquations: 2,
+    starRequirements: { threeStars: 40, twoStars: 60 },
+    shotLimit: 25,
+    perEquationTimeSeconds: 999,
+    layoutConfig: {
+      hazardCount: { min: 1, max: 1 },
+      obstacleCount: { min: 1, max: 3 },
+      decoyCount: 4
+    }
   },
   4: {
     level: 4,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 28,
-    difficultyMultiplier: 1.1,
-    totalEquations: 1,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.3,
+    totalEquations: 2,
+    starRequirements: { threeStars: 35, twoStars: 50 },
+    shotLimit: 20,
+    perEquationTimeSeconds: 999
   },
   5: {
     level: 5,
     operations: '+',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'simple',
-    timeLimitSeconds: 26,
-    difficultyMultiplier: 1.2,
-    totalEquations: 1,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.4,
+    totalEquations: 2,
+    starRequirements: { threeStars: 32, twoStars: 48 },
+    shotLimit: 18,
+    perEquationTimeSeconds: 999
   },
   6: {
     level: 6,
     operations: '+',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 26,
-    difficultyMultiplier: 1.2,
-    totalEquations: 1,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    equationComplexity: 'mixed',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.5,
+    totalEquations: 2,
+    starRequirements: { threeStars: 30, twoStars: 45 },
+    shotLimit: 18,
+    perEquationTimeSeconds: 999
   },
   7: {
     level: 7,
     operations: '+',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 1.3,
-    totalEquations: 1,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    equationComplexity: 'mixed',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.6,
+    totalEquations: 2,
+    starRequirements: { threeStars: 28, twoStars: 42 },
+    shotLimit: 18,
+    perEquationTimeSeconds: 999
   },
   8: {
     level: 8,
     operations: '+',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 1.3,
-    totalEquations: 1,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    equationComplexity: 'mixed',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.7,
+    totalEquations: 2,
+    starRequirements: { threeStars: 26, twoStars: 40 },
+    shotLimit: 18,
+    perEquationTimeSeconds: 999
   },
+
+  // ============================================
+  // PHASE 2: Foundation (Levels 9-16)
+  // Addition & Subtraction, 2-3 equations, 16 shots
+  // ============================================
   9: {
     level: 9,
-    operations: '+',
+    operations: '-',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 1.4,
-    totalEquations: 1,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    equationComplexity: 'simple',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.8,
+    totalEquations: 2,
+    starRequirements: { threeStars: 30, twoStars: 45 },
+    shotLimit: 16,
+    perEquationTimeSeconds: 999
   },
   10: {
     level: 10,
-    operations: '+',
+    operations: '-',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 1.4,
-    totalEquations: 1,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    equationComplexity: 'simple',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 1.9,
+    totalEquations: 2,
+    starRequirements: { threeStars: 28, twoStars: 42 },
+    shotLimit: 16,
+    perEquationTimeSeconds: 999
   },
-
-  // Levels 11-20: Addition Mastery
   11: {
     level: 11,
-    operations: '+',
+    operations: '-',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 1.5,
-    totalEquations: 2,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.0,
+    totalEquations: 3,
+    starRequirements: { threeStars: 40, twoStars: 55 },
+    shotLimit: 16,
+    perEquationTimeSeconds: 999
   },
   12: {
     level: 12,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 1.5,
-    totalEquations: 2,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    equationComplexity: 'simple',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.1,
+    totalEquations: 3,
+    starRequirements: { threeStars: 38, twoStars: 52 },
+    shotLimit: 16,
+    perEquationTimeSeconds: 999
   },
   13: {
     level: 13,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 1.6,
-    totalEquations: 2,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    equationComplexity: 'simple',
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.2,
+    totalEquations: 3,
+    starRequirements: { threeStars: 36, twoStars: 50 },
+    shotLimit: 16,
+    perEquationTimeSeconds: 999
   },
   14: {
     level: 14,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 1.6,
-    totalEquations: 2,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.3,
+    totalEquations: 3,
+    starRequirements: { threeStars: 34, twoStars: 48 },
+    shotLimit: 15,
+    perEquationTimeSeconds: 999
   },
   15: {
     level: 15,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
-    difficultyMultiplier: 1.7,
-    totalEquations: 2,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.4,
+    totalEquations: 3,
+    starRequirements: { threeStars: 32, twoStars: 46 },
+    shotLimit: 15,
+    perEquationTimeSeconds: 999
   },
   16: {
     level: 16,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
-    difficultyMultiplier: 1.7,
-    totalEquations: 2,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    timeLimitSeconds: 90,
+    difficultyMultiplier: 2.5,
+    totalEquations: 3,
+    starRequirements: { threeStars: 30, twoStars: 44 },
+    shotLimit: 15,
+    perEquationTimeSeconds: 999
   },
+
+  // ============================================
+  // PHASE 3: Challenge (Levels 17-28)
+  // Mixed operations, 3 equations, 14 shots
+  // ============================================
   17: {
     level: 17,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 1.8,
-    totalEquations: 2,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    equationComplexity: 'mixed',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 2.6,
+    totalEquations: 3,
+    starRequirements: { threeStars: 35, twoStars: 50 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   18: {
     level: 18,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 1.8,
-    totalEquations: 2,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    equationComplexity: 'mixed',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 2.7,
+    totalEquations: 3,
+    starRequirements: { threeStars: 33, twoStars: 48 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   19: {
     level: 19,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 1.9,
-    totalEquations: 2,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 2.8,
+    totalEquations: 3,
+    starRequirements: { threeStars: 32, twoStars: 46 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   20: {
     level: 20,
-    operations: '+',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 1.9,
-    totalEquations: 2,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 2.9,
+    totalEquations: 3,
+    starRequirements: { threeStars: 30, twoStars: 44 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
-
-  // Levels 21-30: Subtraction Introduction
   21: {
     level: 21,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 2.0,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.0,
     totalEquations: 3,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    starRequirements: { threeStars: 28, twoStars: 42 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   22: {
     level: 22,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 25,
-    difficultyMultiplier: 2.0,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.1,
     totalEquations: 3,
-    starRequirements: { threeStars: 18, twoStars: 22 }
+    starRequirements: { threeStars: 27, twoStars: 40 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   23: {
     level: 23,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 2.1,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.2,
     totalEquations: 3,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    starRequirements: { threeStars: 26, twoStars: 38 },
+    shotLimit: 14,
+    perEquationTimeSeconds: 999
   },
   24: {
     level: 24,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'simple',
-    timeLimitSeconds: 24,
-    difficultyMultiplier: 2.1,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.3,
     totalEquations: 3,
-    starRequirements: { threeStars: 17, twoStars: 21 }
+    starRequirements: { threeStars: 25, twoStars: 36 },
+    shotLimit: 13,
+    perEquationTimeSeconds: 999
   },
   25: {
     level: 25,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
-    difficultyMultiplier: 2.2,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.4,
     totalEquations: 3,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    starRequirements: { threeStars: 24, twoStars: 35 },
+    shotLimit: 13,
+    perEquationTimeSeconds: 999
   },
   26: {
     level: 26,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 23,
-    difficultyMultiplier: 2.2,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.5,
     totalEquations: 3,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    starRequirements: { threeStars: 23, twoStars: 34 },
+    shotLimit: 13,
+    perEquationTimeSeconds: 999
   },
   27: {
     level: 27,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 2.3,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.6,
     totalEquations: 3,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    starRequirements: { threeStars: 22, twoStars: 33 },
+    shotLimit: 13,
+    perEquationTimeSeconds: 999
   },
   28: {
     level: 28,
-    operations: '-',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 2.3,
-    totalEquations: 3,
-    starRequirements: { threeStars: 15, twoStars: 19 }
-  },
-  29: {
-    level: 29,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 2.4,
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.7,
     totalEquations: 3,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    starRequirements: { threeStars: 21, twoStars: 32 },
+    shotLimit: 13,
+    perEquationTimeSeconds: 999
+  },
+
+  // ============================================
+  // PHASE 4: Mastery (Levels 29-40)
+  // All operations, 3 equations, 12 shots
+  // ============================================
+  29: {
+    level: 29,
+    operations: 'mixed',
+    numberRange: { min: 1, max: 10 },
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.8,
+    totalEquations: 3,
+    starRequirements: { threeStars: 28, twoStars: 40 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   30: {
     level: 30,
-    operations: '-',
+    operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 2.4,
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 3.9,
     totalEquations: 3,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    starRequirements: { threeStars: 27, twoStars: 38 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
-
-  // Levels 31-40: Mixed Operations
   31: {
     level: 31,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 2.5,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.0,
     totalEquations: 3,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    starRequirements: { threeStars: 26, twoStars: 36 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   32: {
     level: 32,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 22,
-    difficultyMultiplier: 2.5,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.1,
     totalEquations: 3,
-    starRequirements: { threeStars: 16, twoStars: 20 }
+    starRequirements: { threeStars: 25, twoStars: 35 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   33: {
     level: 33,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 2.6,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.2,
     totalEquations: 3,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    starRequirements: { threeStars: 24, twoStars: 34 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   34: {
     level: 34,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
-    equationComplexity: 'mixed',
-    timeLimitSeconds: 21,
-    difficultyMultiplier: 2.6,
+    equationComplexity: 'complex',
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.3,
     totalEquations: 3,
-    starRequirements: { threeStars: 15, twoStars: 19 }
+    starRequirements: { threeStars: 23, twoStars: 33 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   35: {
     level: 35,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 20,
-    difficultyMultiplier: 2.7,
-    totalEquations: 4,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.4,
+    totalEquations: 3,
+    starRequirements: { threeStars: 22, twoStars: 32 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   36: {
     level: 36,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 20,
-    difficultyMultiplier: 2.7,
-    totalEquations: 4,
-    starRequirements: { threeStars: 14, twoStars: 18 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.5,
+    totalEquations: 3,
+    starRequirements: { threeStars: 21, twoStars: 31 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   37: {
     level: 37,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
-    difficultyMultiplier: 2.8,
-    totalEquations: 4,
-    starRequirements: { threeStars: 13, twoStars: 17 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.6,
+    totalEquations: 3,
+    starRequirements: { threeStars: 20, twoStars: 30 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   38: {
     level: 38,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 19,
-    difficultyMultiplier: 2.8,
-    totalEquations: 4,
-    starRequirements: { threeStars: 13, twoStars: 17 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.7,
+    totalEquations: 3,
+    starRequirements: { threeStars: 19, twoStars: 29 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   39: {
     level: 39,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
-    difficultyMultiplier: 2.9,
-    totalEquations: 4,
-    starRequirements: { threeStars: 12, twoStars: 16 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 4.8,
+    totalEquations: 3,
+    starRequirements: { threeStars: 18, twoStars: 28 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   },
   40: {
     level: 40,
     operations: 'mixed',
     numberRange: { min: 1, max: 10 },
     equationComplexity: 'complex',
-    timeLimitSeconds: 18,
-    difficultyMultiplier: 2.9,
-    totalEquations: 4,
-    starRequirements: { threeStars: 12, twoStars: 16 }
-  },
-
-  // Levels 41-50: Advanced Operations (include * and /)
-  41: {
-    level: 41,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 19,
-    difficultyMultiplier: 3.0,
-    totalEquations: 4,
-    starRequirements: { threeStars: 14, twoStars: 18 }
-  },
-  42: {
-    level: 42,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 19,
-    difficultyMultiplier: 3.0,
-    totalEquations: 4,
-    starRequirements: { threeStars: 14, twoStars: 18 }
-  },
-  43: {
-    level: 43,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 18,
-    difficultyMultiplier: 3.1,
-    totalEquations: 4,
-    starRequirements: { threeStars: 13, twoStars: 17 }
-  },
-  44: {
-    level: 44,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 18,
-    difficultyMultiplier: 3.1,
-    totalEquations: 4,
-    starRequirements: { threeStars: 13, twoStars: 17 }
-  },
-  45: {
-    level: 45,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 17,
-    difficultyMultiplier: 3.2,
-    totalEquations: 4,
-    starRequirements: { threeStars: 12, twoStars: 16 }
-  },
-  46: {
-    level: 46,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 17,
-    difficultyMultiplier: 3.2,
-    totalEquations: 4,
-    starRequirements: { threeStars: 12, twoStars: 16 }
-  },
-  47: {
-    level: 47,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 16,
-    difficultyMultiplier: 3.3,
-    totalEquations: 4,
-    starRequirements: { threeStars: 11, twoStars: 15 }
-  },
-  48: {
-    level: 48,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 16,
-    difficultyMultiplier: 3.3,
-    totalEquations: 4,
-    starRequirements: { threeStars: 11, twoStars: 15 }
-  },
-  49: {
-    level: 49,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 15,
-    difficultyMultiplier: 3.4,
-    totalEquations: 4,
-    starRequirements: { threeStars: 10, twoStars: 14 }
-  },
-  50: {
-    level: 50,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 15,
-    difficultyMultiplier: 3.4,
-    totalEquations: 4,
-    starRequirements: { threeStars: 10, twoStars: 14 }
-  },
-
-  // Levels 51-60: Mastery Challenge
-  51: {
-    level: 51,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 16,
-    difficultyMultiplier: 3.5,
-    totalEquations: 5,
-    starRequirements: { threeStars: 12, twoStars: 16 }
-  },
-  52: {
-    level: 52,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 16,
-    difficultyMultiplier: 3.5,
-    totalEquations: 5,
-    starRequirements: { threeStars: 12, twoStars: 16 }
-  },
-  53: {
-    level: 53,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 15,
-    difficultyMultiplier: 3.6,
-    totalEquations: 5,
-    starRequirements: { threeStars: 11, twoStars: 15 }
-  },
-  54: {
-    level: 54,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 15,
-    difficultyMultiplier: 3.6,
-    totalEquations: 5,
-    starRequirements: { threeStars: 11, twoStars: 15 }
-  },
-  55: {
-    level: 55,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 14,
-    difficultyMultiplier: 3.7,
-    totalEquations: 5,
-    starRequirements: { threeStars: 10, twoStars: 14 }
-  },
-  56: {
-    level: 56,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 14,
-    difficultyMultiplier: 3.7,
-    totalEquations: 5,
-    starRequirements: { threeStars: 10, twoStars: 14 }
-  },
-  57: {
-    level: 57,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 13,
-    difficultyMultiplier: 3.8,
-    totalEquations: 5,
-    starRequirements: { threeStars: 9, twoStars: 13 }
-  },
-  58: {
-    level: 58,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 13,
-    difficultyMultiplier: 3.8,
-    totalEquations: 5,
-    starRequirements: { threeStars: 9, twoStars: 13 }
-  },
-  59: {
-    level: 59,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 12,
-    difficultyMultiplier: 3.9,
-    totalEquations: 5,
-    starRequirements: { threeStars: 8, twoStars: 12 }
-  },
-  60: {
-    level: 60,
-    operations: 'mixed',
-    numberRange: { min: 1, max: 10 },
-    equationComplexity: 'complex',
-    timeLimitSeconds: 12,
-    difficultyMultiplier: 3.9,
-    totalEquations: 5,
-    starRequirements: { threeStars: 8, twoStars: 12 }
+    timeLimitSeconds: 100,
+    difficultyMultiplier: 5.0,
+    totalEquations: 3,
+    starRequirements: { threeStars: 17, twoStars: 27 },
+    shotLimit: 12,
+    perEquationTimeSeconds: 999
   }
 };

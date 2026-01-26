@@ -19,3 +19,4 @@ export const BilliardsGameConfig: Phaser.Types.Core.GameConfig = {
     },
     scene: [BilliardsGameScene, TutorialScene]
 };
+

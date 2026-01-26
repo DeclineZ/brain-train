@@ -3,13 +3,43 @@ export interface BilliardsLevelConfig {
   operations: '+' | '-' | '*' | '/' | 'mixed';
   numberRange: { min: number; max: number };
   equationComplexity: 'simple' | 'mixed' | 'complex';
-  timeLimitSeconds: number;
+  timeLimitSeconds: number; // Legacy - kept for backwards compatibility
   difficultyMultiplier: number;
   totalEquations: number;
   starRequirements: {
     threeStars: number;  // Time requirement in seconds
     twoStars: number;   // Time requirement in seconds
   };
+  // New pressure mechanics (older-player friendly)
+  shotLimit: number;              // Max shots per equation (generous: 8-15)
+  perEquationTimeSeconds: number; // Timer per equation (generous: 30-60s)
+  layoutConfig?: {
+    hazardCount: { min: number; max: number };
+    obstacleCount: { min: number; max: number };
+    decoyCount: number;
+  };
+}
+
+export type ObstacleType = 'wall_h' | 'wall_v' | 'box';
+
+export interface LayoutObstacle {
+  type: ObstacleType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LayoutBall {
+  value: number;
+  x: number;
+  y: number;
+  isHazard?: boolean;
+}
+
+export interface GeneratedLayout {
+  balls: LayoutBall[];
+  obstacles: LayoutObstacle[];
 }
 
 // Enhanced equation types

@@ -10,10 +10,19 @@ interface Arrow {
     spawnBeatTime: number;      // When it spawned (in beat time)
     targetBeatTime: number;     // When it should be hit
     resolved: boolean;
+    lane: number;               // 0 (Left) or 1 (Right)
+
     // For special types
     secondDirection?: Direction; // For Double arrows
     wigglerFinalDirection?: Direction; // For Wiggler
     spinnerCurrentAngle?: number;
+    hitsRequired?: number; // For Double arrows
+
+    // Hold Arrow Properties
+    duration?: number; // In beats
+    isBeingHeld?: boolean;
+    holdProgress?: number; // 0 to 1
+    visualHeight?: number; // Initial graphic height
 }
 
 interface ArrowStats {
@@ -33,6 +42,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
     private musicStartTime: number = 0;
     private currentBeat: number = 0;
     private nextArrowBeat: number = 2; // First arrow after 2 beats
+    private laneBusyUntilBeat: [number, number] = [0, 0]; // Track when each lane is free [Lane 0, Lane 1]
 
     // Game State
     private arrows: Arrow[] = [];
@@ -54,21 +64,30 @@ export class DreamDirectGameScene extends Phaser.Scene {
     private fadeStats: ArrowStats = { correct: 0, attempts: 0 };
     private spinnerStats: ArrowStats = { correct: 0, attempts: 0 };
     private doubleStats: ArrowStats = { correct: 0, attempts: 0 };
+    private holdSolidStats: ArrowStats = { correct: 0, attempts: 0 };
+    private holdHollowStats: ArrowStats = { correct: 0, attempts: 0 };
     private ruleSwitchErrors: number = 0; // When Ghost→Same or Anchor→Opposite
 
     // UI Elements
     private hitZone!: Phaser.GameObjects.Graphics;
+    private laneGraphics!: Phaser.GameObjects.Graphics;
+    private targetGraphics!: Phaser.GameObjects.Graphics;
+    private glowGraphics!: Phaser.GameObjects.Graphics;
     private scoreText!: Phaser.GameObjects.Text;
     private comboText!: Phaser.GameObjects.Text;
     private beatIndicator!: Phaser.GameObjects.Graphics;
     private buttons: Map<Direction, Phaser.GameObjects.Container> = new Map();
 
     // Visual Constants
+    // Visual Constants
     private hitZoneY: number = 0;
     private spawnY: number = 0;
+    private readonly LANE_OFFSET: number = 50; // Distance from center for the two lanes
 
     // Particles
+    // Particles
     private particleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+    private holdParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter; // Visual for active holding
 
     // Tutorial System
     private tutorialsSeen: Set<ArrowType> = new Set(['ghost']); // Ghost is taught in main tutorial
@@ -76,6 +95,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
     private pauseStartTime: number = 0;
     private tutorialContainer!: Phaser.GameObjects.Container;
     private tutorialTargetHelper?: Direction; // Expected input for current tutorial
+    private isTutorialResolving: boolean = false; // Prevent input spam during feedback
 
     // Localized Tutorial Texts
     private readonly TUTORIAL_TEXTS: Record<string, { title: string; desc: string; rule: string }> = {
@@ -92,7 +112,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
         'spinner': {
             title: 'SPINNER ARROW (สีเหลือง)',
             desc: 'มันจะหมุนติ้วๆ',
-            rule: 'รอมัน "หยุดหมุน" แล้วกดทิศ "ตรงข้าม"!'
+            rule: 'รอมัน "หยุดหมุน" แล้วกดทิศ "เดียวกับ" ที่เห็น!'
         },
         'fade': {
             title: 'SHADOW ARROW (สีม่วง)',
@@ -102,7 +122,27 @@ export class DreamDirectGameScene extends Phaser.Scene {
         'double': {
             title: 'DOUBLE ARROW (สีฟ้า)',
             desc: 'มาเป็นคู่ ดูยากขึ้น',
-            rule: 'กฎเดิม: กดทิศ "ตรงข้าม"!'
+            rule: 'กดทิศ "เดียวกับ" ที่เห็น "2 ครั้ง" ติดกัน!'
+        },
+        'beat_tap': {
+            title: 'BEAT TAP (สีฟ้าใส)',
+            desc: 'จังหวะหัวใจ',
+            rule: 'กด "Spacebar" ให้ตรงจังหวะ!'
+        },
+        'beat_hold': {
+            title: 'BEAT HOLD (สีทอง)',
+            desc: 'ลากยาวตามเสียง',
+            rule: 'กด "Spacebar" ค้างไว้จนสุดเสียง!'
+        },
+        'hold_solid': {
+            title: 'HOLD ARROW (แดง)',
+            desc: 'ยาวๆ มั่นคง',
+            rule: 'กดทิศ "เดียวกับ" ที่เห็นค้างไว้!'
+        },
+        'hold_hollow': {
+            title: 'HOLLOW HOLD (ขาว)',
+            desc: 'เงาที่ยาวนาน',
+            rule: 'กดทิศ "ตรงข้าม" ค้างไว้!'
         }
     };
 
@@ -146,11 +186,15 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.fadeStats = { correct: 0, attempts: 0 };
         this.spinnerStats = { correct: 0, attempts: 0 };
         this.doubleStats = { correct: 0, attempts: 0 };
+        this.holdSolidStats = { correct: 0, attempts: 0 };
+        this.holdHollowStats = { correct: 0, attempts: 0 };
         this.ruleSwitchErrors = 0;
 
         // Set BPM
         this.bpm = this.currentLevelConfig.bpm;
+        this.bpm = this.currentLevelConfig.bpm;
         this.beatIntervalMs = (60 / this.bpm) * 1000;
+        this.laneBusyUntilBeat = [0, 0];
     }
 
     preload() {
@@ -195,8 +239,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
         // Hit Zone Line
         this.createHitZone();
 
-        // Beat Indicator (pulses on beat)
-        this.createBeatIndicator();
+
 
         // UI
         this.createUI();
@@ -228,6 +271,17 @@ export class DreamDirectGameScene extends Phaser.Scene {
             emitting: false, // Don't emit automatically (v3.60 uses emitting: false instead of on: false)
             quantity: 15
         });
+
+        // Hold Particles (Continuous stream)
+        this.holdParticleEmitter = this.add.particles(0, 0, 'particle_star', {
+            speed: { min: 50, max: 100 },
+            scale: { start: 0.6, end: 0 },
+            alpha: { start: 0.8, end: 0 },
+            lifespan: 400,
+            blendMode: 'ADD',
+            emitting: false,
+            frequency: 50
+        });
     }
 
     createBackground() {
@@ -258,39 +312,60 @@ export class DreamDirectGameScene extends Phaser.Scene {
     }
 
     createHitZone() {
-        const { width } = this.scale;
         this.hitZone = this.add.graphics();
+        this.laneGraphics = this.add.graphics();
+        this.targetGraphics = this.add.graphics();
+        this.glowGraphics = this.add.graphics();
+
+        this.drawHitZone();
+    }
+
+    drawHitZone() {
+        const { width, height } = this.scale;
+        const centerX = width / 2;
+        const l1x = centerX - this.LANE_OFFSET;
+        const l2x = centerX + this.LANE_OFFSET;
+
+        // Clear all
+        this.hitZone.clear();
+        this.laneGraphics.clear();
+        this.targetGraphics.clear();
+        this.glowGraphics.clear();
+
+        // 1. Horizontal Hit Line
         this.hitZone.lineStyle(4, 0xffffff, 0.6);
         this.hitZone.moveTo(0, this.hitZoneY);
         this.hitZone.lineTo(width, this.hitZoneY);
         this.hitZone.strokePath();
 
-        // Glow effect
-        const glow = this.add.graphics();
-        glow.lineStyle(12, 0x8844ff, 0.2);
-        glow.moveTo(0, this.hitZoneY);
-        glow.lineTo(width, this.hitZoneY);
-        glow.strokePath();
+        // 2. Vertical Lanes
+        this.laneGraphics.lineStyle(2, 0xffffff, 0.1);
+
+        // Left Lane
+        this.laneGraphics.moveTo(l1x, 0);
+        this.laneGraphics.lineTo(l1x, height);
+
+        // Right Lane
+        this.laneGraphics.moveTo(l2x, 0);
+        this.laneGraphics.lineTo(l2x, height);
+
+        this.laneGraphics.strokePath();
+
+        // 3. Target Circles (Timing Guides)
+        this.targetGraphics.lineStyle(4, 0xffffff, 0.4); // Subtle white
+        const targetRadius = 30;
+
+        this.targetGraphics.strokeCircle(l1x, this.hitZoneY, targetRadius);
+        this.targetGraphics.strokeCircle(l2x, this.hitZoneY, targetRadius);
+
+        // 4. Glow effect
+        this.glowGraphics.lineStyle(12, 0x8844ff, 0.2);
+        this.glowGraphics.moveTo(0, this.hitZoneY);
+        this.glowGraphics.lineTo(width, this.hitZoneY);
+        this.glowGraphics.strokePath();
     }
 
-    createBeatIndicator() {
-        this.beatIndicator = this.add.graphics();
-        this.drawBeatIndicator(1);
-    }
 
-    drawBeatIndicator(scale: number) {
-        const { width } = this.scale;
-        this.beatIndicator.clear();
-
-        const centerX = width / 2;
-        const y = this.hitZoneY;
-        const radius = 20 * scale;
-
-        this.beatIndicator.fillStyle(0x8844ff, 0.6 * scale);
-        this.beatIndicator.fillCircle(centerX, y, radius);
-        this.beatIndicator.lineStyle(3, 0xffffff, 0.8 * scale);
-        this.beatIndicator.strokeCircle(centerX, y, radius);
-    }
 
     createUI() {
         const { width } = this.scale;
@@ -392,7 +467,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
             // Make interactive
             bg.setInteractive({ useHandCursor: true });
+            bg.setInteractive({ useHandCursor: true });
             bg.on('pointerdown', () => this.handleInput(dir));
+            bg.on('pointerup', () => this.handleRelease(dir));
+            bg.on('pointerout', () => this.handleRelease(dir));
 
             this.buttons.set(dir, container);
         });
@@ -408,20 +486,149 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.input.keyboard?.on('keydown-A', () => this.handleInput('left'));
         this.input.keyboard?.on('keydown-D', () => this.handleInput('right'));
 
-        // DEBUG: Shift + R to Reset Tutorials
-        this.input.keyboard?.on('keydown-R', (event: KeyboardEvent) => {
-            if (event.shiftKey) {
-                console.log('DEBUG: Resetting Tutorials');
-                localStorage.removeItem('dreamdirect_tutorials_seen');
-                this.scene.restart();
+
+
+        this.input.keyboard?.on('keyup-UP', () => this.handleRelease('up'));
+        this.input.keyboard?.on('keyup-DOWN', () => this.handleRelease('down'));
+        this.input.keyboard?.on('keyup-LEFT', () => this.handleRelease('left'));
+        this.input.keyboard?.on('keyup-RIGHT', () => this.handleRelease('right'));
+        this.input.keyboard?.on('keyup-W', () => this.handleRelease('up'));
+        this.input.keyboard?.on('keyup-S', () => this.handleRelease('down'));
+        this.input.keyboard?.on('keyup-A', () => this.handleRelease('left'));
+        this.input.keyboard?.on('keyup-D', () => this.handleRelease('right'));
+    }
+
+    handleRelease(dir?: Direction) {
+        // Find any active hold arrows
+        // If dir is provided, only release arrows targeting that direction
+        // If no dir is provided (generic release?), release all? Or maybe ignore?
+
+        let heldArrows = this.arrows.filter(a => a.isBeingHeld);
+
+        if (dir) {
+            heldArrows = heldArrows.filter(a => a.targetDirection === dir);
+        }
+
+        heldArrows.forEach(arrow => {
+            arrow.isBeingHeld = false;
+
+            // Check if held long enough
+            if ((arrow.holdProgress ?? 0) >= 0.98) {
+                // Success!
+                this.completeHold(arrow);
+            } else {
+                // Fail - Released Early
+                this.handleMiss(arrow); /* "Released Too Early!" */
             }
         });
     }
 
+
+
+    handleInput(dir: Direction) {
+        if (!this.isPlaying || this.gameOver) return;
+
+        // Visual feedback for button press
+        const btn = this.buttons.get(dir);
+        if (btn) {
+            this.tweens.add({
+                targets: btn,
+                scale: { from: 0.9, to: 1 },
+                duration: 100,
+                yoyo: true
+            });
+        }
+
+        // Tutorial Input Redirect
+        if (this.isTutorialActive) {
+            this.handleTutorialInput(dir);
+            return;
+        }
+
+        const currentTime = Date.now() - this.musicStartTime;
+        const currentBeatTime = currentTime / this.beatIntervalMs;
+
+        // Find standard arrows near the hit zone
+        const hitWindowBeats = (DreamDirectConstants.TIMING.GOOD / this.beatIntervalMs);
+
+        // Filter: Find all arrows in window
+        const candidates = this.arrows.filter(a =>
+            !a.resolved &&
+            !a.isBeingHeld && // Exclude currently held arrows so they don't block new inputs
+            Math.abs(a.targetBeatTime - currentBeatTime) <= hitWindowBeats
+        );
+
+        if (candidates.length === 0) {
+            return;
+        }
+
+        // CHORD LOGIC: Find the arrow that matches the INPUT DIRECTION
+        // This allows simultaneous inputs (Up + Left) to hit separate arrows
+        const targetArrow = candidates.find(a => a.targetDirection === dir);
+
+        if (targetArrow) {
+            // Hit logic
+            this.processArrowHit(targetArrow, dir, currentBeatTime);
+        } else {
+            // Miss logic? 
+            // Only if closest arrow is NOT a Ghost (Ghost target is opposite, so input != arrow.dir)
+            // Actually, a.targetDirection IS calculated.
+            // So if I press UP, and there are NO arrows expecting UP, I missed/spammed.
+            // For now, simple approach: check if any arrow is 'close' enough to be a "Wrong Direction" miss?
+            // "Closest arrow needs DOWN, but I pressed UP" -> Miss?
+            // "Closest arrow needs LEFT, I pressed UP" -> Miss?
+
+            // To prevent "mashing", we can find the closest arrow overall and if it's NOT the right direction, punish it?
+            // BUT for Chords, there might be Arrow A (Up) and Arrow B (Left).
+            // If I press Up, I hit Arrow A.
+            // If I press Right... I hit nothing.
+            // Closest might be Arrow A. Should checking Arrow A penalize me? 
+            // Probably yes, if I press Right when I needed Up/Left.
+
+            // Let's implement a simple "Miss" if there's a hittable arrow but I pressed wrong.
+            // Pick closest arrow
+            const closest = candidates.reduce((prev, curr) => {
+                return Math.abs(curr.targetBeatTime - currentBeatTime) < Math.abs(prev.targetBeatTime - currentBeatTime) ? curr : prev;
+            });
+
+            // If I pressed a button that is NOT valid for this arrow...
+            // AND there wasn't another arrow that WAS valid...
+            // It's a miss on the closest candidate.
+            this.handleMiss(closest);
+        }
+    }
+
+    completeHold(arrow: Arrow) {
+        if (arrow.resolved) return;
+
+        // Final Score Bonus
+        this.addScore(DreamDirectConstants.SCORE.PERFECT, arrow);
+        this.showTimingFeedback(arrow.container.x, arrow.container.y, 'Perfect Hold!', true);
+        this.updateStats(arrow.type, true);
+
+        this.sound.play('sfx-correct', { rate: 1.2 });
+        this.emitParticles(arrow.container.x, arrow.container.y, 0xFFD700); // Gold
+
+        arrow.resolved = true;
+        this.destroyArrow(arrow);
+    }
+
     startGame() {
         // Start BGM
+        const bgmConfig = this.currentLevelConfig.bgmTrack;
         const bgmKey = this.getBGMKey();
-        this.bgMusic = this.sound.add(bgmKey, { loop: true, volume: 0.5 });
+
+        // Calculate playback rate (Level BPM / Music Native BPM)
+        const playbackRate = this.currentLevelConfig.bpm / bgmConfig.bpm;
+
+        console.log(`Starting Level ${this.currentLevelConfig.level}: BPM ${this.currentLevelConfig.bpm} / Native ${bgmConfig.bpm} = Rate ${playbackRate}`);
+
+        this.bgMusic = this.sound.add(bgmKey, {
+            loop: true,
+            volume: 0.5,
+            rate: playbackRate
+        });
+
         this.bgMusic.play();
 
         this.musicStartTime = Date.now();
@@ -429,9 +636,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
     }
 
     getBGMKey(): string {
-        if (this.currentLevelConfig.bgmTrack.includes('Slow')) return 'bgm-slow';
-        if (this.currentLevelConfig.bgmTrack.includes('Med')) return 'bgm-med';
-        if (this.currentLevelConfig.bgmTrack.includes('Swing')) return 'bgm-swing';
+        const path = this.currentLevelConfig.bgmTrack.path;
+        if (path.includes('Slow')) return 'bgm-slow';
+        if (path.includes('Med')) return 'bgm-med';
+        if (path.includes('Swing')) return 'bgm-swing';
         return 'bgm-fast';
     }
 
@@ -507,10 +715,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
         const demoDir: Direction = 'up';
 
         // Determine Target Input
-        if (type === 'anchor') {
-            this.tutorialTargetHelper = 'up';
+        if (['anchor', 'spinner', 'double', 'hold_solid'].includes(type)) {
+            this.tutorialTargetHelper = 'up'; // Same direction (Demo is UP)
         } else {
-            this.tutorialTargetHelper = 'down'; // All others are opposite
+            this.tutorialTargetHelper = 'down'; // Opposite direction
         }
 
         // Draw the Big Arrow
@@ -568,7 +776,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
             case 'double':
                 arrowGraphics.fillStyle(DreamDirectConstants.COLORS.DOUBLE, 1);
                 this.drawArrowShape(arrowGraphics, -40, 0, size, demoDir, true);
-                this.drawArrowShape(arrowGraphics, 40, 0, size, 'down', true);
+                this.drawArrowShape(arrowGraphics, 40, 0, size, demoDir, true);
                 break;
         }
 
@@ -582,10 +790,11 @@ export class DreamDirectGameScene extends Phaser.Scene {
     }
 
     handleTutorialInput(dir: Direction) {
-        if (!this.tutorialTargetHelper) return;
+        if (!this.tutorialTargetHelper || this.isTutorialResolving) return;
 
         if (dir === this.tutorialTargetHelper) {
             // Correct!
+            this.isTutorialResolving = true;
             this.sound.play('sfx-correct');
 
             const { width, height } = this.scale;
@@ -630,6 +839,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         } else {
             // Wrong!
+            if (this.isTutorialResolving) return; // Should be caught by top check anyway
+
             this.sound.play('sfx-wrong');
             this.cameras.main.shake(200, 0.005);
 
@@ -658,6 +869,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
                 // Resume Game
                 this.isTutorialActive = false;
+                this.isTutorialResolving = false;
                 this.bgMusic.resume();
 
                 // Adjust Time Tracking
@@ -720,13 +932,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
         const currentBeatFloat = elapsed / this.beatIntervalMs;
         this.currentBeat = Math.floor(currentBeatFloat);
 
-        // Beat pulse animation
-        const beatPhase = currentBeatFloat % 1;
-        if (beatPhase < 0.1) {
-            this.drawBeatIndicator(1 + (0.1 - beatPhase) * 5);
-        } else {
-            this.drawBeatIndicator(1);
-        }
+        // Pulse Visuals on Beat
+        const scale = 1 + (0.3 * (1 - this.currentBeat % 1));
 
         // Spawn arrows
         if (this.arrowsSpawned < this.currentLevelConfig.arrowCount) {
@@ -736,10 +943,17 @@ export class DreamDirectGameScene extends Phaser.Scene {
         }
 
         // Update arrows
-        this.updateArrows(elapsed);
+        // Update arrows
+        this.updateArrows(elapsed, delta);
 
         // Check for missed arrows
         this.checkMissedArrows(currentBeatFloat);
+
+        // Update Hold Particles
+        // Update Hold Particles
+        if (this.holdParticleEmitter) {
+            this.updateHoldParticles();
+        }
 
         // Check win condition
         if (this.arrowsSpawned >= this.currentLevelConfig.arrowCount &&
@@ -764,55 +978,135 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
     spawnArrow() {
         const { width } = this.scale;
+        const numberOfArrows = (Math.random() < (this.currentLevelConfig.chordChance || 0)) ? 2 : 1;
 
-        // Pick Type based on Level Config
-        const arrowType = Phaser.Math.RND.pick(this.currentLevelConfig.arrowTypes);
+        // TRACK ALLOCATED TARGET DIRECTIONS TO PREVENT COLLISIONS
+        const allocatedTargets = new Set<Direction>();
 
-        // TUTORIAL CHECK
-        if (!this.tutorialsSeen.has(arrowType)) {
-            this.startInGameTutorial(arrowType);
-            return;
+        // PRE-FILL ALLOCATED TARGETS WITH ACTIVE ARROWS (Prevent Overlapping Glitch)
+        // If an arrow is currently on screen (unresolved), we should not spawn another one targeting the same direction
+        // This is strict, but ensures "Hold Down" doesn't conflict with "Tap Down"
+        this.arrows.forEach(a => {
+            if (!a.resolved) {
+                allocatedTargets.add(a.targetDirection);
+            }
+        });
+
+        // DETERMINE LANES
+        // If 2 arrows, use both lanes (0 and 1)
+        // If 1 arrow, pick random lane
+        const lanes = numberOfArrows === 2 ? [0, 1] : [Phaser.Math.RND.pick([0, 1])];
+
+        for (const lane of lanes) {
+            // LANE CHECK: Is this lane busy?
+            if (this.nextArrowBeat < this.laneBusyUntilBeat[lane]) {
+                continue; // Lane is busy, skip spawn
+            }
+            // Pick Type
+            const arrowType = Phaser.Math.RND.pick(this.currentLevelConfig.arrowTypes);
+
+            // TUTORIAL CHECK (Only run tutorial if not seen and only for single arrow spawn to correctly demo)
+            if (!this.tutorialsSeen.has(arrowType)) {
+                if (numberOfArrows === 1) { // Only interrupt for single spawns to keep it simple
+                    this.startInGameTutorial(arrowType);
+                    return;
+                }
+            }
+
+            // DETERMINE DIRECTION (Retry until valid unique target)
+            let direction: Direction;
+            let targetDirection: Direction;
+            let arrowObj: Arrow | null = null;
+            let attempts = 0;
+
+            do {
+                direction = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
+                targetDirection = this.calculateTargetDirection(arrowType, direction); // Helper calculates target logic
+                attempts++;
+            } while (allocatedTargets.has(targetDirection) && attempts < 20);
+
+            // If we failed to find a unique target, skip this arrow (avoid impossible chord)
+            if (allocatedTargets.has(targetDirection)) continue;
+
+            allocatedTargets.add(targetDirection);
+
+            // Calculate X based on Lane
+            const spawnX = (width / 2) + (lane === 0 ? -this.LANE_OFFSET : this.LANE_OFFSET);
+
+            // Create Visuals
+            const container = this.createArrowVisual(spawnX, this.spawnY, arrowType, direction);
+
+            arrowObj = {
+                container,
+                type: arrowType,
+                direction,
+                targetDirection,
+                spawnBeatTime: this.nextArrowBeat,
+                targetBeatTime: this.nextArrowBeat + this.getArrowTravelBeats(),
+                resolved: false,
+                lane
+            };
+
+            // SPECIAL TYPES INIT
+            if (arrowType === 'spinner') {
+                arrowObj.spinnerCurrentAngle = Phaser.Math.Between(0, 360);
+            }
+            if (arrowType === 'wiggler') {
+                arrowObj.wigglerFinalDirection = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
+                // Re-calculate target for wiggler just to be safe, though target matches opposite of final visual
+                // But simplified logic: Wiggler starts random, then locks.
+                // Our loop above checked standard target. Wiggler target is tricky.
+                // Let's assume Wiggler is "Opposite of Final Visual".
+                arrowObj.targetDirection = this.getOppositeDirection(arrowObj.wigglerFinalDirection);
+            }
+            if (arrowType === 'double') {
+                arrowObj.hitsRequired = 2;
+            }
+
+            // HOLD ARROWS
+            if (arrowType === 'hold_solid' || arrowType === 'hold_hollow') {
+                arrowObj.duration = Phaser.Math.Between(2, 4);
+                arrowObj.isBeingHeld = false;
+                arrowObj.holdProgress = 0;
+
+                // For Hollow Hold, Target is Opposite
+                if (arrowType === 'hold_hollow') {
+                    arrowObj.targetDirection = this.getOppositeDirection(direction);
+                } else {
+                    arrowObj.targetDirection = direction;
+                }
+
+                // Verify collision for hold arrows too
+                if (allocatedTargets.has(arrowObj.targetDirection) && attempts < 20) {
+                    // This is complex because we already added it to set.
+                    // But logic holds: if we broke loop, we're good.
+                }
+
+                // RESERVE LANE
+                // Gap of 1 beat after hold ensures clean separation
+                this.laneBusyUntilBeat[lane] = this.nextArrowBeat + arrowObj.duration + 1;
+
+                // Visual Tail
+                const distancePerBeat = (this.hitZoneY - this.spawnY) / this.getArrowTravelBeats();
+                const tailHeight = arrowObj.duration * distancePerBeat;
+                arrowObj.visualHeight = tailHeight;
+
+                const tail = container.getAt(0) as Phaser.GameObjects.Graphics;
+                tail.clear();
+
+                const isSolid = arrowType === 'hold_solid';
+                const tailColor = isSolid ? DreamDirectConstants.COLORS.HOLD_TAIL_SOLID : DreamDirectConstants.COLORS.HOLD_TAIL_HOLLOW;
+                const headColor = isSolid ? DreamDirectConstants.COLORS.HOLD_SOLID : DreamDirectConstants.COLORS.HOLD_HOLLOW;
+
+                tail.fillStyle(tailColor, 0.7);
+                tail.lineStyle(2, headColor, 0.8);
+                tail.fillRect(-10, -30 - tailHeight, 20, tailHeight);
+                tail.strokeRect(-10, -30 - tailHeight, 20, tailHeight);
+            }
+
+            this.arrows.push(arrowObj);
+            this.arrowsSpawned++;
         }
-
-        // Determine Initial Direction
-        const direction = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
-
-        // Logic for Target Direction
-        let targetDirection = direction;
-
-        if (['ghost', 'fade', 'double'].includes(arrowType)) {
-            targetDirection = this.getOppositeDirection(direction);
-        }
-        // Wiggler and Spinner targets are determined dynamically or overwrite this later
-
-        // Create Visuals
-        const container = this.createArrowVisual(width / 2, this.spawnY, arrowType, direction);
-
-        const arrowObj: Arrow = {
-            container,
-            type: arrowType,
-            direction,
-            targetDirection,
-            spawnBeatTime: this.nextArrowBeat,
-            targetBeatTime: this.nextArrowBeat + this.getArrowTravelBeats(),
-            resolved: false
-        };
-
-        // Special handling for Spinner
-        if (arrowType === 'spinner') {
-            arrowObj.spinnerCurrentAngle = Phaser.Math.Between(0, 360);
-            // Target determined in updateArrows when it locks
-        }
-
-        // Special handling for Wiggler
-        if (arrowType === 'wiggler') {
-            // Wiggler changes direction mid-flight
-            arrowObj.wigglerFinalDirection = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
-            arrowObj.targetDirection = this.getOppositeDirection(arrowObj.wigglerFinalDirection);
-        }
-
-        this.arrows.push(arrowObj);
-        this.arrowsSpawned++;
 
         // Increment beat for next arrow
         this.nextArrowBeat += this.getSpawnInterval();
@@ -842,7 +1136,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 // Will be determined dynamically
                 return displayDirection;
             case 'double':
-                // First arrow is opposite
+                // Same direction
+                return displayDirection;
+
+            case 'hold_solid':
+                return displayDirection;
+            case 'hold_hollow':
                 return this.getOppositeDirection(displayDirection);
             default:
                 return this.getOppositeDirection(displayDirection);
@@ -942,6 +1241,33 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 this.drawArrowShape(arrowGraphic, 0, -15, size * 0.8, direction, true);
                 this.drawArrowShape(arrowGraphic, 0, 15, size * 0.8, direction, true);
                 break;
+
+
+
+            case 'hold_solid':
+            case 'hold_hollow':
+                // 1. Draw Tail (Long Rectangle) extending UPWARDS
+                const isSolid = type === 'hold_solid';
+                const tailColor = isSolid ? DreamDirectConstants.COLORS.HOLD_TAIL_SOLID : DreamDirectConstants.COLORS.HOLD_TAIL_HOLLOW;
+                const headColor = isSolid ? DreamDirectConstants.COLORS.HOLD_SOLID : DreamDirectConstants.COLORS.HOLD_HOLLOW;
+
+                const tailGraphic = this.add.graphics();
+                tailGraphic.fillStyle(tailColor, 0.7);
+                tailGraphic.lineStyle(2, headColor, 0.8);
+                // Default placeholder size, updated in spawnArrow
+                tailGraphic.fillRect(-10, -130, 20, 100);
+                tailGraphic.strokeRect(-10, -130, 20, 100);
+                container.add(tailGraphic);
+
+                // 2. Draw Head
+                arrowGraphic.lineStyle(4, headColor, 1);
+                if (isSolid) {
+                    arrowGraphic.fillStyle(headColor, 1);
+                    this.drawArrowShape(arrowGraphic, 0, 0, size, direction, true);
+                } else {
+                    this.drawArrowShape(arrowGraphic, 0, 0, size, direction, false);
+                }
+                break;
         }
 
         container.add(arrowGraphic);
@@ -975,11 +1301,52 @@ export class DreamDirectGameScene extends Phaser.Scene {
         graphics.strokePoints(points.map((v, i) => i % 2 === 0 ? { x: v, y: points[i + 1] } : null).filter(p => p) as Phaser.Geom.Point[], true);
     }
 
-    updateArrows(elapsed: number) {
+    updateArrows(elapsed: number, delta: number) {
         const travelTime = this.getArrowTravelBeats() * this.beatIntervalMs;
 
         this.arrows.forEach(arrow => {
             if (arrow.resolved) return;
+
+            // HOLD LOGIC UPDATE
+            if (arrow.isBeingHeld) {
+                // Arrow head stays at Hit Zone
+                arrow.container.setY(this.hitZoneY);
+
+                // Progress calculation
+                // Increment progress based on time
+                const durationMs = (arrow.duration || 1) * this.beatIntervalMs;
+
+                // Use REAL delta (ms) for smooth progress
+                arrow.holdProgress = (arrow.holdProgress || 0) + (delta / durationMs);
+
+                // Visual: Shrink Tail
+                // Tail height was `visualHeight`.
+                // Current Height = Original * (1 - Progress)
+                const currentHeight = (arrow.visualHeight || 100) * (1 - arrow.holdProgress);
+
+                if (currentHeight <= 0) {
+                    // Force complete if done
+                    this.completeHold(arrow);
+                    return;
+                }
+
+                // Update Tail Graphics (We need to find the tail in the container)
+                // Tail is always at index 0 for holds
+                const tail = arrow.container.getAt(0) as Phaser.GameObjects.Graphics;
+                tail.clear();
+
+                const isSolid = arrow.type === 'hold_solid';
+                const tailColor = isSolid ? DreamDirectConstants.COLORS.HOLD_TAIL_SOLID : DreamDirectConstants.COLORS.HOLD_TAIL_HOLLOW;
+                const headColor = isSolid ? DreamDirectConstants.COLORS.HOLD_SOLID : DreamDirectConstants.COLORS.HOLD_HOLLOW;
+
+                tail.fillStyle(tailColor, 0.7);
+                tail.lineStyle(2, headColor, 0.8);
+                // Draw tail extending UP from head (0,0)
+                tail.fillRect(-10, -30 - currentHeight, 20, currentHeight);
+                tail.strokeRect(-10, -30 - currentHeight, 20, currentHeight);
+
+                return; // Skip normal movement
+            }
 
             const arrowElapsed = elapsed - (arrow.spawnBeatTime * this.beatIntervalMs);
             const progress = arrowElapsed / travelTime;
@@ -999,22 +1366,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
                     arrow.container.setRotation(Phaser.Math.DegToRad(lockedRotation));
 
                     const dirs: Direction[] = ['up', 'right', 'down', 'left'];
-                    // (angle / 90) % 4 handles the index mapping. 
-                    // 0 (Right?) -> we need to verify mapping.
-                    // Actually, let's trust the previous math but ensure it's stable.
-                    // arrow.spinnerCurrentAngle increases. 
-                    // 0 = Right, 90 = Down, 180 = Left, 270 = Up.
-                    // dirs array: 0=up, 1=right, 2=down, 3=left.
-                    // This mapping seems mixed up in my head vs the code, 
-                    // but if the code assumes 0=Up it might be fine, but usually Phaser 0=Right.
-                    // Let's stick to the previous working calculation for targetDirection calculation.
                     const dirIndex = ((lockedRotation / 90) % 4 + 4) % 4;
 
-                    // Note: This logic assumes 0deg = Up based on previous code context?
-                    // Previous code: arrow.container.setRotation...
-                    // If we just want to ensure it STOPS, this else block does that.
-                    // The targetDirection assignment is fine to repeat as long as lockedRotation is constant.
-                    arrow.targetDirection = this.getOppositeDirection(dirs[dirIndex]);
+                    // Spinner now requires SAME direction
+                    arrow.targetDirection = dirs[dirIndex];
                 }
             }
 
@@ -1024,12 +1379,11 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 // 1. Stop the wiggle tween
                 this.tweens.killTweensOf(arrow.container);
 
-                // 2. Reset X position to center (spawnX is width/2)
-                arrow.container.setX(this.scale.width / 2);
+                // 2. Reset X position to LANE center
+                const laneX = (this.scale.width / 2) + (arrow.lane === 0 ? -this.LANE_OFFSET : this.LANE_OFFSET);
+                arrow.container.setX(laneX);
 
                 // 3. Update Visual to Final Direction
-                // We need to access the graphics check to redraw
-                // Container children: [graphics] (for wiggler, checks createArrowVisual)
                 const graphics = arrow.container.getAt(0) as Phaser.GameObjects.Graphics;
                 graphics.clear();
 
@@ -1037,7 +1391,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 graphics.lineStyle(4, DreamDirectConstants.COLORS.WIGGLER, 1);
                 this.drawArrowShape(graphics, 0, 0, 60, arrow.wigglerFinalDirection, false);
 
-                // Ensure targetDirection is set (it's set in spawn, but just to be sure layout matches)
+                // Ensure targetDirection is set (Opposite for Wiggler)
                 arrow.targetDirection = this.getOppositeDirection(arrow.wigglerFinalDirection);
             }
         });
@@ -1049,55 +1403,47 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.arrows.forEach(arrow => {
             if (arrow.resolved) return;
 
-            if (currentBeatFloat > arrow.targetBeatTime + missWindow) {
+            // For Hold Arrows that are being held, we extend the deadline
+            let deadline = arrow.targetBeatTime + missWindow;
+
+            if (arrow.isBeingHeld && arrow.duration) {
+                // If being held, deadline is end of hold
+                deadline += arrow.duration;
+            }
+
+            if (currentBeatFloat > deadline) {
                 this.handleMiss(arrow);
             }
         });
     }
 
-    handleInput(inputDirection: Direction) {
-        // Tutorial Input Routing
-        if (this.isTutorialActive) {
-            this.handleTutorialInput(inputDirection);
-            this.flashButton(inputDirection);
-            return;
-        }
-
-        if (!this.isPlaying || this.gameOver) return;
-
-        this.flashButton(inputDirection);
-
-        // Find closest arrow to hit zone that isn't resolved
-        const hitableArrows = this.arrows
-            .filter(a => !a.resolved)
-            .filter(a => {
-                const progress = (Date.now() - this.musicStartTime - a.spawnBeatTime * this.beatIntervalMs) /
-                    (this.getArrowTravelBeats() * this.beatIntervalMs);
-                return progress > 0.6 && progress < 1.3; // Within hit window
-            })
-            .sort((a, b) => a.targetBeatTime - b.targetBeatTime);
-
-        if (hitableArrows.length === 0) return;
-
-        const arrow = hitableArrows[0];
-        const elapsed = Date.now() - this.musicStartTime;
-        const targetTime = arrow.targetBeatTime * this.beatIntervalMs;
-        const timingOffset = Math.abs(elapsed - targetTime);
+    // NEW Helper to clean up handleInput complexity
+    processArrowHit(arrow: Arrow, inputDir: Direction, currentBeatTime: number) {
+        const diffMs = Math.abs((arrow.targetBeatTime - currentBeatTime) * this.beatIntervalMs);
+        const timingOffset = diffMs;
 
         // Check if correct direction
-        const isCorrect = inputDirection === arrow.targetDirection;
+        const isCorrect = inputDir === arrow.targetDirection;
 
         // Track rule switch errors
         if (!isCorrect) {
-            const oppositeInput = this.getOppositeDirection(inputDirection);
-            if ((arrow.type === 'ghost' && inputDirection === arrow.direction) ||
+            const oppositeInput = this.getOppositeDirection(inputDir);
+            if ((arrow.type === 'ghost' && inputDir === arrow.direction) ||
                 (arrow.type === 'anchor' && oppositeInput === arrow.direction)) {
                 this.ruleSwitchErrors++;
             }
         }
 
-        // Calculate score based on timing
         if (isCorrect) {
+            // Double Arrow Logic
+            if (arrow.type === 'double' && (arrow.hitsRequired ?? 0) > 1) {
+                arrow.hitsRequired!--;
+                this.showTimingFeedback(arrow.container.x, arrow.container.y, 'อีกครั้ง!', true);
+                this.tweens.add({ targets: arrow.container, scale: 0.8, duration: 50, yoyo: true });
+                this.flashButton(inputDir);
+                return;
+            }
+
             const timing = this.getTimingGrade(timingOffset);
             this.addScore(timing.score, arrow);
             this.showTimingFeedback(arrow.container.x, arrow.container.y, timing.grade, true);
@@ -1111,16 +1457,24 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // Visual feedback
             this.emitParticles(arrow.container.x, arrow.container.y, 0x44ff44); // Green particles
             this.pulseHitZone();
+
+            // HOLD ARROW LOGIC
+            if (arrow.type === 'hold_solid' || arrow.type === 'hold_hollow') {
+                arrow.isBeingHeld = true;
+                // Do NOT destroy. Return early.
+                return;
+            }
+
         } else {
             this.handleMiss(arrow);
         }
 
-        // Mark as resolved
+        // Mark as resolved (if not double arrow hit 1)
         arrow.resolved = true;
         this.destroyArrow(arrow);
 
         // Button press feedback
-        this.flashButton(inputDirection);
+        this.flashButton(inputDir);
     }
 
     getTimingGrade(offsetMs: number): { grade: string; score: number } {
@@ -1166,6 +1520,9 @@ export class DreamDirectGameScene extends Phaser.Scene {
             case 'fade': return this.fadeStats;
             case 'spinner': return this.spinnerStats;
             case 'double': return this.doubleStats;
+            case 'hold_solid': return this.holdSolidStats;
+            case 'hold_hollow': return this.holdHollowStats;
+            default: return this.ghostStats;
         }
     }
 
@@ -1241,6 +1598,18 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.particleEmitter.explode(15, x, y);
     }
 
+    updateHoldParticles() {
+        const heldArrows = this.arrows.filter(a => a.isBeingHeld && !a.resolved);
+
+        if (heldArrows.length > 0) {
+            heldArrows.forEach(arrow => {
+                // Emit particles at the arrow's current position (head)
+                // Container position is the arrow head
+                this.holdParticleEmitter.emitParticleAt(arrow.container.x, arrow.container.y);
+            });
+        }
+    }
+
     pulseHitZone() {
         if (this.hitZone) {
             this.tweens.add({
@@ -1313,6 +1682,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 spinnerAttempts: this.spinnerStats.attempts,
                 doubleCorrect: this.doubleStats.correct,
                 doubleAttempts: this.doubleStats.attempts,
+                holdSolidCorrect: this.holdSolidStats.correct,
+                holdSolidAttempts: this.holdSolidStats.attempts,
+                holdHollowCorrect: this.holdHollowStats.correct,
+                holdHollowAttempts: this.holdHollowStats.attempts,
                 ruleSwitchErrors: this.ruleSwitchErrors,
                 avgTimingOffsetMs: avgTiming,
                 maxCombo: this.maxCombo,
@@ -1331,14 +1704,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.scoreText?.setPosition(width / 2, 60);
         this.comboText?.setPosition(width / 2, 100);
 
-        // Redraw hit zone
-        if (this.hitZone) {
-            this.hitZone.clear();
-            this.hitZone.lineStyle(4, 0xffffff, 0.6);
-            this.hitZone.moveTo(0, this.hitZoneY);
-            this.hitZone.lineTo(width, this.hitZoneY);
-            this.hitZone.strokePath();
-        }
+        // Redraw hit zone visuals
+        this.drawHitZone();
 
         // Reposition buttons
         this.repositionButtons();
