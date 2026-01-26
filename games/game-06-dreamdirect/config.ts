@@ -54,11 +54,17 @@ export const DreamDirectConstants = {
         FADE: 0x8844FF,        // Purple transparent
         SPINNER: 0xFFAA00,     // Orange
         DOUBLE: 0x00AAFF,      // Blue
+
+
+        HOLD_SOLID: 0xFF0000,
+        HOLD_HOLLOW: 0xAAAAAA,
+        HOLD_TAIL_SOLID: 0xFF4444,
+        HOLD_TAIL_HOLLOW: 0xEEEEEE,
     },
 
     // Directions
     DIRECTIONS: ['up', 'down', 'left', 'right'] as const,
 };
 
-export type Direction = typeof DreamDirectConstants.DIRECTIONS[number];
-export type ArrowType = 'ghost' | 'anchor' | 'wiggler' | 'fade' | 'spinner' | 'double';
+export type Direction = 'up' | 'down' | 'left' | 'right';
+export type ArrowType = 'ghost' | 'anchor' | 'wiggler' | 'fade' | 'spinner' | 'double' | 'hold_solid' | 'hold_hollow';
