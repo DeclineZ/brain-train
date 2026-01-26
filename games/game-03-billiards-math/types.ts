@@ -1,3 +1,32 @@
+export interface StaticBallConfig {
+  value: number;
+  x: number; // Normalized 0-1
+  y: number; // Normalized 0-1
+  isHazard?: boolean;
+  type?: 'decoy' | 'target'; // Optional metadata
+}
+
+export interface StaticObstacleConfig {
+  type: ObstacleType;
+  x: number; // Normalized 0-1 (center)
+  y: number; // Normalized 0-1 (center)
+  width: number;
+  height: number;
+}
+
+export interface StaticLevelConfig {
+  level: number;
+  equations: Equation[];
+  balls: StaticBallConfig[];
+  obstacles: StaticObstacleConfig[];
+  shotLimit: number;
+  timeLimitSeconds: number; // Added for UI timer
+  starRequirements: {
+    threeStars: number;
+    twoStars: number;
+  };
+}
+
 export interface BilliardsLevelConfig {
   level: number;
   operations: '+' | '-' | '*' | '/' | 'mixed';
