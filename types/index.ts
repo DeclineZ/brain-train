@@ -155,6 +155,31 @@ export interface MatchingLevelConfig {
   shuffleAfterPreview?: boolean;  // Force full grid shuffle after preview
 }
 
+// Mystery Sound Game types
+export interface MysterySoundOption {
+  id: string;
+  label: string;
+}
+
+export interface MysterySoundLevelConfig {
+  level: number;
+  correctSound: string;
+  correctLabel: string;
+  options: MysterySoundOption[];
+  maxReplays: number;
+  timeLimitSeconds: number;
+  difficultyMultiplier: number;
+}
+
+export interface MysterySoundGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  correct: boolean;
+  replaysUsed: number;
+  responseTimeMs: number;
+  timeLimitMs: number;
+}
+
 // Daily streak types
 export interface CheckinStatus {
   checked_in_today: boolean;

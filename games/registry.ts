@@ -6,6 +6,7 @@ import { WormGameConfig } from './game-05-wormtrain/config';
 import { FloatingBallMathConfig } from './game-04-floating-ball-math/config';
 import { DreamDirectGameConfig } from './game-06-dreamdirect/config';
 import { PolybridgeGameConfig } from './game-07-polybridge/config';
+import { MysterySoundGameConfig } from './game-08-mysterysound/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-00-example': ExampleGameConfig,
@@ -15,5 +16,6 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-05-wormtrain': WormGameConfig,
   'game-04-floating-ball-math': FloatingBallMathConfig,
   'game-06-dreamdirect': DreamDirectGameConfig,
-  'game-07-polybridge': PolybridgeGameConfig
+  'game-07-polybridge': PolybridgeGameConfig,
+  'game-08-mysterysound': MysterySoundGameConfig
 };
