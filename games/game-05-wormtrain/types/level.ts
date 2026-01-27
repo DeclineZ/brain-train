@@ -80,6 +80,12 @@ export interface DifficultyMetadata {
   name: string;
 }
 
+export interface LevelIntro {
+  title: string;
+  description: string;
+  imageKey?: string; // Phaser texture key or URL
+}
+
 export interface AnimationHints {
   wiggleAmplitude?: number;
   wiggleSpeed?: number;
@@ -96,6 +102,7 @@ export interface LevelData {
   rules: RuleSet;
   winCondition: WinCondition;
   metadata?: DifficultyMetadata;
+  intro?: LevelIntro;
   animation?: AnimationHints;
   tunnelStyle?: TunnelStyle; // Optional override per level
 }

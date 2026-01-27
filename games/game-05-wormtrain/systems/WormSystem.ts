@@ -32,6 +32,7 @@ export class WormSystem {
     // Tutorial State
     private isTutorial: boolean = false;
     private isTutorialPaused: boolean = false; // Add Global Pause Flag
+    private isSpawningPaused: boolean = false; // New flag for Intro
 
     constructor(scene: GameScene) {
         this.scene = scene;
@@ -46,6 +47,13 @@ export class WormSystem {
         this.timeElapsed = 0;
         this.isTutorial = levelData.levelId === 0;
         this.isTutorialPaused = false;
+
+        // If level has intro, pause spawning initially
+        this.isSpawningPaused = !!levelData.intro;
+    }
+
+    public startSpawning() {
+        this.isSpawningPaused = false;
     }
 
     private onJunctionSwitched({ junctionId }: { junctionId: string }) {
@@ -96,6 +104,8 @@ export class WormSystem {
     }
 
     private processSpawns() {
+        if (this.isSpawningPaused) return;
+
         while (this.spawnQueue.length > 0 && this.spawnQueue[0].spawnTimeMs <= this.timeElapsed) {
             const config = this.spawnQueue.shift()!;
             this.spawnWorm(config);
