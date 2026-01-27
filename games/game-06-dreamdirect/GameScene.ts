@@ -84,18 +84,24 @@ export class DreamDirectGameScene extends Phaser.Scene {
     private spawnY: number = 0;
     private readonly LANE_OFFSET: number = 50; // Distance from center for the two lanes
 
-    // Particles
-    // Particles
+
+
     private particleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
     private holdParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter; // Visual for active holding
 
     // Tutorial System
-    private tutorialsSeen: Set<ArrowType> = new Set(['ghost']); // Ghost is taught in main tutorial
+    private tutorialsShownThisSession: Set<ArrowType> = new Set(['ghost']); // Ghost is taught in main tutorial
     private isTutorialActive: boolean = false;
     private pauseStartTime: number = 0;
     private tutorialContainer!: Phaser.GameObjects.Container;
     private tutorialTargetHelper?: Direction; // Expected input for current tutorial
     private isTutorialResolving: boolean = false; // Prevent input spam during feedback
+    private currentTutorialType?: ArrowType;
+
+    // Tutorial Hold State
+    private isHoldingTutorial: boolean = false;
+    private tutorialHoldTween?: Phaser.Tweens.Tween;
+    private tutorialHoldBar?: Phaser.GameObjects.Graphics;
 
     // Localized Tutorial Texts
     private readonly TUTORIAL_TEXTS: Record<string, { title: string; desc: string; rule: string }> = {
@@ -117,7 +123,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
         'fade': {
             title: 'SHADOW ARROW (สีม่วง)',
             desc: 'มันจะหายตัวไป',
-            rule: 'จำทิศให้ได้ แล้วกด "ตรงข้าม"!'
+            rule: 'จำทิศให้ได้ แล้วกดทิศ "เดียวกับ" ที่เห็น!'
         },
         'double': {
             title: 'DOUBLE ARROW (สีฟ้า)',
@@ -135,14 +141,14 @@ export class DreamDirectGameScene extends Phaser.Scene {
             rule: 'กด "Spacebar" ค้างไว้จนสุดเสียง!'
         },
         'hold_solid': {
-            title: 'HOLD ARROW (แดง)',
+            title: 'HOLD ARROW (ฟ้า/Cyan)',
             desc: 'ยาวๆ มั่นคง',
-            rule: 'กดทิศ "เดียวกับ" ที่เห็นค้างไว้!'
+            rule: 'กดค้างไว้ 2 วินาที!'
         },
         'hold_hollow': {
             title: 'HOLLOW HOLD (ขาว)',
             desc: 'เงาที่ยาวนาน',
-            rule: 'กดทิศ "ตรงข้าม" ค้างไว้!'
+            rule: 'กด "ตรงข้าม" ค้างไว้ 2 วินาที!'
         }
     };
 
@@ -162,15 +168,9 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.gameOver = false;
         this.isTutorialActive = false;
 
-        // PERSISTENT TUTORIAL TRACKING (LocalStorage)
-        try {
-            const stored = localStorage.getItem('dreamdirect_tutorials_seen');
-            const seenArray = stored ? JSON.parse(stored) : ['ghost'];
-            this.tutorialsSeen = new Set(seenArray);
-        } catch (e) {
-            console.error('Failed to load tutorials seen:', e);
-            this.tutorialsSeen = new Set(['ghost']);
-        }
+        // TUTORIAL TRACKING (Session Only)
+        // We now show tutorials ALWAYS on the level they are introduced, once per session (restart).
+        this.tutorialsShownThisSession = new Set(['ghost']); // Ghost is assumed known from main tutorial
 
         this.score = 0;
         this.maxScore = this.currentLevelConfig.arrowCount * DreamDirectConstants.SCORE.PERFECT;
@@ -192,7 +192,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         // Set BPM
         this.bpm = this.currentLevelConfig.bpm;
-        this.bpm = this.currentLevelConfig.bpm;
+
         this.beatIntervalMs = (60 / this.bpm) * 1000;
         this.laneBusyUntilBeat = [0, 0];
     }
@@ -496,20 +496,25 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.input.keyboard?.on('keyup-S', () => this.handleRelease('down'));
         this.input.keyboard?.on('keyup-A', () => this.handleRelease('left'));
         this.input.keyboard?.on('keyup-D', () => this.handleRelease('right'));
+
+        // DEBUG: Reset Tutorial
+        this.input.keyboard?.on('keydown-R', () => {
+            if (this.isTutorialActive) return;
+            // logic is session-based now, so restart is sufficient
+            this.scene.restart();
+        });
     }
 
     handleRelease(dir?: Direction) {
-        // Find any active hold arrows
-        // If dir is provided, only release arrows targeting that direction
-        // If no dir is provided (generic release?), release all? Or maybe ignore?
-
-        let heldArrows = this.arrows.filter(a => a.isBeingHeld);
-
-        if (dir) {
-            heldArrows = heldArrows.filter(a => a.targetDirection === dir);
+        if (this.isTutorialActive) {
+            this.handleTutorialRelease(dir);
+            return;
         }
 
-        heldArrows.forEach(arrow => {
+        // Find arrows that are currently being held AND match the direction released
+        const releasingArrows = this.arrows.filter(a => a.isBeingHeld && a.targetDirection === dir);
+
+        releasingArrows.forEach(arrow => {
             arrow.isBeingHeld = false;
 
             // Check if held long enough
@@ -570,6 +575,15 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // Hit logic
             this.processArrowHit(targetArrow, dir, currentBeatTime);
         } else {
+            // Check if this input is already "busy" holding another arrow
+            // If we are actively holding an arrow with this target direction, 
+            // then this input is likely a key repeat or accidental press -> IGNORE IT.
+            // Do NOT punish the closest arrow.
+            const isHoldingThisDir = this.arrows.some(a => a.isBeingHeld && a.targetDirection === dir);
+            if (isHoldingThisDir) {
+                return;
+            }
+
             // Miss logic? 
             // Only if closest arrow is NOT a Ghost (Ghost target is opposite, so input != arrow.dir)
             // Actually, a.targetDirection IS calculated.
@@ -603,7 +617,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         // Final Score Bonus
         this.addScore(DreamDirectConstants.SCORE.PERFECT, arrow);
-        this.showTimingFeedback(arrow.container.x, arrow.container.y, 'Perfect Hold!', true);
+        this.showTimingFeedback(arrow.container.x, arrow.container.y, 'ดีเยี่ยม!', true);
         this.updateStats(arrow.type, true);
 
         this.sound.play('sfx-correct', { rate: 1.2 });
@@ -648,12 +662,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.bgMusic.pause();
         this.pauseStartTime = Date.now();
 
-        this.tutorialsSeen.add(type);
-        try {
-            localStorage.setItem('dreamdirect_tutorials_seen', JSON.stringify(Array.from(this.tutorialsSeen)));
-        } catch (e) {
-            console.error('Failed to save tutorials seen:', e);
-        }
+        this.currentTutorialType = type;
+        this.tutorialsShownThisSession.add(type);
 
         const { width, height } = this.scale;
 
@@ -715,7 +725,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
         const demoDir: Direction = 'up';
 
         // Determine Target Input
-        if (['anchor', 'spinner', 'double', 'hold_solid'].includes(type)) {
+        // User Update: Shadow/Fade is now SAME direction. Ghost (White Outline) is OPPOSITE.
+        if (['anchor', 'spinner', 'double', 'hold_solid', 'fade'].includes(type)) {
             this.tutorialTargetHelper = 'up'; // Same direction (Demo is UP)
         } else {
             this.tutorialTargetHelper = 'down'; // Opposite direction
@@ -762,22 +773,133 @@ export class DreamDirectGameScene extends Phaser.Scene {
                     repeat: -1
                 });
                 break;
-            case 'fade':
-                arrowGraphics.fillStyle(DreamDirectConstants.COLORS.FADE, 1);
-                this.drawArrowShape(arrowGraphics, 0, 0, size, demoDir, true);
-                this.tweens.add({
-                    targets: arrowGraphics,
-                    alpha: { from: 1, to: 0.2 },
-                    duration: 800,
-                    yoyo: true,
-                    repeat: -1
+            case 'fade': {
+                // Morph Animation: Arrow <-> Circle
+                // We need independent graphics objects, not children of 'arrowGraphics'
+                const arrow = this.add.graphics();
+                arrow.fillStyle(DreamDirectConstants.COLORS.FADE, 1);
+                this.drawArrowShape(arrow, 0, 0, size, demoDir, true);
+
+                const circle = this.add.graphics();
+                circle.fillStyle(DreamDirectConstants.COLORS.FADE, 1);
+                circle.fillCircle(0, 0, size * 0.4);
+                circle.lineStyle(2, 0xffffff, 1);
+                circle.strokeCircle(0, 0, size * 0.4);
+                circle.setAlpha(0);
+                circle.setScale(0.5);
+
+                // Position them at center
+                arrow.setPosition(cx, cy);
+                circle.setPosition(cx, cy);
+
+                this.tutorialContainer.add([arrow, circle]);
+
+                // Hide the main placeholder `arrowGraphics` 
+                arrowGraphics.clear();
+
+                this.tweens.chain({
+                    targets: arrow,
+                    loop: -1,
+                    tweens: [
+                        {
+                            targets: arrow,
+                            duration: 1000,
+                            alpha: 1
+                        },
+                        {
+                            targets: arrow,
+                            duration: 500,
+                            alpha: 0,
+                            scale: 0.5
+                        },
+                        {
+                            targets: circle,
+                            duration: 500,
+                            alpha: 1,
+                            scale: 1,
+                            offset: '-=500' // Parallel with previous
+                        },
+                        {
+                            targets: circle,
+                            duration: 1000
+                        },
+                        {
+                            targets: circle,
+                            duration: 500,
+                            alpha: 0,
+                            scale: 0.5
+                        },
+                        {
+                            targets: arrow,
+                            duration: 500,
+                            alpha: 1,
+                            scale: 1,
+                            offset: '-=500' // Parallel with previous
+                        }
+                    ]
                 });
                 break;
+            }
+
             case 'double':
                 arrowGraphics.fillStyle(DreamDirectConstants.COLORS.DOUBLE, 1);
                 this.drawArrowShape(arrowGraphics, -40, 0, size, demoDir, true);
                 this.drawArrowShape(arrowGraphics, 40, 0, size, demoDir, true);
                 break;
+
+            case 'hold_solid':
+            case 'hold_hollow': {
+                const isSolid = type === 'hold_solid';
+                const tailColor = isSolid ? DreamDirectConstants.COLORS.HOLD_TAIL_SOLID : DreamDirectConstants.COLORS.HOLD_TAIL_HOLLOW;
+                const headColor = isSolid ? DreamDirectConstants.COLORS.HOLD_SOLID : DreamDirectConstants.COLORS.HOLD_HOLLOW;
+
+                // Draw Tail acting as "Upwards" visual (since it falls down)
+                const tailHeight = 150;
+
+                // We need a separate graphics for the tail to animate it independently
+                const tail = this.add.graphics();
+                tail.fillStyle(tailColor, 0.7);
+                tail.lineStyle(2, headColor, 0.8);
+
+                // Draw tail centered at cx, cy, extending UP
+                tail.setPosition(cx, cy);
+
+                // Initial Draw
+                tail.fillRect(-20, -tailHeight, 40, tailHeight);
+                tail.strokeRect(-20, -tailHeight, 40, tailHeight);
+
+                this.tutorialContainer.add(tail);
+
+                // Draw Head
+                arrowGraphics.lineStyle(6, headColor, 1);
+                if (isSolid) {
+                    arrowGraphics.fillStyle(headColor, 1);
+                    this.drawArrowShape(arrowGraphics, 0, 0, size, demoDir, true);
+                } else {
+                    this.drawArrowShape(arrowGraphics, 0, 0, size, demoDir, false);
+                }
+
+                // ANIMATE TAIL SHRINKING (Scanning effect)
+                this.tweens.addCounter({
+                    from: 1,
+                    to: 0,
+                    duration: 2000,
+                    repeat: -1,
+                    repeatDelay: 500,
+                    onUpdate: (tween) => {
+                        const progress = tween.getValue() ?? 1; // 1 -> 0
+                        const currentH = tailHeight * progress;
+
+                        tail.clear();
+                        tail.fillStyle(tailColor, 0.7);
+                        tail.lineStyle(2, headColor, 0.8);
+                        // Draw shrinking tail
+                        tail.fillRect(-20, -currentH, 40, currentH);
+                        tail.strokeRect(-20, -currentH, 40, currentH);
+                    }
+                });
+                break;
+            }
         }
 
         // ENTRY ANIMATION
@@ -789,62 +911,56 @@ export class DreamDirectGameScene extends Phaser.Scene {
         });
     }
 
+    // REDOING THIS FUNCTION BLOCK TO INCLUDE NEW METHODS AND LOGIC
     handleTutorialInput(dir: Direction) {
         if (!this.tutorialTargetHelper || this.isTutorialResolving) return;
 
         if (dir === this.tutorialTargetHelper) {
-            // Correct!
-            this.isTutorialResolving = true;
-            this.sound.play('sfx-correct');
+            // Check if this is a HOLD tutorial
+            if (this.currentTutorialType && (this.currentTutorialType === 'hold_solid' || this.currentTutorialType === 'hold_hollow')) {
+                // START HOLDING
+                if (this.isHoldingTutorial) return; // Already holding
 
-            const { width, height } = this.scale;
+                this.isHoldingTutorial = true;
+                this.sound.play('sfx-correct', { volume: 0.5 }); // Initial feedback
 
-            // 1. Particles (Explosion effect)
-            this.emitParticles(width / 2, height / 2, 0x44ff44);
+                const { width, height } = this.scale;
 
-            // 2. Animated Text
-            const feedback = this.add.text(width / 2, height / 2, 'ยอดเยี่ยม!', {
-                fontFamily: 'Sarabun, sans-serif',
-                fontSize: '80px', // Larger
-                color: '#44ff44',
-                stroke: '#ffffff',
-                strokeThickness: 6,
-                padding: { top: 20, bottom: 20 }
-            }).setOrigin(0.5).setDepth(2000).setScale(0); // Start scale 0
+                // Show Progress Bar
+                this.tutorialHoldBar = this.add.graphics();
+                this.tutorialContainer.add(this.tutorialHoldBar);
+                this.tutorialHoldBar.setPosition(width / 2, height / 2 + 100);
 
-            this.tutorialContainer.add(feedback);
+                // Progress Tween
+                this.tutorialHoldTween = this.tweens.addCounter({
+                    from: 0,
+                    to: 100,
+                    duration: 2000,
+                    onUpdate: (tween) => {
+                        const val = tween.getValue() ?? 0;
+                        this.tutorialHoldBar?.clear();
+                        this.tutorialHoldBar?.fillStyle(0xffffff, 0.3);
+                        this.tutorialHoldBar?.fillRoundedRect(-100, -10, 200, 20, 10);
+                        this.tutorialHoldBar?.fillStyle(0x44ff44, 1);
+                        this.tutorialHoldBar?.fillRoundedRect(-100, -10, 200 * (val / 100), 20, 10);
+                    },
+                    onComplete: () => {
+                        this.completeTutorialAction();
+                    }
+                });
 
-            // Pop in animation (Staged)
-            this.tweens.add({
-                targets: feedback,
-                scale: 1.2,
-                duration: 400,
-                ease: 'Back.out', // Pop in
-                onComplete: () => {
-                    // Hold for a moment
-                    this.time.delayedCall(500, () => {
-                        // Then Fade Out
-                        this.tweens.add({
-                            targets: feedback,
-                            scale: 1.5,
-                            alpha: 0,
-                            duration: 400,
-                            onComplete: () => {
-                                this.endInGameTutorial();
-                            }
-                        });
-                    });
-                }
-            });
+                return;
+            }
+
+            // Normal Click (Instant Success)
+            this.completeTutorialAction();
 
         } else {
             // Wrong!
-            if (this.isTutorialResolving) return; // Should be caught by top check anyway
+            if (this.isTutorialResolving || this.isHoldingTutorial) return;
 
             this.sound.play('sfx-wrong');
             this.cameras.main.shake(200, 0.005);
-
-            // Shake the container?
             this.tweens.add({
                 targets: this.tutorialContainer,
                 x: { from: -5, to: 5 },
@@ -853,6 +969,71 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 repeat: 3
             });
         }
+    }
+
+    handleTutorialRelease(dir?: Direction) {
+        if (this.isHoldingTutorial && dir === this.tutorialTargetHelper) {
+            // RELEASED
+            this.isHoldingTutorial = false;
+
+            // Stop Progress
+            if (this.tutorialHoldTween) {
+                this.tutorialHoldTween.stop();
+                this.tutorialHoldTween = undefined;
+            }
+            if (this.tutorialHoldBar) {
+                this.tutorialHoldBar.destroy();
+                this.tutorialHoldBar = undefined;
+            }
+
+            // Punishment / Feedback?
+            // Just reset.
+        }
+    }
+
+    completeTutorialAction() {
+        this.isTutorialResolving = true;
+        this.sound.play('sfx-correct');
+
+        if (this.tutorialHoldBar) {
+            this.tutorialHoldBar.destroy();
+            this.tutorialHoldBar = undefined;
+        }
+
+        const { width, height } = this.scale;
+
+        this.emitParticles(width / 2, height / 2, 0x44ff44);
+
+        const feedback = this.add.text(width / 2, height / 2, 'ยอดเยี่ยม!', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '80px',
+            color: '#44ff44',
+            stroke: '#ffffff',
+            strokeThickness: 6,
+            padding: { top: 20, bottom: 20 }
+        }).setOrigin(0.5).setDepth(2000).setScale(0);
+
+        this.tutorialContainer.add(feedback);
+
+        this.tweens.add({
+            targets: feedback,
+            scale: 1.2,
+            duration: 400,
+            ease: 'Back.out',
+            onComplete: () => {
+                this.time.delayedCall(500, () => {
+                    this.tweens.add({
+                        targets: feedback,
+                        scale: 1.5,
+                        alpha: 0,
+                        duration: 400,
+                        onComplete: () => {
+                            this.endInGameTutorial();
+                        }
+                    });
+                });
+            }
+        });
     }
 
     endInGameTutorial(pendingSpawnType?: ArrowType) {
@@ -896,11 +1077,11 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 // Wait, `nextArrowBeat` wasn't incremented because `spawnArrow` returned early (we will implement this).
                 // So yes, `update` will see `currentBeat >= nextArrowBeat` and call `spawnArrow` again.
                 // It will try to pick a random arrow.
-                // Since `tutorialsSeen` now has the type, it won't trigger tutorial again.
+                // Since `tutorialsShownThisSession` now has the type, it won't trigger tutorial again.
                 // BUT, it might pick a *different* arrow type (e.g. Ghost) 
                 // which would be confusing: "I just learned Wiggler, why did a Ghost come?".
                 // To fix this: `spawnArrow` needs to retry the SAME type if it was interrupted.
-                // OR: `tutorialsSeen.add` happened locally.
+                // OR: `tutorialsShownThisSession.add` happened locally.
                 // User flow:
                 // 1. Update loop -> spawnArrow
                 // 2. spawnArrow -> picks 'Wiggler' random
@@ -1005,8 +1186,20 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // Pick Type
             const arrowType = Phaser.Math.RND.pick(this.currentLevelConfig.arrowTypes);
 
-            // TUTORIAL CHECK (Only run tutorial if not seen and only for single arrow spawn to correctly demo)
-            if (!this.tutorialsSeen.has(arrowType)) {
+            // TUTORIAL CHECK: Show ONLY if it's the specific Intro Level for this arrow type
+            // AND we haven't shown it yet this session.
+            const ARROW_INTRO_LEVELS: Record<string, number> = {
+                'anchor': 3,
+                'fade': 6,
+                'double': 9,
+                'wiggler': 11,
+                'spinner': 13,
+                'hold_solid': 21,
+                'hold_hollow': 26
+            };
+
+            const introLevel = ARROW_INTRO_LEVELS[arrowType];
+            if (introLevel === this.currentLevelConfig.level && !this.tutorialsShownThisSession.has(arrowType)) {
                 if (numberOfArrows === 1) { // Only interrupt for single spawns to keep it simple
                     this.startInGameTutorial(arrowType);
                     return;
@@ -1033,13 +1226,21 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // Calculate X based on Lane
             const spawnX = (width / 2) + (lane === 0 ? -this.LANE_OFFSET : this.LANE_OFFSET);
 
+            // Wiggler: Start visually random (but different from final), then lock to final
+            let visualDirection = direction;
+            if (arrowType === 'wiggler') {
+                do {
+                    visualDirection = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
+                } while (visualDirection === direction);
+            }
+
             // Create Visuals
-            const container = this.createArrowVisual(spawnX, this.spawnY, arrowType, direction);
+            const container = this.createArrowVisual(spawnX, this.spawnY, arrowType, visualDirection);
 
             arrowObj = {
                 container,
                 type: arrowType,
-                direction,
+                direction: visualDirection, // Start with random visual
                 targetDirection,
                 spawnBeatTime: this.nextArrowBeat,
                 targetBeatTime: this.nextArrowBeat + this.getArrowTravelBeats(),
@@ -1052,12 +1253,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 arrowObj.spinnerCurrentAngle = Phaser.Math.Between(0, 360);
             }
             if (arrowType === 'wiggler') {
-                arrowObj.wigglerFinalDirection = Phaser.Math.RND.pick([...DreamDirectConstants.DIRECTIONS]);
-                // Re-calculate target for wiggler just to be safe, though target matches opposite of final visual
-                // But simplified logic: Wiggler starts random, then locks.
-                // Our loop above checked standard target. Wiggler target is tricky.
-                // Let's assume Wiggler is "Opposite of Final Visual".
-                arrowObj.targetDirection = this.getOppositeDirection(arrowObj.wigglerFinalDirection);
+                arrowObj.wigglerFinalDirection = direction; // Final Lock Direction (Checked for collision)
+                // Target is already set correctly by the loop using calculateTargetDirection (Opposite of Final)
             }
             if (arrowType === 'double') {
                 arrowObj.hitsRequired = 2;
@@ -1100,8 +1297,11 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
                 tail.fillStyle(tailColor, 0.7);
                 tail.lineStyle(2, headColor, 0.8);
-                tail.fillRect(-10, -30 - tailHeight, 20, tailHeight);
-                tail.strokeRect(-10, -30 - tailHeight, 20, tailHeight);
+                // Fix Disconnect: Make tail start at 0 (or slight positive) to overlap head
+                // Previously: -30 - tailHeight. Bottom was -30.
+                // New: -tailHeight. Bottom is 0.
+                tail.fillRect(-10, -tailHeight, 20, tailHeight);
+                tail.strokeRect(-10, -tailHeight, 20, tailHeight);
             }
 
             this.arrows.push(arrowObj);
@@ -1123,18 +1323,19 @@ export class DreamDirectGameScene extends Phaser.Scene {
     calculateTargetDirection(type: ArrowType, displayDirection: Direction): Direction {
         switch (type) {
             case 'ghost':
-                // Opposite of what's shown
+                // Ghost (White Outline) is OPPOSITE
                 return this.getOppositeDirection(displayDirection);
             case 'anchor':
                 // Same as what's shown
                 return displayDirection;
             case 'fade':
-                // Same as ghost (opposite)
-                return this.getOppositeDirection(displayDirection);
+                // Same as ghost (now SAME)
+                return displayDirection;
             case 'spinner':
-            case 'wiggler':
                 // Will be determined dynamically
                 return displayDirection;
+            case 'wiggler':
+                return this.getOppositeDirection(displayDirection);
             case 'double':
                 // Same direction
                 return displayDirection;
@@ -1255,8 +1456,9 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 tailGraphic.fillStyle(tailColor, 0.7);
                 tailGraphic.lineStyle(2, headColor, 0.8);
                 // Default placeholder size, updated in spawnArrow
-                tailGraphic.fillRect(-10, -130, 20, 100);
-                tailGraphic.strokeRect(-10, -130, 20, 100);
+                // Overlap head: Start at -10 (slightly above center) to fill gap
+                tailGraphic.fillRect(-10, -130, 20, 130);
+                tailGraphic.strokeRect(-10, -130, 20, 130);
                 container.add(tailGraphic);
 
                 // 2. Draw Head
@@ -1322,13 +1524,18 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 // Visual: Shrink Tail
                 // Tail height was `visualHeight`.
                 // Current Height = Original * (1 - Progress)
+
+                // CLAMP Progress to 1 (Max 100%)
+                // We do NOT auto-complete anymore. User MUST release key.
+                if (arrow.holdProgress > 1) arrow.holdProgress = 1;
+
                 const currentHeight = (arrow.visualHeight || 100) * (1 - arrow.holdProgress);
 
-                if (currentHeight <= 0) {
-                    // Force complete if done
-                    this.completeHold(arrow);
-                    return;
-                }
+                // if (currentHeight <= 0) {
+                //    // Force complete if done -> NO! AUTO COMPLETE REMOVED
+                //    this.completeHold(arrow);
+                //    return;
+                // }
 
                 // Update Tail Graphics (We need to find the tail in the container)
                 // Tail is always at index 0 for holds
@@ -1342,8 +1549,18 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 tail.fillStyle(tailColor, 0.7);
                 tail.lineStyle(2, headColor, 0.8);
                 // Draw tail extending UP from head (0,0)
-                tail.fillRect(-10, -30 - currentHeight, 20, currentHeight);
-                tail.strokeRect(-10, -30 - currentHeight, 20, currentHeight);
+                // Overlap head by ending at +10? or 0? 
+                // Head is approx size 50. Center 0,0. Top -25, Bottom 25.
+                // Tail extends UP.
+                // To connect, tail bottom should be at 0 or slightly positive?
+                // Visual Disconnect Fix: Draw slightly lower than -30.
+                // Previous: -30 - currentHeight.
+                // Head radius ~25.
+                // Let's go from -10 (overlap head top) upwards.
+
+                const tailBottomY = 0;
+                tail.fillRect(-10, tailBottomY - currentHeight, 20, currentHeight);
+                tail.strokeRect(-10, tailBottomY - currentHeight, 20, currentHeight);
 
                 return; // Skip normal movement
             }
@@ -1361,15 +1578,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
                     arrow.spinnerCurrentAngle += 5;
                     arrow.container.setRotation(Phaser.Math.DegToRad(arrow.spinnerCurrentAngle));
                 } else {
-                    // Lock in final direction near hit zone
-                    const lockedRotation = Math.round(arrow.spinnerCurrentAngle / 90) * 90;
-                    arrow.container.setRotation(Phaser.Math.DegToRad(lockedRotation));
+                    // Lock in final direction based on PRE-ALLOCATED Target
+                    const dirToAngle: Record<string, number> = { 'up': 0, 'right': 90, 'down': 180, 'left': 270 };
+                    const targetAngle = dirToAngle[arrow.targetDirection] || 0;
 
-                    const dirs: Direction[] = ['up', 'right', 'down', 'left'];
-                    const dirIndex = ((lockedRotation / 90) % 4 + 4) % 4;
-
-                    // Spinner now requires SAME direction
-                    arrow.targetDirection = dirs[dirIndex];
+                    arrow.container.setRotation(Phaser.Math.DegToRad(targetAngle));
+                    arrow.spinnerCurrentAngle = targetAngle;
                 }
             }
 
@@ -1392,7 +1606,8 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 this.drawArrowShape(graphics, 0, 0, 60, arrow.wigglerFinalDirection, false);
 
                 // Ensure targetDirection is set (Opposite for Wiggler)
-                arrow.targetDirection = this.getOppositeDirection(arrow.wigglerFinalDirection);
+                // arrow.targetDirection = this.getOppositeDirection(arrow.wigglerFinalDirection);
+                // Already set in spawn!
             }
         });
     }
