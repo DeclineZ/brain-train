@@ -87,7 +87,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-06-dreamdirect') {
           const { TutorialScene } = await import('@/games/game-06-dreamdirect/TutorialScene');
           config.scene = TutorialScene;
+        } else if (gameId === 'game-07-pinkcup') {
+          const { PinkCupTutorialScene } = await import('@/games/game-07-pinkcup/TutorialScene');
+          config.scene = PinkCupTutorialScene;
         }
+      } else if (gameId === 'game-07-pinkcup') {
+        const { PinkCupGameScene } = await import('@/games/game-07-pinkcup/GameScene');
+        config.scene = [PinkCupGameScene];
       }
 
       // Destroy old instance if it exists (prevents duplicates)

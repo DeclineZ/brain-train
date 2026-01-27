@@ -4,8 +4,9 @@ import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
 import { calculateBilliardsStats } from '@/lib/scoring/billiards';
 import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
 import { calculateDreamDirectStats } from '@/lib/scoring/dreamdirect';
+import { calculatePinkCupStats } from '@/lib/scoring/pinkcup';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats } from '@/types';
 
 export const useGameSession = () => {
 
@@ -63,6 +64,8 @@ export const useGameSession = () => {
         stat_planning: rawData.stat_planning ?? null,
         stat_emotion: rawData.stat_emotion ?? null
       };
+    } else if (gameId === 'game-07-pinkcup') {
+      clinicalStats = calculatePinkCupStats(rawData as PinkCupGameStats);
     }
     // Add 'else if' for other games here later...
 
