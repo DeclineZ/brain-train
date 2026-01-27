@@ -176,6 +176,8 @@ function getDefaultLevelCount(gameId: string): number {
       return 60; // Billiards has 60 levels
     case 'game-04-floating-ball-math':
       return 50; // Floating Pool Balls has 50 levels
+    case 'game-06-dreamdirect':
+      return 35;
     default:
       return 12; // Default for other games
   }
