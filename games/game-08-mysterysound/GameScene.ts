@@ -77,8 +77,9 @@ export class MysterySoundScene extends Phaser.Scene {
         });
 
         // Load UI sounds
-        this.load.audio('correct', '/assets/sounds/global/correct.mp3');
-        this.load.audio('wrong', '/assets/sounds/global/wrong.mp3');
+        this.load.audio('correct', '/assets/sounds/cardmatch/match-success.mp3');
+        this.load.audio('wrong', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.audio('level-complete', '/assets/sounds/global/level-pass.mp3');
         this.load.audio('click', '/assets/sounds/global/click.mp3');
     }
 
@@ -444,9 +445,10 @@ export class MysterySoundScene extends Phaser.Scene {
         borderOverlay.setName('border');
         borderOverlay.setAlpha(0);
 
-        // Show label until Level 3 question 1, then hide from Level 3 question 2 onwards
-        // This gradually increases difficulty
-        const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0);
+        // Show label for learning levels:
+        // - Levels 1-3: Animal sounds introduction
+        // - Levels 6-7: Everyday sounds introduction
+        const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
 
         // Center image vertically when no label is shown
         const imageY = showLabel ? -5 : 15;
@@ -470,14 +472,15 @@ export class MysterySoundScene extends Phaser.Scene {
 
         const labelBg = this.add.graphics();
         labelBg.fillStyle(0xf3f4f6, 1);
-        labelBg.fillRoundedRect(-size / 2 + 6, size / 2 - 8, size - 12, 32, 8);
+        labelBg.fillRoundedRect(-size / 2 + 6, size / 2 - 10, size - 12, 36, 8);
         labelBg.setVisible(showLabel);
 
-        const labelText = this.add.text(0, size / 2 + 8, label, {
+        const labelText = this.add.text(0, size / 2 + 6, label, {
             fontSize: '18px',
             fontFamily: 'Sarabun, sans-serif',
             color: '#374151',
             fontStyle: 'bold',
+            padding: { x: 4, y: 6 },
         }).setOrigin(0.5);
         labelText.setVisible(showLabel);
 
@@ -888,15 +891,23 @@ export class MysterySoundScene extends Phaser.Scene {
         const totalQuestions = this.currentLevelConfig.questions.length;
         const timeLimitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
 
-        // Calculate Stars
+        // Play level complete sound
+        try {
+            this.sound.play('level-complete', { volume: 0.7 });
+        } catch (e) { }
+
+        // Calculate Stars based on correct answers
         let stars = 0;
-        if (this.questionsCorrect === totalQuestions) {
+        const correctRatio = this.questionsCorrect / totalQuestions;
+        if (correctRatio === 1) {
+            // All correct
             if (this.totalReplaysUsed <= 1) {
                 stars = 3;
             } else {
                 stars = 2;
             }
-        } else if (this.questionsCorrect >= Math.ceil(totalQuestions / 2)) {
+        } else if (correctRatio >= 0.5) {
+            // At least half correct
             stars = 1;
         } else {
             stars = 0;
@@ -931,7 +942,7 @@ export class MysterySoundScene extends Phaser.Scene {
                 totalQuestions: totalQuestions,
                 replaysUsed: this.totalReplaysUsed,
                 responseTimeMs,
-                starHint: stars < 3 ? 'พยายามฟังให้ดี\nแล้วใช้อุปกรณ์ช่วยให้น้อยลง!' : null
+                starHint: stars < 3 ? 'ลองฟังให้ดีและตอบให้ถูกมากขึ้น' : null
             });
         }
     }

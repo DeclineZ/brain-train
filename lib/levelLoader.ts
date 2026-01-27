@@ -9,6 +9,7 @@ const gameLevelModules = {
   'game-03-billiards-math': () => import('@/games/game-03-billiards-math/levels'),
   'game-05-wormtrain': () => import('@/games/game-05-wormtrain/levels'),
   'game-04-floating-ball-math': () => import('@/games/game-04-floating-ball-math/levels'),
+  'game-08-mysterysound': () => import('@/games/game-08-mysterysound/levels'),
   'game-06-dreamdirect': () => import('@/games/game-06-dreamdirect/levels'),
   'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
 } as const;
@@ -60,6 +61,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MYSTERY_SOUND_LEVELS;
     } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
@@ -134,6 +137,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelsArray.find((l: any) => l.levelId === levelNumber) || null;
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       return (levelModule as any).FLOATING_BALL_MATH_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      return (levelModule as any).MYSTERY_SOUND_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
       return (levelModule as any).DREAMDIRECT_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
@@ -214,6 +219,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MYSTERY_SOUND_LEVELS;
     } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {

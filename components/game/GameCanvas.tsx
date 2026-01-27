@@ -90,6 +90,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-07-pinkcup') {
           const { PinkCupTutorialScene } = await import('@/games/game-07-pinkcup/TutorialScene');
           config.scene = PinkCupTutorialScene;
+        } else if (gameId === 'game-08-mysterysound') {
+          const { TutorialScene } = await import('@/games/game-08-mysterysound/TutorialScene');
+          config.scene = TutorialScene;
         }
       } else if (gameId === 'game-07-pinkcup') {
         const { PinkCupGameScene } = await import('@/games/game-07-pinkcup/GameScene');
@@ -109,7 +112,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         render: {
           pixelArt: false,
           antialias: true,
-          roundPixels: false
+          roundPixels: true
         },
         callbacks: {
           preBoot: (game: Game) => {
@@ -220,7 +223,10 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
         {/* Tutorial Mode Indicator - Only show tutorial badge */}
         {mode === 'tutorial' && (
-          <div className="text-[#58CC02] font-bold text-3xl font-sans drop-shadow-sm bg-white/50 px-6 py-2 rounded-full border border-[#58CC02]/20 backdrop-blur-sm shadow-sm mt-2">
+          <div className={`font-bold text-3xl font-sans drop-shadow-sm px-6 py-2 rounded-full backdrop-blur-sm shadow-sm mt-2 ${gameId === 'game-08-mysterysound'
+            ? 'text-white bg-white/30 border border-white/50'
+            : 'text-[#58CC02] bg-white/50 border border-[#58CC02]/20'
+            }`}>
             โหมดฝึกสอน
           </div>
         )}
