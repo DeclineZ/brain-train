@@ -239,11 +239,11 @@ export const STATIC_LEVELS: { [key: number]: StaticLevelConfig } = {
             { type: 'simple', leftOperand: 8, rightOperand: 2, operator: '-', result: 6, displayText: "8 - 2 = 6", difficulty: 2 }
         ],
         balls: [
-            { value: 2, x: 0.15, y: 0.2 }, { value: 4, x: 0.85, y: 0.2 },
+            { value: 2, x: 0.15, y: 0.15 }, { value: 4, x: 0.85, y: 0.15 },
             { value: 8, x: 0.3, y: 0.7 }, { value: 2, x: 0.7, y: 0.7 },
-            { value: 0, x: 0.5, y: 0.5, isHazard: true }
+            { value: 0, x: 0.5, y: 0.35, isHazard: true }
         ],
-        obstacles: [{ type: 'wall_v', x: 0.5, y: 0.3, width: 10, height: 150 }],
+        obstacles: [{ type: 'wall_v', x: 0.5, y: 0.5, width: 10, height: 150 }],
         shotLimit: 15, timeLimitSeconds: 110, starRequirements: { threeStars: 50, twoStars: 90 }
     },
     16: {
@@ -277,7 +277,7 @@ export const STATIC_LEVELS: { [key: number]: StaticLevelConfig } = {
             { value: 3, x: 0.1, y: 0.1 }, { value: 2, x: 0.9, y: 0.1 }, { value: 4, x: 0.5, y: 0.8 },
             { value: 6, x: 0.5, y: 0.4 }, { value: 5, x: 0.1, y: 0.8 }
         ],
-        obstacles: [{ type: 'wall_h', x: 0.3, y: 0.3, width: 100, height: 10 }, { type: 'wall_h', x: 0.7, y: 0.3, width: 100, height: 10 }],
+        obstacles: [{ type: 'wall_h', x: 0.25, y: 0.4, width: 80, height: 10 }, { type: 'wall_h', x: 0.75, y: 0.4, width: 80, height: 10 }],
         shotLimit: 15, timeLimitSeconds: 110, starRequirements: { threeStars: 50, twoStars: 90 }
     },
     19: {
@@ -444,7 +444,7 @@ export const STATIC_LEVELS: { [key: number]: StaticLevelConfig } = {
             { value: 8, x: 0.1, y: 0.2 }, { value: 2, x: 0.9, y: 0.2 }, { value: 4, x: 0.5, y: 0.8 },
             { value: 99, x: 0.3, y: 0.5, isHazard: true }, { value: 99, x: 0.7, y: 0.5, isHazard: true }
         ],
-        obstacles: [{ type: 'wall_v', x: 0.5, y: 0.3, width: 20, height: 150 }],
+        obstacles: [{ type: 'wall_v', x: 0.5, y: 0.5, width: 20, height: 150 }],
         shotLimit: 15, timeLimitSeconds: 110, starRequirements: { threeStars: 50, twoStars: 90 }
     },
     32: {
@@ -493,13 +493,23 @@ export const STATIC_LEVELS: { [key: number]: StaticLevelConfig } = {
             { type: 'complex', operands: [9, 3, 9, 1], operators: ['/', '+', '*'], result: 12, displayText: "9 ÷ 3 + 9 × 1 = 12", difficulty: 5 }
         ],
         balls: [
-            { value: 3, x: 0.1, y: 0.1 }, { value: 3, x: 0.5, y: 0.1 }, { value: 3, x: 0.9, y: 0.1 }, { value: 1, x: 0.3, y: 0.3 },
-            { value: 9, x: 0.1, y: 0.4 }, { value: 9, x: 0.5, y: 0.4 }, { value: 9, x: 0.9, y: 0.4 }, { value: 1, x: 0.7, y: 0.3 },
-            { value: 9, x: 0.5, y: 0.7 }, { value: 1, x: 0.5, y: 0.85 },
-            { value: 3, x: 0.2, y: 0.5 }, { value: 9, x: 0.8, y: 0.5 }, // Extra balls for consumption
-            { value: 99, x: 0.2, y: 0.6, isHazard: true }, { value: 99, x: 0.8, y: 0.6, isHazard: true }
+            // Top section
+            { value: 3, x: 0.2, y: 0.15 }, { value: 3, x: 0.5, y: 0.15 }, { value: 3, x: 0.8, y: 0.15 },
+            { value: 1, x: 0.3, y: 0.28 }, { value: 1, x: 0.7, y: 0.28 },
+
+            // Middle section (Between walls)
+            { value: 9, x: 0.15, y: 0.52 }, { value: 9, x: 0.5, y: 0.52 }, { value: 9, x: 0.85, y: 0.52 },
+
+            // Bottom section
+            { value: 9, x: 0.3, y: 0.75 }, { value: 9, x: 0.7, y: 0.75 },
+            { value: 1, x: 0.5, y: 0.82 },
         ],
-        obstacles: [{ type: 'wall_h', x: 0.5, y: 0.25, width: 400, height: 10 }, { type: 'wall_h', x: 0.5, y: 0.55, width: 400, height: 10 }],
+        obstacles: [
+            // Upper split walls - Gap approx 25% (enough for ball)
+            { type: 'wall_h', x: 0.2, y: 0.40, width: 100, height: 10 }, { type: 'wall_h', x: 0.8, y: 0.40, width: 100, height: 10 },
+            // Lower split walls
+            { type: 'wall_h', x: 0.2, y: 0.65, width: 100, height: 10 }, { type: 'wall_h', x: 0.8, y: 0.65, width: 100, height: 10 }
+        ],
         shotLimit: 40, timeLimitSeconds: 240, starRequirements: { threeStars: 150, twoStars: 200 }
     }
 };
