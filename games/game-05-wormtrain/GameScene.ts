@@ -128,6 +128,17 @@ export default class GameScene extends Phaser.Scene {
     const bgMusic = this.sound.add('bg-music', { loop: true, volume: 0.2 }); // Lowered BGM
     bgMusic.play();
 
+    // Check for Level Intro/Tutorial
+    if (levelData.intro) {
+      // Emit event for React UI to show popup
+      this.game.events.emit('SHOW_INTRO', levelData.intro);
+    }
+
+    // Listen for Start Level (from React Intro Popup)
+    this.game.events.on('START_LEVEL', () => {
+      this.wormSystem.startSpawning();
+    });
+
     // Sound Event Listeners
     this.events.on('JUNCTION_SWITCHED', (data: any) => {
       if (data.source === 'USER') { // Only user interaction makes sound
@@ -175,6 +186,7 @@ export default class GameScene extends Phaser.Scene {
     // Cleanup
     this.events.on('shutdown', () => {
       this.sound.stopAll();
+      this.game.events.off('START_LEVEL');
     });
 
     // Listen for resize events
@@ -199,7 +211,7 @@ export default class GameScene extends Phaser.Scene {
     const padding = 100;
     minX -= padding;
     maxX += padding;
-    minY -= padding;
+    minY -= (padding + 120); // Add extra top padding for UI
     maxY += padding;
 
     // Calculate content size
