@@ -33,6 +33,10 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   const [showTutorialNextButton, setShowTutorialNextButton] = useState(false);
   const [trapWarning, setTrapWarning] = useState<string | null>(null);
 
+  // Intro Popup State
+  const [showIntroPopup, setShowIntroPopup] = useState(false);
+  const [introData, setIntroData] = useState<{ title: string; description: string; imageKey?: string } | null>(null);
+
   // Latest Ref Pattern to prevent game re-initialization when handlers change
   const onGameOverRef = useRef(onGameOver);
   const onTimeoutRef = useRef(onTimeout);
@@ -165,6 +169,12 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         // Auto-hide after 2 seconds
         setTimeout(() => setTrapWarning(null), 2000);
       });
+
+      // Listen for Level Intro (Start Pause)
+      newGame.events.on('SHOW_INTRO', (data: any) => {
+        setIntroData(data);
+        setShowIntroPopup(true);
+      });
     }
 
     // Initialize
@@ -177,6 +187,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current.events.off('game-timeout');
         gameInstance.current.events.off('tutorial-show-next-btn');
         gameInstance.current.events.off('trap-warning');
+        gameInstance.current.events.off('SHOW_INTRO');
         gameInstance.current.destroy(true);
         gameInstance.current = null;
       }
@@ -218,14 +229,23 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
 
 
-      {/* React UI Overlay */}
+      {/* Phaser Container - Background Layer */}
+      <div
+        id="game-container"
+        ref={gameRef}
+        className="absolute inset-0 w-full h-full z-0"
+      />
+
+      {/* React UI Overlay - Top Layer */}
       <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between items-center p-6">
 
         {/* Tutorial Mode Indicator - Only show tutorial badge */}
         {mode === 'tutorial' && (
           <div className={`font-bold text-3xl font-sans drop-shadow-sm px-6 py-2 rounded-full backdrop-blur-sm shadow-sm mt-2 ${gameId === 'game-08-mysterysound'
             ? 'text-white bg-white/30 border border-white/50'
-            : 'text-[#58CC02] bg-white/50 border border-[#58CC02]/20'
+            : gameId === 'game-05-wormtrain'
+              ? 'text-[#594032] bg-white border border-[#594032]/20' // Solid white background, brown text
+              : 'text-[#58CC02] bg-white/50 border border-[#58CC02]/20'
             }`}>
             โหมดฝึกสอน
           </div>
@@ -252,7 +272,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         {/* Bottom: Timer Bar - MOVED TO PHASER */}
         {/* Placeholder if needed for spacing, but removing for now */}
 
-        {/* Trap Warning Overlay (for wormtrain) */}
+        {/* Intro Popup (for new mechanics) */}
         {trapWarning && (
           <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
             <div className="bg-red-600/90 text-white text-3xl font-black px-8 py-4 rounded-2xl shadow-2xl animate-pulse border-4 border-white/50">
@@ -260,14 +280,54 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
             </div>
           </div>
         )}
-      </div>
 
-      {/* Phaser Container */}
-      <div
-        id="game-container"
-        ref={gameRef}
-        className="w-full h-full min-w-[1px] min-h-[1px]"
-      />
+        {/* Intro / Tutorial Popup */}
+        {showIntroPopup && introData && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white pointer-events-auto w-[90%] max-w-md rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border-8 border-[#58CC02]">
+              {/* Header Image Area */}
+              <div className="w-full h-48 bg-[#e5e5e5] flex items-center justify-center relative overflow-hidden">
+                {introData.imageKey ? (
+                  <img
+                    src={introData.imageKey.startsWith('http') || introData.imageKey.startsWith('/') ? introData.imageKey : `/games/game-05-wormtrain/${introData.imageKey}.webp`}
+                    alt={introData.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="text-6xl">💡</div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
+                  <h2 className="text-3xl font-black text-white drop-shadow-md">
+                    {introData.title}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="p-8 flex flex-col items-center text-center">
+                <p className="text-gray-600 text-lg font-bold mb-8 leading-relaxed whitespace-pre-line">
+                  {introData.description}
+                </p>
+
+                <button
+                  onClick={() => {
+                    setShowIntroPopup(false);
+                    if (gameInstance.current) {
+                      gameInstance.current.events.emit('START_LEVEL');
+                    }
+                  }}
+                  className="w-full bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white text-2xl font-bold py-4 rounded-2xl shadow-lg active:border-b-0 active:translate-y-1 transition-all"
+                >
+                  เริ่มกันเลย!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 });

@@ -134,43 +134,44 @@ export class JunctionVisual {
             key: 'tutorial-ring-pulse-' + junctionId
         });
 
-        // 2. Create Arrow Line pointing to the button (from right side)
+        // 2. Create Arrow Line pointing to the button (downwards from top)
         const arrowGraphics = this.scene.add.graphics();
         arrowGraphics.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 4);
         elements.push(arrowGraphics);
 
-        const arrowEndX = junctionX + 65;
-        const arrowStartX = junctionX + 140;
-        const arrowY = junctionY;
+        // Arrow from Top to Bottom (pointing at button top)
+        const arrowEndX = junctionX;
+        const arrowEndY = junctionY - 60;
+        const arrowStartY = junctionY - 120;
 
         // Draw arrow line
         arrowGraphics.lineStyle(4, 0xFFD700, 1);
         arrowGraphics.beginPath();
-        arrowGraphics.moveTo(arrowStartX, arrowY);
-        arrowGraphics.lineTo(arrowEndX, arrowY);
+        arrowGraphics.moveTo(junctionX, arrowStartY);
+        arrowGraphics.lineTo(arrowEndX, arrowEndY);
         arrowGraphics.strokePath();
 
-        // Draw arrow head (pointing left)
+        // Draw arrow head (pointing down)
         arrowGraphics.fillStyle(0xFFD700, 1);
         arrowGraphics.beginPath();
-        arrowGraphics.moveTo(arrowEndX, arrowY);
-        arrowGraphics.lineTo(arrowEndX + 12, arrowY - 8);
-        arrowGraphics.lineTo(arrowEndX + 12, arrowY + 8);
+        arrowGraphics.moveTo(arrowEndX, arrowEndY);
+        arrowGraphics.lineTo(arrowEndX - 8, arrowEndY - 12);
+        arrowGraphics.lineTo(arrowEndX + 8, arrowEndY - 12);
         arrowGraphics.closePath();
         arrowGraphics.fillPath();
 
-        // 3. Create Text Label "กดเพื่อเปลี่ยนทาง"
-        const hintText = this.scene.add.text(arrowStartX + 10, arrowY, 'กดเพื่อเปลี่ยนทาง', {
-            fontSize: '22px',
+        // 3. Create Text Label "กดเพื่อเปลี่ยนทาง" (Above the arrow)
+        const hintText = this.scene.add.text(junctionX, arrowStartY - 20, 'กดเพื่อเปลี่ยนทาง', {
+            fontSize: '24px',
             color: '#FFD700',
             fontFamily: 'Noto Sans Thai, Arial',
             fontStyle: 'bold',
             stroke: '#000000',
             strokeThickness: 5,
             padding: { x: 8, y: 6 },
-            align: 'left'
+            align: 'center'
         });
-        hintText.setOrigin(0, 0.5);
+        hintText.setOrigin(0.5, 1); // Bottom Center anchor
         hintText.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 5);
         elements.push(hintText);
 

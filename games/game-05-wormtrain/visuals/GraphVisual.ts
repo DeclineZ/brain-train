@@ -25,9 +25,10 @@ export class GraphVisual {
         this.nodeSprites.removeAll(true);
 
         // Configurable styles
+        // Configurable styles
         const style = levelData.tunnelStyle || {
-            innerColor: 0x2d2d2d,
-            outerColor: 0x4a4a4a,
+            innerColor: 0xC4A484, // Light brown (tan) - was 0xD2B48C (Tan) but slightly desaturated
+            outerColor: 0x5C4033, // Dark brown - was 0x8B4513
             innerAlpha: 1,
             outerAlpha: 1,
             widthMultiplier: 1

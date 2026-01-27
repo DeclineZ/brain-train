@@ -4,12 +4,27 @@ import { WormSystem, WormState, WormEntity } from '../systems/WormSystem';
 import { WormGameConstants as WormGameConfig } from '../config';
 import { Point } from '../types/level';
 
-// Number of body segments per worm (increased for much longer tail)
-const SEGMENT_COUNT = 40;
-// Distance between segments (in pixels, increased for longer tail)
-const SEGMENT_SPACING = 20;
+// Visual configuration based on worm size
+const WORM_VISUAL_CONFIG = {
+    S: {
+        segmentCount: 8,
+        spacing: 14, // Wider relative spacing for small worms
+    },
+    M: {
+        segmentCount: 6,
+        spacing: 20, // Tight spacing for normal look
+    },
+    L: { // Future-proofing
+        segmentCount: 8,
+        spacing: 24,
+    }
+};
+
 // How many position samples to keep in history
-const HISTORY_SIZE = 500;
+const HISTORY_SIZE = 300;
+// Lerp smoothing factor (0-1, lower = smoother)
+const LERP_FACTOR = 0.2; // Slightly smoother
+
 
 interface WormVisualData {
     id: string;
@@ -18,6 +33,7 @@ interface WormVisualData {
     wiggleOffset: number;
     color: number;
     state: WormState;
+    size: 'S' | 'M' | 'L'; // Store size context
 
     shakeTween?: Phaser.Tweens.Tween;
     maskGraphic?: Phaser.GameObjects.Graphics;
@@ -43,22 +59,25 @@ export class WormVisual {
 
     private onSpawn({ worm }: { worm: WormEntity }) {
         const colorInt = parseInt(worm.config.color.replace('#', '0x'));
+        const sizeKey = worm.config.size as 'S' | 'M'; // Default to M logic if neither, but type helps
+        const config = WORM_VISUAL_CONFIG[sizeKey] || WORM_VISUAL_CONFIG.M;
 
         // Size multipliers: S=smaller, M=normal
-        const sizeMultiplier = worm.config.size === 'S' ? 0.5 : 1.0;
+        const sizeMultiplier = sizeKey === 'S' ? 0.5 : 1.0;
         const headRadius = WormGameConfig.WORM_HEAD_RADIUS * sizeMultiplier;
-        const bodyRadius = WormGameConfig.WORM_BODY_RADIUS * sizeMultiplier;
+        // const bodyRadius = WormGameConfig.WORM_BODY_RADIUS * sizeMultiplier; // Unused for now as we match head
 
         const segments: (Phaser.GameObjects.Arc | Phaser.GameObjects.Image | Phaser.GameObjects.Container)[] = [];
         const bodySegments: Phaser.GameObjects.Arc[] = [];
 
         // 1. Create Body Segments FIRST (so they are visually behind the head)
-        for (let i = 0; i < SEGMENT_COUNT - 1; i++) {
-            // Gradually decrease radius toward tail, but keep full opacity
-            const segmentRadius = bodyRadius - i * 0.3 * sizeMultiplier;
-            const bodyPart = this.scene.add.circle(0, 0, Math.max(segmentRadius, bodyRadius * 0.4), colorInt);
-            // Keep full opacity - no fading
+        // All segments have the same size as head for uniform look
+        for (let i = 0; i < config.segmentCount - 1; i++) {
+            const bodyPart = this.scene.add.circle(0, 0, headRadius, colorInt);
             bodyPart.setAlpha(1);
+            // Store current position for smooth lerping
+            (bodyPart as any)._smoothX = 0;
+            (bodyPart as any)._smoothY = 0;
             this.container.add(bodyPart);
             bodySegments.push(bodyPart);
         }
@@ -105,10 +124,34 @@ export class WormVisual {
             wiggleOffset: Math.random() * Math.PI * 2,
             color: colorInt,
             state: worm.state,
+            size: sizeKey as any,
             headBorder
         };
 
         this.visualDataMap.set(worm.id, visualData);
+
+        // Pre-fill history to prevent segments flying in from (0,0)
+        // We calculate the initial position and fill the history with it
+        // so the worm appears to be "stacked" at the tunnel exit initially
+        const startPos = this.getWormPosition(worm);
+        if (startPos) {
+            // Fill history enough to cover the whole worm
+            // Using a rough estimate of how many points we need
+            // If the worm moves fast, we might need more, but this is a good start
+            // for the "stacked at spawn" look.
+            for (let i = 0; i < HISTORY_SIZE; i++) {
+                visualData.positionHistory.push({ x: startPos.x, y: startPos.y });
+            }
+
+            // Force immediate position update for all segments
+            // This ensures they are at the start pos, not (0,0)
+            segments.forEach(seg => {
+                seg.setPosition(startPos.x, startPos.y);
+                (seg as any)._smoothX = startPos.x;
+                (seg as any)._smoothY = startPos.y;
+                seg.setVisible(true);
+            });
+        }
     }
 
     private onStateChange({ wormId, newState }: { wormId: string; newState: WormState }) {
@@ -260,78 +303,71 @@ export class WormVisual {
                 }
             }
 
-            // 3. Update Wiggle Phase (continuous sine wave)
-            // Only wiggle if moving
-            if (worm.state === 'MOVING' || worm.state === 'NEAR_TRAP') {
-                data.wiggleOffset += delta * 0.01;
-            }
+            // No wiggle - smooth movement only
 
-            const wiggleX = Math.cos(data.wiggleOffset) * 2; // Amplitude 2px
-            const wiggleY = Math.sin(data.wiggleOffset) * 2;
-
-            // 4. Update Head Container (Sprite, Mask, Border all move together)
+            // 3. Update Head Container with smooth lerping
             const headContainer = data.segments[0] as Phaser.GameObjects.Container;
-            const finalHeadX = headPos.x + wiggleX;
-            const finalHeadY = headPos.y + wiggleY;
 
-            headContainer.setPosition(finalHeadX, finalHeadY);
+            // Smooth head position using lerp
+            const currentHeadX = headContainer.x;
+            const currentHeadY = headContainer.y;
+            const smoothHeadX = currentHeadX + (headPos.x - currentHeadX) * LERP_FACTOR;
+            const smoothHeadY = currentHeadY + (headPos.y - currentHeadY) * LERP_FACTOR;
+
+            headContainer.setPosition(smoothHeadX, smoothHeadY);
 
             // Border and Eyes are inside container, move automatically.
 
-            // 5. Update Body Segments
+            // 4. Update Body Segments with smooth following
             const bodySegments = data.segments.slice(1);
+            const sizeConf = WORM_VISUAL_CONFIG[data.size as 'S' | 'M' | 'L'] || WORM_VISUAL_CONFIG.M;
+            const spacing = sizeConf.spacing;
+
             bodySegments.forEach((seg, i) => {
-                // Calculate which history index corresponds to this segment
                 const segmentIndex = i + 1;
-                // We need to find a point in history roughly (segmentIndex * SEGMENT_SPACING) pixels behind
-                // Simple approx: assume each history point is ~1 frame of movement. 
-                // Better: Iterate history to find cumulative distance.
-                // For now, use fixed index spacing assuming constant speed (simplified)
 
-                // If paused, history isn't growing, so segments stay relative to head in history
-                const indexStep = Math.max(1, Math.floor(150 / (worm.speed || 50))); // Dynamic spacing based on speed
-                const historyIndex = segmentIndex * indexStep;
+                // Find position in history at the correct distance behind head
+                const targetDistance = segmentIndex * spacing;
+                let targetPos = this.getPositionAtDistance(data.positionHistory, targetDistance);
 
-                if (historyIndex < data.positionHistory.length) {
-                    const pos = data.positionHistory[historyIndex];
-                    seg.setPosition(pos.x, pos.y);
-                    const historyPos = data.positionHistory[historyIndex];
+                if (targetPos) {
+                    // Get current smooth position
+                    const smoothX = (seg as any)._smoothX || seg.x;
+                    const smoothY = (seg as any)._smoothY || seg.y;
 
-                    // Calculate direction for perpendicular wiggle
-                    const nextHistoryIndex = Math.min(historyIndex + 2, data.positionHistory.length - 1);
-                    const nextPos = data.positionHistory[nextHistoryIndex] || historyPos;
+                    // Lerp to target position for smooth movement
+                    const newX = smoothX + (targetPos.x - smoothX) * LERP_FACTOR;
+                    const newY = smoothY + (targetPos.y - smoothY) * LERP_FACTOR;
 
-                    const dx = nextPos.x - historyPos.x;
-                    const dy = nextPos.y - historyPos.y;
-                    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    // Store smooth position
+                    (seg as any)._smoothX = newX;
+                    (seg as any)._smoothY = newY;
 
-                    // Perpendicular direction
-                    const perpX = -dy / len;
-                    const perpY = dx / len;
-
-                    // Sine wave offset (wiggle)
-                    const wiggleAmp = 3 - i * 0.3; // Decreasing amplitude toward tail
-                    const wigglePhase = data.wiggleOffset + i * 0.8;
-                    const wiggle = Math.sin(wigglePhase) * wiggleAmp;
-
-                    seg.x = historyPos.x + perpX * wiggle;
-                    seg.y = historyPos.y + perpY * wiggle;
+                    seg.setPosition(newX, newY);
                     seg.setVisible(true);
                 } else {
-                    // Not enough history yet (just spawned), hide tail
+                    // Not enough history yet, hide segment
                     seg.setVisible(false);
                 }
             });
 
-            // 6. Rotate Head to face movement
+            // 5. Rotate Head to face movement with smooth interpolation
             if (data.positionHistory.length >= 2) {
-                // Look a bit back in history to get smooth angle
                 const pCurrent = data.positionHistory[0];
-                const pPrev = data.positionHistory[Math.min(4, data.positionHistory.length - 1)];
+                const pPrev = data.positionHistory[Math.min(6, data.positionHistory.length - 1)];
 
-                if (pCurrent && pPrev && (Math.abs(pCurrent.x - pPrev.x) > 1 || Math.abs(pCurrent.y - pPrev.y) > 1)) {
-                    const angle = Math.atan2(pCurrent.y - pPrev.y, pCurrent.x - pPrev.x);
-                    headContainer.setRotation(angle);
+                if (pCurrent && pPrev && (Math.abs(pCurrent.x - pPrev.x) > 0.5 || Math.abs(pCurrent.y - pPrev.y) > 0.5)) {
+                    const targetAngle = Math.atan2(pCurrent.y - pPrev.y, pCurrent.x - pPrev.x);
+
+                    // Smooth rotation using lerp
+                    const currentAngle = headContainer.rotation;
+                    let angleDiff = targetAngle - currentAngle;
+
+                    // Normalize angle difference to -PI to PI
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                    headContainer.setRotation(currentAngle + angleDiff * LERP_FACTOR);
                 }
             }
         });
@@ -364,5 +400,34 @@ export class WormVisual {
 
         // Past end of edge, return last point
         return path[path.length - 1];
+    }
+
+    private getPositionAtDistance(history: Point[], targetDistance: number): Point | null {
+        if (history.length < 2) return null;
+
+        let currentDist = 0;
+
+        for (let i = 0; i < history.length - 1; i++) {
+            const p1 = history[i];
+            const p2 = history[i + 1];
+
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (currentDist + dist >= targetDistance) {
+                const remaining = targetDistance - currentDist;
+                const ratio = remaining / (dist || 1); // Avoid division by zero
+
+                return {
+                    x: p1.x + dx * ratio,
+                    y: p1.y + dy * ratio
+                };
+            }
+
+            currentDist += dist;
+        }
+
+        return null;
     }
 }
