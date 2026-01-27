@@ -328,6 +328,28 @@ export class PinkCupGameScene extends Phaser.Scene {
     // Shuffle all positions
     Phaser.Utils.Array.Shuffle(allPositions);
 
+    // Ensure the PINK cup never spawns on the target (pink) tile.
+    // Pink cup is placed at allPositions[0], so if that happens to be the target,
+    // swap it with the first non-target position.
+    if (
+      allPositions.length > 1 &&
+      allPositions[0].x === this.targetCell.x &&
+      allPositions[0].y === this.targetCell.y
+    ) {
+      const swapIndex = allPositions.findIndex(
+        (pos, idx) =>
+          idx !== 0 &&
+          (pos.x !== this.targetCell.x || pos.y !== this.targetCell.y)
+      );
+
+      if (swapIndex !== -1) {
+        [allPositions[0], allPositions[swapIndex]] = [
+          allPositions[swapIndex],
+          allPositions[0]
+        ];
+      }
+    }
+
     this.cups = [];
 
     // Create cups (1 pink, rest blue) - no numbers on cups anymore
@@ -1147,7 +1169,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.probeUIContainer.add(titleText);
 
     // Subtitle text (number to find)
-    const subtitleText = this.add.text(0, -10, subtitle, {
+    const subtitleText = this.add.text(0, 5, subtitle, {
       fontFamily: 'Sarabun, sans-serif',
       fontSize: '32px',
       color: '#2C3E50',
@@ -1160,7 +1182,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.probeUIContainer.add(subtitleText);
 
     // Instruction text
-    const instructionText = this.add.text(0, 35, instruction, {
+    const instructionText = this.add.text(0, 55, instruction, {
       fontFamily: 'Sarabun, sans-serif',
       fontSize: '22px',
       color: '#666666',
