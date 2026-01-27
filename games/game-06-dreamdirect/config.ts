@@ -56,9 +56,9 @@ export const DreamDirectConstants = {
         DOUBLE: 0x00AAFF,      // Blue
 
 
-        HOLD_SOLID: 0xFF0000,
+        HOLD_SOLID: 0x00E5FF,   // Cyan
         HOLD_HOLLOW: 0xAAAAAA,
-        HOLD_TAIL_SOLID: 0xFF4444,
+        HOLD_TAIL_SOLID: 0x00B8D4, // Darker Cyan
         HOLD_TAIL_HOLLOW: 0xEEEEEE,
     },
 
