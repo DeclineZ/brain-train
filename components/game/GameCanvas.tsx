@@ -106,7 +106,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         render: {
           pixelArt: false,
           antialias: true,
-          roundPixels: false
+          roundPixels: true
         },
         callbacks: {
           preBoot: (game: Game) => {

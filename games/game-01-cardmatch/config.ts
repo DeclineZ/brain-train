@@ -6,8 +6,9 @@ export const MatchingGameConfig: Phaser.Types.Core.GameConfig = {
     backgroundColor: '#FDF6E3', // Cream/Warm background
     scale: {
         mode: Phaser.Scale.RESIZE,
-        width: 800,
-        height: 600,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: '100%',
+        height: '100%',
     },
     physics: {
         default: 'arcade',
