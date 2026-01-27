@@ -32,7 +32,7 @@ export class FloatboatController {
     // Load and add boat image sprite
     const boatSprite = this.scene.add.image(0, 0, 'boat');
     boatSprite.setOrigin(0.5, 0.5);
-    boatSprite.setScale(0.25); // Scale down Boat.png image appropriately
+    boatSprite.setScale(0.75); // Scale for optimized 256px asset (was 0.25 for 746px)
 
     // Calculate actual boat image size after scaling (drag box equals image)
     const boatDisplayWidth = boatSprite.width * boatSprite.scaleX;
@@ -53,12 +53,12 @@ export class FloatboatController {
     container.on('drag', (pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
       // Only allow horizontal movement
       const newY = yPosition; // Keep at fixed Y position
-      
+
       // Use lerp for smooth drag movement to reduce jitter
       const lerpFactor = 0.6; // 60% lerp for responsive but smooth drag
       const currentX = container.x;
       const smoothedX = Phaser.Math.Linear(currentX, dragX, lerpFactor);
-      
+
       container.setPosition(smoothedX, newY);
       this.targetX = smoothedX;
       this.onBoatMoved();
@@ -84,7 +84,7 @@ export class FloatboatController {
       height: boatHeight,
       speed: 8,
     };
-    
+
     // Initialize last movement time so arrows will show after 3 seconds of being idle
     this.lastMovementTime = Date.now();
 
@@ -110,12 +110,12 @@ export class FloatboatController {
     this.leftArrowHint = this.createArrow('left', -100, width);
     this.floatboat.container.add(this.leftArrowHint); // Add to boat container
     this.leftArrowHint.setDepth(1500); // Above boat but below UI
-    
+
     // Right arrow hint - add to boat container so it follows automatically
     this.rightArrowHint = this.createArrow('right', 100, width);
     this.floatboat.container.add(this.rightArrowHint); // Add to boat container
     this.rightArrowHint.setDepth(1500); // Above boat but below UI
-    
+
     // Hide initially
     this.leftArrowHint.setVisible(false);
     this.rightArrowHint.setVisible(false);
@@ -144,7 +144,7 @@ export class FloatboatController {
     const arrow = this.scene.add.graphics();
     arrow.fillStyle(0xFFFFFF, 1); // White arrow
     arrow.lineStyle(2, 0xFFFF00, 1); // Yellow outline
-    
+
     if (direction === 'left') {
       // Draw left-pointing triangle
       arrow.fillTriangle(
@@ -172,18 +172,18 @@ export class FloatboatController {
     }
 
     container.add([shadow, bg, arrow]);
-    
+
     // Make container interactive for click-to-move
     container.setSize(arrowSize, arrowSize);
     container.setInteractive({ useHandCursor: true });
-    
+
     // Add click handler to move boat - emit event for GameScene to handle
     container.on('pointerdown', () => {
       this.onBoatMoved();
       // Emit event to trigger lane movement
       this.scene.events.emit('arrow-click', { direction });
     });
-    
+
     // Add pulsing animation
     this.scene.tweens.add({
       targets: container,
@@ -225,7 +225,7 @@ export class FloatboatController {
     if (!this.floatboat) return;
 
     const idleTime = Date.now() - this.lastMovementTime;
-    
+
     // Hide arrows when boat is moving
     if (this.isBoatMoving) {
       if (this.leftArrowHint) {
@@ -322,7 +322,7 @@ export class FloatboatController {
 
     const { width } = this.scene.scale;
     const laneWidth = width / 3;
-    
+
     // Calculate lane positions
     const lanes = {
       left: laneWidth * 0.5,
@@ -337,10 +337,10 @@ export class FloatboatController {
       { lane: 'center', center: lanes.center, distance: Math.abs(currentX - lanes.center) },
       { lane: 'right', center: lanes.right, distance: Math.abs(currentX - lanes.right) },
     ];
-    
+
     distances.sort((a, b) => a.distance - b.distance);
     const nearest = distances[0];
-    
+
     // Animate to nearest lane and reset moving flag
     this.scene.tweens.add({
       targets: this.floatboat.container,
@@ -363,8 +363,8 @@ export class FloatboatController {
     // Check if ball center is within boat bounds (with some padding)
     const padding = ballRadius * 0.5;
     const contains = bounds.contains(ballX, ballY);
-    
-    return contains && 
+
+    return contains &&
       ballX >= bounds.x - padding &&
       ballX <= bounds.x + bounds.width + padding &&
       ballY >= bounds.y - padding &&
@@ -383,7 +383,7 @@ export class FloatboatController {
 
       this.scene.tweens.add({
         targets: this.floatboat.container,
-        scaleX:1.1,
+        scaleX: 1.1,
         scaleY: 0.9,
         duration: 100,
         yoyo: true,
@@ -402,7 +402,7 @@ export class FloatboatController {
     // Position on left side of boat (negative x offset)
     const container = this.scene.add.container(-boatWidth / 2 + 30, -boatHeight / 2 - 20);
     container.setDepth(11); // Above boat container (depth 10)
-    
+
     const signWidth = Math.min(140, screenWidth * 0.25);
     const signHeight = Math.min(50, screenWidth * 0.2);
 
@@ -426,7 +426,7 @@ export class FloatboatController {
       fontStyle: "bold",
     }).setOrigin(0.5);
 
-    container.add([signShadow, signBg, this.signText ]);
+    container.add([signShadow, signBg, this.signText]);
 
     return container;
   }
