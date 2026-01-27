@@ -283,7 +283,11 @@ export class PinkCupGameScene extends Phaser.Scene {
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 4
-          }).setOrigin(0.5).setVisible(false).setDepth(2);
+          })
+            .setPadding(6, 6, 6, 6)
+            .setOrigin(0.5)
+            .setVisible(false)
+            .setDepth(2);
         }
 
         const tileData: TileData = {
@@ -518,7 +522,10 @@ export class PinkCupGameScene extends Phaser.Scene {
       strokeThickness: 6,
       fontStyle: 'bold',
       align: 'center'
-    }).setOrigin(0.5).setDepth(200);
+    })
+      .setPadding(14, 10, 14, 12)
+      .setOrigin(0.5)
+      .setDepth(200);
   }
 
   // ===== GAME FLOW =====
@@ -555,7 +562,10 @@ export class PinkCupGameScene extends Phaser.Scene {
       fontSize: '20px',
       color: '#888888',
       fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(302);
+    })
+      .setPadding(10, 8, 10, 8)
+      .setOrigin(0.5)
+      .setDepth(302);
 
     // Entrance animation
     hintBgGraphics.setScale(0);
@@ -1131,7 +1141,9 @@ export class PinkCupGameScene extends Phaser.Scene {
       color: '#4A90E2',
       fontStyle: 'bold',
       align: 'center'
-    }).setOrigin(0.5);
+    })
+      .setPadding(10, 8, 10, 8)
+      .setOrigin(0.5);
     this.probeUIContainer.add(titleText);
 
     // Subtitle text (number to find)
@@ -1142,7 +1154,9 @@ export class PinkCupGameScene extends Phaser.Scene {
       fontStyle: 'bold',
       align: 'center',
       wordWrap: { width: panelW - 40 }
-    }).setOrigin(0.5);
+    })
+      .setPadding(10, 8, 10, 8)
+      .setOrigin(0.5);
     this.probeUIContainer.add(subtitleText);
 
     // Instruction text
@@ -1152,7 +1166,9 @@ export class PinkCupGameScene extends Phaser.Scene {
       color: '#666666',
       align: 'center',
       wordWrap: { width: panelW - 40 }
-    }).setOrigin(0.5);
+    })
+      .setPadding(10, 8, 10, 8)
+      .setOrigin(0.5);
     this.probeUIContainer.add(instructionText);
 
     // Entrance animation
