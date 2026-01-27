@@ -121,7 +121,11 @@ export class PinkCupTutorialScene extends Phaser.Scene {
           fontStyle: 'bold',
           stroke: '#FFFFFF',
           strokeThickness: 4
-        }).setOrigin(0.5).setVisible(false).setDepth(2);
+        })
+          .setPadding(6, 6, 6, 6)
+          .setOrigin(0.5)
+          .setVisible(false)
+          .setDepth(2);
 
         this.tutorialTiles.push(rectangle);
         this.numberTexts.push(numberText);
@@ -380,7 +384,9 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       stroke: '#FFFFFF',
       strokeThickness: 6,
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    })
+      .setPadding(14, 10, 14, 12)
+      .setOrigin(0.5);
 
     // Instruction panel
     this.instructionPanel = this.add.graphics();
@@ -404,7 +410,10 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       fontSize: '26px',
       color: '#555555',
       fontStyle: 'italic'
-    }).setOrigin(0.5).setDepth(250);
+    })
+      .setPadding(10, 8, 10, 8)
+      .setOrigin(0.5)
+      .setDepth(250);
 
     this.tweens.add({
       targets: this.continueText,

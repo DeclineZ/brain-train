@@ -44,16 +44,6 @@ export const useGameSession = () => {
       clinicalStats = calculateFloatingBallMathStats(rawData as FloatingBallMathGameStats);
     } else if (gameId === 'game-06-dreamdirect') {
       clinicalStats = calculateDreamDirectStats(rawData as DreamDirectGameStats);
-    } else if (gameId === 'game-07-polybridge') {
-      // These games pass stats directly from rawData
-      clinicalStats = {
-        stat_memory: rawData.stat_memory ?? null,
-        stat_speed: rawData.stat_speed ?? null,
-        stat_visual: rawData.stat_visual ?? null,
-        stat_focus: rawData.stat_focus ?? null,
-        stat_planning: rawData.stat_planning ?? null,
-        stat_emotion: rawData.stat_emotion ?? null
-      };
     } else if (gameId === 'game-08-mysterysound') {
       // These games pass stats directly from rawData
       clinicalStats = {
