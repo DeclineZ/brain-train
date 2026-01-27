@@ -35,10 +35,13 @@ export interface PinkCupScoringResult {
  */
 export function calculatePinkCupStats(data: PinkCupGameStats): PinkCupScoringResult {
   const { telemetry, difficultyMultiplier, success } = data;
+  const isTutorial = data.level === 0;
 
   // Validate inputs
   if (!telemetry || !difficultyMultiplier || difficultyMultiplier <= 0) {
-    console.error('[PinkCupStats] Invalid input data');
+    if (!isTutorial) {
+      console.error('[PinkCupStats] Invalid input data');
+    }
     return getZeroStats();
   }
 

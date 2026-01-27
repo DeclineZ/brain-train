@@ -510,7 +510,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    this.messageText = this.add.text(width / 2, height * 0.12, '', {
+    this.messageText = this.add.text(width / 2, height * 0.17, '', {
       fontFamily: 'Sarabun, sans-serif',
       fontSize: '36px',
       color: '#2C3E50',
@@ -593,7 +593,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   }
 
   startGame() {
-    this.messageText.setText('เคลื่อนถ้วยชมพูไปยังช่องเป้าหมาย');
+    this.messageText.setText('เคลื่อนถ้วยชมพู\nไปยังช่องเป้าหมาย');
     this.startTime = Date.now();
     this.telemetry.t_start = this.startTime;
     this.startTimer();
@@ -906,7 +906,7 @@ export class PinkCupGameScene extends Phaser.Scene {
       }
     });
 
-    this.showMessage('เคลื่อนถ้วยชมพูไปยังช่องเป้าหมาย');
+    this.showMessage('เคลื่อนถ้วยชมพู\nไปยังช่องเป้าหมาย');
   }
 
   // ===== WIN/LOSE HANDLING =====
@@ -1084,7 +1084,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.createProbeUI(
       `คำถามที่ ${this.currentProbeIndex + 1} / ${this.totalProbes}`,
       questionText,
-      `แตะเลือกช่อง!`
+      `แตะช่อง!`
     );
 
     // Enable interactivity on tiles with visual enhancements
@@ -1107,7 +1107,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Create probe UI container with lower depth to not block tile clicks
-    this.probeUIContainer = this.add.container(width / 2, height * 0.22).setDepth(150);
+    this.probeUIContainer = this.add.container(width / 2, height * 0.22).setDepth(250);
 
     // Semi-transparent background panel
     this.probeUIGraphics = this.add.graphics();
@@ -1326,6 +1326,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     // Calculate stars
     const stars = this.calculateStars(success);
+    const starHint = this.generateStarHint(stars);
 
     // Save stars to database
     this.saveStars(stars);
@@ -1337,11 +1338,28 @@ export class PinkCupGameScene extends Phaser.Scene {
         success,
         level: this.currentLevelConfig.level,
         difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
-        stars
+        stars,
+        starHint
       });
     }
 
     this.sound.play(success ? 'level-pass' : 'level-fail');
+  }
+
+  private generateStarHint(stars: number): string | null {
+    if (stars >= 3) {
+      return 'เยี่ยมมาก! เก่งมาก!';
+    }
+
+    if (stars === 2) {
+      return 'เคลื่อนเร็วและตอบถูกทั้งหมด';
+    }
+
+    if (stars === 1) {
+      return 'ตอบคำถามให้ถูกมากขึ้น';
+    }
+
+    return null;
   }
 
   // ===== STAR SYSTEM =====
@@ -1365,8 +1383,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     if (timeRatio < 0.8 && accuracy === 1.0) {
       console.log('[Stars] Awarded: 3 stars (Perfect + Speed)');
       return 3;
-    } else if (accuracy >= 0.7) {
-      console.log('[Stars] Awarded: 2 stars (70%+ Memory)');
+    } else if (accuracy >= 0.5) {
+      console.log('[Stars] Awarded: 2 stars (50%+ Memory)');
       return 2;
     } else {
       console.log('[Stars] Awarded: 1 star (Completion)');
