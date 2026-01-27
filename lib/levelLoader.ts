@@ -9,6 +9,9 @@ const gameLevelModules = {
   'game-03-billiards-math': () => import('@/games/game-03-billiards-math/levels'),
   'game-05-wormtrain': () => import('@/games/game-05-wormtrain/levels'),
   'game-04-floating-ball-math': () => import('@/games/game-04-floating-ball-math/levels'),
+  'game-08-mysterysound': () => import('@/games/game-08-mysterysound/levels'),
+  'game-06-dreamdirect': () => import('@/games/game-06-dreamdirect/levels'),
+  'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -43,24 +46,30 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
     let levelConfigs: Record<number, any> = {};
 
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
-      levelConfigs = levelModule.MEMORY_LEVELS;
+      levelConfigs = (levelModule as any).MEMORY_LEVELS;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
-      levelConfigs = levelModule.MATCHING_LEVELS;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      levelConfigs = levelModule.BILLIARDS_LEVELS;
+      levelConfigs = (levelModule as any).MATCHING_LEVELS;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as { STATIC_LEVELS: Record<number, any> }).STATIC_LEVELS;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
-      const levelsArray = levelModule.LEVELS as any[];
+      const levelsArray = (levelModule as any).LEVELS as any[];
       levelsArray.forEach((level: any) => {
         if (typeof level.levelId === 'number') {
           levelConfigs[level.levelId] = level;
         }
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
-      levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
+      levelConfigs = (levelModule as any).FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MYSTERY_SOUND_LEVELS;
+    } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      levelConfigs = levelModule.PINKCUP_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
-      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS'];
+      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS'];
       for (const name of possibleNames) {
         if (name in levelModule) {
           levelConfigs = (levelModule as any)[name];
@@ -117,17 +126,23 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
 
     // Extract level config based on game type
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
-      return levelModule.MEMORY_LEVELS[levelNumber] || null;
+      return (levelModule as any).MEMORY_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
-      return levelModule.MATCHING_LEVELS[levelNumber] || null;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      return levelModule.BILLIARDS_LEVELS[levelNumber] || null;
+      return (levelModule as any).MATCHING_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      return (levelModule as any).STATIC_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
-      const levelsArray = levelModule.LEVELS as any[];
+      const levelsArray = (levelModule as any).LEVELS as any[];
       return levelsArray.find((l: any) => l.levelId === levelNumber) || null;
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
-      return levelModule.FLOATING_BALL_MATH_LEVELS[levelNumber] || null;
+      return (levelModule as any).FLOATING_BALL_MATH_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      return (levelModule as any).MYSTERY_SOUND_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
+      return (levelModule as any).DREAMDIRECT_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      return levelModule.PINKCUP_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -189,21 +204,27 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
 
     // Extract level configs based on game type
     if (gameId === 'game-00-example' && 'MEMORY_LEVELS' in levelModule) {
-      levelConfigs = levelModule.MEMORY_LEVELS;
+      levelConfigs = (levelModule as any).MEMORY_LEVELS;
     } else if (gameId === 'game-01-cardmatch' && 'MATCHING_LEVELS' in levelModule) {
-      levelConfigs = levelModule.MATCHING_LEVELS;
-    } else if (gameId === 'game-03-billiards-math' && 'BILLIARDS_LEVELS' in levelModule) {
-      levelConfigs = levelModule.BILLIARDS_LEVELS;
+      levelConfigs = (levelModule as any).MATCHING_LEVELS;
+    } else if (gameId === 'game-03-billiards-math' && 'STATIC_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as { STATIC_LEVELS: Record<number, any> }).STATIC_LEVELS;
     } else if (gameId === 'game-05-wormtrain' && 'LEVELS' in levelModule) {
       // Wormtrain exports LEVELS as an array with levelId property
-      const levelsArray = levelModule.LEVELS as any[];
+      const levelsArray = (levelModule as any).LEVELS as any[];
       levelsArray.forEach((level: any) => {
         if (typeof level.levelId === 'number') {
           levelConfigs[level.levelId] = level;
         }
       });
     } else if (gameId === 'game-04-floating-ball-math' && 'FLOATING_BALL_MATH_LEVELS' in levelModule) {
-      levelConfigs = levelModule.FLOATING_BALL_MATH_LEVELS;
+      levelConfigs = (levelModule as any).FLOATING_BALL_MATH_LEVELS;
+    } else if (gameId === 'game-08-mysterysound' && 'MYSTERY_SOUND_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MYSTERY_SOUND_LEVELS;
+    } else if (gameId === 'game-06-dreamdirect' && 'DREAMDIRECT_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
+    } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
+      levelConfigs = levelModule.PINKCUP_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)

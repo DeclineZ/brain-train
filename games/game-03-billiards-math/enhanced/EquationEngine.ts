@@ -1,8 +1,8 @@
-import type { 
-  Equation, 
-  SimpleEquation, 
-  ComplexEquation, 
-  Operation, 
+import type {
+  Equation,
+  SimpleEquation,
+  ComplexEquation,
+  Operation,
   EquationGenerationConfig,
   ValidationResult
 } from '../types';
@@ -22,7 +22,7 @@ export class EquationEngine {
    */
   generateEquation(): Equation {
     const shouldGenerateComplex = this.shouldGenerateComplexEquation();
-    
+
     if (shouldGenerateComplex) {
       return this.generateComplexEquation();
     } else {
@@ -35,31 +35,64 @@ export class EquationEngine {
    */
   private generateSimpleEquation(): SimpleEquation {
     const operations = this.getAvailableOperations();
-    const operator = operations[Math.floor(Math.random() * operations.length)] as '+' | '-';
-    
+    const operator = operations[Math.floor(Math.random() * operations.length)] as '+' | '-' | '*' | '/';
+
     let leftOperand: number;
     let rightOperand: number;
     let result: number;
 
     if (operator === '+') {
+      // Addition: ensure result is within 1-10
       leftOperand = this.getRandomOperand();
-      rightOperand = this.getRandomOperand();
+      const maxRight = 10 - leftOperand;
+      rightOperand = Math.max(1, Math.min(maxRight, this.getRandomOperand()));
       result = leftOperand + rightOperand;
-    } else {
-      // For subtraction, ensure no negative results unless allowed
-      leftOperand = this.getRandomOperand();
-      rightOperand = this.getRandomOperand();
-      
-      if (!this.config.allowNegativeResults && leftOperand < rightOperand) {
-        [leftOperand, rightOperand] = [rightOperand, leftOperand]; // Swap to avoid negative
-      }
-      result = leftOperand - rightOperand;
-    }
 
-    // Validate result constraints
-    const validation = this.validateResult(result);
-    if (!validation.isValid) {
-      return this.generateSimpleEquation(); // Retry with different operands
+      // If result > 10, adjust
+      if (result > 10) {
+        leftOperand = Math.floor(Math.random() * 5) + 1; // 1-5
+        rightOperand = Math.floor(Math.random() * (10 - leftOperand)) + 1;
+        result = leftOperand + rightOperand;
+      }
+    } else if (operator === '-') {
+      // Subtraction: ensure no negative results and result is 1-10
+      leftOperand = this.getRandomOperand();
+      rightOperand = Math.floor(Math.random() * (leftOperand - 1)) + 1;
+      result = leftOperand - rightOperand;
+
+      if (result < 1) {
+        leftOperand = Math.floor(Math.random() * 5) + 5; // 5-9
+        rightOperand = Math.floor(Math.random() * (leftOperand - 1)) + 1;
+        result = leftOperand - rightOperand;
+      }
+    } else if (operator === '*') {
+      // Multiplication: only use pairs where result is 1-10
+      // Valid pairs: 1x1-10, 2x1-5, 3x1-3, 5x2
+      const validPairs = [
+        [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], [1, 8], [1, 9], [1, 10],
+        [2, 1], [2, 2], [2, 3], [2, 4], [2, 5],
+        [3, 1], [3, 2], [3, 3],
+        [4, 1], [4, 2],
+        [5, 1], [5, 2],
+        [6, 1], [7, 1], [8, 1], [9, 1], [10, 1]
+      ];
+      const pair = validPairs[Math.floor(Math.random() * validPairs.length)];
+      leftOperand = pair[0];
+      rightOperand = pair[1];
+      result = leftOperand * rightOperand;
+    } else {
+      // Division: only use pairs where division is clean and all values are 1-10
+      // Valid pairs: dividend / divisor = result (all 1-10)
+      const validPairs = [
+        [2, 1, 2], [2, 2, 1], [3, 1, 3], [3, 3, 1], [4, 1, 4], [4, 2, 2], [4, 4, 1],
+        [5, 1, 5], [5, 5, 1], [6, 1, 6], [6, 2, 3], [6, 3, 2], [6, 6, 1],
+        [7, 1, 7], [7, 7, 1], [8, 1, 8], [8, 2, 4], [8, 4, 2], [8, 8, 1],
+        [9, 1, 9], [9, 3, 3], [9, 9, 1], [10, 1, 10], [10, 2, 5], [10, 5, 2], [10, 10, 1]
+      ];
+      const pair = validPairs[Math.floor(Math.random() * validPairs.length)];
+      leftOperand = pair[0];
+      rightOperand = pair[1];
+      result = pair[2];
     }
 
     const equation: SimpleEquation = {
@@ -80,32 +113,116 @@ export class EquationEngine {
   }
 
   /**
-   * Generate a complex multi-operand equation
+   * Generate a complex multi-operand equation (3 operands)
+   * Uses backward generation: pick result first, then find operands that work
    */
   private generateComplexEquation(): ComplexEquation {
-    const numOperands = this.getRandomOperandCount();
-    const operations = this.generateRandomOperations(numOperands - 1);
-    const operands = this.generateOperands(numOperands);
-    
-    // Calculate result with proper order of operations
-    const result = this.calculateComplexResult(operands, operations);
-    
-    // Validate equation
-    const validation = this.validateComplexEquation(operands, operations, result);
-    if (!validation.isValid) {
-      return this.generateComplexEquation(); // Retry
+    // Generate a guaranteed solvable 3-operand equation
+    // Strategy: Generate simple operations that we know will work
+
+    // Pick a target result between 1-10
+    const result = Math.floor(Math.random() * 10) + 1;
+
+    // Generate equation using one of these patterns:
+    // Pattern 1: a + b - c = result  (most flexible)
+    // Pattern 2: a - b + c = result
+    // Pattern 3: a + b + c = result (if result >= 3)
+    // Pattern 4: a - b - c = result (if we can find valid operands)
+
+    const pattern = Math.floor(Math.random() * 4);
+    let operands: number[];
+    let operators: Operation[];
+
+    switch (pattern) {
+      case 0: // a + b - c = result → a + b = result + c
+        // Pick c between 1-5, then a + b = result + c
+        {
+          const c = Math.floor(Math.random() * 5) + 1;
+          const sum = result + c; // a + b must equal this
+          // Split sum into a and b (both 1-10)
+          const a = Math.min(10, Math.max(1, Math.floor(Math.random() * (sum - 1)) + 1));
+          const b = sum - a;
+          if (b >= 1 && b <= 10 && a >= 1 && a <= 10) {
+            operands = [a, b, c];
+            operators = ['+', '-'];
+          } else {
+            // Fallback to simple addition
+            operands = [result, 1, 1];
+            operators = ['+', '-'];
+          }
+        }
+        break;
+
+      case 1: // a - b + c = result → a + c = result + b
+        {
+          const b = Math.floor(Math.random() * 5) + 1;
+          const sum = result + b; // a + c must equal this
+          const a = Math.min(10, Math.max(1, Math.floor(Math.random() * (sum - 1)) + 1));
+          const c = sum - a;
+          if (c >= 1 && c <= 10 && a >= 1 && a <= 10 && a >= b) {
+            operands = [a, b, c];
+            operators = ['-', '+'];
+          } else {
+            // Fallback
+            operands = [result + 2, 1, 1];
+            operators = ['-', '+'];
+          }
+        }
+        break;
+
+      case 2: // a + b + c = result (only if result >= 3)
+        if (result >= 3) {
+          // Simple: distribute result among a, b, c
+          const a = Math.floor(Math.random() * (result - 2)) + 1;
+          const remaining = result - a;
+          const b = Math.floor(Math.random() * (remaining - 1)) + 1;
+          const c = remaining - b;
+          if (a >= 1 && a <= 10 && b >= 1 && b <= 10 && c >= 1 && c <= 10) {
+            operands = [a, b, c];
+            operators = ['+', '+'];
+          } else {
+            operands = [1, 1, result - 2 > 0 ? result - 2 : 1];
+            operators = ['+', '+'];
+          }
+        } else {
+          // Result too small for 3 additions, use pattern 0 instead
+          const c = 2;
+          const sum = result + c;
+          operands = [Math.ceil(sum / 2), Math.floor(sum / 2), c];
+          operators = ['+', '-'];
+        }
+        break;
+
+      case 3: // a - b - c = result → a = result + b + c
+      default:
+        {
+          const b = Math.floor(Math.random() * 3) + 1;
+          const c = Math.floor(Math.random() * 3) + 1;
+          const a = result + b + c;
+          if (a >= 1 && a <= 10) {
+            operands = [a, b, c];
+            operators = ['-', '-'];
+          } else {
+            // a is too big, fallback to pattern 0
+            const cFallback = 2;
+            const sum = result + cFallback;
+            operands = [Math.ceil(sum / 2), Math.floor(sum / 2), cFallback];
+            operators = ['+', '-'];
+          }
+        }
+        break;
     }
 
     const equation: ComplexEquation = {
       type: 'complex',
       operands,
-      operators: operations,
+      operators,
       result,
-      displayText: this.buildDisplayText(operands, operations),
-      difficulty: this.calculateDifficulty({ 
-        type: 'complex', 
-        operators: operations, 
-        operands 
+      displayText: this.buildDisplayText(operands, operators),
+      difficulty: this.calculateDifficulty({
+        type: 'complex',
+        operators,
+        operands
       })
     };
 
@@ -136,7 +253,7 @@ export class EquationEngine {
 
     const [left, right] = userAnswer;
     const userResult = equation.operator === '+' ? left + right : left - right;
-    
+
     return {
       isValid: userResult === equation.result,
       normalizedResult: userResult
@@ -154,7 +271,7 @@ export class EquationEngine {
     // Use the same number of operands as in the equation
     const operandsToUse = userAnswer.slice(0, equation.operators.length + 1);
     const userResult = this.calculateComplexResult(operandsToUse, equation.operators);
-    
+
     return {
       isValid: userResult === equation.result,
       normalizedResult: userResult
@@ -177,7 +294,7 @@ export class EquationEngine {
     for (let i = 0; i < ops.length; i++) {
       if (ops[i] === '*' || ops[i] === '/') {
         let result: number;
-        
+
         if (ops[i] === '*') {
           result = numbers[i] * numbers[i + 1];
         } else {
@@ -217,20 +334,20 @@ export class EquationEngine {
    */
   private buildDisplayText(operands: number[], operators: Operation[]): string {
     let displayText = '';
-    
+
     for (let i = 0; i < operands.length; i++) {
       displayText += operands[i].toString();
-      
+
       // Add operator (except after last operand)
       if (i < operators.length) {
         let operatorSymbol: string = operators[i];
         if (operators[i] === '*') operatorSymbol = '×';
         if (operators[i] === '/') operatorSymbol = '÷';
-        
+
         displayText += ` ${operatorSymbol} `;
       }
     }
-    
+
     displayText += ` = ${this.calculateComplexResult(operands, operators)}`;
     return displayText;
   }
@@ -249,8 +366,8 @@ export class EquationEngine {
    * Determine if we should generate a complex equation
    */
   private shouldGenerateComplexEquation(): boolean {
-    return this.config.complexity === 'complex' || 
-           (this.config.complexity === 'mixed' && Math.random() > 0.5);
+    return this.config.complexity === 'complex' ||
+      (this.config.complexity === 'mixed' && Math.random() > 0.5);
   }
 
   /**
@@ -272,12 +389,12 @@ export class EquationEngine {
    */
   private generateRandomOperations(count: number): Operation[] {
     const operations = this.getAvailableOperations();
-    
+
     // Separate operations into high precedence (*, /) and low precedence (+, -)
     const highPrecedence: Operation[] = operations.filter(op => op === '*' || op === '/');
     const lowPrecedence: Operation[] = operations.filter(op => op === '+' || op === '-');
     const result: Operation[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       // For the first part of the equation, prefer high precedence operations
       if (i < Math.ceil(count / 2) && highPrecedence.length > 0) {
@@ -292,7 +409,7 @@ export class EquationEngine {
         result.push('+');
       }
     }
-    
+
     // Ensure at least one high precedence operation comes first if available
     if (result.length > 1 && highPrecedence.length > 0) {
       // Move any high precedence operation to the front
@@ -301,7 +418,7 @@ export class EquationEngine {
         [result[0], result[firstHighIndex]] = [result[firstHighIndex], result[0]];
       }
     }
-    
+
     return result;
   }
 
@@ -310,11 +427,11 @@ export class EquationEngine {
    */
   private generateOperands(count: number): number[] {
     const operands: number[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       operands.push(this.getRandomOperand());
     }
-    
+
     return operands;
   }
 
@@ -334,20 +451,20 @@ export class EquationEngine {
     if (!this.config.allowNegativeResults && result < 0) {
       return { isValid: false, error: 'Negative result not allowed' };
     }
-    
+
     if (!this.config.allowLargeResults && result > this.config.maxResult) {
       return { isValid: false, error: 'Result too large' };
     }
-    
+
     if (result < this.config.minResult || result > this.config.maxResult) {
       return { isValid: false, error: 'Result out of range' };
     }
-    
+
     // Critical: Check if result is within pool ball range (1-10)
     if (result < 1 || result > 10) {
       return { isValid: false, error: 'Result not in pool ball range (1-10)' };
     }
-    
+
     return { isValid: true };
   }
 
@@ -358,14 +475,14 @@ export class EquationEngine {
     // Check for division by zero in intermediate steps
     const numbers = [...operands];
     const ops = [...operators];
-    
+
     // Simulate calculation to check for issues
     for (let i = 0; i < ops.length; i++) {
       if (ops[i] === '*' || ops[i] === '/') {
         if (ops[i] === '/' && numbers[i + 1] === 0) {
           return { isValid: false, error: 'Division by zero' };
         }
-        
+
         if (ops[i] === '*') {
           const product = numbers[i] * numbers[i + 1];
           if (Math.abs(product) > 100) {
@@ -374,7 +491,7 @@ export class EquationEngine {
         }
       }
     }
-    
+
     return this.validateResult(result);
   }
 
@@ -388,20 +505,20 @@ export class EquationEngine {
     operators?: Operation[];
   }): number {
     let difficulty = 1;
-    
+
     if (params.type === 'simple') {
       if (params.operator === '-') difficulty += 0.5;
     } else {
       // Complex equation difficulty
       difficulty += params.operators!.length * 0.5;
-      
+
       // Add difficulty for multiplication and division
       params.operators!.forEach(op => {
         if (op === '*') difficulty += 1;
         if (op === '/') difficulty += 1.5;
       });
     }
-    
+
     return Math.round(difficulty * 10) / 10; // Round to 1 decimal place
   }
 

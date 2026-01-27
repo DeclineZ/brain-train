@@ -59,26 +59,26 @@ export interface FloatingBallMathGameStats {
   levelPlayed: number;
   difficultyMultiplier: number;
   penaltyFactor: number;  // 0.7 if continuedAfterTimeout, else 1.0
-  
+
   // Thief event tracking
   thiefEvents: number;         // Total thief appearances
   blockSuccessCount: number;   // Blocked correctly
   adaptSuccessCount: number;   // Adapted correctly
   decisionFailCount: number;    // Wrong decisions
-  
+
   // Timing tracking
   onTimeDecisionCount: number; // Decisions in time window
   lateDecisionCount: number;   // Decisions too slow
   timeLimitSeconds?: number;   // Time limit for level completion (for speed scoring)
-  
+
   // Panic behavior tracking
   panicBlock: number;          // 3+ bad blocks in a row
   panicAdapt: number;         // 3+ bad adapts in a row
-  
+
   // Ball interception tracking
   bombHits: number;           // Total bombs intercepted
   consecutiveErrors: number;    // Max errors in a row
-  
+
   // Legacy fields (kept for compatibility)
   totalEquations: number;
   correctEquations: number;
@@ -86,6 +86,70 @@ export interface FloatingBallMathGameStats {
   totalTimeMs: number;
   attempts: number;
   continuedAfterTimeout: boolean;
+}
+
+export interface DreamDirectGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  score: number;
+  maxScore: number;
+  // Arrow type accuracy tracking
+  ghostCorrect: number;
+  ghostAttempts: number;
+  anchorCorrect: number;
+  anchorAttempts: number;
+  wigglerCorrect: number;
+  wigglerAttempts: number;
+  fadeCorrect: number;
+  fadeAttempts: number;
+  spinnerCorrect: number;
+  spinnerAttempts: number;
+  doubleCorrect: number;
+  doubleAttempts: number;
+  // Cognitive tracking
+  ruleSwitchErrors: number;  // Ghost→Same or Anchor→Opposite errors
+  avgTimingOffsetMs: number; // Average timing offset from perfect beat
+  maxCombo: number;
+  continuedAfterTimeout: boolean;
+}
+
+// Game mode types for Pink Cup game
+export type GameMode = 'classic' | 'time_attack' | 'memory_focus' | 'planning_focus';
+
+export interface PinkCupGameStats {
+  telemetry: {
+    level: number;
+    mode: GameMode;
+    targetCell: {x: number, y: number};
+    pinkStart: {x: number, y: number};
+    t_start: number;
+    t_end: number;
+    moves: Array<{
+      timestamp: number;
+      from: {x: number, y: number};
+      to: {x: number, y: number};
+      valid: boolean;
+      distanceToTarget: number;
+      backtracked: boolean;
+    }>;
+    reveal: {
+      start: number;
+      end: number;
+      elements: {[cell: string]: number};
+    };
+    probes: Array<{
+      cell: {x: number, y: number};
+      probeTime: number;
+      answerTime: number;
+      correct: boolean;
+      playerAnswer?: number;
+      correctAnswer?: number;
+    }>;
+    metrics: any;
+  };
+  success: boolean;
+  level: number;
+  difficultyMultiplier: number;
 }
 
 export interface ClinicalStats {
@@ -128,6 +192,38 @@ export interface MatchingLevelConfig {
   // Advanced Mechanics (Rebalancing Update)
   useHardVariations?: boolean;    // Enable Quantity, Orientation, State variations
   shuffleAfterPreview?: boolean;  // Force full grid shuffle after preview
+}
+
+// Mystery Sound Game types
+export interface MysterySoundOption {
+  id: string;
+  label: string;
+  isHybrid?: boolean;  // For hybrid animal images in Level 5
+}
+
+export interface MysterySoundQuestion {
+  sounds: string[];           // Single: ["cat"], Mixed: ["cat", "dog"]
+  correctAnswers: string[];   // Answers that must be selected
+  options: MysterySoundOption[];
+  isHybrid?: boolean;         // If true, options are hybrid images
+}
+
+export interface MysterySoundLevelConfig {
+  level: number;
+  questions: MysterySoundQuestion[];  // 2 questions per level
+  maxReplays: number;
+  timeLimitSeconds: number;
+  difficultyMultiplier: number;
+}
+
+export interface MysterySoundGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  questionsCorrect: number;   // How many questions answered correctly
+  totalQuestions: number;     // Total questions in level
+  replaysUsed: number;
+  responseTimeMs: number;
+  timeLimitMs: number;
 }
 
 // Daily streak types

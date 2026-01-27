@@ -1,15 +1,74 @@
+export interface StaticBallConfig {
+  value: number;
+  x: number; // Normalized 0-1
+  y: number; // Normalized 0-1
+  isHazard?: boolean;
+  type?: 'decoy' | 'target'; // Optional metadata
+}
+
+export interface StaticObstacleConfig {
+  type: ObstacleType;
+  x: number; // Normalized 0-1 (center)
+  y: number; // Normalized 0-1 (center)
+  width: number;
+  height: number;
+}
+
+export interface StaticLevelConfig {
+  level: number;
+  equations: Equation[];
+  balls: StaticBallConfig[];
+  obstacles: StaticObstacleConfig[];
+  shotLimit: number;
+  timeLimitSeconds: number; // Added for UI timer
+  starRequirements: {
+    threeStars: number;
+    twoStars: number;
+  };
+}
+
 export interface BilliardsLevelConfig {
   level: number;
   operations: '+' | '-' | '*' | '/' | 'mixed';
   numberRange: { min: number; max: number };
   equationComplexity: 'simple' | 'mixed' | 'complex';
-  timeLimitSeconds: number;
+  timeLimitSeconds: number; // Legacy - kept for backwards compatibility
   difficultyMultiplier: number;
   totalEquations: number;
   starRequirements: {
     threeStars: number;  // Time requirement in seconds
     twoStars: number;   // Time requirement in seconds
   };
+  // New pressure mechanics (older-player friendly)
+  shotLimit: number;              // Max shots per equation (generous: 8-15)
+  perEquationTimeSeconds: number; // Timer per equation (generous: 30-60s)
+  layoutConfig?: {
+    hazardCount: { min: number; max: number };
+    obstacleCount: { min: number; max: number };
+    decoyCount: number;
+  };
+}
+
+export type ObstacleType = 'wall_h' | 'wall_v' | 'box';
+
+export interface LayoutObstacle {
+  type: ObstacleType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LayoutBall {
+  value: number;
+  x: number;
+  y: number;
+  isHazard?: boolean;
+}
+
+export interface GeneratedLayout {
+  balls: LayoutBall[];
+  obstacles: LayoutObstacle[];
 }
 
 // Enhanced equation types

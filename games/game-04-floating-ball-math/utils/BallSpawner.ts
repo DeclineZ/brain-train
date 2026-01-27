@@ -17,6 +17,9 @@ export class BallSpawner {
 
     const container = this.scene.add.container(x, y);
     const id = `ball-${Date.now()}-${Math.random()}`;
+    
+    // Set ball depth to 0 so they appear below ALL UI elements (water background at -2)
+    container.setDepth(0);
 
     // Load and add ball image - randomly select one of 4 ball images
     const ballKeys = ['ball-1', 'ball-2', 'ball-3', 'ball-4'];
@@ -25,9 +28,9 @@ export class BallSpawner {
     ballImage.setDisplaySize(ballRadius * 2, ballRadius * 2);
     container.add(ballImage);
 
-    // Format the operator for display
+    // Format operator for display
     const displayOperator = operator === '*' ? '×' : operator === '/' ? '÷' : operator;
-    
+
     // Add operation text (black with white stroke, e.g., "+5", "-3", "×2", "÷4")
     const text = this.scene.add.text(0, 0, `${displayOperator}${value}`, {
       fontFamily: 'Arial, sans-serif',
@@ -116,7 +119,7 @@ export class BallSpawner {
    */
   highlightBall(ball: FloatingBall): void {
     if (!ball.container) return;
-    
+
     const { width } = this.scene.scale;
     const ballRadius = Math.min(66, width * 0.135); // Slightly larger
 
@@ -132,7 +135,7 @@ export class BallSpawner {
    */
   unhighlightBall(ball: FloatingBall): void {
     if (!ball.container) return;
-    
+
     const glow = ball.container.getByName('highlight');
     if (glow) {
       glow.destroy();
@@ -144,7 +147,7 @@ export class BallSpawner {
    */
   showCorrectFeedback(ball: FloatingBall): void {
     if (!ball.container) return;
-    
+
     const { width } = this.scene.scale;
     const ballRadius = Math.min(66, width * 0.135);
 
@@ -160,7 +163,7 @@ export class BallSpawner {
    */
   showIncorrectFeedback(ball: FloatingBall): void {
     if (!ball.container) return;
-    
+
     const { width } = this.scene.scale;
     const ballRadius = Math.min(66, width * 0.135);
 
@@ -186,7 +189,7 @@ export class BallSpawner {
    */
   clearFeedback(ball: FloatingBall): void {
     if (!ball.container) return;
-    
+
     const feedback = ball.container.getByName('feedback');
     if (feedback) {
       feedback.destroy();
@@ -253,22 +256,6 @@ export class BallSpawner {
   }
 
   /**
-   * Create a replacement ball with random value, operator, color, and position
-   * Used when balls are collected and need to be replaced
-   */
-  createReplacementBall(value: number, operator: '+' | '-' | '*' | '/', color: BallColor, x: number, y: number): FloatingBall {
-    const { width, height } = this.scene.scale;
-    const margin = 80;
-    
-    // Ensure position is within screen bounds with margin
-    const safeX = Math.max(margin, Math.min(x, width - margin));
-    const safeY = Math.max(-100, Math.min(y, height - 100));
-    
-    const ball = this.createBall(value, operator, color, safeX, safeY);
-    return ball;
-  }
-
-  /**
    * Create a bomb ball using bomb.png image
    */
   createBombBall(value: number, operator: '+' | '-' | '*' | '/', x: number, y: number): FloatingBall {
@@ -277,6 +264,9 @@ export class BallSpawner {
 
     const container = this.scene.add.container(x, y);
     const id = `bomb-${Date.now()}-${Math.random()}`;
+    
+    // Set bomb depth to 0 so it appears below ALL UI elements (water background at -2)
+    container.setDepth(0);
 
     // Load and add bomb image
     const bombImage = this.scene.add.image(0, 0, 'bomb-ball');

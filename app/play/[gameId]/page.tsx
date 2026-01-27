@@ -23,6 +23,7 @@ import { Home, ArrowLeft, Coins } from "lucide-react";
 
 // Import Level Configs for visual tier lookup
 import { MATCHING_LEVELS } from "@/games/game-01-cardmatch/levels";
+import { FLOATING_BALL_MATH_LEVELS } from "@/games/game-04-floating-ball-math/levels";
 
 // Helper for Tier Visuals
 // Helper for Tier Visuals
@@ -84,7 +85,9 @@ export default function GamePage({ params }: PageProps) {
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
-            : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+            : gameId === 'game-06-dreamdirect' ? 30
+                : gameId === 'game-08-mysterysound' ? 20
+                    : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -147,12 +150,13 @@ export default function GamePage({ params }: PageProps) {
                     if (data && data.current_played) {
                         setActiveLevel(nextLevel);
                     } else {
-                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, and floating ball math
+                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
                         if (
                             gameId === "game-01-cardmatch" ||
                             gameId === "game-02-sensorlock" ||
                             gameId === "game-03-billiards-math" ||
-                            gameId === "game-04-floating-ball-math"
+                            gameId === "game-04-floating-ball-math" ||
+                            gameId === "game-08-mysterysound"
                         ) {
                             setActiveLevel(0);
                         }
@@ -456,12 +460,20 @@ export default function GamePage({ params }: PageProps) {
             </div>
         );
 
-    // Get current level tier logic
-    // Safe lookup for Card Match game
-    let currentTier: string | undefined;
-    if (gameId === 'game-01-cardmatch') {
-        currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
-    }
+  // Get current level tier logic
+  // Safe lookup for Card Match, Floating Ball Math, and Pink Cup games
+  let currentTier: string | undefined;
+  if (gameId === 'game-01-cardmatch') {
+    currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
+  } else if (gameId === 'game-04-floating-ball-math') {
+    currentTier = FLOATING_BALL_MATH_LEVELS[activeLevel]?.difficultyTier;
+  } else if (gameId === 'game-07-pinkcup') {
+    // Pinkcup uses simple difficulty tiers based on level ranges
+    if (activeLevel <= 5) currentTier = 'easy';
+    else if (activeLevel <= 10) currentTier = 'normal';
+    else if (activeLevel <= 15) currentTier = 'hard';
+    else currentTier = 'nightmare';
+  }
 
     const { color: tierColor } = getDifficultyVisuals(currentTier);
 
@@ -477,18 +489,28 @@ export default function GamePage({ params }: PageProps) {
                 </button>
             </div>
 
-            {/* Level & Difficulty Badge (Top Center) - For Game 01 with tier colors */}
-            {!isLoadingLevel && activeLevel > 0 && gameId === 'game-01-cardmatch' && (
-                <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                    <span className="text-3xl">LEVEL {activeLevel}</span>
-                </div>
+            {/* Level & Difficulty Badge (Top Center) - Unified rendering for all games */}
+            {!isLoadingLevel && activeLevel > 0 && (
+                <>
+            {/* Game 01 and 04 with tier colors */}
+            {(gameId === 'game-01-cardmatch' || gameId === 'game-04-floating-ball-math') && (
+              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                <span className="text-3xl">LEVEL {activeLevel}</span>
+              </div>
             )}
-
-            {/* Level Badge (Top Center) - For Wormtrain */}
-            {!isLoadingLevel && activeLevel > 0 && gameId === 'game-05-wormtrain' && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
-                    <span className="text-3xl">LEVEL {activeLevel}</span>
-                </div>
+            {/* Game 05 and 08 with fixed amber styling */}
+            {(gameId === 'game-05-wormtrain' || gameId === 'game-08-mysterysound') && (
+              <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
+                <span className="text-3xl">LEVEL {activeLevel}</span>
+              </div>
+            )}
+            {/* Game 07 (Pinkcup) with tier-based styling */}
+            {gameId === 'game-07-pinkcup' && (
+              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                <span className="text-3xl">LEVEL {activeLevel}</span>
+              </div>
+            )}
+                </>
             )}
 
             {/* The Game */}
@@ -748,7 +770,7 @@ export default function GamePage({ params }: PageProps) {
                                                         onClick={handleNextLevel}
                                                         className={`flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
                                                     >
-                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'เกมถัดไป')}
+                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'ด่านถัดไป')}
                                                     </button>
                                                 </div>
                                             )}

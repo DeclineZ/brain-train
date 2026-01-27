@@ -95,7 +95,7 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     let user = null;
 
     // Determine total levels based on gameId
-    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+    const totalLevels = getDefaultLevelCount(gameId);
 
     if (!currentUserId) {
       // Get current user
@@ -176,6 +176,10 @@ function getDefaultLevelCount(gameId: string): number {
       return 60; // Billiards has 60 levels
     case 'game-04-floating-ball-math':
       return 50; // Floating Pool Balls has 50 levels
+    case 'game-06-dreamdirect':
+      return 35;
+    case 'game-07-pinkcup':
+      return 30; // Pinkcup has 30 levels
     default:
       return 12; // Default for other games
   }

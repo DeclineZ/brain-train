@@ -4,10 +4,251 @@ export class EquationGenerator {
   private config: FloatingBallMathLevelConfig;
   private colors: BallColor[] = ['coral', 'mint', 'yellow', 'lavender'];
   private usedCombinations: Set<string> = new Set();
+  
+  // Operation priority: / (division), * (multiplication), - (subtraction), + (addition)
+  private readonly OPERATION_PRIORITY: Operation[] = ['/', '*', '-', '+'];
+  private readonly PRIORITY_CHANCE = 0.9; // 90% chance to use priority order
 
   constructor(config: FloatingBallMathLevelConfig) {
     console.log('[EquationGenerator] Constructor called with config:', config);
     this.config = config;
+  }
+
+  /**
+   * Generate balls for game based on current score and target
+   * Creates a mix of solution balls, distractor balls, and bomb balls
+   * @param currentScore - Current player score
+   * @param target - Target score to reach
+   * @returns Array of FloatingBall objects ready to spawn
+   */
+  generateBallsForGame(currentScore: number, target: number): FloatingBall[] {
+    console.log('[EquationGenerator] generateBallsForGame called', { currentScore, target });
+    const balls: FloatingBall[] = [];
+    const { min, max } = this.config.operandRange;
+    const operations = this.config.operations;
+
+    // Generate solution balls (1-2 balls that help reach target)
+    const solutionBalls = this.generateSolutionBalls(currentScore, target, min, max, operations);
+    console.log('[EquationGenerator] Solution balls generated:', solutionBalls.length,solutionBalls);
+
+    // Generate distractor balls (4-6 balls that won't help)
+    const distractorCount = this.randomInt(4, 6);
+    const distractorBalls = this.generateDistractorBalls(currentScore, target, distractorCount);
+    console.log('[EquationGenerator] Distractor balls generated:', distractorBalls.length);
+
+    // Generate bomb balls (1-2 bombs)
+    const bombCount = this.randomInt(1, 2);
+    const bombBalls = this.generateBombBalls(bombCount);
+    console.log('[EquationGenerator] Bomb balls generated:', bombBalls.length);
+
+    // Combine and shuffle
+    const allBalls = [...distractorBalls,...solutionBalls,  ...bombBalls];
+    this.shuffleArray(allBalls);
+
+    console.log('[EquationGenerator] Total balls generated:', allBalls.length);
+    return allBalls;
+    
+  }
+
+  /**
+   * Get operations ordered by priority (90%) or random (10%)
+   * Filters to only include operations available at current level
+   */
+  private getPrioritizedOperations(availableOps: Operation[]): Operation[] {
+    const usePriority = Math.random() < this.PRIORITY_CHANCE;
+    
+    if (usePriority) {
+      // 90% chance: use priority order
+      return this.OPERATION_PRIORITY.filter(op => availableOps.includes(op));
+    } else {
+      // 10% chance: random order
+      const shuffled = [...availableOps];
+      this.shuffleArray(shuffled);
+      return shuffled;
+    }
+  }
+
+  /**
+   * Generate solution balls that help reach target from current score
+   */
+  private generateSolutionBalls(
+    currentScore: number,
+    target: number,
+    min: number,
+    max: number,
+    operations: Operation[]
+  ): FloatingBall[] {
+    const balls: FloatingBall[] = [];
+    const difference = target - currentScore;
+
+    // Get operations in priority order (90%) or random (10%)
+    const prioritizedOperations = this.getPrioritizedOperations(operations);
+
+    // For each operation, find values that help get closer to target
+    prioritizedOperations.forEach(operator => {
+      let validValues: number[] = [];
+
+      switch (operator) {
+        case '+':
+          // Addition: if difference > 0, values where currentScore + value gets closer to target
+          if (difference > 0) {
+            for (let v = min; v <= Math.min(difference, max); v++) {
+              const newScore = currentScore + v;
+              const isPositive = newScore >= 0;
+              const notTooLarge = newScore <= target * 2;
+              const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
+
+              if (isPositive && notTooLarge && getsCloser) {
+                validValues.push(v);
+              }
+            }
+          }
+          // FIX: Remove the else-if branch for difference < 0
+          // Adding more when already over target won't help - let subtraction handle it
+          break;
+
+        case '-':
+          // FIX: Allow subtraction even when currentScore = 0 (but check for positive result)
+          if (currentScore > 0 || (currentScore === 0 && difference > 0)) {
+            // If over target, subtract to get closer
+            // If under target, use negative difference to subtract currentScore - target
+            const maxValue = Math.min(
+              difference > 0 ? currentScore : currentScore - target,
+              max
+            );
+            for (let v = min; v <= maxValue; v++) {
+              const newScore = currentScore - v;
+              const isPositive = newScore >= 0;
+              const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
+
+              if (isPositive && getsCloser) {
+                validValues.push(v);
+              }
+            }
+          }
+          break;
+
+        case '*':
+          // Multiplication: find multipliers that get closer to target
+          const targetDividedByCurrent = currentScore > 0 && target > 0 ? target / currentScore : 0;
+          const targetDividedByCurrentRounded = Math.round(targetDividedByCurrent);
+
+          if (targetDividedByCurrentRounded >= 2) {
+            for (let v = min; v <= Math.min(max, Math.ceil(targetDividedByCurrent)); v++) {
+              const newScore = currentScore * v;
+              const isPositive = newScore >= 0;
+              const notTooLarge = newScore <= target * 2;
+              const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
+
+              if (isPositive && notTooLarge && getsCloser) {
+                validValues.push(v);
+              }
+            }
+          }
+          break;
+
+        case '/':
+          // Division: find divisors that get closer to target
+          // Only include values that result in integer division
+          if (currentScore > 0) {
+            const targetDividedByCurrentDiv = target > 0 ? target / currentScore : 0;
+            const targetDividedByCurrentDivRounded = Math.round(targetDividedByCurrentDiv);
+
+            if (targetDividedByCurrentDivRounded >= 2) {
+              for (let v = min; v <= Math.min(max, Math.ceil(targetDividedByCurrentDiv)); v++) {
+                // Ensure v is not zero and division results in integer
+                if (v !== 0 && currentScore % v === 0) {
+                  const newScore = currentScore / v;
+                  
+                  // Verify result is integer (should be due to modulus check above)
+                  if (!Number.isInteger(newScore)) {
+                    continue;
+                  }
+                  
+                  const isPositive = newScore >= 0;
+                  const notTooLarge = newScore <= target * 2;
+                  const getsCloser = Math.abs(newScore - target) < Math.abs(currentScore - target);
+
+                  if (isPositive && notTooLarge && getsCloser) {
+                    validValues.push(v);
+                  }
+                }
+              }
+            }
+          }
+          break;
+      }
+
+      // Create balls for valid values
+      validValues.forEach(v => {
+        const ball: FloatingBall = {
+          id: `ball-solution-${Date.now()}-${Math.random()}`,
+          value: v,
+          operator: operator,
+          color: this.colors[Math.floor(Math.random() * this.colors.length)],
+          x: 0, // Will be set when spawning
+          y: 0,
+          originalX: 0,
+          originalY: 0,
+          wavePhase: Math.random() * Math.PI * 2,
+          isCollected: false,
+          isBomb: false,
+          isSolvable: true, // Mark as solvable
+          lane: 1, // Will be set when spawning
+          originalLane: 1,
+          container: null,
+        };
+        balls.push(ball);
+      });
+    });
+
+    // FIX: Add fallback to ensure at least 1 solution ball is always generated
+    if (balls.length === 0) {
+      console.warn('[EquationGenerator] No solution balls found, creating fallback solution ball');
+      
+      // Create a direct solution ball that reaches target exactly
+      let fallbackOperator: Operation = '+';
+      let fallbackValue: number = difference;
+      
+      // Ensure value is within valid range
+      if (Math.abs(fallbackValue) > max) {
+        // If difference is too large, use min/max
+        fallbackValue = difference > 0 ? max : -max;
+        fallbackOperator = difference > 0 ? '+' : '-';
+      }
+      
+      // Ensure value is not zero and within min range
+      if (fallbackValue === 0 || Math.abs(fallbackValue) < min) {
+        fallbackValue = min;
+      }
+      
+      const fallbackBall: FloatingBall = {
+        id: `ball-solution-fallback-${Date.now()}-${Math.random()}`,
+        value: Math.abs(fallbackValue),
+        operator: fallbackOperator,
+        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        x: 0,
+        y: 0,
+        originalX: 0,
+        originalY: 0,
+        wavePhase: Math.random() * Math.PI * 2,
+        isCollected: false,
+        isBomb: false,
+        isSolvable: true,
+        lane: 1,
+        originalLane: 1,
+        container: null,
+      };
+      balls.push(fallbackBall);
+    }
+
+    // Limit to 1-2 solution balls to avoid too many easy options
+    if (balls.length > 2) {
+      this.shuffleArray(balls);
+      balls.length = this.randomInt(1, 2);
+    }
+
+    return balls;
   }
 
   /**
@@ -69,22 +310,22 @@ export class EquationGenerator {
 
   /**
    * Generate operation balls that can transform startingCurrent to target
+   * Creates a single operation ball where startingCurrent [operator] value = target
    */
   private generateOperationBalls(target: number, startingCurrent: number): FloatingBall[] {
     const balls: FloatingBall[] = [];
     const { min, max } = this.config.operandRange;
     const operations = this.config.operations;
     
-    // Generate a solution path (sequence of operations)
-    const solutionPath = this.generateSolutionPath(target, startingCurrent);
-    console.log('[EquationGenerator] Solution path:', solutionPath);
+    // Generate one solution ball: startingCurrent [operator] value = target
+    const solutionStep = this.generateSingleSolutionStep(target, startingCurrent,  max);
+    console.log('[EquationGenerator] Solution step:', solutionStep);
 
-    // Create balls from the solution path
-    solutionPath.forEach((step, index) => {
+    if (solutionStep) {
       const ball: FloatingBall = {
         id: `ball-${Date.now()}-${Math.random()}`,
-        value: step.value,
-        operator: step.operator,
+        value: solutionStep.value,
+        operator: solutionStep.operator,
         color: this.colors[Math.floor(Math.random() * this.colors.length)],
         x: 0, // Will be set when spawning
         y: 0,
@@ -93,13 +334,13 @@ export class EquationGenerator {
         wavePhase: Math.random() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
-        isSolvable: true, // Solution path balls are solvable
+        isSolvable: true, // Solution ball is solvable
         lane: 1, // Will be set when spawning
         originalLane: 1,
         container: null, // Will be set when creating
       };
       balls.push(ball);
-    });
+    }
 
     // Generate distractor balls (balls that won't help solve puzzle)
     const distractorCount = this.randomInt(4, 6);
@@ -114,6 +355,74 @@ export class EquationGenerator {
     this.shuffleArray(allBalls);
     
     return allBalls;
+  }
+
+  /**
+   * Generate a single operation step where startingCurrent [operator] value = target
+   */
+  private generateSingleSolutionStep(
+    target: number,
+    startingCurrent: number,
+    max: number
+  ): { operator: '+' | '-' | '*' | '/', value: number } | null {
+    const operations = this.config.operations;
+    
+    // Get operations in priority order (90%) or random (10%)
+    const prioritizedOperations = this.getPrioritizedOperations(operations);
+    
+    // Try each operation in prioritized order to find a valid solution
+    for (const op of prioritizedOperations) {
+      let value: number;
+      let isValid = false;
+      
+      switch (op) {
+        case '+':
+          // startingCurrent + value = target → value = target - startingCurrent
+          value = target - startingCurrent;
+          isValid = value >= 0 && value <= max; // value must be positive
+          break;
+          
+        case '-':
+          // startingCurrent - value = target → value = startingCurrent - target
+          value = startingCurrent - target;
+          isValid = value > 0 && value <= max; // value must be positive
+          break;
+          
+        case '*':
+          // startingCurrent * value = target → value = target / startingCurrent
+          if (startingCurrent !== 0) {
+            value = target / startingCurrent;
+            isValid = Number.isInteger(value) && value >= 0 && value <= max;
+            if (isValid) value = Math.round(value);
+          }
+          break;
+          
+        case '/':
+          // startingCurrent / value = target → value = startingCurrent / target
+          // Must result in integer division
+          if (target !== 0 && startingCurrent !== 0) {
+            value = startingCurrent / target;
+            // Strict validation: must be integer, positive, within range, and not zero
+            isValid = Number.isInteger(value) && value > 0 && value <= max;
+            if (isValid) {
+              value = Math.round(value);
+              // Double-check: startingCurrent must be divisible by value
+              if (startingCurrent % value !== 0) {
+                isValid = false;
+              }
+            }
+          }
+          break;
+        
+      }
+      if (isValid) {
+        return { operator: op, value: value! };
+      }
+    }
+    
+    // If no valid operation found, return null
+    console.warn('[EquationGenerator] No valid single operation found for', { target, startingCurrent });
+    return null;
   }
 
   /**

@@ -97,6 +97,13 @@ export class GraphVisual {
 
                 const sizeMultiplier = node.size === 'S' ? 2.8 : 4.5;
 
+                // Draw shadow under hole (ellipse offset down)
+                const shadowOffsetY = node.size === 'S' ? 12 : 18;
+                const shadowWidth = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier * 0.9;
+                const shadowHeight = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier * 0.4;
+                this.graphics.fillStyle(0x000000, 0.35);
+                this.graphics.fillEllipse(node.x, node.y + shadowOffsetY, shadowWidth, shadowHeight);
+
                 // Use color-specific hole sprite if available
                 if (this.scene.textures.exists(holeTextureKey)) {
                     const holeSprite = this.scene.add.image(node.x, node.y, holeTextureKey);

@@ -1,5 +1,6 @@
 export type BallColor = 'coral' | 'mint' | 'yellow' | 'lavender';
 export type Operation = '+' | '-' | '*' | '/';
+export type DifficultyTier = 'easy' | 'normal' | 'hard' | 'nightmare';
 
 export interface FloatingBall {
   id: string;
@@ -61,6 +62,8 @@ export interface FloatingBallMathLevelConfig {
   waterSpeed: number;
   waveAmplitude: number;
   difficultyMultiplier: number;
+  difficultyTier: DifficultyTier;
+  thiefSpawnIntervalMs: number;
   starRequirements: {
     threeStars: number;
     twoStars: number;

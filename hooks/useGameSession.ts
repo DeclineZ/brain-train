@@ -3,8 +3,10 @@ import { calculateMatchingStats } from '@/lib/scoring/matching';
 import { calculateSensorLockStats } from '@/lib/scoring/sensorlock';
 import { calculateBilliardsStats } from '@/lib/scoring/billiards';
 import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
+import { calculateDreamDirectStats } from '@/lib/scoring/dreamdirect';
+import { calculatePinkCupStats } from '@/lib/scoring/pinkcup';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats } from '@/types';
 
 export const useGameSession = () => {
 
@@ -40,6 +42,30 @@ export const useGameSession = () => {
       };
     } else if (gameId === 'game-04-floating-ball-math') {
       clinicalStats = calculateFloatingBallMathStats(rawData as FloatingBallMathGameStats);
+    } else if (gameId === 'game-06-dreamdirect') {
+      clinicalStats = calculateDreamDirectStats(rawData as DreamDirectGameStats);
+    } else if (gameId === 'game-07-polybridge') {
+      // These games pass stats directly from rawData
+      clinicalStats = {
+        stat_memory: rawData.stat_memory ?? null,
+        stat_speed: rawData.stat_speed ?? null,
+        stat_visual: rawData.stat_visual ?? null,
+        stat_focus: rawData.stat_focus ?? null,
+        stat_planning: rawData.stat_planning ?? null,
+        stat_emotion: rawData.stat_emotion ?? null
+      };
+    } else if (gameId === 'game-08-mysterysound') {
+      // These games pass stats directly from rawData
+      clinicalStats = {
+        stat_memory: rawData.stat_memory ?? null,
+        stat_speed: rawData.stat_speed ?? null,
+        stat_visual: rawData.stat_visual ?? null,
+        stat_focus: rawData.stat_focus ?? null,
+        stat_planning: rawData.stat_planning ?? null,
+        stat_emotion: rawData.stat_emotion ?? null
+      };
+    } else if (gameId === 'game-07-pinkcup') {
+      clinicalStats = calculatePinkCupStats(rawData as PinkCupGameStats);
     }
     // Add 'else if' for other games here later...
 

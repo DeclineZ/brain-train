@@ -27,6 +27,7 @@ export class FloatboatController {
     const x = width / 2;
 
     const container = this.scene.add.container(x, yPosition);
+    container.setDepth(10); // Above balls (depth 0) but below other UI elements
 
     // Load and add boat image sprite
     const boatSprite = this.scene.add.image(0, 0, 'boat');
@@ -52,8 +53,14 @@ export class FloatboatController {
     container.on('drag', (pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
       // Only allow horizontal movement
       const newY = yPosition; // Keep at fixed Y position
-      container.setPosition(dragX, newY);
-      this.targetX = dragX;
+      
+      // Use lerp for smooth drag movement to reduce jitter
+      const lerpFactor = 0.6; // 60% lerp for responsive but smooth drag
+      const currentX = container.x;
+      const smoothedX = Phaser.Math.Linear(currentX, dragX, lerpFactor);
+      
+      container.setPosition(smoothedX, newY);
+      this.targetX = smoothedX;
       this.onBoatMoved();
     });
 
@@ -394,6 +401,7 @@ export class FloatboatController {
   private createChildrenWithSign(boatWidth: number, boatHeight: number, screenWidth: number): Phaser.GameObjects.Container {
     // Position on left side of boat (negative x offset)
     const container = this.scene.add.container(-boatWidth / 2 + 30, -boatHeight / 2 - 20);
+    container.setDepth(11); // Above boat container (depth 10)
     
     const signWidth = Math.min(140, screenWidth * 0.25);
     const signHeight = Math.min(50, screenWidth * 0.2);
