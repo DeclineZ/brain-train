@@ -7,6 +7,17 @@ export type TubeSortLevelConfig = {
   optimalMoves: number;
   targetTimeSeconds: number;
   difficultyMultiplier: number;
+  moveLimitFeature: {
+    enabled: boolean;
+    maxBallsWithLimit: number;
+    movesPerBall: number;
+  };
+  freezeFeature: {
+    enabled: boolean;
+    cooldownSeconds: number;
+    durationSeconds: number;
+    maxFrozenBalls: number;
+  };
   seed: number;
 };
 
@@ -67,6 +78,39 @@ function getTargetTimeSeconds(level: number) {
   if (level <= 10) return 60;
   if (level <= 20) return 90;
   return 120;
+}
+
+function getMoveLimitFeature(level: number) {
+  if (level < 3) {
+    return { enabled: false, maxBallsWithLimit: 0, movesPerBall: 0 };
+  }
+  const maxBalls = 5;
+  const progress = clamp((level - 3) / Math.max(LEVEL_COUNT - 3, 1), 0, 1);
+  const maxBallsWithLimit = Math.max(1, Math.round(1 + (maxBalls - 1) * progress));
+  const movesPerBall = Math.max(3, Math.round(6 - 2 * progress));
+  return {
+    enabled: true,
+    maxBallsWithLimit,
+    movesPerBall
+  };
+}
+
+function getFreezeFeature(level: number) {
+  if (level < 7) {
+    return { enabled: false, cooldownSeconds: 0, durationSeconds: 0, maxFrozenBalls: 0 };
+  }
+  const minCooldown = 10;
+  const maxCooldown = 24;
+  const effectiveLevels = LEVEL_COUNT - 7;
+  const progress = clamp((level - 7) / Math.max(effectiveLevels, 1), 0, 1);
+  const cooldownSeconds = Math.max(minCooldown, Math.round(maxCooldown - (maxCooldown - minCooldown) * progress));
+  const maxFrozenBalls = Math.min(3, Math.max(1, Math.round(1 + progress * 2)));
+  return {
+    enabled: true,
+    cooldownSeconds,
+    durationSeconds: 5,
+    maxFrozenBalls
+  };
 }
 
 function generateSolvedState(tubeCount: number, tubeCapacity: number, elementTypes: number, totalElements: number) {
@@ -157,6 +201,8 @@ export function getTubeSortLevel(level: number): TubeSortLevelConfig {
     optimalMoves: actualMoves,
     targetTimeSeconds: getTargetTimeSeconds(boundedLevel),
     difficultyMultiplier: getDifficultyMultiplier(boundedLevel),
+    moveLimitFeature: getMoveLimitFeature(boundedLevel),
+    freezeFeature: getFreezeFeature(boundedLevel),
     seed
   };
 }

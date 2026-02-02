@@ -151,7 +151,7 @@ export async function submitGameSession(
 
         // 5. Save Game Session
         // We use the `clinicalStats` passed in, as they are the source of truth for this session.
-        const { error: sessionError } = await supabase
+        const { data: sessionData, error: sessionError } = await supabase
             .from("game_sessions")
             .insert({
                 game_id: gameId,
@@ -172,12 +172,16 @@ export async function submitGameSession(
                 current_played: levelPlayed,
                 raw_data: rawData,
                 score: rawData.score || 0, // Explicitly save score column
-            });
+            })
+            .select("id")
+            .single();
 
         if (sessionError) {
             console.error("Error saving game session:", sessionError);
             return { ok: false, error: "Failed to save game session" };
         }
+
+        const sessionId = sessionData?.id ?? null;
 
         // 6. Update Star Progression & Calculate Coins
         let starInfo = null;
@@ -210,7 +214,8 @@ export async function submitGameSession(
                             user.id,
                             gameId,
                             levelPlayed,
-                            starsEarned
+                            starsEarned,
+                            sessionId
                         );
                     } else {
                         console.warn(
@@ -286,7 +291,8 @@ export async function submitGameSession(
             const res = await checkMissionCompletion(
                 user.id,
                 gameId,
-                levelPlayed
+                levelPlayed,
+                sessionId
             );
             missionCompleted = res.completed;
             completedMission = res.mission;

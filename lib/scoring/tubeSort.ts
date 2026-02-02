@@ -41,17 +41,17 @@ export function calculateTubeSortStars(stats: TubeSortRawStats) {
   const speedRaw = (stats.targetTimeMs / safeTime) * 100;
   const accuracyRaw = (stats.correctPours / safeActions) * 100;
 
-  const efficiencyScore = Math.min(100, efficiencyRaw * 1.25);
-  const speedScore = Math.min(100, speedRaw * 1.2);
-  const accuracyScore = Math.min(100, accuracyRaw * 1.15);
+  const efficiencyScore = Math.min(100, efficiencyRaw);
+  const speedScore = Math.min(100, speedRaw);
+  const accuracyScore = Math.min(100, accuracyRaw);
 
   const weightedScore =
     efficiencyScore * 0.4 +
     speedScore * 0.35 +
     accuracyScore * 0.25;
 
-  if (weightedScore >= 75) return 3;
-  if (weightedScore >= 55) return 2;
-  if (weightedScore >= 35) return 1;
+  if (weightedScore >= 85) return 3;
+  if (weightedScore >= 65) return 2;
+  if (weightedScore >= 45) return 1;
   return 0;
 }

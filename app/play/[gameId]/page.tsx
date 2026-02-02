@@ -129,10 +129,10 @@ export default function GamePage({ params }: PageProps) {
             try {
                 const { data, error } = await supabase
                     .from("game_sessions")
-                    .select("current_played")
+                    .select("current_played, played_at")
                     .eq("user_id", user.id)
                     .eq("game_id", gameId)
-                    .order("current_played", { ascending: false })
+                    .order("played_at", { ascending: false })
                     .limit(1)
                     .single();
 
@@ -151,15 +151,18 @@ export default function GamePage({ params }: PageProps) {
                         setActiveLevel(nextLevel);
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
-                        if (
-                            gameId === "game-01-cardmatch" ||
-                            gameId === "game-02-sensorlock" ||
-                            gameId === "game-03-billiards-math" ||
-                            gameId === "game-04-floating-ball-math" ||
-                            gameId === "game-08-mysterysound"
-                        ) {
-                            setActiveLevel(0);
-                        }
+                        // if (
+                        //     gameId === "game-01-cardmatch" ||
+                        //     gameId === "game-02-sensorlock" ||
+                        //     gameId === "game-03-billiards-math" ||
+                        //     gameId === "game-04-floating-ball-math" ||
+                        //     gameId === "game-07-pinkcup" ||
+                        //     gameId === "game-08-mysterysound" ||
+                        //     gameId === "game-09-tube-sort"
+                        // ) {
+                           
+                        // }
+                         setActiveLevel(0);
                     }
                 }
 

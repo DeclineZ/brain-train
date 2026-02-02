@@ -26,6 +26,13 @@ type TubeData = {
   index: number;
 };
 
+type BallState = {
+  id: number;
+  hasMoveLimit: boolean;
+  remainingMoves: number | null;
+  frozenUntil: number;
+};
+
 type TubeSortTheme = {
   background: number;
   glowA: number;
@@ -80,6 +87,14 @@ export class TubeSortGameScene extends Phaser.Scene {
   private illegalPourAttempts = 0;
   private redundantMoves = 0;
   private totalActions = 0;
+  private isGameOver = false;
+
+  private tubeBallIds: number[][] = [];
+  private ballStates = new Map<number, BallState>();
+  private nextBallId = 0;
+  private nextFreezeAt = 0;
+  private freezeCooldownMs = 0;
+  private freezeDurationMs = 0;
 
   private background?: Phaser.GameObjects.Rectangle;
   private backgroundGlow?: Phaser.GameObjects.Graphics;
@@ -149,6 +164,15 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.redundantMoves = 0;
     this.totalActions = 0;
     this.completedTubes.clear();
+    this.isGameOver = false;
+
+    this.tubeBallIds = [];
+    this.ballStates.clear();
+    this.nextBallId = 0;
+    this.nextFreezeAt = 0;
+    const freezeFeature = this.currentLevelConfig.freezeFeature;
+    this.freezeCooldownMs = freezeFeature.enabled ? freezeFeature.cooldownSeconds * 1000 : 0;
+    this.freezeDurationMs = freezeFeature.enabled ? freezeFeature.durationSeconds * 1000 : 0;
   }
 
   private createBackground() {
@@ -173,7 +197,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       padding: { top: 6, bottom: 6, left: 12, right: 12 }
     }).setOrigin(0.5);
 
-    this.moveText = this.add.text(24, this.scale.height - 56, 'จำนวนครั้ง : 0', {
+    this.moveText = this.add.text(24, this.scale.height - 56, this.getMoveLimitStatusText(), {
       fontFamily: 'Sarabun, sans-serif',
       fontSize: '18px',
       color: this.theme.softText,
@@ -199,6 +223,7 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     this.layoutUI();
     this.updateProgressUI();
+    this.updateMoveText();
   }
 
   private layoutUI() {
@@ -254,6 +279,7 @@ export class TubeSortGameScene extends Phaser.Scene {
     const { state } = this.shuffleState(solvedState, tubeCapacity, seed);
     const distributed = this.distributeEmptySlots(state, seed + 19);
     this.tubeState = this.shuffleTubeOrder(distributed, seed + 77);
+    this.initializeBallStates();
 
     for (let i = 0; i < tubeCount; i++) {
       const container = this.add.container(0, 0);
@@ -284,6 +310,49 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     this.renderTubes();
     this.updateProgressUI();
+    this.updateMoveText();
+  }
+
+  private initializeBallStates() {
+    this.tubeBallIds = this.tubeState.map(tube => tube.map(() => this.nextBallId++));
+    this.ballStates.clear();
+
+    const moveLimitFeature = this.currentLevelConfig.moveLimitFeature;
+    const allBallIds = this.tubeBallIds.flat();
+    const limitedCount = moveLimitFeature.enabled
+      ? Math.min(allBallIds.length, moveLimitFeature.maxBallsWithLimit)
+      : 0;
+    const limitedIds = moveLimitFeature.enabled
+      ? Phaser.Utils.Array.Shuffle([...allBallIds]).slice(0, limitedCount)
+      : [];
+
+    allBallIds.forEach(id => {
+      const hasMoveLimit = limitedIds.includes(id);
+      this.ballStates.set(id, {
+        id,
+        hasMoveLimit,
+        remainingMoves: hasMoveLimit ? moveLimitFeature.movesPerBall : null,
+        frozenUntil: 0
+      });
+    });
+  }
+
+  private isBallFrozen(ballState?: BallState) {
+    if (!ballState) return false;
+    return ballState.frozenUntil > Date.now();
+  }
+
+  private isBallExhausted(ballState?: BallState) {
+    if (!ballState || !ballState.hasMoveLimit) return false;
+    return (ballState.remainingMoves ?? 0) <= 0;
+  }
+
+  private getMoveLimitStatusText() {
+    const moveLimitFeature = this.currentLevelConfig.moveLimitFeature;
+    if (!moveLimitFeature.enabled) {
+      return 'โหมดปกติ';
+    }
+    return `ขยับไป : ${this.totalMoves}`;
   }
 
   private generateSolvedState(
@@ -377,7 +446,9 @@ export class TubeSortGameScene extends Phaser.Scene {
       tube.shine.clear();
 
       const isSelected = this.selectedTubeIndex === index;
-      const strokeColor = isSelected ? this.theme.accent : this.theme.tubeStroke;
+      const strokeColor = isSelected
+          ? this.theme.accent
+          : this.theme.tubeStroke;
 
       tube.shadow.fillStyle(0x0, 0.12);
       tube.shadow.fillRoundedRect(-tubeWidth / 2 + 6, -tubeHeight / 2 + 8, tubeWidth, tubeHeight, 22);
@@ -411,8 +482,31 @@ export class TubeSortGameScene extends Phaser.Scene {
         } else {
           element.setPosition(0, y - 6);
         }
+        const ballId = this.tubeBallIds[index]?.[stackIndex];
+        const ballState = ballId !== undefined ? this.ballStates.get(ballId) : undefined;
+        const isFrozen = this.isBallFrozen(ballState);
+        const isExhausted = this.isBallExhausted(ballState);
+        if (isExhausted) {
+          element.setTint(0x94A3B8);
+        }
         tube.container.add(element);
         tube.elements.push(element);
+
+        if (ballState?.hasMoveLimit) {
+          const badgeLabel = this.createMoveCounterVisual(
+            tube.container,
+            element.x,
+            element.y,
+            elementRadius,
+            Math.max(ballState.remainingMoves ?? 0, 0)
+          );
+          tube.elements.push(badgeLabel);
+        }
+
+        if (isFrozen) {
+          const iceElements = this.createIceOverlay(tube.container, element.x, element.y, elementRadius);
+          tube.elements.push(...iceElements);
+        }
       });
 
       const emptySlots = tubeCapacity - stack.length;
@@ -475,15 +569,32 @@ export class TubeSortGameScene extends Phaser.Scene {
       const col = rows === 1 ? index : index % cols;
       tube.container.setPosition(startX + col * spacingX, startY + row * spacingY);
     });
+
+    if (this.tubes.length > 0) {
+      this.renderTubes();
+    }
   }
 
   private handleTubeTap(index: number) {
     this.totalActions++;
 
+    if (this.isGameOver) return;
+
     if (this.selectedTubeIndex === null) {
+      const selectedBallState = this.getTopBallState(index);
       if (this.tubeState[index].length === 0) {
         this.illegalPourAttempts++;
         this.flashMessage('เลือกหลอดที่มีสี', true);
+        return;
+      }
+      if (this.isBallFrozen(selectedBallState)) {
+        this.flashMessage('ลูกบอลถูกแช่แข็ง', true);
+        this.shakeTube(index);
+        return;
+      }
+      if (this.isBallExhausted(selectedBallState)) {
+        this.flashMessage('บอลนี้หมดจำนวนครั้งแล้ว', true);
+        this.shakeTube(index);
         return;
       }
       this.selectedTubeIndex = index;
@@ -500,10 +611,30 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     const from = this.selectedTubeIndex;
     const to = index;
+    if (from === null) return;
+    const fromBallState = this.getTopBallState(from);
+    if (this.isBallFrozen(fromBallState)) {
+      this.flashMessage('ลูกบอลถูกแช่แข็ง', true);
+      this.selectedTubeIndex = null;
+      this.renderTubes();
+      return;
+    }
+    if (this.isBallExhausted(fromBallState)) {
+      this.flashMessage('บอลนี้หมดจำนวนครั้งแล้ว', true);
+      this.selectedTubeIndex = null;
+      this.renderTubes();
+      return;
+    }
     const prevState = this.tubeState.map(tube => [...tube]);
-    const next = this.performPour(this.tubeState, from, to, this.currentLevelConfig.tubeCapacity);
+    const result = this.performPourWithIds(
+      this.tubeState,
+      this.tubeBallIds,
+      from,
+      to,
+      this.currentLevelConfig.tubeCapacity
+    );
 
-    if (!next) {
+    if (!result) {
       this.illegalPourAttempts++;
       this.incorrectPours++;
       this.flashMessage('ย้ายไม่ได้', true);
@@ -515,7 +646,9 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     this.totalMoves++;
     this.correctPours++;
-    this.tubeState = next;
+    this.tubeState = result.state;
+    this.tubeBallIds = result.ids;
+    this.applyMoveLimit(result.movedBallId);
     this.trackRedundantMove(from, to, prevState);
     this.moveHistory.push({ from, to, fromState: prevState });
     this.selectedTubeIndex = null;
@@ -523,9 +656,69 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.updateProgressUI();
     this.renderTubes();
     this.animateMove(from, to);
-    this.animatePour(from, to, prevState, next, true);
-    this.handleTubeCompletion(prevState, next);
+    this.animatePour(from, to, prevState, result.state, true, result.movedBallId);
+    this.handleTubeCompletion(prevState, result.state);
     this.checkWin();
+  }
+
+  private getTopBallState(index: number) {
+    const ids = this.tubeBallIds[index];
+    if (!ids || ids.length === 0) return undefined;
+    const ballId = ids[ids.length - 1];
+    return this.ballStates.get(ballId);
+  }
+
+  private applyMoveLimit(ballId?: number) {
+    if (ballId === undefined) return;
+    const ballState = this.ballStates.get(ballId);
+    if (!ballState?.hasMoveLimit || ballState.remainingMoves === null) return;
+    ballState.remainingMoves = Math.max(0, ballState.remainingMoves - 1);
+    if (ballState.remainingMoves === 0 && !this.isGameOver) {
+      if (!this.isPuzzleComplete()) {
+        this.flashMessage('หมดจำนวนครั้งแล้ว', true);
+        this.endGame(false);
+      }
+    }
+  }
+
+  private checkWin() {
+    if (this.isPuzzleComplete()) {
+      this.endGame(true);
+    }
+  }
+
+  private isPuzzleComplete() {
+    const { tubeCapacity } = this.currentLevelConfig;
+    return this.tubeState.every(tube => {
+      if (tube.length === 0) return true;
+      if (tube.length !== tubeCapacity) return false;
+      return tube.every(element => element === tube[0]);
+    });
+  }
+
+  private performPourWithIds(
+    state: number[][],
+    ids: number[][],
+    from: number,
+    to: number,
+    tubeCapacity: number
+  ) {
+    const source = state[from];
+    const destination = state[to];
+    const sourceIds = ids[from];
+    const destinationIds = ids[to];
+    if (!source || !destination || !sourceIds || !destinationIds) return null;
+    if (source.length === 0) return null;
+    if (destination.length >= tubeCapacity) return null;
+
+    const nextState = state.map(tube => [...tube]);
+    const nextIds = ids.map(tube => [...tube]);
+    const element = nextState[from].pop();
+    const ballId = nextIds[from].pop();
+    if (element === undefined || ballId === undefined) return null;
+    nextState[to].push(element);
+    nextIds[to].push(ballId);
+    return { state: nextState, ids: nextIds, movedBallId: ballId };
   }
 
   private performPour(state: number[][], from: number, to: number, tubeCapacity: number) {
@@ -553,41 +746,229 @@ export class TubeSortGameScene extends Phaser.Scene {
     }
   }
 
-  private checkWin() {
-    const { tubeCapacity } = this.currentLevelConfig;
-    const isComplete = this.tubeState.every(tube => {
-      if (tube.length === 0) return true;
-      if (tube.length !== tubeCapacity) return false;
-      return tube.every(element => element === tube[0]);
-    });
-
-    if (isComplete) {
-      this.endGame();
-    }
-  }
-
   private startTimer() {
     this.timerEvent = this.time.addEvent({
       delay: 500,
       loop: true,
       callback: () => this.updateTimerText()
     });
+
+    if (this.currentLevelConfig.freezeFeature.enabled) {
+      this.nextFreezeAt = Date.now() + this.freezeCooldownMs;
+    }
   }
 
   private updateTimerText() {
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
     this.timeText.setText(`${elapsed}วิ`);
     this.drawTimerRing(elapsed);
+    this.updateFreezeState();
   }
 
   private updateMoveText() {
-    this.moveText.setText(`จำนวนครั้ง : ${this.totalMoves}`);
+    this.moveText.setText(this.getMoveLimitStatusText());
     this.moveText.setScale(1.05);
     this.tweens.add({
       targets: this.moveText,
       scale: 1,
       duration: 120,
       ease: 'Cubic.Out'
+    });
+  }
+
+  private updateFreezeState() {
+    if (!this.currentLevelConfig.freezeFeature.enabled || this.isGameOver) return;
+    const now = Date.now();
+    if (now >= this.nextFreezeAt) {
+      this.triggerFreeze();
+    }
+  }
+
+  private triggerFreeze() {
+    if (this.freezeCooldownMs <= 0) return;
+    const freezeFeature = this.currentLevelConfig.freezeFeature;
+    const now = Date.now();
+    this.cancelSelectionOnFreeze();
+    const candidates = this.tubeBallIds
+      .flat()
+      .filter(id => !this.isBallFrozen(this.ballStates.get(id)));
+
+    if (candidates.length === 0) {
+      this.nextFreezeAt = now + this.freezeCooldownMs;
+      return;
+    }
+
+    const freezeCount = Math.min(candidates.length, freezeFeature.maxFrozenBalls);
+    const frozenIds = Phaser.Utils.Array.Shuffle([...candidates]).slice(0, freezeCount);
+    frozenIds.forEach(id => {
+      const ballState = this.ballStates.get(id);
+      if (ballState) {
+        ballState.frozenUntil = now + this.freezeDurationMs;
+      }
+    });
+    this.nextFreezeAt = now + this.freezeCooldownMs;
+    this.showWizardPopup();
+    this.renderTubes();
+  }
+
+  private cancelSelectionOnFreeze() {
+    if (this.selectedTubeIndex === null) return;
+    const tube = this.tubes[this.selectedTubeIndex];
+    this.selectedTubeIndex = null;
+    this.renderTubes();
+    if (tube) {
+      this.tweens.add({
+        targets: tube.container,
+        scale: 1.03,
+        duration: 120,
+        yoyo: true,
+        ease: 'Cubic.Out'
+      });
+    }
+  }
+
+  private showWizardPopup() {
+    const { width } = this.scale;
+    const wizardX = width - 140;
+    const wizardY = 170;
+    const wizard = this.add.container(wizardX, wizardY);
+
+    const glow = this.add.graphics();
+    glow.fillStyle(0x60A5FA, 0.22);
+    glow.fillCircle(0, 0, 56);
+    glow.fillStyle(0x38BDF8, 0.35);
+    glow.fillCircle(0, 0, 40);
+
+    const robe = this.add.graphics();
+    robe.fillStyle(0x6366F1, 1);
+    robe.fillRoundedRect(-26, -10, 52, 58, 16);
+    robe.fillStyle(0x4F46E5, 1);
+    robe.fillRoundedRect(-24, 2, 48, 44, 14);
+
+    const face = this.add.circle(0, -28, 14, 0xFDE2C4, 1);
+    const beard = this.add.graphics();
+    beard.fillStyle(0xE2E8F0, 1);
+    beard.beginPath();
+    beard.moveTo(-16, -18);
+    beard.lineTo(0, 8);
+    beard.lineTo(16, -18);
+    beard.closePath();
+    beard.fillPath();
+
+    const hat = this.add.graphics();
+    hat.fillStyle(0x312E81, 1);
+    hat.beginPath();
+    hat.moveTo(-24, -38);
+    hat.lineTo(0, -78);
+    hat.lineTo(24, -38);
+    hat.closePath();
+    hat.fillPath();
+    hat.fillStyle(0x1E1B4B, 1);
+    hat.fillRoundedRect(-30, -40, 60, 12, 6);
+    hat.fillStyle(0xFBBF24, 1);
+    hat.fillCircle(-10, -56, 3);
+    hat.fillCircle(8, -62, 2.5);
+    hat.fillCircle(0, -48, 2);
+
+    const eyeLeft = this.add.circle(-6, -30, 2.4, 0x111827, 1);
+    const eyeRight = this.add.circle(6, -30, 2.4, 0x111827, 1);
+    const smile = this.add.graphics();
+    smile.lineStyle(2, 0x7C2D12, 0.8);
+    smile.beginPath();
+    smile.arc(0, -24, 6, Phaser.Math.DegToRad(20), Phaser.Math.DegToRad(160), false);
+    smile.strokePath();
+
+    const staff = this.add.graphics();
+    staff.lineStyle(4, 0x6B7280, 1);
+    staff.beginPath();
+    staff.moveTo(26, -6);
+    staff.lineTo(36, 36);
+    staff.strokePath();
+    const orbGlow = this.add.circle(24, -12, 10, 0x93C5FD, 0.35);
+    const orb = this.add.circle(24, -12, 6, 0xFDE68A, 1);
+
+    const label = this.add.text(0, 48, 'แช่แข็ง!', {
+      fontFamily: 'Sarabun, sans-serif',
+      fontSize: '16px',
+      color: '#0F172A',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    wizard.add([
+      glow,
+      orbGlow,
+      orb,
+      staff,
+      robe,
+      face,
+      beard,
+      hat,
+      eyeLeft,
+      eyeRight,
+      smile,
+      label
+    ]);
+    wizard.setDepth(20);
+    wizard.setScale(0.6);
+    wizard.setAlpha(0);
+
+    this.tweens.add({
+      targets: wizard,
+      alpha: 1,
+      scale: 1,
+      duration: 240,
+      ease: 'Back.Out'
+    });
+
+    this.tweens.add({
+      targets: wizard,
+      y: wizardY - 8,
+      yoyo: true,
+      repeat: -1,
+      duration: 1200,
+      ease: 'Sine.InOut'
+    });
+
+    this.tweens.add({
+      targets: [eyeLeft, eyeRight],
+      scaleY: 0.1,
+      duration: 120,
+      yoyo: true,
+      repeat: -1,
+      delay: 1400
+    });
+
+    this.tweens.add({
+      targets: [orbGlow, orb],
+      scale: 1.15,
+      alpha: 0.6,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut'
+    });
+
+    const magic = this.add.particles(0, 0, this.particleTextureKey, {
+      follow: orb,
+      lifespan: { min: 200, max: 420 },
+      speed: { min: 10, max: 30 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.6, end: 0 },
+      tint: [0x93C5FD, 0xFDE68A, 0xA5B4FC],
+      frequency: 120,
+      blendMode: 'ADD'
+    });
+
+    this.time.delayedCall(1300, () => {
+      this.tweens.add({
+        targets: wizard,
+        alpha: 0,
+        duration: 220,
+        onComplete: () => {
+          wizard.destroy();
+          magic.destroy();
+        }
+      });
     });
   }
 
@@ -664,7 +1045,14 @@ export class TubeSortGameScene extends Phaser.Scene {
     targetTube.container.setScale(1);
   }
 
-  private animatePour(from: number, to: number, prevState: number[][], nextState: number[][], fromPulled = false) {
+  private animatePour(
+    from: number,
+    to: number,
+    prevState: number[][],
+    nextState: number[][],
+    fromPulled = false,
+    movedBallId?: number
+  ) {
     const sourceTube = this.tubes[from];
     const targetTube = this.tubes[to];
     if (!sourceTube || !targetTube) return;
@@ -688,9 +1076,33 @@ export class TubeSortGameScene extends Phaser.Scene {
     const type = fromStack[fromIndex];
     const color = TUBE_SORT_COLORS[type % TUBE_SORT_COLORS.length];
     const textureKey = this.getBallTexture(color);
-    const mover = this.add.image(startX, startY, textureKey);
-    mover.setDisplaySize(elementRadius * 2, elementRadius * 2);
+    const mover = this.add.container(startX, startY);
     mover.setDepth(10);
+    const moverBall = this.add.image(0, 0, textureKey);
+    moverBall.setDisplaySize(elementRadius * 2, elementRadius * 2);
+    moverBall.setOrigin(0.5);
+    mover.add(moverBall);
+
+    const moverState = movedBallId !== undefined ? this.ballStates.get(movedBallId) : undefined;
+    const moverFrozen = this.isBallFrozen(moverState);
+    const moverExhausted = this.isBallExhausted(moverState);
+    if (moverExhausted) {
+      moverBall.setTint(0x94A3B8);
+    }
+
+    if (moverState?.hasMoveLimit) {
+      this.createMoveCounterVisual(
+        mover,
+        0,
+        0,
+        elementRadius,
+        Math.max(moverState.remainingMoves ?? 0, 0)
+      );
+    }
+
+    if (moverFrozen) {
+      this.createIceOverlay(mover, 0, 0, elementRadius);
+    }
 
     const trail = this.add.particles(0, 0, this.particleTextureKey, {
       follow: mover,
@@ -727,6 +1139,70 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   private getElementY(tubeHeight: number, elementRadius: number, elementGap: number, stackIndex: number) {
     return tubeHeight / 2 - elementRadius - stackIndex * (elementRadius * 2 + elementGap) - 6;
+  }
+
+  private createMoveCounterVisual(
+    container: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    elementRadius: number,
+    remainingMoves: number
+  ) {
+    const isCritical = remainingMoves <= 2;
+    const strokeColor = isCritical ? '#F97316' : '#0F172A';
+    const textColor = '#FFFFFF';
+
+    const label = this.add.text(0, 0, `${remainingMoves}`, {
+      fontFamily: 'Sarabun, sans-serif',
+      fontSize: `${Math.max(18, Math.floor(elementRadius * 0.95))}px`,
+      color: textColor,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    label.setStroke(strokeColor, Math.max(2, Math.round(elementRadius * 0.12)));
+    label.setShadow(0, 2, 'rgba(0,0,0,0.4)', 4, false, true);
+    label.setPosition(x, y);
+
+    container.add(label);
+    return label;
+  }
+
+  private createIceOverlay(
+    container: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    elementRadius: number
+  ) {
+    const glow = this.add.circle(0, 0, elementRadius * 1.35, 0x38BDF8, 0.28);
+    glow.setPosition(x, y);
+    glow.setBlendMode(Phaser.BlendModes.ADD);
+
+    const outer = this.add.circle(0, 0, elementRadius * 0.98, 0x7DD3FC, 0.3);
+    outer.setStrokeStyle(2.5, 0xE0F2FE, 0.95);
+    outer.setPosition(x, y);
+
+    const inner = this.add.circle(0, 0, elementRadius * 0.55, 0xBAE6FD, 0.25);
+    inner.setPosition(x - elementRadius * 0.12, y - elementRadius * 0.18);
+
+    const shine = this.add.graphics();
+    shine.lineStyle(2, 0xFFFFFF, 0.55);
+    shine.beginPath();
+    shine.moveTo(x - elementRadius * 0.35, y - elementRadius * 0.1);
+    shine.lineTo(x + elementRadius * 0.1, y - elementRadius * 0.45);
+    shine.strokePath();
+
+    container.add([glow, outer, inner, shine]);
+
+    this.tweens.add({
+      targets: glow,
+      alpha: 0.6,
+      scale: 1.1,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut'
+    });
+
+    return [glow, outer, inner, shine];
   }
 
   private updateProgressUI() {
@@ -933,19 +1409,25 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.time.delayedCall(700, () => particles.destroy());
   }
 
-  private endGame() {
+  private endGame(success = true) {
+    if (this.isGameOver) return;
+    this.isGameOver = true;
     const completionTimeMs = Date.now() - this.startTime;
     if (this.timerEvent) {
       this.timerEvent.remove();
     }
 
-    this.cameras.main.flash(200, 255, 255, 255, true);
-    this.tubes.forEach((tube, index) => {
-      const topType = this.tubeState[index]?.[0];
-      if (topType !== undefined) {
-        this.spawnBurst(tube.container.x, tube.container.y - this.tubeLayout.tubeHeight / 3, TUBE_SORT_COLORS[topType % TUBE_SORT_COLORS.length]);
-      }
-    });
+    if (success) {
+      this.cameras.main.flash(200, 255, 255, 255, true);
+      this.tubes.forEach((tube, index) => {
+        const topType = this.tubeState[index]?.[0];
+        if (topType !== undefined) {
+          this.spawnBurst(tube.container.x, tube.container.y - this.tubeLayout.tubeHeight / 3, TUBE_SORT_COLORS[topType % TUBE_SORT_COLORS.length]);
+        }
+      });
+    } else {
+      this.cameras.main.shake(200, 0.01);
+    }
 
     const stats: TubeSortStats = {
       levelPlayed: this.currentLevelConfig.level,
@@ -961,15 +1443,57 @@ export class TubeSortGameScene extends Phaser.Scene {
       targetTimeMs: this.currentLevelConfig.targetTimeSeconds * 1000
     };
 
-    const stars = calculateTubeSortStars(stats);
+    const stars = success ? calculateTubeSortStars(stats) : 0;
+    const starHint = success ? this.getStarHint(stats, stars) : null;
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({
         ...stats,
         stars,
-        success: true
+        starHint,
+        success
       });
     }
+  }
+
+  private getStarHint(stats: TubeSortStats, stars: number) {
+    if (stars >= 3) return null;
+
+    const safeMoves = Math.max(stats.playerMoves, 1);
+    const safeActions = Math.max(stats.totalActions, 1);
+    const safeTime = Math.max(stats.completionTimeMs, 1000);
+
+    const efficiencyScore = (stats.optimalMoves / safeMoves) * 100;
+    const speedScore = (stats.targetTimeMs / safeTime) * 100;
+    const accuracyScore = (stats.correctPours / safeActions) * 100;
+
+    if (stars === 2) {
+      if (efficiencyScore < 75) {
+        return 'พยายามใช้จำนวนครั้งให้น้อยลงเพื่อได้ 3 ดาว';
+      }
+      if (speedScore < 70) {
+        return 'ลองทำให้เร็วขึ้นเพื่อได้ 3 ดาว';
+      }
+      if (accuracyScore < 75) {
+        return 'พยายามลดการเทผิดเพื่อได้ 3 ดาว';
+      }
+      return 'เล่นให้เนียนขึ้นเพื่อได้ 3 ดาว';
+    }
+
+    if (stars === 1) {
+      if (efficiencyScore < 55) {
+        return 'วางแผนดีขึ้นและลดจำนวนการย้ายที่ไม่จำเป็น';
+      }
+      if (accuracyScore < 60) {
+        return 'โฟกัสให้มากขึ้นและลดการเทผิด';
+      }
+      if (speedScore < 55) {
+        return 'ฝึกทำให้เร็วขึ้นอีกนิด';
+      }
+      return 'พยายามเพิ่มทั้งความเร็วและความแม่นยำ';
+    }
+
+    return 'ฝึกเล่นอีกครั้งเพื่อให้ได้ดาวเพิ่ม!';
   }
 }
