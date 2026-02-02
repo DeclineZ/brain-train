@@ -3,7 +3,7 @@ import { DreamDirectConstants, Direction } from './config';
 
 /**
  * Tutorial Scene for Dream Direct
- * Teaches the basic Ghost arrow mechanic (OPPOSITE direction)
+ * Teaches the basic Anchor arrow mechanic (SAME direction)
  */
 export class TutorialScene extends Phaser.Scene {
     private currentPhase: number = 0;
@@ -329,16 +329,16 @@ export class TutorialScene extends Phaser.Scene {
 
     startPhase2() {
         this.currentPhase = 2;
-        this.instructionText.setText('ลูกศรสีขาว "โปร่งใส" (Ghost)');
+        this.instructionText.setText('ลูกศรสีแดง "หนา" (Anchor)');
 
         // Show demo arrow
-        this.createDemoArrow('up'); // Spawn UP, so correct is DOWN
+        this.createDemoArrow('up'); // Spawn UP, so correct is UP (same)
 
         this.time.delayedCall(3500, () => {
-            this.instructionText.setText('มันคือตัวหลอก!\n\nถ้าเห็น "ขึ้น" ... ให้กด "ลง"!');
+            this.instructionText.setText('มันคือตัวปักหลัก!\n\nถ้าเห็น "ขึ้น" ... ก็กด "ขึ้น"!');
 
             this.time.delayedCall(4000, () => {
-                this.instructionText.setText('ลองกด "ลง" ดูสิ!');
+                this.instructionText.setText('ลองกด "ขึ้น" ดูสิ!');
                 // Enable Input Check
                 this.currentPhase = 3; // Input Phase
             });
@@ -356,8 +356,10 @@ export class TutorialScene extends Phaser.Scene {
         const size = 60;
         const arrowGraphic = this.add.graphics();
 
-        // Exact Ghost Arrow visual style
-        arrowGraphic.lineStyle(4, 0xffffff, 1);
+        // Anchor Arrow visual style (filled red)
+        const anchorColor = 0xff4444;
+        arrowGraphic.fillStyle(anchorColor, 1);
+        arrowGraphic.lineStyle(3, 0xffffff, 0.8);
 
         const half = size / 2;
         const x = 0;
@@ -371,6 +373,7 @@ export class TutorialScene extends Phaser.Scene {
                 { x: x, y: y },                     // Center Indent
                 { x: x + half, y: y + half * 0.5 }  // Right Wing
             ];
+            arrowGraphic.fillPoints(points, true, true);
             arrowGraphic.strokePoints(points, true, true);
         }
 
@@ -399,8 +402,8 @@ export class TutorialScene extends Phaser.Scene {
     handleInput(inputDirection: Direction) {
         if (this.currentPhase !== 3) return;
 
-        // Demo was UP -> Expect DOWN
-        const expectedDirection: Direction = 'down';
+        // Demo was UP -> Expect UP (same direction for Anchor)
+        const expectedDirection: Direction = 'up';
 
         if (inputDirection === expectedDirection) {
             this.sound.play('sfx-correct', { volume: 0.5 });
@@ -418,7 +421,7 @@ export class TutorialScene extends Phaser.Scene {
             }
         } else {
             this.sound.play('sfx-wrong', { volume: 0.5 });
-            this.showFeedback('ผิด! ต้องกด "ตรงข้าม"', '#ff4444');
+            this.showFeedback('ผิด! ต้องกด "เหมือนกัน"', '#ff4444');
 
             // Flash red on arrow
             this.tweens.add({
@@ -455,7 +458,7 @@ export class TutorialScene extends Phaser.Scene {
 
     completeTutorial() {
         this.currentPhase = 4;
-        this.instructionText.setText('เก่งมาก!\nจำไว้ว่า "ขาวโปร่ง" = "ตรงข้าม"');
+        this.instructionText.setText('เก่งมาก!\nจำไว้ว่า "แดงหนา" = "ทิศเดียวกัน"');
 
         // Notify tutorial complete
         const onTutorialComplete = this.registry.get('onTutorialComplete');
