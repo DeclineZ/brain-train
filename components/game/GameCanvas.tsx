@@ -97,6 +97,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-08-mysterysound') {
           const { TutorialScene } = await import('@/games/game-08-mysterysound/TutorialScene');
           config.scene = TutorialScene;
+        } else if (gameId === 'game-12-gridhunter') {
+          const { TutorialScene } = await import('@/games/game-12-gridhunter/TutorialScene');
+          config.scene = TutorialScene;
         }
       } else if (gameId === 'game-07-pinkcup') {
         const { PinkCupGameScene } = await import('@/games/game-07-pinkcup/GameScene');

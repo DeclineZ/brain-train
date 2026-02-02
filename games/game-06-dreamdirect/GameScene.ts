@@ -105,6 +105,11 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
     // Localized Tutorial Texts
     private readonly TUTORIAL_TEXTS: Record<string, { title: string; desc: string; rule: string }> = {
+        'ghost': {
+            title: 'GHOST ARROW (สีขาวโปร่ง)',
+            desc: 'มันคือตัวหลอก!',
+            rule: 'กดทิศ "ตรงข้าม" กับที่เห็น!'
+        },
         'anchor': {
             title: 'ANCHOR ARROW (สีแดง)',
             desc: 'Arrow นี้หนักและมั่นคง',
@@ -170,7 +175,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         // TUTORIAL TRACKING (Session Only)
         // We now show tutorials ALWAYS on the level they are introduced, once per session (restart).
-        this.tutorialsShownThisSession = new Set(['ghost']); // Ghost is assumed known from main tutorial
+        this.tutorialsShownThisSession = new Set(['anchor']); // Anchor is assumed known from main tutorial
 
         this.score = 0;
         this.maxScore = this.currentLevelConfig.arrowCount * DreamDirectConstants.SCORE.PERFECT;
