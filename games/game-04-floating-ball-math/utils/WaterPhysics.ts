@@ -1,14 +1,17 @@
 import { FloatingBall, FloatingBallMathLevelConfig } from '../types';
+import type { SeededRandom } from '@/lib/seededRandom';
 
 export class WaterPhysics {
   private scene: Phaser.Scene;
   private config: FloatingBallMathLevelConfig;
   private waveLayers: Phaser.GameObjects.Graphics[] = [];
   private causticsOverlay: Phaser.GameObjects.Graphics | null = null;
+  private rng: SeededRandom;
 
-  constructor(scene: Phaser.Scene, config: FloatingBallMathLevelConfig) {
+  constructor(scene: Phaser.Scene, config: FloatingBallMathLevelConfig, rng: SeededRandom) {
     this.scene = scene;
     this.config = config;
+    this.rng = rng;
   }
 
   /**
@@ -61,7 +64,7 @@ export class WaterPhysics {
     ball.y = newY;
     ball.originalX = newX;
     ball.originalY = newY;
-    ball.wavePhase = Math.random() * Math.PI * 2; // Random new phase
+    ball.wavePhase = this.rng.next() * Math.PI * 2; // Random new phase
     
     if (ball.container) {
       ball.container.setPosition(newX, newY);
@@ -73,7 +76,7 @@ export class WaterPhysics {
    */
   getRandomSpawnX(margin: number = 80): number {
     const { width } = this.scene.scale;
-    return margin + Math.random() * (width - margin * 2);
+    return margin + this.rng.next() * (width - margin * 2);
   }
 
   /**

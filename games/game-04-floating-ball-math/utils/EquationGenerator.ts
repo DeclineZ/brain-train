@@ -1,17 +1,20 @@
 import { Equation, Operation, FloatingBallMathLevelConfig, BallColor, FloatingBall } from '../types';
+import type { SeededRandom } from '@/lib/seededRandom';
 
 export class EquationGenerator {
   private config: FloatingBallMathLevelConfig;
   private colors: BallColor[] = ['coral', 'mint', 'yellow', 'lavender'];
   private usedCombinations: Set<string> = new Set();
+  private rng: SeededRandom;
   
   // Operation priority: / (division), * (multiplication), - (subtraction), + (addition)
   private readonly OPERATION_PRIORITY: Operation[] = ['/', '*', '-', '+'];
   private readonly PRIORITY_CHANCE = 0.9; // 90% chance to use priority order
 
-  constructor(config: FloatingBallMathLevelConfig) {
+  constructor(config: FloatingBallMathLevelConfig, rng: SeededRandom) {
     console.log('[EquationGenerator] Constructor called with config:', config);
     this.config = config;
+    this.rng = rng;
   }
 
   /**
@@ -55,7 +58,7 @@ export class EquationGenerator {
    * Filters to only include operations available at current level
    */
   private getPrioritizedOperations(availableOps: Operation[]): Operation[] {
-    const usePriority = Math.random() < this.PRIORITY_CHANCE;
+    const usePriority = this.rng.next() < this.PRIORITY_CHANCE;
     
     if (usePriority) {
       // 90% chance: use priority order
@@ -182,15 +185,15 @@ export class EquationGenerator {
       // Create balls for valid values
       validValues.forEach(v => {
         const ball: FloatingBall = {
-          id: `ball-solution-${Date.now()}-${Math.random()}`,
+          id: `ball-solution-${Date.now()}-${this.rng.next()}`,
           value: v,
           operator: operator,
-          color: this.colors[Math.floor(Math.random() * this.colors.length)],
+          color: this.colors[this.rng.nextIndex(this.colors.length)],
           x: 0, // Will be set when spawning
           y: 0,
           originalX: 0,
           originalY: 0,
-          wavePhase: Math.random() * Math.PI * 2,
+          wavePhase: this.rng.next() * Math.PI * 2,
           isCollected: false,
           isBomb: false,
           isSolvable: true, // Mark as solvable
@@ -223,15 +226,15 @@ export class EquationGenerator {
       }
       
       const fallbackBall: FloatingBall = {
-        id: `ball-solution-fallback-${Date.now()}-${Math.random()}`,
+        id: `ball-solution-fallback-${Date.now()}-${this.rng.next()}`,
         value: Math.abs(fallbackValue),
         operator: fallbackOperator,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        color: this.colors[this.rng.nextIndex(this.colors.length)],
         x: 0,
         y: 0,
         originalX: 0,
         originalY: 0,
-        wavePhase: Math.random() * Math.PI * 2,
+        wavePhase: this.rng.next() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
         isSolvable: true,
@@ -323,15 +326,15 @@ export class EquationGenerator {
 
     if (solutionStep) {
       const ball: FloatingBall = {
-        id: `ball-${Date.now()}-${Math.random()}`,
+        id: `ball-${Date.now()}-${this.rng.next()}`,
         value: solutionStep.value,
         operator: solutionStep.operator,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        color: this.colors[this.rng.nextIndex(this.colors.length)],
         x: 0, // Will be set when spawning
         y: 0,
         originalX: 0,
         originalY: 0,
-        wavePhase: Math.random() * Math.PI * 2,
+        wavePhase: this.rng.next() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
         isSolvable: true, // Solution ball is solvable
@@ -609,7 +612,7 @@ export class EquationGenerator {
     const operations = this.config.operations;
     
     for (let i = 0; i < count; i++) {
-      const operator = operations[Math.floor(Math.random() * operations.length)];
+      const operator = operations[this.rng.nextIndex(operations.length)];
       let value: number;
       
       // Generate a value that's NOT helpful
@@ -620,15 +623,15 @@ export class EquationGenerator {
       } while (attempts < 10 && this.isHelpfulOperation(operator, value, startingCurrent, target));
       
       const ball: FloatingBall = {
-        id: `ball-distractor-${Date.now()}-${Math.random()}`,
+        id: `ball-distractor-${Date.now()}-${this.rng.next()}`,
         value,
         operator,
-        color: this.colors[Math.floor(Math.random() * this.colors.length)],
+        color: this.colors[this.rng.nextIndex(this.colors.length)],
         x: 0,
         y: 0,
         originalX: 0,
         originalY: 0,
-        wavePhase: Math.random() * Math.PI * 2,
+        wavePhase: this.rng.next() * Math.PI * 2,
         isCollected: false,
         isBomb: false,
         isSolvable: false, // Distractor balls are not solvable
@@ -651,11 +654,11 @@ export class EquationGenerator {
     const operations = this.config.operations;
     
     for (let i = 0; i < count; i++) {
-      const operator = operations[Math.floor(Math.random() * operations.length)];
+      const operator = operations[this.rng.nextIndex(operations.length)];
       const value = this.randomInt(min, max);
       
       const ball: FloatingBall = {
-        id: `bomb-${Date.now()}-${Math.random()}`,
+        id: `bomb-${Date.now()}-${this.rng.next()}`,
         value,
         operator,
         color: 'coral', // Will be overridden by black graphics
@@ -663,7 +666,7 @@ export class EquationGenerator {
         y: 0,
         originalX: 0,
         originalY: 0,
-        wavePhase: Math.random() * Math.PI * 2,
+        wavePhase: this.rng.next() * Math.PI * 2,
         isCollected: false,
         isBomb: true, // This IS a bomb
         isSolvable: false, // Bombs are not solvable
@@ -693,7 +696,7 @@ export class EquationGenerator {
    */
   private shuffleArray<T>(array: T[]): void {
     for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = this.rng.nextIndex(i + 1);
       [array[i], array[j]] = [array[j], array[i]];
     }
   }
@@ -702,7 +705,7 @@ export class EquationGenerator {
    * Generate random integer in range [min, max]
    */
   private randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    return this.rng.nextInt(min, max);
   }
 
   /**
@@ -717,7 +720,7 @@ export class EquationGenerator {
    * Get random color
    */
   getRandomColor(): BallColor {
-    return this.colors[Math.floor(Math.random() * this.colors.length)];
+    return this.colors[this.rng.nextIndex(this.colors.length)];
   }
 
   // Deprecated methods kept for backward compatibility

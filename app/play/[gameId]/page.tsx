@@ -473,6 +473,10 @@ export default function GamePage({ params }: PageProps) {
     else if (activeLevel <= 10) currentTier = 'normal';
     else if (activeLevel <= 15) currentTier = 'hard';
     else currentTier = 'nightmare';
+  } else if (gameId === 'game-09-tube-sort') {
+    if (activeLevel <= 10) currentTier = 'easy';
+    else if (activeLevel <= 20) currentTier = 'normal';
+    else currentTier = 'hard';
   }
 
     const { color: tierColor } = getDifficultyVisuals(currentTier);
@@ -506,6 +510,12 @@ export default function GamePage({ params }: PageProps) {
             )}
             {/* Game 07 (Pinkcup) with tier-based styling */}
             {gameId === 'game-07-pinkcup' && (
+              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                <span className="text-3xl">LEVEL {activeLevel}</span>
+              </div>
+            )}
+            {/* Game 09 (Tube Sort) with tier-based styling */}
+            {gameId === 'game-09-tube-sort' && (
               <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                 <span className="text-3xl">LEVEL {activeLevel}</span>
               </div>

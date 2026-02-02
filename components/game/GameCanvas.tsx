@@ -101,6 +101,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       } else if (gameId === 'game-07-pinkcup') {
         const { PinkCupGameScene } = await import('@/games/game-07-pinkcup/GameScene');
         config.scene = [PinkCupGameScene];
+      } else if (gameId === 'game-09-tube-sort') {
+        const { TubeSortGameScene } = await import('@/games/game-09-tube-sort/GameScene');
+        config.scene = [TubeSortGameScene];
       }
 
       // Destroy old instance if it exists (prevents duplicates)

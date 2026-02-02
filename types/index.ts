@@ -226,6 +226,20 @@ export interface MysterySoundGameStats {
   timeLimitMs: number;
 }
 
+export interface TubeSortGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  optimalMoves: number;
+  playerMoves: number;
+  correctPours: number;
+  incorrectPours: number;
+  illegalPourAttempts: number;
+  redundantMoves: number;
+  totalActions: number;
+  completionTimeMs: number;
+  targetTimeMs: number;
+}
+
 // Daily streak types
 export interface CheckinStatus {
   checked_in_today: boolean;
