@@ -94,6 +94,9 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   private highlightRing!: Phaser.GameObjects.Graphics;
   private ballHighlight?: Phaser.GameObjects.Graphics;
   private overlay!: Phaser.GameObjects.Rectangle;
+  private readonly soundKeys = {
+    levelPass: 'tube-sort-level-pass'
+  };
   private isInteractiveStep = false;
   private canAdvance = true;
   private level = 1;
@@ -125,7 +128,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+    this.load.audio(this.soundKeys.levelPass, '/assets/sounds/global/level-pass.mp3');
   }
 
   create(data: { level?: number }) {
@@ -211,7 +214,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setDepth(210);
 
-    this.skipButton.on('pointerdown', () => this.startGame());
+    this.skipButton.on('pointerdown', () => this.endTutorial());
 
     this.arrowGraphic = this.add.graphics();
     this.arrowGraphic.setDepth(220);
@@ -1206,7 +1209,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   }
 
   private endTutorial() {
-    this.sound.play('level-pass');
+    this.sound.play(this.soundKeys.levelPass);
     const onTutorialComplete = this.registry.get('onTutorialComplete');
     if (onTutorialComplete) {
       onTutorialComplete();

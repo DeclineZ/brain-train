@@ -21,6 +21,11 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   private titleText!: Phaser.GameObjects.Text;
   private continueText!: Phaser.GameObjects.Text;
   private skipButton!: Phaser.GameObjects.Text;
+  private readonly soundKeys = {
+    cupMove: 'pinkcup-tutorial-cup-move',
+    success: 'pinkcup-tutorial-success',
+    error: 'pinkcup-tutorial-error'
+  };
   private readonly tutorialPanelOffsetY = 40;
 
   // Grid visuals (match GameScene style)
@@ -50,6 +55,12 @@ export class PinkCupTutorialScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'PinkCupTutorialScene' });
+  }
+
+  preload() {
+    this.load.audio(this.soundKeys.cupMove, '/assets/sounds/pinkcup/cup-move.mp3');
+    this.load.audio(this.soundKeys.success, '/assets/sounds/pinkcup/success.mp3');
+    this.load.audio(this.soundKeys.error, '/assets/sounds/global/error.mp3');
   }
 
   create() {
@@ -351,6 +362,8 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       x: startX + targetPos.x * (this.cellSize + this.gap),
       y: startY + targetPos.y * (this.cellSize + this.gap)
     };
+
+    this.sound.play(this.soundKeys.cupMove, { volume: 0.6 });
 
     this.tweens.add({
       targets: cup.container,
@@ -738,10 +751,10 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       ease: 'Back.out'
     });
 
-    // Avoid crashing if audio wasn't preloaded (common during tutorial/dev)
-    const soundKey = isCorrect ? 'success' : 'error';
-    if (this.cache.audio.exists(soundKey)) {
-      this.sound.play(soundKey);
+    if (isCorrect) {
+      this.sound.play(this.soundKeys.success, { volume: 0.7 });
+    } else {
+      this.sound.play(this.soundKeys.error, { volume: 0.7 });
     }
 
     const tileIndex = this.tutorialTiles.indexOf(tile);

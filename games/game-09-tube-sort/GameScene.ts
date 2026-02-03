@@ -105,6 +105,18 @@ export class TubeSortGameScene extends Phaser.Scene {
   private progressText!: Phaser.GameObjects.Text;
   private timerRing?: Phaser.GameObjects.Graphics;
   private timerEvent?: Phaser.Time.TimerEvent;
+  private bgMusic?: Phaser.Sound.BaseSound;
+  private readonly soundKeys = {
+    ballSelect: 'tube-sort-ball-select',
+    ballPour: 'tube-sort-ball-pour',
+    tubeComplete: 'tube-sort-complete',
+    wrongMove: 'tube-sort-wrong',
+    freeze: 'tube-sort-freeze',
+    levelPass: 'tube-sort-level-pass',
+    levelFail: 'tube-sort-level-fail',
+    timerWarning: 'tube-sort-timer-warning',
+    bgMusic: 'tube-sort-bg-music'
+  };
   private tubeLayout: TubeLayoutMetrics = {
     tubeWidth: 80,
     tubeHeight: 220,
@@ -122,6 +134,18 @@ export class TubeSortGameScene extends Phaser.Scene {
     super({ key: 'TubeSortGameScene' });
   }
 
+  preload() {
+    this.load.audio(this.soundKeys.ballSelect, '/assets/sounds/tube-sort/ball-select.mp3');
+    this.load.audio(this.soundKeys.ballPour, '/assets/sounds/tube-sort/ball-pour.mp3');
+    this.load.audio(this.soundKeys.tubeComplete, '/assets/sounds/tube-sort/tube-complete.mp3');
+    this.load.audio(this.soundKeys.wrongMove, '/assets/sounds/global/error.mp3');
+    this.load.audio(this.soundKeys.freeze, '/assets/sounds/tube-sort/freeze-effect.mp3');
+    this.load.audio(this.soundKeys.levelPass, '/assets/sounds/global/level-pass.mp3');
+    this.load.audio(this.soundKeys.levelFail, '/assets/sounds/global/level-fail.mp3');
+    this.load.audio(this.soundKeys.timerWarning, '/assets/sounds/global/timer-warning.mp3');
+    this.load.audio(this.soundKeys.bgMusic, '/assets/sounds/tube-sort/bg-music.mp3');
+  }
+
   init(data: { level: number }) {
     const regLevel = this.registry.get('level');
     const level = data.level || regLevel || 1;
@@ -132,6 +156,7 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   create() {
     this.startTime = Date.now();
+    this.setupAudio();
     this.createBackground();
     this.createParticleTexture();
     this.createUI();
@@ -144,6 +169,16 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.layoutTubes();
       this.renderTubes();
     });
+  }
+
+  private setupAudio() {
+    this.sound.stopAll();
+    try {
+      this.bgMusic = this.sound.add(this.soundKeys.bgMusic, { volume: 0.45, loop: true });
+      this.bgMusic.play();
+    } catch (error) {
+      console.warn('Failed to play tube-sort bg music', error);
+    }
   }
 
   update() {
@@ -586,20 +621,24 @@ export class TubeSortGameScene extends Phaser.Scene {
     if (this.isGameOver) return;
 
     if (this.selectedTubeIndex === null) {
+      this.sound.play(this.soundKeys.ballSelect, { volume: 0.6 });
       const selectedBallState = this.getTopBallState(index);
       if (this.tubeState[index].length === 0) {
         this.illegalPourAttempts++;
         this.flashMessage('เลือกหลอดที่มีสี', true);
+        this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
         return;
       }
       if (this.isBallFrozen(selectedBallState)) {
         this.flashMessage('ลูกบอลถูกแช่แข็ง', true);
         this.shakeTube(index);
+        this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
         return;
       }
       if (this.isBallExhausted(selectedBallState)) {
         this.flashMessage('บอลนี้หมดจำนวนครั้งแล้ว', true);
         this.shakeTube(index);
+        this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
         return;
       }
       this.selectedTubeIndex = index;
@@ -644,6 +683,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.incorrectPours++;
       this.flashMessage('ย้ายไม่ได้', true);
       this.shakeTube(index);
+      this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
       this.selectedTubeIndex = null;
       this.renderTubes();
       return;
@@ -662,6 +702,7 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.renderTubes();
     this.animateMove(from, to);
     this.animatePour(from, to, prevState, result.state, true, result.movedBallId);
+    this.sound.play(this.soundKeys.ballPour, { volume: 0.65 });
     this.handleTubeCompletion(prevState, result.state);
     this.checkWin();
   }
@@ -811,6 +852,7 @@ export class TubeSortGameScene extends Phaser.Scene {
         ballState.frozenUntil = now + this.freezeDurationMs;
       }
     });
+    this.sound.play(this.soundKeys.freeze, { volume: 0.65 });
     this.nextFreezeAt = now + this.freezeCooldownMs;
     this.showWizardPopup();
     this.renderTubes();
@@ -1302,6 +1344,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       ease: 'Cubic.Out',
       onComplete: () => glow.destroy()
     });
+    this.sound.play(this.soundKeys.tubeComplete, { volume: 0.7 });
     const color = elementType !== undefined
       ? TUBE_SORT_COLORS[elementType % TUBE_SORT_COLORS.length]
       : this.theme.accent;
@@ -1422,8 +1465,13 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.timerEvent.remove();
     }
 
+    if (this.bgMusic?.isPlaying) {
+      this.bgMusic.stop();
+    }
+
     if (success) {
       this.cameras.main.flash(200, 255, 255, 255, true);
+      this.sound.play(this.soundKeys.levelPass, { volume: 0.7 });
       this.tubes.forEach((tube, index) => {
         const topType = this.tubeState[index]?.[0];
         if (topType !== undefined) {
@@ -1432,6 +1480,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       });
     } else {
       this.cameras.main.shake(200, 0.01);
+      this.sound.play(this.soundKeys.levelFail, { volume: 0.7 });
     }
 
     const stats: TubeSortStats = {

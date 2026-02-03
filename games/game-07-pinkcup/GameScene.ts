@@ -138,13 +138,13 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   preload() {
     // Load audio
-    this.load.audio('cup-move', '/assets/sounds/cardmatch/card-flip.mp3');
-    this.load.audio('success', '/assets/sounds/cardmatch/match-success.mp3');
-    this.load.audio('error', '/assets/sounds/cardmatch/match-fail.mp3');
+    this.load.audio('cup-move', '/assets/sounds/pinkcup/cup-move.mp3');
+    this.load.audio('success', '/assets/sounds/pinkcup/success.mp3');
+    this.load.audio('error', '/assets/sounds/global/error.mp3');
     this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
     this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
     this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
-    this.load.audio('bg-music', '/assets/sounds/cardmatch/bg-music.mp3');
+    this.load.audio('bg-music', '/assets/sounds/pinkcup/bg-music.mp3');
   }
 
   create() {
