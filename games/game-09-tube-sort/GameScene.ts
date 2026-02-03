@@ -253,7 +253,12 @@ export class TubeSortGameScene extends Phaser.Scene {
     const maxRadiusFromHeight = (tubeHeight - 24 - elementGap * (tubeCapacity - 1)) / (tubeCapacity * 2);
     const elementRadius = Math.max(12, Math.min(tubeWidth * 0.32, maxRadiusFromHeight));
 
-    const spacingX = cols > 1 ? (availableW - tubeWidth) / (cols - 1) : 0;
+    const rawSpacingX = cols > 1 ? (availableW - tubeWidth) / (cols - 1) : 0;
+    const minSpacingX = 40;
+    const maxSpacingX = 100;
+    const spacingX = cols > 1
+      ? Math.min(maxSpacingX, Math.max(rawSpacingX, minSpacingX))
+      : 0;
     const spacingY = tubeHeight + tubeHeight * 0.12;
     const gridHeight = tubeHeight + (rows - 1) * spacingY;
     const startX = width / 2 - (cols - 1) * spacingX / 2;
