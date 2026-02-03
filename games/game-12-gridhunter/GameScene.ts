@@ -19,7 +19,7 @@ export class GridHunterGameScene extends Phaser.Scene {
     private numbers: number[] = [];
     private nextNumber = 100; // Starting high number for replacements
     private trapIndices: Set<number> = new Set(); // Indices with "hot" red numbers
-    private trapTimers: Map<number, Phaser.Time.TimerEvent> = new Map();
+    private trapLives: Map<number, number> = new Map(); // Turns remaining for each trap
 
     // Timing
     private lastTapTime = 0;
@@ -30,10 +30,21 @@ export class GridHunterGameScene extends Phaser.Scene {
 
     // Phase tracking
     private currentPhase = 1;
-    private PHASE_2_THRESHOLD = 5000;
-    private PHASE_3_THRESHOLD = 15000;
+    // Thresholds
+    private THRESHOLD_PHASE_2 = 5000;   // 4x4 Grid
+    private THRESHOLD_PHASE_3 = 10000;  // Shuffle
+    private THRESHOLD_PHASE_4 = 15000;  // Same Color
+    private THRESHOLD_PHASE_5 = 20000;  // Lowest EVEN (No Shuffle)
+    private THRESHOLD_PHASE_6 = 25000;  // Lowest ODD (No Shuffle)
+    private THRESHOLD_PHASE_7 = 27500;  // Highest ODD (Shuffle)
+
+    // Rule Configs
     private shuffleEnabled = false;
-    private shuffleCount = 0; // Track shuffles for hint display
+    private shuffleCount = 0;
+    private sameColorMode = false;
+    private targetEven = false;
+    private targetOdd = false;
+    private targetHighest = false; // if false, target Lowest
 
     // Visuals
     private scoreText!: Phaser.GameObjects.Text;
@@ -270,10 +281,10 @@ export class GridHunterGameScene extends Phaser.Scene {
         // Instruction container - centered at top
         this.instructionBg = this.add.container(width / 2, 35);
 
-        // Calculate pill size (wider for padding around text)
-        const pillWidth = 240;
-        const pillHeight = 38;
-        const pillRadius = 19;
+        // Calculate pill size (wider for larger text)
+        const pillWidth = 280;
+        const pillHeight = 44;
+        const pillRadius = 22;
 
         // Pill-shaped background
         const pill = this.add.graphics();
@@ -284,7 +295,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         // Instruction text - centered in pill
         this.instructionText = this.add.text(0, 0, 'หาเลขน้อยที่สุด', {
             fontFamily: '"Mali", "Sarabun", sans-serif',
-            fontSize: '18px',
+            fontSize: '24px',
             fontStyle: 'bold',
             color: '#ffffff'
         }).setOrigin(0.5).setPadding(10, 14, 10, 14);
@@ -301,6 +312,21 @@ export class GridHunterGameScene extends Phaser.Scene {
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
+    }
+
+    updateInstructionIndicator() {
+        if (!this.instructionText) return;
+
+        let text = 'หาเลขน้อยที่สุด';
+        if (this.currentPhase === 5) {
+            text = 'หา "เลขคู่" น้อยสุด';
+        } else if (this.currentPhase === 6) {
+            text = 'หา "เลขคี่" น้อยสุด';
+        } else if (this.currentPhase === 7) {
+            text = 'หา "เลขคี่" มากสุด';
+        }
+
+        this.instructionText.setText(text);
     }
 
     drawTimerBar(pct: number) {
@@ -406,10 +432,16 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.currentPhase = 1;
         this.gridSize = 3;
         this.shuffleEnabled = false;
+        this.sameColorMode = false;
+        this.targetEven = false;
+        this.targetOdd = false;
+        this.targetHighest = false;
+        this.updateInstructionIndicator();
+
         this.nextNumber = 100;
         this.trapIndices.clear();
-        this.trapTimers.forEach(t => t.destroy());
-        this.trapTimers.clear();
+        this.trapIndices.clear();
+        this.trapLives.clear();
 
         this.soundBgm.play();
 
@@ -427,7 +459,10 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.tiles.forEach(t => t.destroy());
         this.tiles = [];
         this.numbers = [];
+        this.tiles = [];
+        this.numbers = [];
         this.trapIndices.clear();
+        this.trapLives.clear();
 
         const count = this.gridSize * this.gridSize;
 
@@ -440,6 +475,17 @@ export class GridHunterGameScene extends Phaser.Scene {
         for (let i = nums.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [nums[i], nums[j]] = [nums[j], nums[i]];
+        }
+
+        // Rule Enforcement: Ensure at least one valid target exists
+        if (this.targetEven) {
+            if (!nums.some(n => n % 2 === 0)) {
+                nums[0] = (Math.floor(nums[0] / 2) * 2);
+            }
+        } else if (this.targetOdd) {
+            if (!nums.some(n => n % 2 !== 0)) {
+                nums[0] = (Math.floor(nums[0] / 2) * 2) + 1;
+            }
         }
 
         this.numbers = nums;
@@ -478,8 +524,15 @@ export class GridHunterGameScene extends Phaser.Scene {
         const isTrap = this.trapIndices.has(index);
 
         // Pastel color based on number (warm palette)
-        const hue = (num * 7) % 360;
-        const baseColor = isTrap ? 0xff6b6b : Phaser.Display.Color.HSLToColor(hue / 360, 0.6, 0.75).color;
+        let baseColor: number;
+        if (isTrap) {
+            baseColor = 0xff6b6b;
+        } else if (this.sameColorMode) {
+            baseColor = 0x95a5a6; // Uniform grey/blue to remove color cues
+        } else {
+            const hue = (num * 7) % 360;
+            baseColor = Phaser.Display.Color.HSLToColor(hue / 360, 0.6, 0.75).color;
+        }
 
         // Shadow
         const shadow = this.add.graphics();
@@ -536,7 +589,16 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         const tappedNumber = this.numbers[index];
         const isTrap = this.trapIndices.has(index);
-        const lowestNumber = Math.min(...this.numbers.filter((_, i) => !this.trapIndices.has(i)));
+
+        // Determine target based on rules
+        let candidates = this.numbers.filter((_, i) => !this.trapIndices.has(i));
+        if (this.targetEven) candidates = candidates.filter(n => n % 2 === 0);
+        else if (this.targetOdd) candidates = candidates.filter(n => n % 2 !== 0);
+
+        let target = -999;
+        if (candidates.length > 0) {
+            target = this.targetHighest ? Math.max(...candidates) : Math.min(...candidates);
+        }
 
         this.totalTaps++;
 
@@ -553,7 +615,7 @@ export class GridHunterGameScene extends Phaser.Scene {
             return;
         }
 
-        if (tappedNumber === lowestNumber) {
+        if (tappedNumber === target) {
             // Correct!
             this.handleCorrectTap(index);
         } else {
@@ -598,6 +660,9 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // Maybe spawn a trap
         this.maybeSpawnTrap();
+
+        // Update trap lives
+        this.updateTraps();
     }
 
     handleWrongTap(index: number) {
@@ -645,10 +710,7 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // Clear the trap (user already got punished)
         this.trapIndices.delete(index);
-        if (this.trapTimers.has(index)) {
-            this.trapTimers.get(index)?.destroy();
-            this.trapTimers.delete(index);
-        }
+        this.trapLives.delete(index);
 
         // Rebuild to update colors
         this.rebuildGrid();
@@ -660,15 +722,28 @@ export class GridHunterGameScene extends Phaser.Scene {
     replaceTile(index: number) {
         // Generate new number higher than current max
         this.nextNumber += Math.floor(Math.random() * 10) + 5;
-        this.numbers[index] = this.nextNumber;
+        let newNum = this.nextNumber;
+
+        // Ensure validity for Even/Odd rules if needed
+        // (Just ensure the new number doesn't break solvability if board is sparse)
+        // Simple check: if rules are active, verify board solvability after replacement.
+        // It's cheaper to just make the new number match the rule if we are worried,
+        // but random spread usually works.
+        // Let's force validity if we are in a strict mode to be safe.
+        if (this.targetEven && newNum % 2 !== 0) {
+            // 50% chance to flip to even just to keep population up
+            if (Math.random() > 0.5) newNum++;
+        } else if (this.targetOdd && newNum % 2 === 0) {
+            if (Math.random() > 0.5) newNum++;
+        }
+
+        this.numbers[index] = newNum;
+        this.nextNumber = Math.max(this.nextNumber, newNum);
 
         // Clear trap if was one
         if (this.trapIndices.has(index)) {
             this.trapIndices.delete(index);
-            if (this.trapTimers.has(index)) {
-                this.trapTimers.get(index)?.destroy();
-                this.trapTimers.delete(index);
-            }
+            this.trapLives.delete(index);
         }
 
         // Rebuild grid
@@ -692,26 +767,43 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         const chosen = candidates[Math.floor(Math.random() * candidates.length)];
         this.trapIndices.add(chosen.i);
+        this.trapLives.set(chosen.i, 3); // Lasts for 3 correct selections
         this.trapAvoided++; // Will decrement if hit
-
-        // Set cooldown timer (3 seconds)
-        const timer = this.time.delayedCall(3000, () => {
-            if (this.trapIndices.has(chosen.i)) {
-                this.trapIndices.delete(chosen.i);
-                this.trapTimers.delete(chosen.i);
-                this.rebuildGrid();
-            }
-        });
-        this.trapTimers.set(chosen.i, timer);
 
         this.rebuildGrid();
     }
 
+    updateTraps() {
+        let changed = false;
+        for (const [index, lives] of this.trapLives.entries()) {
+            if (lives <= 1) {
+                // Expire
+                this.trapLives.delete(index);
+                this.trapIndices.delete(index);
+                changed = true;
+            } else {
+                this.trapLives.set(index, lives - 1);
+            }
+        }
+
+        if (changed) {
+            this.rebuildGrid();
+        }
+    }
+
     checkPhaseTransition() {
-        if (this.currentPhase === 1 && this.score >= this.PHASE_2_THRESHOLD) {
+        if (this.currentPhase === 1 && this.score >= this.THRESHOLD_PHASE_2) {
             this.transitionToPhase(2);
-        } else if (this.currentPhase === 2 && this.score >= this.PHASE_3_THRESHOLD) {
+        } else if (this.currentPhase === 2 && this.score >= this.THRESHOLD_PHASE_3) {
             this.transitionToPhase(3);
+        } else if (this.currentPhase === 3 && this.score >= this.THRESHOLD_PHASE_4) {
+            this.transitionToPhase(4);
+        } else if (this.currentPhase === 4 && this.score >= this.THRESHOLD_PHASE_5) {
+            this.transitionToPhase(5);
+        } else if (this.currentPhase === 5 && this.score >= this.THRESHOLD_PHASE_6) {
+            this.transitionToPhase(6);
+        } else if (this.currentPhase === 6 && this.score >= this.THRESHOLD_PHASE_7) {
+            this.transitionToPhase(7);
         }
     }
 
@@ -722,68 +814,122 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         const { width, height } = this.scale;
 
-        // Create overlay for emphasis
-        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3)
-            .setDepth(190);
+        // Create overlay (darker for modal focus)
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
+            .setDepth(190).setInteractive(); // Block clicks
 
+        // Phase-specific content in Thai
         // Phase-specific content in Thai
         let titleText: string;
         let descText: string;
 
-        if (phase === 2) {
-            titleText = 'ยากขึ้นแล้ว!';
-            descText = 'ตารางใหญ่ขึ้นเป็น 4x4';
-        } else {
-            titleText = 'โหมดสับ!';
-            descText = 'ตัวเลขจะสลับที่ทุกครั้ง';
+        switch (phase) {
+            case 2:
+                titleText = 'ยากขึ้นแล้ว!';
+                descText = 'ตารางใหญ่ขึ้นเป็น 4x4';
+                break;
+            case 3:
+                titleText = 'โหมดสับ!';
+                descText = 'ตัวเลขจะสลับที่ทุกครั้ง';
+                break;
+            case 4:
+                titleText = 'สีเดียวกัน!';
+                descText = 'ไม่มีสีช่วยแล้วนะ';
+                break;
+            case 5:
+                titleText = 'หาเลขคู่!';
+                descText = 'หา "เลขคู่" ที่น้อยที่สุด';
+                break;
+            case 6:
+                titleText = 'หาเลขคี่!';
+                descText = 'หา "เลขคี่" ที่น้อยที่สุด';
+                break;
+            case 7:
+                titleText = 'ระดับสูงสุด!';
+                descText = 'หา "เลขคี่" ที่ *มาก* ที่สุด';
+                break;
+            default:
+                titleText = 'ระดับใหม่!';
+                descText = 'สู้ๆ นะ!';
         }
 
+        const container = this.add.container(width / 2, height / 2).setDepth(200).setAlpha(0).setScale(0.8);
+
         // Title
-        const title = this.add.text(width / 2, height / 2 - 40, titleText, {
+        const title = this.add.text(0, -50, titleText, {
             fontFamily: '"Mali", sans-serif',
-            fontSize: '42px',
+            fontSize: '48px',
             fontStyle: 'bold',
-            color: '#6D6875',
-            stroke: '#ffffff',
-            strokeThickness: 6
-        }).setOrigin(0.5).setDepth(200).setAlpha(0).setScale(0.5);
+            color: '#ffffff',
+            stroke: '#6D6875',
+            strokeThickness: 8
+        }).setOrigin(0.5).setPadding(20);
+        container.add(title);
 
         // Description
-        const desc = this.add.text(width / 2, height / 2 + 20, descText, {
+        const desc = this.add.text(0, 10, descText, {
+            fontFamily: '"Mali", sans-serif',
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color: '#FFB5A7', // Soft pink/coral
+            stroke: '#000000',
+            strokeThickness: 2
+        }).setOrigin(0.5).setPadding(10, 5, 10, 5);
+        container.add(desc);
+
+        // Continue Button
+        const btnY = 80;
+        const btnWidth = 160;
+        const btnHeight = 50;
+
+        const btnContainer = this.add.container(0, btnY);
+
+        const btnBg = this.add.graphics();
+        btnBg.fillStyle(0x58CC02, 1); // Green button
+        btnBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
+        btnBg.lineStyle(4, 0xffffff, 1);
+        btnBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
+
+        // Shadow (border-bottom style for button feel)
+        const btnShadow = this.add.graphics();
+        btnShadow.fillStyle(0x46A302, 1);
+        btnShadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2 + 4, btnWidth, btnHeight, 16);
+
+        const btnText = this.add.text(0, 0, 'ไปต่อ >', {
             fontFamily: '"Mali", sans-serif',
             fontSize: '26px',
             fontStyle: 'bold',
-            color: '#B5838D',
-            stroke: '#ffffff',
-            strokeThickness: 4
-        }).setOrigin(0.5).setDepth(200).setAlpha(0);
+            color: '#ffffff'
+        }).setOrigin(0.5).setPadding(10, 5, 10, 5);
+
+        btnContainer.add([btnShadow, btnBg, btnText]);
+        container.add(btnContainer);
+
+        // Interactive Button Area
+        const hitArea = this.add.rectangle(0, btnY, btnWidth, btnHeight, 0xffffff, 0)
+            .setInteractive({ useHandCursor: true });
+        container.add(hitArea);
 
         // Animate in
         this.tweens.add({
-            targets: title,
+            targets: container,
             alpha: 1,
             scale: 1,
             duration: 400,
             ease: 'Back.out'
         });
 
-        this.tweens.add({
-            targets: desc,
-            alpha: 1,
-            duration: 400,
-            delay: 200
-        });
+        // Resume Action
+        const resumeGame = () => {
+            // Disable input
+            hitArea.disableInteractive();
 
-        // Wait, then apply changes and resume
-        this.time.delayedCall(2500, () => {
-            // Fade out
             this.tweens.add({
-                targets: [title, desc, overlay],
+                targets: [container, overlay],
                 alpha: 0,
-                duration: 300,
+                duration: 200,
                 onComplete: () => {
-                    title.destroy();
-                    desc.destroy();
+                    container.destroy();
                     overlay.destroy();
 
                     // Apply phase changes
@@ -792,13 +938,47 @@ export class GridHunterGameScene extends Phaser.Scene {
                         this.initGrid();
                     } else if (phase === 3) {
                         this.shuffleEnabled = true;
+                    } else if (phase === 4) {
+                        this.sameColorMode = true;
+                        this.shuffleEnabled = true;
+                        this.initGrid();
+                    } else if (phase === 5) {
+                        this.targetEven = true;
+                        this.targetOdd = false;
+                        this.targetHighest = false;
+                        this.shuffleEnabled = false;
+                        this.initGrid();
+                    } else if (phase === 6) {
+                        this.targetEven = false;
+                        this.targetOdd = true;
+                        this.targetHighest = false;
+                        this.shuffleEnabled = false;
+                        this.initGrid();
+                    } else if (phase === 7) {
+                        this.targetEven = false;
+                        this.targetOdd = true;
+                        this.targetHighest = true;
+                        this.shuffleEnabled = true;
+                        this.initGrid();
                     }
+
+                    this.updateInstructionIndicator();
 
                     // Resume game
                     this.isPlaying = true;
                     this.cardStartTime = Date.now();
                 }
             });
+        };
+
+        hitArea.on('pointerdown', () => {
+            btnBg.y += 4; // Press effect
+        });
+
+        hitArea.on('pointerup', () => {
+            btnBg.y -= 4; // Release effect
+            this.sound.play('pop'); // Reuse pop sound
+            resumeGame();
         });
     }
 
@@ -820,14 +1000,14 @@ export class GridHunterGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Brief "สลับ!" indicator
-        const hint = this.add.text(width / 2, height / 2 - 180, '🔀 สลับ!', {
+        const hint = this.add.text(width / 2, height / 2 - 180, 'สลับ!', {
             fontFamily: '"Mali", sans-serif',
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#6D6875',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(150).setAlpha(0);
+        }).setOrigin(0.5).setDepth(150).setAlpha(0).setPadding(10);
 
         // Quick flash animation
         this.tweens.add({

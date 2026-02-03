@@ -81,7 +81,7 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock';
+    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter';
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
@@ -150,19 +150,8 @@ export default function GamePage({ params }: PageProps) {
                     if (data && data.current_played) {
                         setActiveLevel(nextLevel);
                     } else {
-                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
-                        // if (
-                        //     gameId === "game-01-cardmatch" ||
-                        //     gameId === "game-02-sensorlock" ||
-                        //     gameId === "game-03-billiards-math" ||
-                        //     gameId === "game-04-floating-ball-math" ||
-                        //     gameId === "game-07-pinkcup" ||
-                        //     gameId === "game-08-mysterysound" ||
-                        //     gameId === "game-09-tube-sort"
-                        // ) {
-                           
-                        // }
-                         setActiveLevel(0);
+                        // No history -> Start Tutorial (Level 0)
+                        setActiveLevel(0);
                     }
                 }
 
@@ -463,24 +452,24 @@ export default function GamePage({ params }: PageProps) {
             </div>
         );
 
-  // Get current level tier logic
-  // Safe lookup for Card Match, Floating Ball Math, and Pink Cup games
-  let currentTier: string | undefined;
-  if (gameId === 'game-01-cardmatch') {
-    currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
-  } else if (gameId === 'game-04-floating-ball-math') {
-    currentTier = FLOATING_BALL_MATH_LEVELS[activeLevel]?.difficultyTier;
-  } else if (gameId === 'game-07-pinkcup') {
-    // Pinkcup uses simple difficulty tiers based on level ranges
-    if (activeLevel <= 5) currentTier = 'easy';
-    else if (activeLevel <= 10) currentTier = 'normal';
-    else if (activeLevel <= 15) currentTier = 'hard';
-    else currentTier = 'nightmare';
-  } else if (gameId === 'game-09-tube-sort') {
-    if (activeLevel <= 10) currentTier = 'easy';
-    else if (activeLevel <= 20) currentTier = 'normal';
-    else currentTier = 'hard';
-  }
+    // Get current level tier logic
+    // Safe lookup for Card Match, Floating Ball Math, and Pink Cup games
+    let currentTier: string | undefined;
+    if (gameId === 'game-01-cardmatch') {
+        currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
+    } else if (gameId === 'game-04-floating-ball-math') {
+        currentTier = FLOATING_BALL_MATH_LEVELS[activeLevel]?.difficultyTier;
+    } else if (gameId === 'game-07-pinkcup') {
+        // Pinkcup uses simple difficulty tiers based on level ranges
+        if (activeLevel <= 5) currentTier = 'easy';
+        else if (activeLevel <= 10) currentTier = 'normal';
+        else if (activeLevel <= 15) currentTier = 'hard';
+        else currentTier = 'nightmare';
+    } else if (gameId === 'game-09-tube-sort') {
+        if (activeLevel <= 10) currentTier = 'easy';
+        else if (activeLevel <= 20) currentTier = 'normal';
+        else currentTier = 'hard';
+    }
 
     const { color: tierColor } = getDifficultyVisuals(currentTier);
 
@@ -499,30 +488,30 @@ export default function GamePage({ params }: PageProps) {
             {/* Level & Difficulty Badge (Top Center) - Unified rendering for all games */}
             {!isLoadingLevel && activeLevel > 0 && (
                 <>
-            {/* Game 01 and 04 with tier colors */}
-            {(gameId === 'game-01-cardmatch' || gameId === 'game-04-floating-ball-math') && (
-              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                <span className="text-3xl">LEVEL {activeLevel}</span>
-              </div>
-            )}
-            {/* Game 05 and 08 with fixed amber styling */}
-            {(gameId === 'game-05-wormtrain' || gameId === 'game-08-mysterysound') && (
-              <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
-                <span className="text-3xl">LEVEL {activeLevel}</span>
-              </div>
-            )}
-            {/* Game 07 (Pinkcup) with tier-based styling */}
-            {gameId === 'game-07-pinkcup' && (
-              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                <span className="text-3xl">LEVEL {activeLevel}</span>
-              </div>
-            )}
-            {/* Game 09 (Tube Sort) with tier-based styling */}
-            {gameId === 'game-09-tube-sort' && (
-              <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                <span className="text-3xl">LEVEL {activeLevel}</span>
-              </div>
-            )}
+                    {/* Game 01 and 04 with tier colors */}
+                    {(gameId === 'game-01-cardmatch' || gameId === 'game-04-floating-ball-math') && (
+                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                            <span className="text-3xl">LEVEL {activeLevel}</span>
+                        </div>
+                    )}
+                    {/* Game 05 and 08 with fixed amber styling */}
+                    {(gameId === 'game-05-wormtrain' || gameId === 'game-08-mysterysound') && (
+                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
+                            <span className="text-3xl">LEVEL {activeLevel}</span>
+                        </div>
+                    )}
+                    {/* Game 07 (Pinkcup) with tier-based styling */}
+                    {gameId === 'game-07-pinkcup' && (
+                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                            <span className="text-3xl">LEVEL {activeLevel}</span>
+                        </div>
+                    )}
+                    {/* Game 09 (Tube Sort) with tier-based styling */}
+                    {gameId === 'game-09-tube-sort' && (
+                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                            <span className="text-3xl">LEVEL {activeLevel}</span>
+                        </div>
+                    )}
                 </>
             )}
 
