@@ -821,6 +821,16 @@ export class TubeSortGameScene extends Phaser.Scene {
   private updateFreezeState() {
     if (!this.currentLevelConfig.freezeFeature.enabled || this.isGameOver) return;
     const now = Date.now();
+    let hasThawed = false;
+    this.ballStates.forEach(ballState => {
+      if (ballState.frozenUntil > 0 && ballState.frozenUntil <= now) {
+        ballState.frozenUntil = 0;
+        hasThawed = true;
+      }
+    });
+    if (hasThawed) {
+      this.renderTubes();
+    }
     if (now >= this.nextFreezeAt) {
       this.triggerFreeze();
     }
