@@ -388,10 +388,6 @@ export class TubeSortGameScene extends Phaser.Scene {
   }
 
   private getMoveLimitStatusText() {
-    const moveLimitFeature = this.currentLevelConfig.moveLimitFeature;
-    if (!moveLimitFeature.enabled) {
-      return 'โหมดปกติ';
-    }
     return `ขยับไป : ${this.totalMoves}`;
   }
 
