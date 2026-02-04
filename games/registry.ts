@@ -8,6 +8,7 @@ import { DreamDirectGameConfig } from './game-06-dreamdirect/config';
 import { MysterySoundGameConfig } from './game-08-mysterysound/config';
 import { PinkCupGameConfig } from './game-07-pinkcup/config';
 import { TubeSortGameConfig } from './game-09-tube-sort/config';
+import { GridHunterGameConfig } from './game-12-gridhunter/config';
 import { BoxPatternGameConfig } from './game-13-boxpattern/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
@@ -21,5 +22,6 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-08-mysterysound': MysterySoundGameConfig,
   'game-07-pinkcup': PinkCupGameConfig,
   'game-09-tube-sort': TubeSortGameConfig,
+  'game-12-gridhunter': GridHunterGameConfig,
   'game-13-boxpattern': BoxPatternGameConfig
 };

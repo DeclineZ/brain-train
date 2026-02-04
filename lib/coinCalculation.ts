@@ -32,8 +32,13 @@ export function calculateCoinReward(params: CoinCalculationParams): number {
     // Edge case: Clamp stars earned to valid range (0-3)
     const validStarsEarned = Math.max(0, Math.min(3, starsEarned));
 
-    // Sensor Lock game: Dynamic reward based on score (unchanged)
+    // Sensor Lock & Grid Hunter: Dynamic reward based on score
     if (gameId === "game-02-sensorlock") {
+        const validScore = Math.max(0, score || 0);
+        return Math.max(1, Math.floor(validScore / 1500));
+    }
+
+    if (gameId === "game-12-gridhunter") {
         const validScore = Math.max(0, score || 0);
         return Math.max(1, Math.floor(validScore / 1500));
     }
