@@ -100,6 +100,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-09-tube-sort') {
           const { TubeSortTutorialScene } = await import('@/games/game-09-tube-sort/TutorialScene');
           config.scene = TubeSortTutorialScene;
+        } else if (gameId === 'game-12-gridhunter') {
+          const { TutorialScene } = await import('@/games/game-12-gridhunter/TutorialScene');
+          config.scene = TutorialScene;
         } else if (gameId === 'game-13-boxpattern') {
           const { BoxPatternTutorialScene } = await import('@/games/game-13-boxpattern/TutorialScene');
           config.scene = BoxPatternTutorialScene;
