@@ -81,7 +81,7 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter';
+    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern';
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
@@ -150,7 +150,18 @@ export default function GamePage({ params }: PageProps) {
                     if (data && data.current_played) {
                         setActiveLevel(nextLevel);
                     } else {
-                        // No history -> Start Tutorial (Level 0)
+                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
+                        // if (
+                        //     gameId === "game-01-cardmatch" ||
+                        //     gameId === "game-02-sensorlock" ||
+                        //     gameId === "game-03-billiards-math" ||
+                        //     gameId === "game-04-floating-ball-math" ||
+                        //     gameId === "game-07-pinkcup" ||
+                        //     gameId === "game-08-mysterysound" ||
+                        //     gameId === "game-09-tube-sort"
+                        // ) {
+
+                        // }
                         setActiveLevel(0);
                     }
                 }
@@ -500,20 +511,31 @@ export default function GamePage({ params }: PageProps) {
                             <span className="text-3xl">LEVEL {activeLevel}</span>
                         </div>
                     )}
+                    {/* Game 13 (Box Pattern) - Blue/Teal styling */}
+                    {(gameId === 'game-13-boxpattern') && (
+                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-teal-100 text-teal-700 border-teal-300 transition-all duration-300 animate-in slide-in-from-top-4 whitespace-nowrap">
+                            <span className="text-2xl">Box Pattern</span>
+                        </div>
+                    )}
                     {/* Game 07 (Pinkcup) with tier-based styling */}
-                    {gameId === 'game-07-pinkcup' && (
-                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                            <span className="text-3xl">LEVEL {activeLevel}</span>
-                        </div>
-                    )}
+                    {
+                        gameId === 'game-07-pinkcup' && (
+                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
                     {/* Game 09 (Tube Sort) with tier-based styling */}
-                    {gameId === 'game-09-tube-sort' && (
-                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                            <span className="text-3xl">LEVEL {activeLevel}</span>
-                        </div>
-                    )}
+                    {
+                        gameId === 'game-09-tube-sort' && (
+                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
                 </>
-            )}
+            )
+            }
 
             {/* The Game */}
             {/* The Game - Force remount on level change */}
@@ -530,289 +552,294 @@ export default function GamePage({ params }: PageProps) {
             />
 
             {/* TIMEOUT POPUP */}
-            {isTimeout && (
-                <TimeoutPopup
-                    onContinue={handleContinue}
-                    onRestart={handleRestartLevel}
-                    onPreviousLevel={handlePreviousLevel}
-                    onGiveUp={handleHomeClick}
-                    activeLevel={activeLevel}
-                />
-            )}
+            {
+                isTimeout && (
+                    <TimeoutPopup
+                        onContinue={handleContinue}
+                        onRestart={handleRestartLevel}
+                        onPreviousLevel={handlePreviousLevel}
+                        onGiveUp={handleHomeClick}
+                        activeLevel={activeLevel}
+                    />
+                )
+            }
 
             {/* The Result Popup Overlay */}
-            {showTutorialPopup && (
-                <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
-                    <ConfettiEffect />
-                    <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
-                        <h1 className="text-3xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
-                            คุณเก่งมาก!
-                        </h1>
-                        <p className="text-brown-primary font-bold text-lg mb-6">
-                            เราไปเริ่มเล่นเกมจริงกัน
-                        </p>
-                        <div className="flex gap-4 w-full justify-center">
-                            <button
-                                onClick={() => {
-                                    // Tutorial unlikely to trigger all quests complete (since it is level 0), but good practice
-                                    router.push("/");
-                                }}
-                                className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
-                            >
-                                <Home className="w-8 h-8" />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowTutorialPopup(false);
-                                    if (tutorialMode === "review") {
-                                        // Manual review -> Go to saved resume level (or max level)
-                                        setActiveLevel(resumeLevel);
-                                    } else {
-                                        // First time tutorial -> Go to Level 1
-                                        setActiveLevel(1);
-                                    }
-                                }}
-                                className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
-                            >
-                                เริ่มเลย
-                            </button>
+            {
+                showTutorialPopup && (
+                    <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
+                        <ConfettiEffect />
+                        <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
+                            <h1 className="text-3xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
+                                คุณเก่งมาก!
+                            </h1>
+                            <p className="text-brown-primary font-bold text-lg mb-6">
+                                เราไปเริ่มเล่นเกมจริงกัน
+                            </p>
+                            <div className="flex gap-4 w-full justify-center">
+                                <button
+                                    onClick={() => {
+                                        // Tutorial unlikely to trigger all quests complete (since it is level 0), but good practice
+                                        router.push("/");
+                                    }}
+                                    className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
+                                >
+                                    <Home className="w-8 h-8" />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowTutorialPopup(false);
+                                        if (tutorialMode === "review") {
+                                            // Manual review -> Go to saved resume level (or max level)
+                                            setActiveLevel(resumeLevel);
+                                        } else {
+                                            // First time tutorial -> Go to Level 1
+                                            setActiveLevel(1);
+                                        }
+                                    }}
+                                    className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
+                                >
+                                    เริ่มเลย
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {result && (
-                <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
-                    {/* Celebration Effect */}
-                    {result.success !== false && <ConfettiEffect />}
+            {
+                result && (
+                    <div className="absolute inset-0 bg-overlay/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-300">
+                        {/* Celebration Effect */}
+                        {result.success !== false && <ConfettiEffect />}
 
-                    {/* Main Card */}
-                    <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
-                        {/* ... Only keeping Success content here essentially since Failure is handled by Timeout mostly, 
+                        {/* Main Card */}
+                        <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
+                            {/* ... Only keeping Success content here essentially since Failure is handled by Timeout mostly, 
                 but keeping structure for generic GameOver if needed ... */}
 
-                        {result.success !== false ? (
-                            // SUCCESS CONTENT
-                            <>
-                                <h1 className="text-4xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
-                                    เยี่ยมมาก!
-                                </h1>
-                                {/* Stars OR Score */}
-                                {!isEndless ? (
-                                    <div className="flex justify-center gap-2 mb-6">
-                                        {[1, 2, 3].map((star) => (
+                            {result.success !== false ? (
+                                // SUCCESS CONTENT
+                                <>
+                                    <h1 className="text-4xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
+                                        เยี่ยมมาก!
+                                    </h1>
+                                    {/* Stars OR Score */}
+                                    {!isEndless ? (
+                                        <div className="flex justify-center gap-2 mb-6">
+                                            {[1, 2, 3].map((star) => (
+                                                <div
+                                                    key={star}
+                                                    className={`transition-all duration-500 transform ${star <= (result.stars || 0) ? "scale-100 opacity-100" : "scale-90 opacity-50 grayscale brightness-75"}`}
+                                                >
+                                                    <StarIcon className="w-24 h-24" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center mb-6">
+                                            <div className="text-2xl font-bold text-brown-primary">
+                                                คะแนนของคุณ
+                                            </div>
+                                            <div className="text-6xl font-black text-[#58CC02] drop-shadow-sm">
+                                                {result.score || 0}
+                                            </div>
+
+                                            {result.score > highScore && (
+                                                <div className="mt-2 bg-[#FFD700] text-brown-primary px-4 py-1 rounded-full text-sm font-bold shadow-md animate-bounce">
+                                                    ✨ สถิติใหม่!
+                                                </div>
+                                            )}
+
+                                            <div className="text-sm text-brown-primary/60 font-bold mt-1">
+                                                สถิติเดิม: {highScore}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Star Hint Tooltip */}
+                                    {!isEndless &&
+                                        result.stars < 3 &&
+                                        result.starHint && (
+                                            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-3 mb-4 animate-pulse">
+                                                <p className="text-yellow-800 font-bold text-sm text-center leading-relaxed whitespace-pre-line">
+                                                    <span className="mr-1">
+                                                        ตัวช่วย :
+                                                    </span>
+                                                    <span>{result.starHint}</span>
+                                                </p>
+                                            </div>
+                                        )}
+
+                                    {/* Stats Box */}
+                                    <div className="bg-stats-bg w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
+                                        <div className="flex flex-wrap justify-center gap-2">
+                                            {/* Loading State */}
+                                            {((!isEndless && !result.statChanges) ||
+                                                (isEndless &&
+                                                    result.stat_focus ===
+                                                    null)) && (
+                                                    <div className="text-brown-primary animate-pulse font-bold text-sm">
+                                                        กำลังคำนวณคะแนน...
+                                                    </div>
+                                                )}
+                                            {result.earnedCoins > 0 && (
+                                                <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1">
+                                                    <Coins className="w-5 h-5 text-yellow-600 fill-yellow-600/20" />
+                                                    <span>
+                                                        +{result.earnedCoins}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {result.statChanges?.stat_memory >
+                                                0 && (
+                                                    <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                        ^ ความจำ
+                                                    </div>
+                                                )}
+                                            {result.statChanges?.stat_speed > 0 && (
+                                                <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                    ^ ความเร็ว
+                                                </div>
+                                            )}
+
+                                            {result.statChanges?.stat_focus > 0 && (
+                                                <div className="bg-chip-focus-bg text-chip-focus-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                    ^ สมาธิ
+                                                </div>
+                                            )}
+                                            {(result.statChanges?.stat_planning > 0 ||
+                                                (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
+                                                    <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                        ^ การวางแผน
+                                                    </div>
+                                                )}
+                                            {result.statChanges?.stat_emotion >
+                                                0 && (
+                                                    <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                                        ^ ควบคุมอารมณ์
+                                                    </div>
+                                                )}
+                                        </div>
+                                    </div>
+
+                                    {/* Streak Progress */}
+                                    <div className="w-full mb-6 relative">
+                                        <div className="flex justify-between text-brown-primary font-bold text-sm mb-1 px-2">
+                                            <span>ภารกิจของวันนี้</span>
+                                            <span>
+                                                {dailyCount}/{targetDaily}
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-8 bg-brown-primary/20 rounded-full relative overflow-hidden">
+                                            {/* Fill */}
                                             <div
-                                                key={star}
-                                                className={`transition-all duration-500 transform ${star <= (result.stars || 0) ? "scale-100 opacity-100" : "scale-90 opacity-50 grayscale brightness-75"}`}
-                                            >
-                                                <StarIcon className="w-24 h-24" />
+                                                className="h-full bg-streak-fill rounded-full transition-all duration-1000 ease-out"
+                                                style={{
+                                                    width: `${progressPercent}%`,
+                                                }}
+                                            />
+                                            {/* Text Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
+                                                {Math.max(
+                                                    0,
+                                                    targetDaily - dailyCount
+                                                ) === 0
+                                                    ? "ภารกิจวันนี้เสร็จแล้ว"
+                                                    : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`}
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center mb-6">
-                                        <div className="text-2xl font-bold text-brown-primary">
-                                            คะแนนของคุณ
-                                        </div>
-                                        <div className="text-6xl font-black text-[#58CC02] drop-shadow-sm">
-                                            {result.score || 0}
-                                        </div>
-
-                                        {result.score > highScore && (
-                                            <div className="mt-2 bg-[#FFD700] text-brown-primary px-4 py-1 rounded-full text-sm font-bold shadow-md animate-bounce">
-                                                ✨ สถิติใหม่!
-                                            </div>
-                                        )}
-
-                                        <div className="text-sm text-brown-primary/60 font-bold mt-1">
-                                            สถิติเดิม: {highScore}
                                         </div>
                                     </div>
-                                )}
 
-                                {/* Star Hint Tooltip */}
-                                {!isEndless &&
-                                    result.stars < 3 &&
-                                    result.starHint && (
-                                        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-3 mb-4 animate-pulse">
-                                            <p className="text-yellow-800 font-bold text-sm text-center leading-relaxed whitespace-pre-line">
-                                                <span className="mr-1">
-                                                    ตัวช่วย :
-                                                </span>
-                                                <span>{result.starHint}</span>
-                                            </p>
-                                        </div>
-                                    )}
+                                    {/* Buttons Row (Success) */}
+                                    {/* Buttons Row (Success) - Only show after stats loaded */}
+                                    {((!isEndless &&
+                                        (result.stat_speed !== null ||
+                                            result.stat_focus !== null ||
+                                            result.stat_planning !== null ||
+                                            gameId === 'game-05-wormtrain')) ||
+                                        (isEndless &&
+                                            result.stat_focus !== null)) && (
+                                            <div className="flex flex-col gap-3 w-full">
+                                                {isSaving && (
+                                                    <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">
+                                                        กำลังบันทึกข้อมูล...
+                                                    </div>
+                                                )}
 
-                                {/* Stats Box */}
-                                <div className="bg-stats-bg w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
-                                    <div className="flex flex-wrap justify-center gap-2">
-                                        {/* Loading State */}
-                                        {((!isEndless && !result.statChanges) ||
-                                            (isEndless &&
-                                                result.stat_focus ===
-                                                null)) && (
-                                                <div className="text-brown-primary animate-pulse font-bold text-sm">
-                                                    กำลังคำนวณคะแนน...
-                                                </div>
-                                            )}
-                                        {result.earnedCoins > 0 && (
-                                            <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1">
-                                                <Coins className="w-5 h-5 text-yellow-600 fill-yellow-600/20" />
-                                                <span>
-                                                    +{result.earnedCoins}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {result.statChanges?.stat_memory >
-                                            0 && (
-                                                <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ ความจำ
-                                                </div>
-                                            )}
-                                        {result.statChanges?.stat_speed > 0 && (
-                                            <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                ^ ความเร็ว
-                                            </div>
-                                        )}
-
-                                        {result.statChanges?.stat_focus > 0 && (
-                                            <div className="bg-chip-focus-bg text-chip-focus-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                ^ สมาธิ
-                                            </div>
-                                        )}
-                                        {(result.statChanges?.stat_planning > 0 ||
-                                            (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
-                                                <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ การวางแผน
-                                                </div>
-                                            )}
-                                        {result.statChanges?.stat_emotion >
-                                            0 && (
-                                                <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ ควบคุมอารมณ์
-                                                </div>
-                                            )}
-                                    </div>
-                                </div>
-
-                                {/* Streak Progress */}
-                                <div className="w-full mb-6 relative">
-                                    <div className="flex justify-between text-brown-primary font-bold text-sm mb-1 px-2">
-                                        <span>ภารกิจของวันนี้</span>
-                                        <span>
-                                            {dailyCount}/{targetDaily}
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-8 bg-brown-primary/20 rounded-full relative overflow-hidden">
-                                        {/* Fill */}
-                                        <div
-                                            className="h-full bg-streak-fill rounded-full transition-all duration-1000 ease-out"
-                                            style={{
-                                                width: `${progressPercent}%`,
-                                            }}
-                                        />
-                                        {/* Text Overlay */}
-                                        <div className="absolute inset-0 flex items-center justify-center text-streak-text font-bold shadow-sm text-xs">
-                                            {Math.max(
-                                                0,
-                                                targetDaily - dailyCount
-                                            ) === 0
-                                                ? "ภารกิจวันนี้เสร็จแล้ว"
-                                                : `เหลืออีก ${Math.max(0, targetDaily - dailyCount)} ภารกิจ`}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Buttons Row (Success) */}
-                                {/* Buttons Row (Success) - Only show after stats loaded */}
-                                {((!isEndless &&
-                                    (result.stat_speed !== null ||
-                                        result.stat_focus !== null ||
-                                        result.stat_planning !== null ||
-                                        gameId === 'game-05-wormtrain')) ||
-                                    (isEndless &&
-                                        result.stat_focus !== null)) && (
-                                        <div className="flex flex-col gap-3 w-full">
-                                            {isSaving && (
-                                                <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">
-                                                    กำลังบันทึกข้อมูล...
-                                                </div>
-                                            )}
-
-                                            {/* Hide buttons while saving */}
-                                            {!isSaving && (
-                                                <div className="flex gap-4 w-full justify-center">
-                                                    {/* Restart Level Button */}
-                                                    {!isEndless && (
-                                                        <button
-                                                            onClick={handleRestartLevel}
-                                                            className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
-                                                        >
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                viewBox="0 0 512 512"
-                                                                fill="currentColor"
-                                                                className="w-full h-full"
+                                                {/* Hide buttons while saving */}
+                                                {!isSaving && (
+                                                    <div className="flex gap-4 w-full justify-center">
+                                                        {/* Restart Level Button */}
+                                                        {!isEndless && (
+                                                            <button
+                                                                onClick={handleRestartLevel}
+                                                                className="w-16 h-16 bg-white border-4 border-btn-border-light rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-brown-primary p-3"
                                                             >
-                                                                <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
-                                                            </svg>
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    viewBox="0 0 512 512"
+                                                                    fill="currentColor"
+                                                                    className="w-full h-full"
+                                                                >
+                                                                    <path d="M263.09 50 a205.803 205.803 0 0 0-35.857 3.13 C142.026 68.156 75.156 135.026 60.13 220.233 45.108 305.44 85.075 391.15 160.005 434.41 c32.782 18.927 69.254 27.996 105.463 27.553 46.555-.57 92.675-16.865 129.957-48.15 l-30.855-36.768 a157.846 157.846 0 0 1-180.566 15.797 a157.846 157.846 0 0 1-76.603-164.274 A157.848 157.848 0 0 1 235.571 100.4 a157.84 157.84 0 0 1 139.17 43.862 L327 192h128V64l-46.34 46.342 C370.242 71.962 317.83 50.03 263.09 50z" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Back to Home Button */}
+                                                        <button
+                                                            onClick={handleHomeClick}
+                                                            className={`bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 ${isEndless ? 'h-14' : ''}`}
+                                                        >
+                                                            <Home className="w-8 h-8" />
                                                         </button>
-                                                    )}
 
-                                                    {/* Back to Home Button */}
-                                                    <button
-                                                        onClick={handleHomeClick}
-                                                        className={`bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 ${isEndless ? 'h-14' : ''}`}
-                                                    >
-                                                        <Home className="w-8 h-8" />
-                                                    </button>
+                                                        <button
+                                                            onClick={handleNextLevel}
+                                                            className={`flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
+                                                        >
+                                                            {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'ด่านถัดไป')}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                </>
+                            ) : (
+                                // FAILURE POPUP
+                                <>
+                                    <h1 className="text-4xl font-extrabold text-red-600 drop-shadow-sm mt-2 mb-4">
+                                        เกมโอเวอร์
+                                    </h1>
+                                    <p className="text-brown-primary font-bold text-lg mb-6">
+                                        ลองอีกครั้งนะ!
+                                    </p>
 
-                                                    <button
-                                                        onClick={handleNextLevel}
-                                                        className={`flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all ${isEndless ? 'h-14' : ''}`}
-                                                    >
-                                                        {activeLevel >= maxLevel && !isEndless ? 'จบเกม' : (isEndless ? 'เล่นอีกครั้ง' : 'ด่านถัดไป')}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                            </>
-                        ) : (
-                            // FAILURE POPUP
-                            <>
-                                <h1 className="text-4xl font-extrabold text-red-600 drop-shadow-sm mt-2 mb-4">
-                                    เกมโอเวอร์
-                                </h1>
-                                <p className="text-brown-primary font-bold text-lg mb-6">
-                                    ลองอีกครั้งนะ!
-                                </p>
+                                    {/* Buttons */}
+                                    <div className="flex gap-4 w-full justify-center">
+                                        {/* Back to Home Button */}
+                                        <button
+                                            onClick={handleHomeClick}
+                                            className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
+                                        >
+                                            <Home className="w-8 h-8" />
+                                        </button>
 
-                                {/* Buttons */}
-                                <div className="flex gap-4 w-full justify-center">
-                                    {/* Back to Home Button */}
-                                    <button
-                                        onClick={handleHomeClick}
-                                        className="bg-[#1CB0F6] hover:bg-[#1899D6] border-b-4 border-[#1899D6] text-white rounded-2xl flex items-center justify-center font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all px-4 py-3"
-                                    >
-                                        <Home className="w-8 h-8" />
-                                    </button>
-
-                                    {/* Restart Button */}
-                                    <button
-                                        onClick={handleRestartLevel}
-                                        className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
-                                    >
-                                        เล่นอีกครั้ง
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                                        {/* Restart Button */}
+                                        <button
+                                            onClick={handleRestartLevel}
+                                            className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
+                                        >
+                                            เล่นอีกครั้ง
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )
+                )
             }
-        </div>
+        </div >
     );
 }

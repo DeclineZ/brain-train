@@ -22,10 +22,14 @@ export function calculateSensorLockStats(data: SensorLockGameStats): ClinicalSta
     // B. Processing Speed
     // Formula: (7000 - Avg Reaction Time) / (7000 - 500) * 100
     // Adjusted for 7s max time.
-    const minTime = 500; // 0.5s is very fast for older audience
-    const maxTime = 7000;
-    const rawSpeed = ((maxTime - Math.max(minTime, reactionTimeAvg)) / (maxTime - minTime)) * 100;
-    const stat_speed = clamp(rawSpeed);
+    // No taps = 0 speed (avoid false positive from reactionTimeAvg=0)
+    let stat_speed = 0;
+    if (reactionTimeAvg > 0) {
+        const minTime = 500; // 0.5s is very fast for older audience
+        const maxTime = 7000;
+        const rawSpeed = ((maxTime - Math.max(minTime, reactionTimeAvg)) / (maxTime - minTime)) * 100;
+        stat_speed = clamp(rawSpeed);
+    }
 
     // C. Emotional/Inhibitory Control
     // Formula: (Mismatch Correct / Mismatch Attempts) * 100
