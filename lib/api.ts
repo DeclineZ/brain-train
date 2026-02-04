@@ -180,6 +180,8 @@ function getDefaultLevelCount(gameId: string): number {
       return 35;
     case 'game-07-pinkcup':
       return 30; // Pinkcup has 30 levels
+    case 'game-09-tube-sort':
+      return 30; // Tube Sort has 30 levels
     default:
       return 12; // Default for other games
   }

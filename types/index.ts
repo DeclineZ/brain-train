@@ -120,14 +120,14 @@ export interface PinkCupGameStats {
   telemetry: {
     level: number;
     mode: GameMode;
-    targetCell: {x: number, y: number};
-    pinkStart: {x: number, y: number};
+    targetCell: { x: number, y: number };
+    pinkStart: { x: number, y: number };
     t_start: number;
     t_end: number;
     moves: Array<{
       timestamp: number;
-      from: {x: number, y: number};
-      to: {x: number, y: number};
+      from: { x: number, y: number };
+      to: { x: number, y: number };
       valid: boolean;
       distanceToTarget: number;
       backtracked: boolean;
@@ -135,10 +135,10 @@ export interface PinkCupGameStats {
     reveal: {
       start: number;
       end: number;
-      elements: {[cell: string]: number};
+      elements: { [cell: string]: number };
     };
     probes: Array<{
-      cell: {x: number, y: number};
+      cell: { x: number, y: number };
       probeTime: number;
       answerTime: number;
       correct: boolean;
@@ -150,6 +150,17 @@ export interface PinkCupGameStats {
   success: boolean;
   level: number;
   difficultyMultiplier: number;
+}
+
+export interface GridHunterGameStats {
+  score: number;
+  maxCombo: number;
+  totalCorrect: number;
+  totalAttempts: number;
+  reactionTimeAvg: number;
+  trapAvoided: number;
+  trapHit: number;
+  phaseReached: number;
 }
 
 export interface ClinicalStats {
@@ -224,6 +235,20 @@ export interface MysterySoundGameStats {
   replaysUsed: number;
   responseTimeMs: number;
   timeLimitMs: number;
+}
+
+export interface TubeSortGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+  optimalMoves: number;
+  playerMoves: number;
+  correctPours: number;
+  incorrectPours: number;
+  illegalPourAttempts: number;
+  redundantMoves: number;
+  totalActions: number;
+  completionTimeMs: number;
+  targetTimeMs: number;
 }
 
 // Daily streak types

@@ -5,8 +5,10 @@ import { calculateBilliardsStats } from '@/lib/scoring/billiards';
 import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
 import { calculateDreamDirectStats } from '@/lib/scoring/dreamdirect';
 import { calculatePinkCupStats } from '@/lib/scoring/pinkcup';
+import { calculateTubeSortStats } from '@/lib/scoring/tubeSort';
+import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, GridHunterGameStats } from '@/types';
 
 export const useGameSession = () => {
 
@@ -56,6 +58,10 @@ export const useGameSession = () => {
       };
     } else if (gameId === 'game-07-pinkcup') {
       clinicalStats = calculatePinkCupStats(rawData as PinkCupGameStats);
+    } else if (gameId === 'game-09-tube-sort') {
+      clinicalStats = calculateTubeSortStats(rawData as TubeSortGameStats);
+    } else if (gameId === 'game-12-gridhunter') {
+      clinicalStats = calculateGridHunterStats(rawData as GridHunterGameStats);
     }
     // Add 'else if' for other games here later...
 

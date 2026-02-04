@@ -1,10 +1,13 @@
 import { FloatingBall, BallColor } from '../types';
+import type { SeededRandom } from '@/lib/seededRandom';
 
 export class BallSpawner {
   private scene: Phaser.Scene;
+  private rng: SeededRandom;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, rng: SeededRandom) {
     this.scene = scene;
+    this.rng = rng;
   }
 
   /**
@@ -16,14 +19,14 @@ export class BallSpawner {
     const fontSize = Math.min(42, width * 0.075);
 
     const container = this.scene.add.container(x, y);
-    const id = `ball-${Date.now()}-${Math.random()}`;
+    const id = `ball-${Date.now()}-${this.rng.next()}`;
     
     // Set ball depth to 0 so they appear below ALL UI elements (water background at -2)
     container.setDepth(0);
 
     // Load and add ball image - randomly select one of 4 ball images
     const ballKeys = ['ball-1', 'ball-2', 'ball-3', 'ball-4'];
-    const randomBallKey = ballKeys[Math.floor(Math.random() * ballKeys.length)];
+    const randomBallKey = ballKeys[this.rng.nextIndex(ballKeys.length)];
     const ballImage = this.scene.add.image(0, 0, randomBallKey);
     ballImage.setDisplaySize(ballRadius * 2, ballRadius * 2);
     container.add(ballImage);
@@ -106,7 +109,7 @@ export class BallSpawner {
       originalY: y,
       lane: 0, // Default lane, set in GameScene.ts
       originalLane: 0, // Default lane, set in GameScene.ts
-      wavePhase: Math.random() * Math.PI * 2,
+      wavePhase: this.rng.next() * Math.PI * 2,
       isCollected: false,
       isBomb: false, // Not a bomb by default
       isSolvable: false, // Not marked as solvable by default
@@ -263,7 +266,7 @@ export class BallSpawner {
     const ballRadius = Math.min(60, width * 0.12);
 
     const container = this.scene.add.container(x, y);
-    const id = `bomb-${Date.now()}-${Math.random()}`;
+    const id = `bomb-${Date.now()}-${this.rng.next()}`;
     
     // Set bomb depth to 0 so it appears below ALL UI elements (water background at -2)
     container.setDepth(0);
@@ -293,7 +296,7 @@ export class BallSpawner {
       originalY: y,
       lane: 0, // Default lane, set in GameScene.ts
       originalLane: 0, // Default lane, set in GameScene.ts
-      wavePhase: Math.random() * Math.PI * 2,
+      wavePhase: this.rng.next() * Math.PI * 2,
       isCollected: false,
       isBomb: true, // This IS a bomb ball
       isSolvable: false, // Not marked as solvable by default

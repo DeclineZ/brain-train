@@ -162,7 +162,8 @@ export async function upsertLevelStars(
     userId: string,
     gameId: string,
     level: number,
-    newStars: number
+    newStars: number,
+    sessionId?: string | null
 ) {
     const supabase = await createClient();
     
@@ -202,7 +203,9 @@ export async function upsertLevelStars(
             user_id: userId,
             game_id: gameId,
             level: level,
-            star: newStars
+            star: newStars,
+            game_session_id: sessionId ?? null,
+            updated_at: new Date().toISOString()
         }, {
             onConflict: 'user_id, game_id, level'
         });

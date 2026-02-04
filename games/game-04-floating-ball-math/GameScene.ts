@@ -4,6 +4,7 @@ import { EquationGenerator } from "./utils/EquationGenerator";
 import { WaterPhysics } from "./utils/WaterPhysics";
 import { BallSpawner } from "./utils/BallSpawner";
 import { FloatboatController } from "./utils/Floatboat";
+import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
 import type {
   FloatingBall,
   Equation,
@@ -137,6 +138,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
   private soundBlock!: Phaser.Sound.BaseSound;
   private soundAdapt!: Phaser.Sound.BaseSound;
   private soundTimerTick!: Phaser.Sound.BaseSound;
+  private rng!: SeededRandom;
 
   constructor() {
     super({ key: "FloatingBallMathGameScene" });
@@ -152,9 +154,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     this.currentLevelConfig =
       FLOATING_BALL_MATH_LEVELS[level] || FLOATING_BALL_MATH_LEVELS[1];
-    this.equationGenerator = new EquationGenerator(this.currentLevelConfig);
-    this.waterPhysics = new WaterPhysics(this, this.currentLevelConfig);
-    this.ballSpawner = new BallSpawner(this);
+    this.rng = createSeededRandom(4000 + this.currentLevelConfig.level * 911);
+    this.equationGenerator = new EquationGenerator(this.currentLevelConfig, this.rng);
+    this.waterPhysics = new WaterPhysics(this, this.currentLevelConfig, this.rng);
+    this.ballSpawner = new BallSpawner(this, this.rng);
     this.floatboatController = new FloatboatController(this);
 
     this.resetGameState();
@@ -935,7 +938,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     
     // Spawn each ball from the generated set
     ballTemplates.forEach((ballTemplate, index) => {
-      const lane = Math.floor(Math.random() * 3) as 0 | 1 | 2;
+      const lane = this.rng.nextInt(0, 2) as 0 | 1 | 2;
       const x = this.getLanePosition(lane);
       const y = -150 - (index * 220); // Proper Y spacing
       
@@ -1003,7 +1006,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     
     if (solvableBalls.length > 0) {
       // Select 1 random solvable ball from generated set
-      const ballTemplate = solvableBalls[Math.floor(Math.random() * solvableBalls.length)];
+      const ballTemplate = solvableBalls[this.rng.nextIndex(solvableBalls.length)];
       this.spawnBallFromTemplate(ballTemplate);
       return;
     }
@@ -1035,7 +1038,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     }
     
     // Create fallback ball
-    const lane = Math.floor(Math.random() * 3) as 0 | 1 | 2;
+    const lane = this.rng.nextInt(0, 2) as 0 | 1 | 2;
     const x = this.getLanePosition(lane);
     const y = this.findSafeSpawnPosition(lane);
     
@@ -1077,7 +1080,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
    * Helper method to spawn a ball from a template
    */
   private spawnBallFromTemplate(ballTemplate: any) {
-    const lane = Math.floor(Math.random() * 3) as 0 | 1 | 2;
+    const lane = this.rng.nextInt(0, 2) as 0 | 1 | 2;
     const x = this.getLanePosition(lane);
     const y = this.findSafeSpawnPosition(lane);
     
@@ -1376,11 +1379,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     if (availableBalls.length === 0) return;
     
     // Pick random ball
-    const targetBall = availableBalls[Math.floor(Math.random() * availableBalls.length)];
+    const targetBall = availableBalls[this.rng.nextIndex(availableBalls.length)];
     
     // Select new lane (different from current)
     const possibleLanes = [0, 1, 2].filter(l => l !== targetBall.lane);
-    const newLane = possibleLanes[Math.floor(Math.random() * possibleLanes.length)] as 0 | 1 | 2;
+    const newLane = possibleLanes[this.rng.nextIndex(possibleLanes.length)] as 0 | 1 | 2;
     
     // Create thief event
     this.activeThiefEvent = {

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { PINKCUP_LEVELS, getPinkCupLevel } from './levels';
 import { upsertLevelStars } from '@/lib/stars';
+import { createSeededRandom, shuffleWithSeed, SeededRandom } from '@/lib/seededRandom';
 import type { 
   PinkCupLevelConfig, 
   CupData, 
@@ -67,6 +68,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   private probeUIGraphics!: Phaser.GameObjects.Graphics;
   private swipeStart: {x: number, y: number} | null = null;
   private activeCup: CupData | null = null;
+  private rng!: SeededRandom;
 
   constructor() {
     super({ key: 'PinkCupGameScene' });
@@ -79,6 +81,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     const level = data.level || regLevel || 1;
     this.currentLevelConfig = PINKCUP_LEVELS[level] || PINKCUP_LEVELS[1];
     this.isTutorialComplete = data.isTutorialComplete || false;
+    this.rng = createSeededRandom(7000 + this.currentLevelConfig.level * 977);
 
     // Reset state
     this.cups = [];
@@ -135,13 +138,13 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   preload() {
     // Load audio
-    this.load.audio('cup-move', '/assets/sounds/cardmatch/card-flip.mp3');
-    this.load.audio('success', '/assets/sounds/cardmatch/match-success.mp3');
-    this.load.audio('error', '/assets/sounds/cardmatch/match-fail.mp3');
+    this.load.audio('cup-move', '/assets/sounds/pinkcup/cup-move.mp3');
+    this.load.audio('success', '/assets/sounds/pinkcup/success.mp3');
+    this.load.audio('error', '/assets/sounds/global/error.mp3');
     this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
     this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
     this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
-    this.load.audio('bg-music', '/assets/sounds/cardmatch/bg-music.mp3');
+    this.load.audio('bg-music', '/assets/sounds/pinkcup/bg-music.mp3');
   }
 
   create() {
@@ -226,8 +229,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.tiles = [];
 
     // Random target position (within adjusted grid)
-    const targetX = Math.floor(Math.random() * adjustedCols);
-    const targetY = Math.floor(Math.random() * adjustedRows);
+    const targetX = this.rng.nextInt(0, adjustedCols - 1);
+    const targetY = this.rng.nextInt(0, adjustedRows - 1);
     this.targetCell = {x: targetX, y: targetY};
     this.telemetry.targetCell = this.targetCell;
     
@@ -249,12 +252,12 @@ export class PinkCupGameScene extends Phaser.Scene {
         allCellPositions.push({x, y});
       }
     }
-    Phaser.Utils.Array.Shuffle(allCellPositions);
+    const shuffledCellPositions = shuffleWithSeed(allCellPositions, this.rng);
 
     // Assign numbers to cells (all except one)
     const cellNumbers: {[key: string]: number} = {};
     for (let i = 0; i < numberedCellsCount; i++) {
-      const pos = allCellPositions[i];
+      const pos = shuffledCellPositions[i];
       cellNumbers[`${pos.x},${pos.y}`] = i + 1;
     }
 
@@ -326,26 +329,26 @@ export class PinkCupGameScene extends Phaser.Scene {
     }
     
     // Shuffle all positions
-    Phaser.Utils.Array.Shuffle(allPositions);
+    const shuffledPositions = shuffleWithSeed(allPositions, this.rng);
 
     // Ensure the PINK cup never spawns on the target (pink) tile.
     // Pink cup is placed at allPositions[0], so if that happens to be the target,
     // swap it with the first non-target position.
     if (
       allPositions.length > 1 &&
-      allPositions[0].x === this.targetCell.x &&
-      allPositions[0].y === this.targetCell.y
+      shuffledPositions[0].x === this.targetCell.x &&
+      shuffledPositions[0].y === this.targetCell.y
     ) {
-      const swapIndex = allPositions.findIndex(
+      const swapIndex = shuffledPositions.findIndex(
         (pos, idx) =>
           idx !== 0 &&
           (pos.x !== this.targetCell.x || pos.y !== this.targetCell.y)
       );
 
       if (swapIndex !== -1) {
-        [allPositions[0], allPositions[swapIndex]] = [
-          allPositions[swapIndex],
-          allPositions[0]
+        [shuffledPositions[0], shuffledPositions[swapIndex]] = [
+          shuffledPositions[swapIndex],
+          shuffledPositions[0]
         ];
       }
     }
@@ -356,7 +359,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     for (let i = 0; i < totalCups; i++) {
       const isPink = i === 0;
       const cup = this.createCup(isPink, i);
-      cup.position = allPositions[i];
+      cup.position = shuffledPositions[i];
       
       if (isPink) {
         this.pinkCupIndex = i;
@@ -367,7 +370,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     }
 
     // Remaining positions are empty cells
-    this.emptyCells = allPositions.slice(totalCups, totalCells);
+    this.emptyCells = shuffledPositions.slice(totalCups, totalCells);
     this.emptyCellKeys = new Set(this.emptyCells.map(cell => `${cell.x},${cell.y}`));
     
     console.log('[CreateCups] Total cells:', totalCells, 'Total cups:', totalCups, 'Empty cells:', this.emptyCells.length);
@@ -1015,11 +1018,11 @@ export class PinkCupGameScene extends Phaser.Scene {
         allPositions.push({...tile.position});
       }
     });
-    Phaser.Utils.Array.Shuffle(allPositions);
+    const shuffledProbePositions = shuffleWithSeed(allPositions, this.rng);
 
     // Select random positions for questions
-    for (let i = 0; i < numQuestions && i < allPositions.length; i++) {
-      this.probeQuestions.push(allPositions[i]);
+    for (let i = 0; i < numQuestions && i < shuffledProbePositions.length; i++) {
+      this.probeQuestions.push(shuffledProbePositions[i]);
     }
     
     console.log('[ShowMemoryProbe] Probe questions:', this.probeQuestions);

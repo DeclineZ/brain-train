@@ -27,7 +27,7 @@ export const DREAMDIRECT_LEVELS: { [key: number]: DreamDirectLevelConfig } = {
         level: 0,
         bpm: 60,
         bgmTrack: BGM.SLOW,
-        arrowTypes: ['ghost'],
+        arrowTypes: ['anchor'],
         arrowCount: 8,
         timingWindowMultiplier: 1.5,
         difficultyMultiplier: 1.0,
@@ -36,11 +36,11 @@ export const DREAMDIRECT_LEVELS: { [key: number]: DreamDirectLevelConfig } = {
 
     // === CHAPTER 1: THE DRIFT (Basic Training) ===
     // Focus: Directional arrows, single lane feel
-    1: { level: 1, bpm: 60, bgmTrack: BGM.SLOW, arrowTypes: ['ghost'], arrowCount: 12, timingWindowMultiplier: 1.3, difficultyMultiplier: 1.0, chordChance: 0 },
-    2: { level: 2, bpm: 70, bgmTrack: BGM.SLOW, arrowTypes: ['ghost'], arrowCount: 16, timingWindowMultiplier: 1.2, difficultyMultiplier: 1.05, chordChance: 0 },
-    3: { level: 3, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['ghost', 'anchor'], arrowCount: 16, timingWindowMultiplier: 1.1, difficultyMultiplier: 1.1, chordChance: 0 },
-    4: { level: 4, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['ghost', 'anchor'], arrowCount: 20, timingWindowMultiplier: 1.0, difficultyMultiplier: 1.15, chordChance: 0.05 },
-    5: { level: 5, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['ghost', 'anchor'], arrowCount: 24, timingWindowMultiplier: 1.0, difficultyMultiplier: 1.2, chordChance: 0.1 },
+    1: { level: 1, bpm: 60, bgmTrack: BGM.SLOW, arrowTypes: ['anchor'], arrowCount: 12, timingWindowMultiplier: 1.3, difficultyMultiplier: 1.0, chordChance: 0 },
+    2: { level: 2, bpm: 70, bgmTrack: BGM.SLOW, arrowTypes: ['anchor'], arrowCount: 16, timingWindowMultiplier: 1.2, difficultyMultiplier: 1.05, chordChance: 0 },
+    3: { level: 3, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['anchor', 'ghost'], arrowCount: 16, timingWindowMultiplier: 1.1, difficultyMultiplier: 1.1, chordChance: 0 },
+    4: { level: 4, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['anchor', 'ghost'], arrowCount: 20, timingWindowMultiplier: 1.0, difficultyMultiplier: 1.15, chordChance: 0.05 },
+    5: { level: 5, bpm: 80, bgmTrack: BGM.MED, arrowTypes: ['anchor', 'ghost'], arrowCount: 24, timingWindowMultiplier: 1.0, difficultyMultiplier: 1.2, chordChance: 0.1 },
 
     // === CHAPTER 2: THE FOG (Introduction to Chords) ===
     // Focus: Simple Chords (2 arrows at once)

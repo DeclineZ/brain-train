@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 import { WaterPhysics } from "./utils/WaterPhysics";
+import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
 
 type Lane = 0 | 1 | 2;
 type Op = "+" | "-" | "*" | "/";
@@ -110,6 +111,7 @@ export class TutorialScene extends Phaser.Scene {
 
   // Input
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private rng!: SeededRandom;
 
   constructor() {
     super({ key: "TutorialScene" });
@@ -132,6 +134,8 @@ export class TutorialScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+
+    this.rng = createSeededRandom(4500);
 
     this.setupLanes(width);
 
@@ -251,7 +255,7 @@ export class TutorialScene extends Phaser.Scene {
       operations: ['+', '-', '*', '/'],
       waterSpeed: 1.0,
       waveAmplitude: 15,
-    } as any);
+    } as any, this.rng);
 
     // Create water wave overlay
     this.waterOverlay = this.waterPhysics.createWaterOverlay();
@@ -859,7 +863,7 @@ export class TutorialScene extends Phaser.Scene {
   // Balls
   // -----------------------------
   private spawnBall(opts: { op: Op; value: number; lane: Lane; isBomb: boolean; y?: number }) {
-    const id = `ball-${Math.random().toString(16).slice(2)}`;
+    const id = `ball-${this.rng.next().toString(16).slice(2)}`;
     const x = this.getLaneX(opts.lane);
     const y = typeof opts.y === "number" ? opts.y : -120;
 
@@ -868,7 +872,7 @@ export class TutorialScene extends Phaser.Scene {
 
     const key = opts.isBomb
       ? "bomb-ball"
-      : (["ball-1", "ball-2", "ball-3", "ball-4"][Phaser.Math.Between(0, 3)] as string);
+      : (["ball-1", "ball-2", "ball-3", "ball-4"][this.rng.nextInt(0, 3)] as string);
 
     const sprite = this.textures.exists(key) ? this.add.image(0, 0, key) : undefined;
     if (sprite) {
@@ -911,9 +915,9 @@ export class TutorialScene extends Phaser.Scene {
       y,
       lane: opts.lane,
       speedY: opts.isBomb ? 210 : 170,
-      waveT: Phaser.Math.FloatBetween(0, 10),
-      waveAmp: Phaser.Math.FloatBetween(10, 22),
-      waveSpeed: Phaser.Math.FloatBetween(0.004, 0.006),
+      waveT: this.rng.next() * 10,
+      waveAmp: this.rng.nextInt(10, 22),
+      waveSpeed: 0.004 + this.rng.next() * 0.002,
       destroyed: false,
     };
 

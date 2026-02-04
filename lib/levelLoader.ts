@@ -12,6 +12,7 @@ const gameLevelModules = {
   'game-08-mysterysound': () => import('@/games/game-08-mysterysound/levels'),
   'game-06-dreamdirect': () => import('@/games/game-06-dreamdirect/levels'),
   'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
+  'game-09-tube-sort': () => import('@/games/game-09-tube-sort/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -67,9 +68,11 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
       levelConfigs = levelModule.PINKCUP_LEVELS;
+    } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
-      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS'];
+      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS', 'TUBE_SORT_LEVELS'];
       for (const name of possibleNames) {
         if (name in levelModule) {
           levelConfigs = (levelModule as any)[name];
@@ -143,6 +146,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return (levelModule as any).DREAMDIRECT_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
       return levelModule.PINKCUP_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
+      return (levelModule as any).TUBE_SORT_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -225,6 +230,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = (levelModule as any).DREAMDIRECT_LEVELS;
     } else if (gameId === 'game-07-pinkcup' && 'PINKCUP_LEVELS' in levelModule) {
       levelConfigs = levelModule.PINKCUP_LEVELS;
+    } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)

@@ -72,7 +72,8 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
 export async function checkMissionCompletion(
     userId: string,
     gameId: string,
-    levelPlayed: number
+    levelPlayed: number,
+    sessionId?: string | null
 ): Promise<{ completed: boolean; mission: DailyMission | null }> {
     const supabase = await createClient();
     const today = new Date().toISOString().split("T")[0];
@@ -102,7 +103,8 @@ export async function checkMissionCompletion(
         .from("daily_missions")
         .update({
             completed: true,
-            completed_at: new Date().toISOString()
+            completed_at: new Date().toISOString(),
+            game_session_id: sessionId ?? null
         })
         .eq("id", targetMission.id)
         .select()

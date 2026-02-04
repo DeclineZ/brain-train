@@ -97,10 +97,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-08-mysterysound') {
           const { TutorialScene } = await import('@/games/game-08-mysterysound/TutorialScene');
           config.scene = TutorialScene;
+        } else if (gameId === 'game-09-tube-sort') {
+          const { TubeSortTutorialScene } = await import('@/games/game-09-tube-sort/TutorialScene');
+          config.scene = TubeSortTutorialScene;
+        } else if (gameId === 'game-13-boxpattern') {
+          const { BoxPatternTutorialScene } = await import('@/games/game-13-boxpattern/TutorialScene');
+          config.scene = BoxPatternTutorialScene;
         }
-      } else if (gameId === 'game-07-pinkcup') {
-        const { PinkCupGameScene } = await import('@/games/game-07-pinkcup/GameScene');
-        config.scene = [PinkCupGameScene];
       }
 
       // Destroy old instance if it exists (prevents duplicates)
