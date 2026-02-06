@@ -7,8 +7,10 @@ import { calculateDreamDirectStats } from '@/lib/scoring/dreamdirect';
 import { calculatePinkCupStats } from '@/lib/scoring/pinkcup';
 import { calculateTubeSortStats } from '@/lib/scoring/tubeSort';
 import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
+import { calculateMinerStats } from '@/lib/scoring/miner';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
 import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, GridHunterGameStats } from '@/types';
+import type { MinerGameStats } from '@/lib/scoring/miner';
 
 export const useGameSession = () => {
 
@@ -62,6 +64,8 @@ export const useGameSession = () => {
       clinicalStats = calculateTubeSortStats(rawData as TubeSortGameStats);
     } else if (gameId === 'game-12-gridhunter') {
       clinicalStats = calculateGridHunterStats(rawData as GridHunterGameStats);
+    } else if (gameId === 'game-10-miner') {
+      clinicalStats = calculateMinerStats(rawData as MinerGameStats);
     }
     // Add 'else if' for other games here later...
 
