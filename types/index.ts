@@ -251,6 +251,21 @@ export interface TubeSortGameStats {
   targetTimeMs: number;
 }
 
+export interface MinerGameStats {
+  levelPlayed: number;
+  attempts: number;
+  success_grabs: number;
+  valuable_grabs: number;
+  mistakes: number;
+  total_value: number;
+  goal_amount: number;
+  max_possible_value: number;
+  avg_decision_time_ms: number;
+  target_decision_time_ms: number;
+  stars?: number;
+  success?: boolean;
+}
+
 // Daily streak types
 export interface CheckinStatus {
   checked_in_today: boolean;
