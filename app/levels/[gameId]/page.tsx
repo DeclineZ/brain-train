@@ -2,7 +2,6 @@ import { hasUserPlayed, getGames } from '@/lib/api';
 import { getGameLevelsFromSource } from '@/lib/levelLoader';
 import { createClient } from '@/utils/supabase/server';
 import LevelSelectionClient from '@/components/LevelSelectionClient';
-import { notFound } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import { Home, Play, Trophy, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';

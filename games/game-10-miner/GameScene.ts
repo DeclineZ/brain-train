@@ -1701,7 +1701,7 @@ export class MinerGameScene extends Phaser.Scene {
       repeat: Math.floor((durationSec * 1000) / 300)
     });
 
-    this.sound.play('miner-earthquake', { volume: 0.5 });
+    this.sound.play('miner-earthquake', { volume: 0.3 });
     this.cameras.main.shake(durationSec * 1000, 0.004);
 
     this.time.delayedCall(durationSec * 1000, () => {
