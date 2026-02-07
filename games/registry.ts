@@ -10,6 +10,7 @@ import { PinkCupGameConfig } from './game-07-pinkcup/config';
 import { TubeSortGameConfig } from './game-09-tube-sort/config';
 import { GridHunterGameConfig } from './game-12-gridhunter/config';
 import { BoxPatternGameConfig } from './game-13-boxpattern/config';
+import { TaxiDriverGameConfig } from './game-15-taxidriver/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-00-example': ExampleGameConfig,
@@ -23,5 +24,7 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-07-pinkcup': PinkCupGameConfig,
   'game-09-tube-sort': TubeSortGameConfig,
   'game-12-gridhunter': GridHunterGameConfig,
-  'game-13-boxpattern': BoxPatternGameConfig
+  'game-13-boxpattern': BoxPatternGameConfig,
+  'game-15-taxidriver': TaxiDriverGameConfig
 };
+
