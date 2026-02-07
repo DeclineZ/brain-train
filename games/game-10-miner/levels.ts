@@ -46,7 +46,7 @@ export type MinerLevelConfig = {
   level: number;
   time_limit_sec: number;
   money_goal: number;
-  starter_money: number;
+  free_hooks: number;
   hook_drop_cost: number;
   rope_length: number;
   pull_speed_base: number;
@@ -138,7 +138,11 @@ const getHookDropCost = (level: number) => {
   return Math.round(min + (max - min) * pct);
 };
 
-const getStarterMoney = (hookDropCost: number) => Math.max(100, hookDropCost * 3);
+const getFreeHooks = (level: number) => {
+  if (level <= 10) return 3;
+  if (level <= 20) return 2;
+  return 1;
+};
 
 const getObjectCounts = (level: number) => {
   const tier = getTier(level);
@@ -258,14 +262,14 @@ export const getMinerLevel = (level: number): MinerLevelConfig => {
   const counts = getObjectCounts(bounded);
   const objects = buildObjects(counts);
   const hookDropCost = getHookDropCost(bounded);
-  const starterMoney = getStarterMoney(hookDropCost);
+  const freeHooks = getFreeHooks(bounded);
 
   return {
     id: `L${bounded.toString().padStart(2, '0')}`,
     level: bounded,
     time_limit_sec: getTimeLimit(bounded),
     money_goal: getMoneyGoal(bounded),
-    starter_money: starterMoney,
+    free_hooks: freeHooks,
     hook_drop_cost: hookDropCost,
     rope_length: getRopeLength(bounded),
     pull_speed_base: getPullSpeed(bounded),

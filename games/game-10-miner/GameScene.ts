@@ -60,7 +60,7 @@ export class MinerGameScene extends Phaser.Scene {
   private hookLockedAngle = 0;
   private hookAngularVelocity = 0;
   private hookAngularAcceleration = 0;
-  private hookSwingSpeed = 0.00085;
+  private hookSwingSpeed = 0.00055;
   private hookSwingMaxAngle = Phaser.Math.DegToRad(32);
   private hookGravity = 0.0016;
   private hookDropGravity = 0.0026;
@@ -82,20 +82,33 @@ export class MinerGameScene extends Phaser.Scene {
   private decisionStartTime = 0;
   private timerEvent!: Phaser.Time.TimerEvent;
   private timerBar!: Phaser.GameObjects.Graphics;
+  private timerText?: Phaser.GameObjects.Text;
   private lastTimerPct = 100;
+  private lastTimerSec = 0;
+  private timeWarningTriggered = false;
+  private timeWarningText?: Phaser.GameObjects.Text;
+  private timeWarningTween?: Phaser.Tweens.Tween;
   private totalValue = 0;
   private hookDropCost = 0;
-  private combinedValue = 0;
+  private freeHooksRemaining = 0;
+  private totalFreeHooks = 0;
+  private hookFeeEnabled = false;
+  private hookFeePending = false;
   private stats!: MinerStats;
   private rockMistakes = 0;
   private isPaused = false;
   private backgroundRect!: Phaser.GameObjects.Graphics;
   private groundRect!: Phaser.GameObjects.Graphics;
-  private moneyText!: Phaser.GameObjects.Text;
-  private infoText!: Phaser.GameObjects.Text;
+  private infoPanel?: Phaser.GameObjects.Container;
+  private infoPanelBg?: Phaser.GameObjects.Graphics;
+  private scoreLabelText?: Phaser.GameObjects.Text;
+  private scoreValueText?: Phaser.GameObjects.Text;
+  private goalLabelText?: Phaser.GameObjects.Text;
+  private goalValueText?: Phaser.GameObjects.Text;
   private goalBar!: Phaser.GameObjects.Graphics;
   private minerCharacter?: Phaser.GameObjects.Container;
   private hookCostBubble?: Phaser.GameObjects.Container;
+  private hookCostText?: Phaser.GameObjects.Text;
   private sparkleEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
   private audioContext?: AudioContext;
@@ -119,6 +132,10 @@ export class MinerGameScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'MinerGameScene' });
+  }
+
+  preload() {
+    this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
   }
 
   init(data: { level: number }) {
@@ -146,8 +163,14 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookTarget = null;
     this.totalValue = 0;
     this.hookDropCost = this.currentLevelConfig.hook_drop_cost;
-    this.combinedValue = this.currentLevelConfig.starter_money;
+    this.totalFreeHooks = this.currentLevelConfig.free_hooks;
+    this.freeHooksRemaining = this.currentLevelConfig.free_hooks;
+    this.hookFeeEnabled = false;
+    this.hookFeePending = false;
     this.valueLabelChance = 0.35;
+    this.timeWarningTriggered = false;
+    this.timeWarningTween?.stop();
+    this.timeWarningText?.setVisible(false);
     this.stats = {
       levelPlayed: this.currentLevelConfig.level,
       attempts: 0,
@@ -175,7 +198,7 @@ export class MinerGameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     this.hookCenterX = width / 2;
-    this.hookBaseY = Math.max(100, height * 0.18);
+    this.hookBaseY = Math.max(120, height * 0.21);
     this.levelStartTime = Date.now();
     this.decisionStartTime = Date.now();
 
@@ -191,28 +214,7 @@ export class MinerGameScene extends Phaser.Scene {
       this.audioContext = AudioContextClass ? new AudioContextClass() : undefined;
     }
 
-    this.infoText = this.add
-      .text(width / 2, height * 0.11, '', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '18px',
-        color: '#3b2f2f',
-        fontStyle: '600'
-      })
-      .setOrigin(0.5)
-      .setDepth(5);
-
-    this.moneyText = this.add
-      .text(width / 2, height * 0.08, '', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '26px',
-        color: '#f6d776',
-        fontStyle: '700',
-        stroke: '#3b2a1c',
-        strokeThickness: 4
-      })
-      .setOrigin(0.5)
-      .setDepth(6);
-    this.moneyText.setVisible(false);
+    this.createInfoPanel();
 
     this.eventBanner = this.add
       .text(width / 2, height * 0.19, '', {
@@ -231,17 +233,14 @@ export class MinerGameScene extends Phaser.Scene {
     this.createHook();
     this.createMinerCharacter();
     this.spawnObjects();
+    this.updateHookLengths();
+    this.updateHookVisual(this.hookRopeSwingLength, this.hookAngle, 0.25);
     this.createTimer();
     this.updateInfoText();
-    this.updateMoneyText();
+    this.updateHookCostBubble();
 
     this.input.on('pointerdown', () => {
       if (this.hookReady && !this.isPaused) {
-        if (this.combinedValue < this.hookDropCost) {
-          this.playTone(160, 0.12, 'sine', 0.18);
-          this.endLevel(false);
-          return;
-        }
         if (this.audioContext && this.audioContext.state === 'suspended') {
           this.audioContext.resume();
         }
@@ -253,7 +252,7 @@ export class MinerGameScene extends Phaser.Scene {
     this.scale.on('resize', () => {
       this.layoutScene();
       if (this.timerBar?.visible) {
-        this.drawTimerBar(this.lastTimerPct);
+        this.drawTimerBar(this.lastTimerPct, this.lastTimerSec);
       }
     });
   }
@@ -290,6 +289,58 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookContainer.setPosition(end.x, end.y);
     this.hookContainer.setRotation(this.hookAngle);
     this.drawRope(ropeLength, this.hookAngle, 0.3);
+  }
+
+  private createInfoPanel() {
+    if (this.infoPanel) this.infoPanel.destroy();
+    const { width, height } = this.scale;
+    const panelY = height * 0.13;
+    const panelWidth = Math.min(360, width * 0.6);
+    const panelHeight = 44;
+
+    const panel = this.add.container(width / 2, panelY).setDepth(6);
+    const panelBg = this.add.graphics();
+    panelBg.fillStyle(0xfff8ea, 0.92);
+    panelBg.lineStyle(1.5, 0xdcc7a2, 0.7);
+    panelBg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 18);
+    panelBg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 18);
+
+    const divider = this.add.rectangle(0, 0, 1, panelHeight - 12, 0xd8c7b0, 0.7);
+    const scoreHighlight = this.add.graphics();
+    const highlightWidth = panelWidth * 0.5 - 8;
+    scoreHighlight.fillStyle(0xfff1ac, 0.6);
+    scoreHighlight.fillRoundedRect(-panelWidth / 2 + 6, -panelHeight / 2 + 6, highlightWidth, panelHeight - 12, 12);
+
+    const labelStyle = {
+      fontFamily: 'Sarabun, Arial, sans-serif',
+      fontSize: '12px',
+      color: '#7b5b3e',
+      fontStyle: '600'
+    };
+    const valueStyle = {
+      fontFamily: 'Sarabun, Arial, sans-serif',
+      fontSize: '20px',
+      color: '#d17300',
+      fontStyle: '700'
+    };
+    const goalValueStyle = {
+      ...valueStyle,
+      color: '#5a7aa5'
+    };
+
+    const scoreLabel = this.add.text(-panelWidth * 0.25, -8, 'คะแนนสะสม', labelStyle).setOrigin(0.5, 0.5);
+    const scoreValue = this.add.text(-panelWidth * 0.25, 10, '0', valueStyle).setOrigin(0.5, 0.5);
+    const goalLabel = this.add.text(panelWidth * 0.25, -8, 'เป้าหมาย', labelStyle).setOrigin(0.5, 0.5);
+    const goalValue = this.add.text(panelWidth * 0.25, 10, '0', goalValueStyle).setOrigin(0.5, 0.5);
+
+    panel.add([panelBg, scoreHighlight, divider, scoreLabel, scoreValue, goalLabel, goalValue]);
+
+    this.infoPanel = panel;
+    this.infoPanelBg = panelBg;
+    this.scoreLabelText = scoreLabel;
+    this.scoreValueText = scoreValue;
+    this.goalLabelText = goalLabel;
+    this.goalValueText = goalValue;
   }
 
   spawnObjects() {
@@ -363,7 +414,33 @@ export class MinerGameScene extends Phaser.Scene {
   createTimer() {
     this.timerBar = this.add.graphics().setDepth(20);
     this.timerBar.setVisible(true);
-    this.drawTimerBar(100);
+    if (!this.timerText) {
+      this.timerText = this.add
+        .text(0, 0, '', {
+          fontFamily: 'Sarabun, Arial, sans-serif',
+          fontSize: '16px',
+          color: '#3b2d22',
+          fontStyle: '700'
+        })
+        .setOrigin(0.5)
+        .setDepth(21);
+    }
+    if (!this.timeWarningText) {
+      this.timeWarningText = this.add
+        .text(0, 0, '⏰ เวลาเหลือน้อยแล้ว!', {
+          fontFamily: 'Sarabun, Arial, sans-serif',
+          fontSize: '18px',
+          color: '#b84545',
+          backgroundColor: 'rgba(255, 238, 224, 0.95)',
+          padding: { x: 12, y: 6 }
+        })
+        .setOrigin(0.5)
+        .setDepth(22)
+        .setVisible(false);
+    }
+    this.timeWarningText.setPosition(this.scale.width / 2, this.scale.height * 0.08);
+    this.timerText.setVisible(true);
+    this.drawTimerBar(100, Math.ceil(this.currentLevelConfig.time_limit_sec));
 
     this.timerEvent = this.time.addEvent({
       delay: 100,
@@ -373,9 +450,15 @@ export class MinerGameScene extends Phaser.Scene {
         const limitMs = this.currentLevelConfig.time_limit_sec * 1000;
         const elapsed = Date.now() - this.levelStartTime;
         const remainingMs = Math.max(0, limitMs - elapsed);
+        const remainingSec = Math.ceil(remainingMs / 1000);
         const pct = Math.max(0, (remainingMs / limitMs) * 100);
         this.lastTimerPct = pct;
-        this.drawTimerBar(pct);
+        this.lastTimerSec = remainingSec;
+        this.drawTimerBar(pct, remainingSec);
+
+        if (pct <= 25 && !this.timeWarningTriggered) {
+          this.triggerTimeWarning();
+        }
 
         if (remainingMs <= 0) {
           this.endLevel(false);
@@ -384,31 +467,65 @@ export class MinerGameScene extends Phaser.Scene {
     });
   }
 
-  drawTimerBar(pct: number) {
+  drawTimerBar(pct: number, remainingSec: number) {
     const { width, height } = this.scale;
-    const barW = Math.min(420, width * 0.6);
-    const barH = 10;
-    const x = (width - barW) / 2;
-    const y = height - 28;
+    const radius = Math.min(30, Math.max(22, width * 0.035));
+    const thickness = Math.max(5, radius * 0.28);
+    const margin = Math.max(14, radius * 0.55);
+    const x = width - margin - radius;
+    const y = margin + radius;
 
     this.timerBar.clear();
-    this.timerBar.fillStyle(0x1f1a16, 0.25);
-    this.timerBar.fillRoundedRect(x, y, barW, barH, 6);
+    this.timerBar.lineStyle(thickness, 0x1f1a16, 0.2);
+    this.timerBar.strokeCircle(x, y, radius);
 
-    const fillW = barW * (pct / 100);
+    const startAngle = -Math.PI / 2;
+    const sweep = (Math.PI * 2 * pct) / 100;
+    const endAngle = startAngle + sweep;
     const warningColor = 0xe65c5c;
-    const safeLeft = 0x7bcf9a;
+    const safeLeft = 0x0ec911;
     const safeMid = 0xf1c27a;
     const safeRight = 0xf6e6b5;
     const isWarning = pct < 25;
 
-    if (fillW > 0) {
+    if (pct > 0) {
       if (isWarning) {
-        this.timerBar.fillStyle(warningColor, 0.95);
+        this.timerBar.lineStyle(thickness, warningColor, 0.95);
       } else {
-        this.timerBar.fillGradientStyle(safeLeft, safeMid, safeRight, safeMid, 0.95);
+        this.timerBar.lineStyle(thickness, safeLeft, 0.95);
       }
-      this.timerBar.fillRoundedRect(x, y, fillW, barH, 6);
+      this.timerBar.beginPath();
+      this.timerBar.arc(x, y, radius, startAngle, endAngle, false);
+      this.timerBar.strokePath();
+    }
+
+    if (this.timerText) {
+      this.timerText.setPosition(x, y);
+      this.timerText.setText(`${Math.max(0, remainingSec)}`);
+      this.timerText.setColor(isWarning ? '#b84545' : '#3b2d22');
+    }
+  }
+
+  private triggerTimeWarning() {
+    this.timeWarningTriggered = true;
+    if (this.timeWarningText) {
+      this.timeWarningText.setVisible(true).setAlpha(0);
+      this.timeWarningTween?.stop();
+      this.timeWarningTween = this.tweens.add({
+        targets: this.timeWarningText,
+        alpha: { from: 0, to: 1 },
+        duration: 260,
+        yoyo: true,
+        repeat: -1,
+        hold: 520,
+        ease: 'Sine.inOut'
+      });
+    }
+
+    try {
+      this.sound.play('timer-warning', { volume: 0.7 });
+    } catch (error) {
+      console.warn('timer-warning sound failed to play', error);
     }
   }
 
@@ -472,8 +589,16 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookDropAngularVelocity = 0;
     this.animateMinerReaction();
 
-    this.combinedValue -= this.hookDropCost;
-    this.updateMoneyText();
+    if (this.freeHooksRemaining > 0) {
+      this.freeHooksRemaining -= 1;
+      if (this.freeHooksRemaining === 0) {
+        this.hookFeeEnabled = true;
+      }
+      this.updateHookCostBubble();
+    } else {
+      this.hookFeeEnabled = true;
+      this.hookFeePending = true;
+    }
 
     this.animateHookOpen(1, 120);
     if (this.hookRopeFullLength <= this.hookRopeSwingLength) {
@@ -494,6 +619,13 @@ export class MinerGameScene extends Phaser.Scene {
       this.handleGrabResult();
     } else {
       this.stats.mistakes += 1;
+      if (this.hookFeePending) {
+        const feeValue = -this.hookDropCost;
+        this.totalValue += feeValue;
+        this.stats.totalValue = this.totalValue;
+        this.spawnScorePopup(this.hookCenterX, this.hookBaseY + this.hookRopeFullLength * 0.6, feeValue);
+        this.hookFeePending = false;
+      }
       this.playTone(140, 0.12, 'sine', 0.12);
     }
 
@@ -523,18 +655,18 @@ export class MinerGameScene extends Phaser.Scene {
     if (target) {
       target.sprite.setVisible(false);
       if (!target.isHazard) {
-        this.totalValue += target.value;
+        const netValue = this.applyHookFee(target.value);
+        this.totalValue += netValue;
         this.stats.totalValue = this.totalValue;
-        this.combinedValue += target.value;
-        this.spawnScorePopup(target.x, target.y, target.value);
+        this.spawnScorePopup(target.x, target.y, netValue);
         this.sparkleEmitter?.explode(18, target.x, target.y);
         this.playTone(660, 0.12, 'sine', 0.22);
       } else {
-        if (target.value < 0) {
-          this.totalValue += target.value;
+        const netValue = this.applyHookFee(target.value);
+        if (netValue !== 0) {
+          this.totalValue += netValue;
           this.stats.totalValue = this.totalValue;
-          this.combinedValue += target.value;
-          this.spawnScorePopup(target.x, target.y, target.value);
+          this.spawnScorePopup(target.x, target.y, netValue);
         }
         this.dustEmitter?.explode(14, target.x, target.y);
       }
@@ -551,9 +683,6 @@ export class MinerGameScene extends Phaser.Scene {
     this.decisionStartTime = Date.now();
     this.updateInfoText();
     this.checkWin();
-    if (!this.isPaused && this.combinedValue < 0) {
-      this.endLevel(false);
-    }
   }
 
   checkWin() {
@@ -563,15 +692,9 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   updateInfoText() {
-    this.infoText.setText(
-      `ทรัพย์รวม: ${this.combinedValue} | เป้าหมาย: ${this.currentLevelConfig.money_goal}`
-    );
+    this.scoreValueText?.setText(`${this.totalValue}`);
+    this.goalValueText?.setText(`${this.currentLevelConfig.money_goal}`);
     this.drawGoalBar();
-  }
-
-  private updateMoneyText() {
-    if (!this.infoText) return;
-    this.updateInfoText();
   }
 
   private getStarHint(payload: {
@@ -608,6 +731,7 @@ export class MinerGameScene extends Phaser.Scene {
   private createMinerCharacter() {
     if (this.minerCharacter) this.minerCharacter.destroy();
     if (this.hookCostBubble) this.hookCostBubble.destroy();
+    this.hookCostText = undefined;
 
     const { width } = this.scale;
     const baseX = this.hookCenterX - Math.min(240, width * 0.28);
@@ -700,7 +824,7 @@ export class MinerGameScene extends Phaser.Scene {
     bubbleBg.strokeRoundedRect(-64, -18, 128, 36, 12);
     bubbleBg.fillTriangle(-6, 18, 6, 18, 0, 30);
 
-    const bubbleText = this.add.text(0, 0, `💰 -${this.hookDropCost} ต่อครั้ง`, {
+    const bubbleText = this.add.text(0, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
       fontSize: '14px',
       color: '#4a3b2a',
@@ -711,6 +835,8 @@ export class MinerGameScene extends Phaser.Scene {
 
     this.minerCharacter = miner;
     this.hookCostBubble = bubble;
+    this.hookCostText = bubbleText;
+    this.updateHookCostBubble();
   }
 
   private animateMinerReaction() {
@@ -735,6 +861,9 @@ export class MinerGameScene extends Phaser.Scene {
     this.isPaused = true;
     if (this.timerEvent) this.timerEvent.remove();
     this.timerBar.setVisible(false);
+    this.timerText?.setVisible(false);
+    this.timeWarningTween?.stop();
+    this.timeWarningText?.setVisible(false);
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
@@ -777,7 +906,7 @@ export class MinerGameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.drawBackground(width, height);
     this.hookCenterX = width / 2;
-    this.hookBaseY = Math.max(100, height * 0.18);
+    this.hookBaseY = Math.max(120, height * 0.21);
     this.updateHookLengths();
     if (this.hookPivot) {
       this.hookPivot.setPosition(this.hookCenterX, this.hookBaseY);
@@ -791,13 +920,31 @@ export class MinerGameScene extends Phaser.Scene {
     if (this.eventBanner) {
       this.eventBanner.setPosition(this.scale.width / 2, height * 0.19);
     }
-    if (this.moneyText) {
-      this.moneyText.setPosition(this.scale.width / 2, height * 0.08);
+    if (this.infoPanel) {
+      this.infoPanel.setPosition(this.scale.width / 2, height * 0.13);
     }
-    if (this.infoText) {
-      this.infoText.setPosition(this.scale.width / 2, height * 0.11);
+    if (this.timerBar?.visible) {
+      this.drawTimerBar(this.lastTimerPct, this.lastTimerSec);
+    }
+    if (this.timeWarningText) {
+      this.timeWarningText.setPosition(this.scale.width / 2, height * 0.08);
     }
     this.layoutMinerUI();
+  }
+
+  private updateHookCostBubble() {
+    if (!this.hookCostText) return;
+    if (this.freeHooksRemaining > 0) {
+      this.hookCostText.setText(`ดึงฟรี: ${this.freeHooksRemaining}/${this.totalFreeHooks} ครั้ง`);
+      return;
+    }
+    this.hookCostText.setText(`💰 ดึง -${this.hookDropCost} ต่อครั้ง`);
+  }
+
+  private applyHookFee(value: number) {
+    if (!this.hookFeePending) return value;
+    this.hookFeePending = false;
+    return value - this.hookDropCost;
   }
 
   private layoutMinerUI() {
@@ -812,11 +959,45 @@ export class MinerGameScene extends Phaser.Scene {
   private updateHookLengths() {
     const safeHeight = this.scale.height || 600;
     const baseLength = safeHeight * 0.35 * this.currentLevelConfig.rope_length;
-    this.hookRopeSwingLength = Phaser.Math.Clamp(baseLength * 0.28, 60, 140);
-    this.hookRopeFullLength = Math.max(baseLength * 1.7, this.hookRopeSwingLength + 120);
+    const farthestDistance = this.getFarthestOreDistance();
+    const spawnBottom = this.spawnArea.bottom || safeHeight * 0.9;
+    const spawnLeft = this.spawnArea.left || this.scale.width * 0.15;
+    const spawnRight = this.spawnArea.right || this.scale.width * 0.85;
+    const dxLeft = Math.max(0, this.hookCenterX - spawnLeft);
+    const dxRight = Math.max(0, spawnRight - this.hookCenterX);
+    const dy = Math.max(1, spawnBottom - this.hookBaseY);
+    const requiredAngle = Math.max(Math.atan2(dxLeft, dy), Math.atan2(dxRight, dy));
+    const angleBuffer = Phaser.Math.DegToRad(10);
+    const swingBuffer = Phaser.Math.DegToRad(6);
+    const maxSwingCap = Phaser.Math.DegToRad(60);
+    this.hookRopeSwingLength = Phaser.Math.Clamp(baseLength * 0.35, 90, 150);
+    this.hookRopeFullLength = Math.max(
+      baseLength * 1.85,
+      this.hookRopeSwingLength + 160,
+      farthestDistance + 24
+    );
+    this.hookSwingMaxAngle = Phaser.Math.Clamp(
+      requiredAngle + angleBuffer + swingBuffer,
+      Phaser.Math.DegToRad(22),
+      maxSwingCap
+    );
+    this.hookAngle = Phaser.Math.Clamp(this.hookAngle, -this.hookSwingMaxAngle, this.hookSwingMaxAngle);
+    this.hookLockedAngle = Phaser.Math.Clamp(this.hookLockedAngle, -this.hookSwingMaxAngle, this.hookSwingMaxAngle);
     this.hookDropGravity = 0.0024 * (safeHeight / 600);
-    this.hookSwingSpeed = 0.00085 * (safeHeight / 600);
+    this.hookSwingSpeed = 0.00055 * (safeHeight / 600);
     this.hookDropAngularGravity = 0.00016 * (safeHeight / 600);
+  }
+
+  private getFarthestOreDistance() {
+    if (!this.minerObjects.length) {
+      return this.spawnArea.bottom ? this.spawnArea.bottom - this.hookBaseY : this.scale.height * 0.6;
+    }
+    let maxDistance = 0;
+    for (const obj of this.minerObjects) {
+      const distance = Phaser.Math.Distance.Between(this.hookCenterX, this.hookBaseY, obj.x, obj.y);
+      if (distance > maxDistance) maxDistance = distance;
+    }
+    return maxDistance;
   }
 
   private checkDropGrabSegment(start: { x: number; y: number }, end: { x: number; y: number }) {
@@ -995,57 +1176,103 @@ export class MinerGameScene extends Phaser.Scene {
   private createMinerSprite(x: number, y: number, config: MinerObjectConfig, showValueLabel = false) {
     const baseColor = this.getColorForType(config.type);
     const sprite = this.add.container(x, y).setDepth(5);
-    const shadow = this.add.circle(3, 5, config.size + 4, 0x1c1412, 0.22);
+    const shadow = this.add.circle(0, 0, config.size + 4, 0x1c1412, 0.22);
     sprite.add(shadow);
 
+    const irregularPoints = (radius: number, points = 7, variance = 0.3) => {
+      const coords: number[] = [];
+      const step = (Math.PI * 2) / points;
+      for (let i = 0; i < points; i++) {
+        const angle = step * i;
+        const r = radius * Phaser.Math.FloatBetween(1 - variance, 1 + variance);
+        coords.push(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      return coords;
+    };
+
+    const addHighlight = (shape: Phaser.GameObjects.Shape, color: number, alpha = 0.35) => {
+      shape.setStrokeStyle(2, color, alpha);
+      return shape;
+    };
+
     if (config.type.startsWith('diamond')) {
-      const outer = this.add.polygon(0, 0, [
-        0, -config.size,
-        config.size * 0.7, -config.size * 0.2,
-        config.size * 0.5, config.size,
-        -config.size * 0.5, config.size,
-        -config.size * 0.7, -config.size * 0.2
-      ], baseColor, 1);
-      outer.setStrokeStyle(2, 0xffffff, 0.7);
-      const facet = this.add.polygon(0, config.size * 0.05, [
-        0, -config.size * 0.35,
-        config.size * 0.25, -config.size * 0.05,
-        0, config.size * 0.3,
-        -config.size * 0.25, -config.size * 0.05
-      ], 0xffffff, 0.25);
-      const inner = this.add.polygon(0, -config.size * 0.1, [
-        0, -config.size * 0.6,
-        config.size * 0.35, -config.size * 0.1,
-        0, config.size * 0.5,
-        -config.size * 0.35, -config.size * 0.1
+      const outer = this.add.polygon(config.size * 0.82, config.size * 0.82, [
+        0, -config.size * 1.15,
+        config.size * 0.75, -config.size * 0.35,
+        config.size * 0.55, config.size * 0.95,
+        0, config.size * 1.2,
+        -config.size * 0.55, config.size * 0.95,
+        -config.size * 0.75, -config.size * 0.35
+      ], 0xcfefff, 1);
+      addHighlight(outer, 0xffffff, 0.65);
+      const facet = this.add.polygon(config.size * 0.82, config.size * 0.82 - config.size * 0.05, [
+        0, -config.size * 0.55,
+        config.size * 0.32, -config.size * 0.1,
+        0, config.size * 0.45,
+        -config.size * 0.32, -config.size * 0.1
       ], 0xffffff, 0.35);
+      const inner = this.add.polygon(config.size * 0.82, config.size * 0.82, [
+        0, -config.size * 0.25,
+        config.size * 0.22, 0,
+        0, config.size * 0.25,
+        -config.size * 0.22, 0
+      ], 0xffffff, 0.4);
       sprite.add([outer, facet, inner]);
     } else if (config.type.startsWith('silver')) {
-      const outer = this.add.circle(0, 0, config.size + 1, 0xe5e9ee, 0.95);
-      const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x9da3a8, 0.6);
-      const shine = this.add.circle(-config.size * 0.35, -config.size * 0.3, config.size * 0.42, 0xffffff, 0.55);
-      const groove = this.add.circle(config.size * 0.25, config.size * 0.18, config.size * 0.32, 0xb7bcc3, 0.35);
-      sprite.add([outer, body, groove, shine]);
+      const body = this.add.polygon(
+        config.size * 0.82,
+        config.size * 0.82,
+        irregularPoints(config.size, 8, 0.25),
+        baseColor,
+        1
+      );
+      addHighlight(body, 0xcfd8dc, 0.7);
+      const shine = this.add.ellipse(-config.size * 0.2, -config.size * 0.3, config.size * 0.9, config.size * 0.5, 0xffffff, 0.35);
+      const tarnish = this.add.circle(config.size * 0.3, config.size * 0.2, config.size * 0.3, 0xa6aeb4, 0.4);
+      sprite.add([body, tarnish, shine]);
     } else if (config.type.startsWith('copper')) {
-      const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x6d3d1f, 0.6);
-      const patina = this.add.circle(config.size * 0.2, -config.size * 0.1, config.size * 0.35, 0xb86b3f, 0.35);
-      const shine = this.add.circle(-config.size * 0.35, -config.size * 0.28, config.size * 0.35, 0xf7e6d1, 0.4);
+      const body = this.add.polygon(
+        config.size * 0.82,
+        config.size * 0.82,
+        irregularPoints(config.size, 7, 0.3),
+        baseColor,
+        1
+      );
+      addHighlight(body, 0x6d3d1f, 0.75);
+      const patina = this.add.ellipse(config.size * 0.25, -config.size * 0.2, config.size * 0.7, config.size * 0.45, 0x5b9a7a, 0.45);
+      const shine = this.add.circle(-config.size * 0.3, -config.size * 0.25, config.size * 0.35, 0xf7e6d1, 0.4);
       sprite.add([body, patina, shine]);
     } else if (config.type.startsWith('iron')) {
-      const body = this.add.rectangle(0, 0, config.size * 1.45, config.size * 1.15, baseColor, 1);
-      body.setStrokeStyle(2, 0x2d3438, 0.7);
-      const highlight = this.add.rectangle(-config.size * 0.25, -config.size * 0.2, config.size * 0.85, config.size * 0.4, 0xffffff, 0.2);
-      const scratch = this.add.rectangle(config.size * 0.15, config.size * 0.05, config.size * 0.7, 2, 0x1f1f1f, 0.4);
-      scratch.setRotation(Phaser.Math.DegToRad(-12));
-      sprite.add([body, highlight, scratch]);
+      const body = this.add.polygon(config.size * 0.82, config.size * 0.82, [
+        0, -config.size * 1.05,
+        config.size * 0.65, -config.size * 0.4,
+        config.size * 0.85, config.size * 0.2,
+        config.size * 0.4, config.size * 0.95,
+        -config.size * 0.35, config.size * 0.8,
+        -config.size * 0.8, config.size * 0.15,
+        -config.size * 0.5, -config.size * 0.6
+      ], baseColor, 1);
+      addHighlight(body, 0xd5dbe0, 0.65);
+      const band = this.add.rectangle(0, -config.size * 0.12, config.size * 1.1, config.size * 0.22, 0xffffff, 0.22);
+      band.setRotation(Phaser.Math.DegToRad(-18));
+      const sheen = this.add.rectangle(config.size * 0.18, -config.size * 0.35, config.size * 0.65, config.size * 0.18, 0xf6f8fb, 0.35);
+      sheen.setRotation(Phaser.Math.DegToRad(-28));
+      const rivet = this.add.circle(-config.size * 0.25, config.size * 0.1, config.size * 0.12, 0x2a2f33, 0.75);
+      const scratch = this.add.rectangle(config.size * 0.18, config.size * 0.28, config.size * 0.9, 2, 0x1a1f23, 0.55);
+      scratch.setRotation(Phaser.Math.DegToRad(12));
+      sprite.add([body, band, sheen, rivet, scratch]);
     } else if (config.type.startsWith('stone')) {
-      const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x2f2f2f, 0.6);
-      const crack = this.add.rectangle(0, 0, config.size * 0.7, 3, 0x3b2a1a, 0.65);
+      const body = this.add.polygon(
+        config.size * 0.82,
+        config.size * 0.82,
+        irregularPoints(config.size, 8, 0.28),
+        baseColor,
+        1
+      );
+      addHighlight(body, 0x2f2f2f, 0.65);
+      const crack = this.add.rectangle(0, 0, config.size * 0.8, 3, 0x3b2a1a, 0.65);
       crack.setRotation(Phaser.Math.DegToRad(18));
-      const pebble = this.add.circle(-config.size * 0.3, config.size * 0.25, config.size * 0.2, 0x4b4b4b, 0.5);
+      const pebble = this.add.circle(-config.size * 0.25, config.size * 0.2, config.size * 0.22, 0x4b4b4b, 0.55);
       const penalty = this.add.text(0, 0, `${config.value}`, {
         fontFamily: 'Sarabun, Arial, sans-serif',
         fontSize: `${Math.max(11, config.size * 0.45)}px`,
@@ -1054,7 +1281,10 @@ export class MinerGameScene extends Phaser.Scene {
       sprite.add([body, crack, pebble, penalty]);
     } else if (config.type.startsWith('bomb')) {
       const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x141414, 0.7);
+      body.setStrokeStyle(2, 0x141414, 0.75);
+      const seam = this.add.arc(0, 0, config.size * 0.7, Phaser.Math.DegToRad(210), Phaser.Math.DegToRad(330), false, 0x1b1b1b, 0.4);
+      seam.setStrokeStyle(2, 0x1b1b1b, 0.6);
+      const highlight = this.add.circle(-config.size * 0.25, -config.size * 0.25, config.size * 0.35, 0xffffff, 0.18);
       const fuse = this.add.rectangle(0, -config.size - 4, 4, 10, 0xd9a441, 1);
       const fuseTip = this.add.circle(0, -config.size - 10, 4, 0xff5a5a, 1);
       const bolt = this.add.circle(-config.size * 0.2, -config.size * 0.15, config.size * 0.18, 0x2b2b2b, 0.8);
@@ -1062,7 +1292,7 @@ export class MinerGameScene extends Phaser.Scene {
         fontFamily: 'Sarabun, Arial, sans-serif',
         fontSize: `${Math.max(12, config.size * 0.6)}px`
       }).setOrigin(0.5).setAlpha(0.85);
-      sprite.add([body, bolt, fuse, fuseTip, warning]);
+      sprite.add([body, seam, highlight, bolt, fuse, fuseTip, warning]);
       this.tweens.add({
         targets: fuseTip,
         alpha: { from: 1, to: 0.4 },
@@ -1071,24 +1301,54 @@ export class MinerGameScene extends Phaser.Scene {
         repeat: -1
       });
     } else if (config.type === 'rock') {
-      const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x2b2b2b, 0.6);
-      const crack = this.add.rectangle(0, 0, config.size * 0.6, 3, 0x4a3b2a, 0.6);
+      const body = this.add.polygon(
+        config.size * 0.82,
+        config.size * 0.82,
+        irregularPoints(config.size * 1.05, 9, 0.3),
+        baseColor,
+        1
+      );
+      addHighlight(body, 0x2b2b2b, 0.7);
+      const crack = this.add.rectangle(0, 0, config.size * 0.85, 3, 0x4a3b2a, 0.6);
       crack.setRotation(Phaser.Math.DegToRad(20));
-      const rubble = this.add.circle(config.size * 0.25, -config.size * 0.2, config.size * 0.18, 0x4a4a4a, 0.55);
+      const rubble = this.add.circle(config.size * 0.25, -config.size * 0.2, config.size * 0.2, 0x4a4a4a, 0.55);
       sprite.add([body, crack, rubble]);
     } else {
-      const outer = this.add.circle(0, 0, config.size + 3, 0x3b2f2f, 0.2);
-      const body = this.add.circle(0, 0, config.size, baseColor, 1);
-      body.setStrokeStyle(2, 0x1f1f1f, 0.4);
-      const shine = this.add.circle(-config.size * 0.32, -config.size * 0.32, config.size * 0.42, 0xffffff, 0.55);
-      const ridge = this.add.circle(config.size * 0.25, config.size * 0.1, config.size * 0.3, 0xf7d77f, 0.35);
-      sprite.add([outer, body, ridge, shine]);
+      if (config.type === 'money_bag') {
+        const bag = this.add.polygon(config.size * 0.82, config.size * 0.82, [
+          -config.size * 0.8, -config.size * 0.4,
+          -config.size * 0.6, config.size * 0.7,
+          0, config.size * 0.95,
+          config.size * 0.6, config.size * 0.7,
+          config.size * 0.8, -config.size * 0.4,
+          0, -config.size * 0.9
+        ], 0xc79b5e, 1);
+        addHighlight(bag, 0x8a6a3f, 0.7);
+        const tie = this.add.rectangle(0, -config.size * 0.55, config.size * 0.9, 4, 0x8b5a2b, 0.9);
+        const shine = this.add.ellipse(-config.size * 0.2, -config.size * 0.1, config.size * 0.7, config.size * 0.4, 0xffffff, 0.2);
+        const coin = this.add.circle(config.size * 0.2, config.size * 0.05, config.size * 0.3, 0xf2c94c, 0.65);
+        sprite.add([bag, tie, shine, coin]);
+      } else {
+        const outer = this.add.polygon(config.size * 0.82, config.size * 0.82, irregularPoints(config.size * 1.05, 7, 0.28), 0x3b2f2f, 0.25);
+        const body = this.add.polygon(config.size * 0.82, config.size * 0.82, irregularPoints(config.size, 7, 0.25), baseColor, 1);
+        addHighlight(body, 0x1f1f1f, 0.5);
+        const shine = this.add.circle(-config.size * 0.32, -config.size * 0.32, config.size * 0.42, 0xffffff, 0.55);
+        const ridge = this.add.circle(config.size * 0.25, config.size * 0.1, config.size * 0.3, 0xf7d77f, 0.35);
+        sprite.add([outer, body, ridge, shine]);
+      }
     }
 
     if (config.type === 'cursed') {
+      const core = this.add.polygon(
+        config.size * 0.82,
+        config.size * 0.82,
+        irregularPoints(config.size * 0.9, 6, 0.2),
+        0x6c3a9f,
+        1
+      );
+      addHighlight(core, 0xd4b3ff, 0.6);
       const aura = this.add.circle(0, 0, config.size + 6, 0x9b59b6, 0.3);
-      sprite.add(aura);
+      sprite.add([aura, core]);
       this.tweens.add({
         targets: aura,
         alpha: { from: 0.15, to: 0.45 },
@@ -1103,10 +1363,11 @@ export class MinerGameScene extends Phaser.Scene {
     }
 
     if (showValueLabel) {
-      const labelBg = this.add.circle(0, -config.size - 8, Math.max(9, config.size * 0.35), 0x2f1b0c, 0.85);
-      const label = this.add.text(0, -config.size - 8, `${config.value}`, {
+      const labelRadius = Math.max(8, config.size * 0.32);
+      const labelBg = this.add.circle(0, 0, labelRadius, 0x2f1b0c, 0.75);
+      const label = this.add.text(0, 0, `${config.value}`, {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: `${Math.max(10, config.size * 0.35)}px`,
+        fontSize: `${Math.max(9, config.size * 0.3)}px`,
         color: '#f7e2a1',
         fontStyle: '700'
       }).setOrigin(0.5);
@@ -1122,7 +1383,7 @@ export class MinerGameScene extends Phaser.Scene {
     const barW = Math.min(360, width * 0.5);
     const barH = 8;
     const x = (width - barW) / 2;
-    const y = height * 0.14;
+    const y = height * 0.17;
     const pct = Phaser.Math.Clamp(this.totalValue / this.currentLevelConfig.money_goal, 0, 1);
 
     this.goalBar.clear();
@@ -1176,7 +1437,7 @@ export class MinerGameScene extends Phaser.Scene {
       .text(x, y - 10, displayValue,
         {
           fontFamily: 'Sarabun, Arial, sans-serif',
-          fontSize: '17px',
+          fontSize: '22px',
           color: isPenalty ? '#f26d6d' : '#f4d47c',
           fontStyle: '600'
         })
@@ -1185,9 +1446,10 @@ export class MinerGameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: text,
+      scale: { from: 1.1, to: 0.9 },
       y: y - 40,
       alpha: 0,
-      duration: 700,
+      duration: 1200,
       ease: 'Quad.out',
       onComplete: () => text.destroy()
     });
