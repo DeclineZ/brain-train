@@ -81,13 +81,13 @@ export class MinerGameScene extends Phaser.Scene {
   private levelStartTime = 0;
   private decisionStartTime = 0;
   private timerEvent!: Phaser.Time.TimerEvent;
+  private timerContainer?: Phaser.GameObjects.Container;
   private timerBar!: Phaser.GameObjects.Graphics;
   private timerText?: Phaser.GameObjects.Text;
   private lastTimerPct = 100;
   private lastTimerSec = 0;
   private timeWarningTriggered = false;
-  private timeWarningText?: Phaser.GameObjects.Text;
-  private timeWarningTween?: Phaser.Tweens.Tween;
+  private timerShakeTween?: Phaser.Tweens.Tween;
   private totalValue = 0;
   private hookDropCost = 0;
   private freeHooksRemaining = 0;
@@ -124,6 +124,11 @@ export class MinerGameScene extends Phaser.Scene {
   private warningTween?: Phaser.Tweens.Tween;
   private valueLabelChance = 0.35;
   private quakeBand = { minY: 0, maxY: 0 };
+  private valueStats = { minValue: 0, maxValue: 1, highValueThreshold: 1 };
+  private bombSlowPullActive = false;
+  private bombSlowPullEndTime = 0;
+  private bombSlowPullMultiplier = 0.55;
+  private bombSlowPullText?: Phaser.GameObjects.Text;
 
   private textureKeys = {
     sparkle: 'miner-sparkle',
@@ -169,8 +174,11 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookFeePending = false;
     this.valueLabelChance = 0.35;
     this.timeWarningTriggered = false;
-    this.timeWarningTween?.stop();
-    this.timeWarningText?.setVisible(false);
+    this.stopTimerShake();
+    this.valueStats = this.computeValueStats();
+    this.bombSlowPullActive = false;
+    this.bombSlowPullEndTime = 0;
+    this.bombSlowPullText?.setVisible(false);
     this.stats = {
       levelPlayed: this.currentLevelConfig.level,
       attempts: 0,
@@ -215,6 +223,7 @@ export class MinerGameScene extends Phaser.Scene {
     }
 
     this.createInfoPanel();
+    this.createBombSlowText();
 
     this.eventBanner = this.add
       .text(width / 2, height * 0.19, '', {
@@ -352,7 +361,7 @@ export class MinerGameScene extends Phaser.Scene {
       top: height * 0.42,
       bottom: height * 0.9
     };
-    const margin = 52;
+    const margin = 72;
     const spawnQueue: MinerObjectConfig[] = [];
     this.currentLevelConfig.objects.forEach((config) => {
       for (let i = 0; i < config.count; i++) {
@@ -369,11 +378,16 @@ export class MinerGameScene extends Phaser.Scene {
     spawnQueue.forEach((config) => {
       let attempts = 0;
       let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-      let y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
-      while (!this.isSpawnPositionValid(x, y, config.size, margin) && attempts < 120) {
+      let y = this.getSpawnYForValue(config.value, rng);
+      const maxAttempts = 200;
+      while (!this.isSpawnPositionValid(x, y, config.size, margin) && attempts < maxAttempts) {
         x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-        y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
+        y = this.getSpawnYForValue(config.value, rng);
         attempts += 1;
+      }
+
+      if (attempts >= maxAttempts && !this.isSpawnPositionValid(x, y, config.size, margin)) {
+        return;
       }
 
       const showValueLabel = rng.next() < this.valueLabelChance && config.value !== 0;
@@ -398,6 +412,30 @@ export class MinerGameScene extends Phaser.Scene {
     });
   }
 
+  private computeValueStats() {
+    const values = this.currentLevelConfig.objects.map((obj) => obj.value);
+    const minValue = Math.min(...values, 0);
+    const maxValue = Math.max(...values, 1);
+    const positiveMax = Math.max(1, Math.max(...values.filter((value) => value > 0), 1));
+    return {
+      minValue,
+      maxValue,
+      highValueThreshold: positiveMax * 0.7
+    };
+  }
+
+  private getSpawnYForValue(value: number, rng: ReturnType<typeof createSeededRandom>) {
+    const { top, bottom } = this.spawnArea;
+    const { minValue, maxValue } = this.valueStats;
+    const valueRange = Math.max(1, maxValue - minValue);
+    const normalized = Phaser.Math.Clamp((value - minValue) / valueRange, 0, 1);
+    const bandSpan = (bottom - top) * 0.32;
+    const bandHalf = bandSpan / 2;
+    const center = Phaser.Math.Linear(top + bandHalf, bottom - bandHalf, normalized);
+    const offset = (rng.next() - 0.5) * bandSpan;
+    return Phaser.Math.Clamp(center + offset, top, bottom);
+  }
+
   getColorForType(type: MinerObjectConfig['type']) {
     if (type.startsWith('copper')) return 0xcd7f32;
     if (type.startsWith('iron')) return 0x6f7b82;
@@ -412,7 +450,13 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   createTimer() {
-    this.timerBar = this.add.graphics().setDepth(20);
+    if (!this.timerContainer) {
+      this.timerContainer = this.add.container(0, 0).setDepth(20);
+    }
+    if (!this.timerBar) {
+      this.timerBar = this.add.graphics();
+      this.timerContainer.add(this.timerBar);
+    }
     this.timerBar.setVisible(true);
     if (!this.timerText) {
       this.timerText = this.add
@@ -424,21 +468,9 @@ export class MinerGameScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(21);
+      this.timerContainer.add(this.timerText);
     }
-    if (!this.timeWarningText) {
-      this.timeWarningText = this.add
-        .text(0, 0, '⏰ เวลาเหลือน้อยแล้ว!', {
-          fontFamily: 'Sarabun, Arial, sans-serif',
-          fontSize: '18px',
-          color: '#b84545',
-          backgroundColor: 'rgba(255, 238, 224, 0.95)',
-          padding: { x: 12, y: 6 }
-        })
-        .setOrigin(0.5)
-        .setDepth(22)
-        .setVisible(false);
-    }
-    this.timeWarningText.setPosition(this.scale.width / 2, this.scale.height * 0.08);
+    this.timerContainer.setPosition(0, 0);
     this.timerText.setVisible(true);
     this.drawTimerBar(100, Math.ceil(this.currentLevelConfig.time_limit_sec));
 
@@ -508,19 +540,7 @@ export class MinerGameScene extends Phaser.Scene {
 
   private triggerTimeWarning() {
     this.timeWarningTriggered = true;
-    if (this.timeWarningText) {
-      this.timeWarningText.setVisible(true).setAlpha(0);
-      this.timeWarningTween?.stop();
-      this.timeWarningTween = this.tweens.add({
-        targets: this.timeWarningText,
-        alpha: { from: 0, to: 1 },
-        duration: 260,
-        yoyo: true,
-        repeat: -1,
-        hold: 520,
-        ease: 'Sine.inOut'
-      });
-    }
+    this.startTimerShake();
 
     try {
       this.sound.play('timer-warning', { volume: 0.7 });
@@ -532,7 +552,13 @@ export class MinerGameScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     if (this.isPaused) return;
 
+    if (this.totalValue < 0) {
+      this.endLevel(false);
+      return;
+    }
+
     this.processDynamicEvents();
+    this.updateBombSlowStatus();
 
     const dt = Math.max(8, Math.min(delta, 32));
 
@@ -643,7 +669,8 @@ export class MinerGameScene extends Phaser.Scene {
       1600
     );
     const distance = Math.max(1, this.hookDropDistance - this.hookRopeSwingLength);
-    this.hookPullSpeed = distance / baseDuration;
+    const speedMultiplier = this.bombSlowPullActive ? this.bombSlowPullMultiplier : 1;
+    this.hookPullSpeed = (distance / baseDuration) * speedMultiplier;
 
     if (target) {
       this.playTone(260, 0.1, 'triangle', 0.18);
@@ -862,8 +889,8 @@ export class MinerGameScene extends Phaser.Scene {
     if (this.timerEvent) this.timerEvent.remove();
     this.timerBar.setVisible(false);
     this.timerText?.setVisible(false);
-    this.timeWarningTween?.stop();
-    this.timeWarningText?.setVisible(false);
+    this.stopTimerShake();
+    this.sound.getAll('timer-warning').forEach(sound => sound.stop());
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
@@ -926,10 +953,28 @@ export class MinerGameScene extends Phaser.Scene {
     if (this.timerBar?.visible) {
       this.drawTimerBar(this.lastTimerPct, this.lastTimerSec);
     }
-    if (this.timeWarningText) {
-      this.timeWarningText.setPosition(this.scale.width / 2, height * 0.08);
-    }
     this.layoutMinerUI();
+  }
+
+  private startTimerShake() {
+    if (this.timerShakeTween || !this.timerContainer) return;
+    this.timerShakeTween = this.tweens.add({
+      targets: this.timerContainer,
+      x: { from: -2, to: 2 },
+      y: { from: 2, to: -2 },
+      duration: 70,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  private stopTimerShake() {
+    if (this.timerShakeTween) {
+      this.timerShakeTween.stop();
+      this.timerShakeTween = undefined;
+    }
+    this.timerContainer?.setPosition(0, 0);
   }
 
   private updateHookCostBubble() {
@@ -967,8 +1012,8 @@ export class MinerGameScene extends Phaser.Scene {
     const dxRight = Math.max(0, spawnRight - this.hookCenterX);
     const dy = Math.max(1, spawnBottom - this.hookBaseY);
     const requiredAngle = Math.max(Math.atan2(dxLeft, dy), Math.atan2(dxRight, dy));
-    const angleBuffer = Phaser.Math.DegToRad(10);
-    const swingBuffer = Phaser.Math.DegToRad(6);
+    const angleBuffer = Phaser.Math.DegToRad(14);
+    const swingBuffer = Phaser.Math.DegToRad(8);
     const maxSwingCap = Phaser.Math.DegToRad(60);
     this.hookRopeSwingLength = Phaser.Math.Clamp(baseLength * 0.35, 90, 150);
     this.hookRopeFullLength = Math.max(
@@ -1061,6 +1106,9 @@ export class MinerGameScene extends Phaser.Scene {
       if (target.type === 'rock') {
         this.rockMistakes += 1;
       }
+      if (target.type.startsWith('bomb')) {
+        this.activateBombSlowPull();
+      }
       this.playTone(180, 0.15, 'sawtooth', 0.18);
     }
 
@@ -1068,6 +1116,49 @@ export class MinerGameScene extends Phaser.Scene {
       this.stats.mistakes += 1;
       const penaltyMs = target.penaltyMs ?? 5000;
       this.levelStartTime -= penaltyMs;
+    }
+  }
+
+  private createBombSlowText() {
+    if (this.bombSlowPullText) {
+      this.bombSlowPullText.destroy();
+    }
+    const offsetX = 38;
+    const offsetY = -16;
+    this.bombSlowPullText = this.add
+      .text(this.hookCenterX + offsetX, this.hookBaseY + offsetY, '', {
+        fontFamily: 'Sarabun, Arial, sans-serif',
+        fontSize: '14px',
+        color: '#d14b4b',
+        backgroundColor: 'rgba(255, 240, 230, 0.9)',
+        padding: { x: 6, y: 3 }
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(15)
+      .setVisible(false);
+  }
+
+  private activateBombSlowPull() {
+    const durationMs = 20000;
+    this.bombSlowPullActive = true;
+    this.bombSlowPullEndTime = Date.now() + durationMs;
+    this.bombSlowPullText?.setVisible(true);
+  }
+
+  private updateBombSlowStatus() {
+    if (!this.bombSlowPullActive) return;
+
+    const remainingMs = this.bombSlowPullEndTime - Date.now();
+    if (remainingMs <= 0) {
+      this.bombSlowPullActive = false;
+      this.bombSlowPullEndTime = 0;
+      this.bombSlowPullText?.setVisible(false);
+      return;
+    }
+
+    const remainingSec = Math.ceil(remainingMs / 1000);
+    if (this.bombSlowPullText) {
+      this.bombSlowPullText.setText(`⚠️ ช้า ${remainingSec}s`);
     }
   }
 
@@ -1288,11 +1379,8 @@ export class MinerGameScene extends Phaser.Scene {
       const fuse = this.add.rectangle(0, -config.size - 4, 4, 10, 0xd9a441, 1);
       const fuseTip = this.add.circle(0, -config.size - 10, 4, 0xff5a5a, 1);
       const bolt = this.add.circle(-config.size * 0.2, -config.size * 0.15, config.size * 0.18, 0x2b2b2b, 0.8);
-      const warning = this.add.text(0, 0, '💣', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: `${Math.max(12, config.size * 0.6)}px`
-      }).setOrigin(0.5).setAlpha(0.85);
-      sprite.add([body, seam, highlight, bolt, fuse, fuseTip, warning]);
+     
+      sprite.add([body, seam, highlight, bolt, fuse, fuseTip]);
       this.tweens.add({
         targets: fuseTip,
         alpha: { from: 1, to: 0.4 },
@@ -1569,13 +1657,15 @@ export class MinerGameScene extends Phaser.Scene {
 
     const yTop = this.quakeBand.minY || this.spawnArea.top;
     const yBottom = this.quakeBand.maxY || this.spawnArea.bottom;
+    const shiftDx = dx * Phaser.Math.FloatBetween(0.85, 1.15);
+    const shiftDy = dy * Phaser.Math.FloatBetween(0.85, 1.15);
 
     this.minerObjects.forEach((obj) => {
       if (obj.grabbed) return;
       if (obj.y < yTop || obj.y > yBottom) return;
 
-      obj.x += dx;
-      obj.y = Phaser.Math.Clamp(obj.y + dy, yTop, yBottom);
+      obj.x += shiftDx;
+      obj.y = Phaser.Math.Clamp(obj.y + shiftDy, yTop, yBottom);
       this.tweens.add({
         targets: obj.sprite,
         x: obj.x,
@@ -1587,15 +1677,40 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   private moveGoldVeins(speed: number) {
-    const amplitude = 42;
-    const duration = Math.max(600, (amplitude * 2 * 1000) / Math.max(speed, 1));
+    const durationBase = Math.max(600, (42 * 2 * 1000) / Math.max(speed, 1));
     const yTop = this.spawnArea.top;
     const yBottom = this.spawnArea.bottom;
+    const highValueThreshold = this.valueStats.highValueThreshold;
+    const candidates = this.minerObjects.filter(
+      (obj) => !obj.grabbed && obj.value > 0 && obj.value >= highValueThreshold
+    );
 
-    this.minerObjects.forEach((obj) => {
-      if (obj.grabbed) return;
+    if (!candidates.length) return;
+
+    const targetCount = Math.max(1, Math.round(candidates.length * Phaser.Math.FloatBetween(0.4, 0.7)));
+    const selected = Phaser.Utils.Array.Shuffle(candidates).slice(0, targetCount);
+    const moveDurationMs = Phaser.Math.Between(10000, 20000);
+
+    this.activeVeinTweens.forEach((tween) => tween.stop());
+    this.activeVeinTweens.clear();
+
+    selected.forEach((obj) => {
       if (obj.y < yTop || obj.y > yBottom) return;
       const sprite = obj.sprite;
+      const amplitude = Phaser.Math.FloatBetween(30, 54);
+      const duration = Phaser.Math.Clamp(
+        durationBase * Phaser.Math.FloatBetween(0.85, 1.15),
+        450,
+        2000
+      );
+      const phaseDelay = Phaser.Math.Between(0, 220);
+      const moveVertical = Phaser.Math.Between(0, 100) > 70;
+      const direction = Phaser.Math.Between(0, 100) > 55 ? -1 : 1;
+      const baseX = sprite.x;
+      const baseY = sprite.y;
+      const targetX = moveVertical ? baseX : baseX + amplitude * direction;
+      const targetY = moveVertical ? baseY + amplitude * 0.55 * direction : baseY;
+
       this.tweens.killTweensOf(sprite);
       sprite.setScale(1);
       this.tweens.add({
@@ -1608,17 +1723,42 @@ export class MinerGameScene extends Phaser.Scene {
       });
       const tween = this.tweens.add({
         targets: sprite,
-        x: sprite.x + amplitude,
+        x: targetX,
+        y: targetY,
         duration,
+        delay: phaseDelay,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.inOut',
         onUpdate: () => {
-          obj.x = sprite.x;
-          obj.y = sprite.y;
+          const proposedX = sprite.x;
+          const proposedY = sprite.y;
+          if (this.isDynamicPositionValid(obj, proposedX, proposedY)) {
+            obj.x = proposedX;
+            obj.y = proposedY;
+          } else {
+            sprite.setPosition(obj.x, obj.y);
+          }
         }
       });
       this.activeVeinTweens.set(obj.id, tween);
+
+      this.time.delayedCall(moveDurationMs, () => {
+        this.tweens.killTweensOf(sprite);
+        sprite.setScale(1);
+        obj.x = sprite.x;
+        obj.y = sprite.y;
+        this.activeVeinTweens.delete(obj.id);
+      });
+    });
+  }
+
+  private isDynamicPositionValid(target: MinerObject, x: number, y: number) {
+    return this.minerObjects.every((obj) => {
+      if (obj.id === target.id || obj.grabbed) return true;
+      const distance = Phaser.Math.Distance.Between(x, y, obj.x, obj.y);
+      const minDistance = (target.size + obj.size) * 0.5 + 18;
+      return distance >= minDistance;
     });
   }
 

@@ -65,30 +65,30 @@ export type MinerLevelConfig = {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const baseObjects = {
-  gold_small: { value: 90, weight: 1.0, size: 18 },
-  gold_medium: { value: 210, weight: 1.4, size: 22 },
-  gold_large: { value: 380, weight: 2.2, size: 28 },
-  copper_small: { value: 40, weight: 0.8, size: 16 },
-  copper_medium: { value: 70, weight: 1.0, size: 20 },
-  copper_large: { value: 120, weight: 1.2, size: 24 },
-  iron_small: { value: 60, weight: 1.2, size: 18 },
-  iron_medium: { value: 95, weight: 1.5, size: 22 },
-  iron_large: { value: 160, weight: 1.9, size: 26 },
-  silver_small: { value: 120, weight: 1.0, size: 18 },
-  silver_medium: { value: 190, weight: 1.3, size: 22 },
-  silver_large: { value: 310, weight: 1.7, size: 28 },
-  diamond_small: { value: 360, weight: 0.8, size: 19 },
-  diamond_medium: { value: 620, weight: 1.1, size: 24 },
-  gem: { value: 520, weight: 1.2, size: 20 },
-  money_bag: { value: 420, weight: 1.6, size: 24 },
-  rock: { value: 0, weight: 2.0, size: 26 },
-  stone_small: { value: -12, weight: 1.8, size: 22 },
-  stone_medium: { value: -24, weight: 2.2, size: 28 },
-  stone_large: { value: -45, weight: 2.8, size: 34 },
-  bomb_small: { value: -35, weight: 0.9, size: 20 },
-  bomb_medium: { value: -70, weight: 1.2, size: 26 },
-  bomb_large: { value: -120, weight: 1.5, size: 32 },
-  cursed: { value: 420, weight: 1.8, size: 22 }
+  gold_small: { value: 90, weight: 2.4, size: 18 },
+  gold_medium: { value: 210, weight: 3.2, size: 22 },
+  gold_large: { value: 380, weight: 4.0, size: 28 },
+  copper_small: { value: 40, weight: 1.2, size: 16 },
+  copper_medium: { value: 70, weight: 1.5, size: 20 },
+  copper_large: { value: 120, weight: 1.9, size: 24 },
+  iron_small: { value: 60, weight: 1.1, size: 18 },
+  iron_medium: { value: 95, weight: 1.4, size: 22 },
+  iron_large: { value: 160, weight: 1.7, size: 26 },
+  silver_small: { value: 120, weight: 1.5, size: 18 },
+  silver_medium: { value: 190, weight: 2.0, size: 22 },
+  silver_large: { value: 310, weight: 2.6, size: 28 },
+  diamond_small: { value: 360, weight: 0.6, size: 19 },
+  diamond_medium: { value: 620, weight: 0.8, size: 24 },
+  gem: { value: 520, weight: 1.0, size: 20 },
+  money_bag: { value: 420, weight: 2.2, size: 24 },
+  rock: { value: 0, weight: 2.6, size: 26 },
+  stone_small: { value: -12, weight: 1.9, size: 22 },
+  stone_medium: { value: -24, weight: 2.4, size: 28 },
+  stone_large: { value: -45, weight: 3.0, size: 34 },
+  bomb_small: { value: -35, weight: 1.4, size: 20 },
+  bomb_medium: { value: -70, weight: 1.9, size: 26 },
+  bomb_large: { value: -120, weight: 2.4, size: 32 },
+  cursed: { value: 420, weight: 2.1, size: 22 }
 };
 
 const LEVEL_COUNT = 30;
@@ -132,8 +132,8 @@ const getMoneyGoal = (level: number) => {
 };
 
 const getHookDropCost = (level: number) => {
-  const min = 65;
-  const max = 200;
+  const min = 25;
+  const max = 80;
   const pct = (level - 1) / (LEVEL_COUNT - 1);
   return Math.round(min + (max - min) * pct);
 };
@@ -193,9 +193,12 @@ const getObjectCounts = (level: number) => {
     silver_large: 1,
     diamond_small: 1,
     diamond_medium: level >= 25 ? 1 : 0,
-    gem: 1,
-    money_bag: 1,
+    gem: 2,
+    money_bag: 2,
+    stone_small: 1,
+    stone_medium: 1,
     stone_large: 2,
+    bomb_small: 1,
     bomb_medium: 2,
     bomb_large: level >= 28 ? 1 : 0,
     rock: 4,
@@ -236,16 +239,24 @@ const getDynamicEvents = (level: number): MinerDynamicEvent[] => {
   return events;
 };
 
-const buildObjects = (counts: ReturnType<typeof getObjectCounts>): MinerObjectConfig[] => {
+const getValueMultiplier = (level: number) => {
+  if (level <= 10) return 1.0;
+  if (level <= 20) return 1.3;
+  return 1.6;
+};
+
+const buildObjects = (counts: ReturnType<typeof getObjectCounts>, level: number): MinerObjectConfig[] => {
+  const multiplier = getValueMultiplier(level);
   const entries = Object.entries(counts) as Array<[MinerObjectType, number]>;
   return entries
     .filter(([, count]) => count > 0)
     .map(([type, count]) => {
       const base = baseObjects[type];
+      const scaledValue = Math.round(base.value * multiplier);
       return {
         type,
         count,
-        value: base.value,
+        value: scaledValue,
         weight: base.weight,
         size: base.size,
         isHazard: type === 'rock' || type.startsWith('stone') || type.startsWith('bomb'),
@@ -260,7 +271,7 @@ const computeMaxPossibleValue = (objects: MinerObjectConfig[]) =>
 export const getMinerLevel = (level: number): MinerLevelConfig => {
   const bounded = clamp(level, 1, LEVEL_COUNT);
   const counts = getObjectCounts(bounded);
-  const objects = buildObjects(counts);
+  const objects = buildObjects(counts, bounded);
   const hookDropCost = getHookDropCost(bounded);
   const freeHooks = getFreeHooks(bounded);
 
