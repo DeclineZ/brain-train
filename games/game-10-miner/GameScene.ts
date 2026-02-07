@@ -54,6 +54,12 @@ export class MinerGameScene extends Phaser.Scene {
   private hookTip!: Phaser.GameObjects.Triangle;
   private hookJawLeft!: Phaser.GameObjects.Rectangle;
   private hookJawRight!: Phaser.GameObjects.Rectangle;
+  private hookBreakLeft?: Phaser.GameObjects.Rectangle;
+  private hookBreakRight?: Phaser.GameObjects.Rectangle;
+  private hookDamageCrack?: Phaser.GameObjects.Line;
+  private hookDamageSmoke?: Phaser.GameObjects.Ellipse;
+  private hookDamageActive = false;
+  private backgroundMusic?: Phaser.Sound.BaseSound;
   private hookBaseY = 70;
   private hookCenterX = 0;
   private hookAngle = 0;
@@ -141,6 +147,13 @@ export class MinerGameScene extends Phaser.Scene {
 
   preload() {
     this.load.audio('timer-warning', '/assets/sounds/global/timer-warning.mp3');
+    this.load.audio('miner-hook-release', '/assets/sounds/miner/hook-release.mp3');
+    this.load.audio('miner-hook-grab', '/assets/sounds/miner/hook-grab.mp3');
+    this.load.audio('miner-grab-success', '/assets/sounds/miner/grab-success.mp3');
+    this.load.audio('miner-grab-hazard', '/assets/sounds/miner/grab-hazard.mp3');
+    this.load.audio('miner-grab-bomb', '/assets/sounds/miner/grab-bomb.mp3');
+    this.load.audio('miner-earthquake', '/assets/sounds/miner/earthquake.mp3');
+    this.load.audio('miner-bg-sound', '/assets/sounds/miner/bg-sound.mp3');
   }
 
   init(data: { level: number }) {
@@ -247,13 +260,14 @@ export class MinerGameScene extends Phaser.Scene {
     this.createTimer();
     this.updateInfoText();
     this.updateHookCostBubble();
+    this.playBackgroundMusic();
 
     this.input.on('pointerdown', () => {
       if (this.hookReady && !this.isPaused) {
         if (this.audioContext && this.audioContext.state === 'suspended') {
           this.audioContext.resume();
         }
-        this.playTone(520, 0.08, 'triangle', 0.2);
+        this.sound.play('miner-hook-release', { volume: 0.65 });
         this.releaseHook();
       }
     });
@@ -292,6 +306,7 @@ export class MinerGameScene extends Phaser.Scene {
     const bolt = this.add.circle(0, -12, 2.5, 0x1f1f1f, 0.9);
 
     this.hookContainer.add([ring, bolt, plate, this.hookHead, this.hookTip, this.hookJawLeft, this.hookJawRight]);
+    this.createHookDamageOverlays();
     this.updateHookJaw(this.hookOpenProgress);
 
     const end = this.getHookEndPosition(ropeLength, this.hookAngle);
@@ -652,7 +667,6 @@ export class MinerGameScene extends Phaser.Scene {
         this.spawnScorePopup(this.hookCenterX, this.hookBaseY + this.hookRopeFullLength * 0.6, feeValue);
         this.hookFeePending = false;
       }
-      this.playTone(140, 0.12, 'sine', 0.12);
     }
 
     this.hookDropping = false;
@@ -673,7 +687,7 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookPullSpeed = (distance / baseDuration) * speedMultiplier;
 
     if (target) {
-      this.playTone(260, 0.1, 'triangle', 0.18);
+      this.sound.play('miner-hook-grab', { volume: 0.5 });
     }
   }
 
@@ -687,7 +701,7 @@ export class MinerGameScene extends Phaser.Scene {
         this.stats.totalValue = this.totalValue;
         this.spawnScorePopup(target.x, target.y, netValue);
         this.sparkleEmitter?.explode(18, target.x, target.y);
-        this.playTone(660, 0.12, 'sine', 0.22);
+        this.sound.play('miner-grab-success', { volume: 0.65 });
       } else {
         const netValue = this.applyHookFee(target.value);
         if (netValue !== 0) {
@@ -882,6 +896,75 @@ export class MinerGameScene extends Phaser.Scene {
     });
   }
 
+  private createHookDamageOverlays() {
+    this.hookBreakLeft = this.add.rectangle(-16, 6, 6, 18, 0x2b1b15, 0.9).setOrigin(0.5, 0);
+    this.hookBreakLeft.setRotation(Phaser.Math.DegToRad(-28));
+    this.hookBreakRight = this.add.rectangle(16, 6, 6, 18, 0x2b1b15, 0.9).setOrigin(0.5, 0);
+    this.hookBreakRight.setRotation(Phaser.Math.DegToRad(28));
+    this.hookDamageCrack = this.add.line(0, 0, -10, -2, 10, 6, 0x2b1b15, 0.9).setOrigin(0.5);
+    this.hookDamageCrack.setLineWidth(2, 2);
+    this.hookDamageSmoke = this.add.ellipse(0, -18, 18, 10, 0x5a3b2a, 0.4).setOrigin(0.5);
+
+    this.hookContainer.add([
+      this.hookDamageSmoke,
+      this.hookDamageCrack,
+      this.hookBreakLeft,
+      this.hookBreakRight
+    ]);
+
+    this.hookDamageSmoke.setVisible(false);
+    this.hookDamageCrack.setVisible(false);
+    this.hookBreakLeft.setVisible(false);
+    this.hookBreakRight.setVisible(false);
+  }
+
+  private setHookDamageState(isDamaged: boolean) {
+    if (this.hookDamageActive === isDamaged) return;
+    this.hookDamageActive = isDamaged;
+
+    if (this.hookDamageSmoke) {
+      this.hookDamageSmoke.setVisible(isDamaged);
+    }
+    if (this.hookDamageCrack) {
+      this.hookDamageCrack.setVisible(isDamaged);
+    }
+    if (this.hookBreakLeft) {
+      this.hookBreakLeft.setVisible(isDamaged);
+    }
+    if (this.hookBreakRight) {
+      this.hookBreakRight.setVisible(isDamaged);
+    }
+
+    if (isDamaged) {
+      this.hookHead.setFillStyle(0x4a2b24, 1);
+      this.hookTip.setFillStyle(0x2f1d16, 1);
+      this.hookJawLeft.setFillStyle(0x2f1d16, 1);
+      this.hookJawRight.setFillStyle(0x2f1d16, 1);
+    } else {
+      this.hookHead.setFillStyle(0x5f5f5f, 1);
+      this.hookTip.setFillStyle(0x3d3d3d, 1);
+      this.hookJawLeft.setFillStyle(0x3a3a3a, 1);
+      this.hookJawRight.setFillStyle(0x3a3a3a, 1);
+    }
+  }
+
+  private playBackgroundMusic() {
+    if (this.backgroundMusic?.isPlaying) return;
+    this.backgroundMusic = this.sound.add('miner-bg-sound', {
+      volume: 0.35,
+      loop: true
+    });
+    this.backgroundMusic.play();
+  }
+
+  private stopBackgroundMusic() {
+    if (this.backgroundMusic) {
+      this.backgroundMusic.stop();
+      this.backgroundMusic.destroy();
+      this.backgroundMusic = undefined;
+    }
+  }
+
 
   endLevel(success: boolean) {
     if (this.isPaused) return;
@@ -891,6 +974,7 @@ export class MinerGameScene extends Phaser.Scene {
     this.timerText?.setVisible(false);
     this.stopTimerShake();
     this.sound.getAll('timer-warning').forEach(sound => sound.stop());
+    this.stopBackgroundMusic();
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
@@ -1109,7 +1193,11 @@ export class MinerGameScene extends Phaser.Scene {
       if (target.type.startsWith('bomb')) {
         this.activateBombSlowPull();
       }
-      this.playTone(180, 0.15, 'sawtooth', 0.18);
+      if (target.type.startsWith('bomb')) {
+        this.sound.play('miner-grab-bomb', { volume: 0.65 });
+      } else {
+        this.sound.play('miner-grab-hazard', { volume: 0.6 });
+      }
     }
 
     if (target.type === 'cursed' && this.currentLevelConfig.hazards.cursed_items_enabled) {
@@ -1143,6 +1231,7 @@ export class MinerGameScene extends Phaser.Scene {
     this.bombSlowPullActive = true;
     this.bombSlowPullEndTime = Date.now() + durationMs;
     this.bombSlowPullText?.setVisible(true);
+    this.setHookDamageState(true);
   }
 
   private updateBombSlowStatus() {
@@ -1153,6 +1242,7 @@ export class MinerGameScene extends Phaser.Scene {
       this.bombSlowPullActive = false;
       this.bombSlowPullEndTime = 0;
       this.bombSlowPullText?.setVisible(false);
+      this.setHookDamageState(false);
       return;
     }
 
@@ -1611,6 +1701,7 @@ export class MinerGameScene extends Phaser.Scene {
       repeat: Math.floor((durationSec * 1000) / 300)
     });
 
+    this.sound.play('miner-earthquake', { volume: 0.5 });
     this.cameras.main.shake(durationSec * 1000, 0.004);
 
     this.time.delayedCall(durationSec * 1000, () => {
