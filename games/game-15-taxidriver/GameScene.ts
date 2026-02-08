@@ -3,6 +3,16 @@ import { TAXIDRIVER_LEVELS, TaxiDriverLevelConfig } from './levels';
 
 // Direction types
 type Direction = 'left' | 'right' | 'forward';
+
+// Color Palette (Warm/Cream Theme)
+const COLORS = {
+    BACKGROUND: 0xEBE9E4, // Warm Gray
+    ROAD: 0xFAF9F6,       // Cream
+    ROAD_BORDER: 0xD6D6D6,
+    UI_PANEL: 0xFAF9F6,   // Cream
+    UI_STROKE: 0xDDDDDD,
+    TEXT_DARK: 0x2B2115,
+};
 type Heading = 'N' | 'S' | 'E' | 'W';
 
 // Turn data for stats tracking
@@ -40,7 +50,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private car!: Phaser.GameObjects.Container;
     private pathGraphics!: Phaser.GameObjects.Graphics;
     private roadGraphics!: Phaser.GameObjects.Graphics;
-    private buildingContainers: Phaser.GameObjects.Rectangle[] = [];
+    private buildingContainers: Phaser.GameObjects.Container[] = [];
 
     // Path data
     private path: RoadSegment[] = [];
@@ -89,9 +99,17 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private isBrakeStopped = false;
     private brakeStopTimer: Phaser.Time.TimerEvent | null = null;
     private brakeStopSegments: number[] = [];  // Indices of segments where brake stops will occur
+    private stopSignContainer: Phaser.GameObjects.Container | null = null;
 
     // Audio
     private engineSound: Phaser.Sound.BaseSound | null = null;
+
+    // Stage/Portal system state
+    private currentStage = 1;
+    private totalStages = 1;
+    private stageProgressText!: Phaser.GameObjects.Text;
+    private controlsSwapped = false;
+    private controlSwapTimer: Phaser.Time.TimerEvent | null = null;
 
     constructor() {
         super({ key: 'TaxiDriverGameScene' });
@@ -123,6 +141,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.brakeStopsRemaining = 0;
         this.isBrakeStopped = false;
         this.brakeStopSegments = [];
+
+        // Initialize stage tracking
+        this.currentStage = 1;
+        this.totalStages = this.currentLevelConfig.stageCount || 1;
     }
 
     preload() {
@@ -141,7 +163,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.calculateGridDimensions();
 
         // Create background
-        this.add.rectangle(width / 2, height / 2, width, height, 0xE8E0D5);
+        this.add.rectangle(width / 2, height / 2, width, height, COLORS.BACKGROUND);
 
         // Create road layer
         this.roadGraphics = this.add.graphics();
@@ -167,15 +189,19 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Create UI controls
         this.createUI();
 
-        // Create message text
-        this.messageText = this.add.text(width / 2, height * 0.12, '', {
+        // Create message text (Floating style)
+        this.messageText = this.add.text(width / 2, height * 0.15, '', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '28px',
-            color: '#2B2115',
-            stroke: '#FFFFFF',
-            strokeThickness: 4,
-            fontStyle: 'bold'
+            fontSize: '32px',
+            color: '#FFFFFF',
+            stroke: '#2B2115',
+            strokeThickness: 6,
+            fontStyle: 'bold',
+            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true, fill: true },
+            padding: { x: 20, y: 20 }
         }).setOrigin(0.5).setDepth(200);
+
+        // Stage progress indicator moved to createUI to ensure no overlap
 
         // Handle resize
         this.scale.on('resize', () => {
@@ -206,7 +232,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Reserve space for UI at bottom
-        const availableHeight = height * 0.7;
+        // Reduced from 0.7 to 0.65 to ensure grid doesn't overlap with the taller mobile UI
+        const availableHeight = height * 0.65;
         const availableWidth = width * 0.95;
 
         // Calculate cell size to fit grid
@@ -236,70 +263,100 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private drawRoads() {
         this.roadGraphics.clear();
 
-        // Draw grid of roads
-        const roadColor = 0x5D5D5D;
-        const lineColor = 0xFFFFFF;
+        // Colors
+        const roadColor = COLORS.ROAD;   // Cream roads
+        const borderColor = 0xD6D6D6;    // Light gray border
+        const boarderWidth = this.cellSize * 0.8; // Total width including borders
+        const roadWidth = this.cellSize * 0.6;    // Inner road width
 
+        // 1. Draw road borders (base layer)
+        this.roadGraphics.fillStyle(borderColor, 1);
         for (let x = 0; x < this.GRID_SIZE; x++) {
             for (let y = 0; y < this.GRID_SIZE; y++) {
                 const pos = this.gridToWorld(x, y);
 
-                // Draw road tile
-                this.roadGraphics.fillStyle(roadColor, 1);
-                this.roadGraphics.fillRect(
-                    pos.x - this.cellSize * 0.35,
-                    pos.y - this.cellSize * 0.35,
-                    this.cellSize * 0.7,
-                    this.cellSize * 0.7
+                // Center junction
+                this.roadGraphics.fillRoundedRect(
+                    pos.x - boarderWidth / 2,
+                    pos.y - boarderWidth / 2,
+                    boarderWidth,
+                    boarderWidth,
+                    4
                 );
 
-                // Draw road connections based on position
                 // Horizontal connections
                 if (x < this.GRID_SIZE - 1) {
                     this.roadGraphics.fillRect(
-                        pos.x + this.cellSize * 0.35,
-                        pos.y - this.cellSize * 0.15,
-                        this.cellSize * 0.3,
-                        this.cellSize * 0.3
+                        pos.x + boarderWidth / 2 - 2,
+                        pos.y - boarderWidth / 2,
+                        this.cellSize - boarderWidth + 4,
+                        boarderWidth
                     );
                 }
 
                 // Vertical connections  
                 if (y < this.GRID_SIZE - 1) {
                     this.roadGraphics.fillRect(
-                        pos.x - this.cellSize * 0.15,
-                        pos.y + this.cellSize * 0.35,
-                        this.cellSize * 0.3,
-                        this.cellSize * 0.3
+                        pos.x - boarderWidth / 2,
+                        pos.y + boarderWidth / 2 - 2,
+                        boarderWidth,
+                        this.cellSize - boarderWidth + 4
                     );
                 }
             }
         }
 
-        // Draw road markings (simple dashed lines)
-        this.roadGraphics.lineStyle(2, lineColor, 0.5);
+        // 2. Draw inner roads (white layer)
+        this.roadGraphics.fillStyle(roadColor, 1);
         for (let x = 0; x < this.GRID_SIZE; x++) {
-            for (let y = 0; y < this.GRID_SIZE - 1; y++) {
+            for (let y = 0; y < this.GRID_SIZE; y++) {
                 const pos = this.gridToWorld(x, y);
-                // Vertical dashes
-                for (let d = 0; d < 3; d++) {
-                    const dashY = pos.y + this.cellSize * 0.4 + d * this.cellSize * 0.2;
-                    this.roadGraphics.moveTo(pos.x, dashY);
-                    this.roadGraphics.lineTo(pos.x, dashY + this.cellSize * 0.1);
+
+                // Center junction
+                this.roadGraphics.fillRoundedRect(
+                    pos.x - roadWidth / 2,
+                    pos.y - roadWidth / 2,
+                    roadWidth,
+                    roadWidth,
+                    2
+                );
+
+                // Horizontal connections
+                if (x < this.GRID_SIZE - 1) {
+                    this.roadGraphics.fillRect(
+                        pos.x + roadWidth / 2 - 2,
+                        pos.y - roadWidth / 2,
+                        this.cellSize - roadWidth + 4,
+                        roadWidth
+                    );
+                }
+
+                // Vertical connections  
+                if (y < this.GRID_SIZE - 1) {
+                    this.roadGraphics.fillRect(
+                        pos.x - roadWidth / 2,
+                        pos.y + roadWidth / 2 - 2,
+                        roadWidth,
+                        this.cellSize - roadWidth + 4
+                    );
                 }
             }
         }
-        this.roadGraphics.strokePath();
     }
 
     private createBuildings() {
-        // Create decorative buildings between roads
-        const buildingColors = [0x8B4513, 0xA0522D, 0xCD853F, 0xD2691E, 0xBC8F8F, 0x708090];
+        // Create decorative map elements (buildings, parks, water) between roads
+        // Google Maps palette
+        const buildingColors = [0xE5E5E5, 0xF2F2F2, 0xD9D9D9, 0xEBEBEB, 0xF5F5F0];
+        const parkColor = 0xC1E1C1; // Soft green
+        const waterColor = 0xAADAFF; // Soft blue
+        const shadowColor = 0xCCCCCC;
 
         // Clear existing buildings
         this.buildingContainers.forEach(b => b.destroy());
         this.buildingContainers = [];
 
+        // Grid cells between roads
         for (let x = 0; x < this.GRID_SIZE - 1; x++) {
             for (let y = 0; y < this.GRID_SIZE - 1; y++) {
                 const pos1 = this.gridToWorld(x, y);
@@ -307,19 +364,86 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
                 const centerX = (pos1.x + pos2.x) / 2;
                 const centerY = (pos1.y + pos2.y) / 2;
+                const blockSize = this.cellSize * 0.8;
 
-                const buildingSize = this.cellSize * 0.4;
-                const color = Phaser.Utils.Array.GetRandom(buildingColors);
+                // Determine block type based on Perlin-like pseudo-randomness or simple probability
+                // Use coordinates to create "clusters" of similar types
+                const noise = Math.sin(x * 0.5) * Math.cos(y * 0.5);
 
-                const building = this.add.rectangle(
-                    centerX, centerY,
-                    buildingSize, buildingSize,
-                    color
-                );
-                building.setStrokeStyle(2, 0x333333);
-                building.setDepth(5);
+                let type = 'building';
+                if (noise > 0.7) type = 'water';
+                else if (noise < -0.6) type = 'park';
 
-                this.buildingContainers.push(building);
+                const container = this.add.container(centerX, centerY);
+                container.setDepth(5);
+                this.buildingContainers.push(container);
+
+                if (type === 'water') {
+                    // Water block
+                    const water = this.add.rectangle(0, 0, blockSize, blockSize, waterColor);
+                    // Add simple wave effect lines
+                    const wave1 = this.add.text(-blockSize / 3, -blockSize / 4, '~', { color: '#88CCFF', fontSize: '20px' }).setOrigin(0.5);
+                    const wave2 = this.add.text(blockSize / 4, blockSize / 5, '~', { color: '#88CCFF', fontSize: '20px' }).setOrigin(0.5);
+                    container.add([water, wave1, wave2]);
+                } else if (type === 'park') {
+                    // Park block
+                    const park = this.add.rectangle(0, 0, blockSize, blockSize, parkColor);
+                    // Add simple trees (green dots)
+                    const tree1 = this.add.circle(-blockSize / 4, -blockSize / 4, 6, 0x8FBC8F);
+                    const tree2 = this.add.circle(blockSize / 3, blockSize / 5, 8, 0x8FBC8F);
+                    const tree3 = this.add.circle(-blockSize / 5, blockSize / 3, 5, 0x8FBC8F);
+                    container.add([park, tree1, tree2, tree3]);
+                } else {
+                    // Building block - Varied shapes
+                    // 0: Full block, 1: L-shape, 2: Two small buildings
+                    const shapeType = Phaser.Math.Between(0, 3);
+                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
+
+                    if (shapeType === 0) {
+                        // Full block
+                        const shadow = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
+                        const b = this.add.rectangle(0, 0, blockSize, blockSize, color);
+                        b.setStrokeStyle(1, 0xBBBBBB);
+                        container.add([shadow, b]);
+                    } else if (shapeType === 1) {
+                        // L-shape (composed of two rectangles)
+                        const w1 = blockSize * 0.4;
+                        const h1 = blockSize;
+                        const w2 = blockSize;
+                        const h2 = blockSize * 0.4;
+
+                        // Shadow
+                        const s1 = this.add.rectangle(-blockSize / 2 + w1 / 2 + 4, 4, w1, h1, shadowColor);
+                        const s2 = this.add.rectangle(4, blockSize / 2 - h2 / 2 + 4, w2, h2, shadowColor);
+
+                        // Main parts
+                        const b1 = this.add.rectangle(-blockSize / 2 + w1 / 2, 0, w1, h1, color);
+                        const b2 = this.add.rectangle(0, blockSize / 2 - h2 / 2, w2, h2, color);
+
+                        b1.setStrokeStyle(1, 0xBBBBBB);
+                        b2.setStrokeStyle(1, 0xBBBBBB);
+
+                        container.add([s1, s2, b1, b2]);
+                    } else {
+                        // Multiple small buildings
+                        const size = blockSize * 0.45;
+                        const offset = blockSize * 0.25;
+
+                        const c1 = Phaser.Utils.Array.GetRandom(buildingColors);
+                        const c2 = Phaser.Utils.Array.GetRandom(buildingColors);
+
+                        const s1 = this.add.rectangle(-offset + 3, -offset + 3, size, size, shadowColor);
+                        const b1 = this.add.rectangle(-offset, -offset, size, size, c1);
+
+                        const s2 = this.add.rectangle(offset + 3, offset + 3, size, size, shadowColor);
+                        const b2 = this.add.rectangle(offset, offset, size, size, c2);
+
+                        b1.setStrokeStyle(1, 0xBBBBBB);
+                        b2.setStrokeStyle(1, 0xBBBBBB);
+
+                        container.add([s1, b1, s2, b2]);
+                    }
+                }
             }
         }
     }
@@ -512,34 +636,72 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.pathGraphics.fillCircle(endPos.x, endPos.y, 6);
     }
 
+
     private createCar() {
         const pos = this.gridToWorld(this.carGridX, this.carGridY);
 
         this.car = this.add.container(pos.x, pos.y);
         this.car.setDepth(100);
 
-        // Car body (TukTuk style - simple rectangle)
-        const bodyWidth = this.cellSize * 0.5;
-        const bodyHeight = this.cellSize * 0.6;
+        // Dimensions
+        const width = this.cellSize * 0.5;
+        const length = this.cellSize * 0.7;
 
-        const body = this.add.rectangle(0, 0, bodyWidth, bodyHeight, 0xFFD700);
-        body.setStrokeStyle(3, 0xB8860B);
+        // 1. Shadow (grounded feel)
+        const shadow = this.add.graphics();
+        shadow.fillStyle(0x000000, 0.3);
+        shadow.fillRoundedRect(-width / 2, -length / 2 + 4, width, length, 8);
 
-        // Roof
-        const roof = this.add.rectangle(0, -bodyHeight * 0.15, bodyWidth * 0.8, bodyHeight * 0.4, 0xFFA500);
-        roof.setStrokeStyle(2, 0xCC7000);
+        // 2. Chassis (Main body)
+        // Yellow Taxi Color
+        const chassisColor = 0xFFD700;
+        const chassis = this.add.graphics();
+        chassis.fillStyle(chassisColor, 1);
+        chassis.lineStyle(1, 0xDAA520); // Golden Rod border
+        // Draw centered rounded rect
+        chassis.fillRoundedRect(-width / 2, -length / 2, width, length, 6);
+        chassis.strokeRoundedRect(-width / 2, -length / 2, width, length, 6);
 
-        // Direction arrow
-        const arrowGraphics = this.add.graphics();
-        arrowGraphics.fillStyle(0x4285F4, 1);
-        arrowGraphics.beginPath();
-        arrowGraphics.moveTo(0, -bodyHeight * 0.5);
-        arrowGraphics.lineTo(-8, -bodyHeight * 0.3);
-        arrowGraphics.lineTo(8, -bodyHeight * 0.3);
-        arrowGraphics.closePath();
-        arrowGraphics.fillPath();
+        // 3. Roof (Top)
+        const roofWidth = width * 0.85;
+        const roofLength = length * 0.55;
+        const roof = this.add.rectangle(0, 0, roofWidth, roofLength, 0xFFCC00); // Slightly lighter
+        roof.setStrokeStyle(1, 0xC68E17);
 
-        this.car.add([body, roof, arrowGraphics]);
+        // 4. Windshield (Front) & Rear Window
+        // Front is "Up" in local space (-y)
+        const windshield = this.add.rectangle(0, -length * 0.15, roofWidth * 0.9, length * 0.15, 0x87CEEB); // Sky blue
+        const rearWindow = this.add.rectangle(0, length * 0.2, roofWidth * 0.9, length * 0.1, 0x444444); // Dark gray
+
+        // 5. Headlights (Front)
+        const lightY = -length / 2 + 2;
+        const lightX = width / 2 - 6;
+        const headlightLeft = this.add.circle(-lightX, lightY, 3, 0xFFFFFF);
+        const headlightRight = this.add.circle(lightX, lightY, 3, 0xFFFFFF);
+
+        // 6. Brake Lights (Rear)
+        const brakeY = length / 2 - 2;
+        const brakeLeft = this.add.rectangle(-lightX, brakeY, 5, 3, 0xFF0000);
+        const brakeRight = this.add.rectangle(lightX, brakeY, 5, 3, 0xFF0000);
+
+        // 7. Headlight Beams (Cone of light)
+        const beam = this.add.graphics();
+        beam.fillStyle(0xFFFFCC, 0.3);
+        // Left beam
+        beam.beginPath();
+        beam.moveTo(-lightX, lightY);
+        beam.lineTo(-lightX - 15, lightY - 60);
+        beam.lineTo(-lightX + 10, lightY - 60);
+        beam.closePath();
+        // Right beam
+        beam.beginPath();
+        beam.moveTo(lightX, lightY);
+        beam.lineTo(lightX - 10, lightY - 60);
+        beam.lineTo(lightX + 15, lightY - 60);
+        beam.closePath();
+        beam.fillPath();
+
+        this.car.add([shadow, beam, chassis, brakeLeft, brakeRight, windshield, rearWindow, roof, headlightLeft, headlightRight]);
 
         // Set initial rotation based on heading
         this.updateCarRotation();
@@ -604,35 +766,80 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Control panel at bottom
-        const panelY = height - 100;
-        const buttonSize = 70;
-        const spacing = 20;
+        // Responsive button size for mobile
+        const buttonSize = Math.min(80, width * 0.2);
+        const spacing = Math.min(30, width * 0.05);
 
-        // Panel background
-        const panelBg = this.add.rectangle(
-            width / 2, panelY,
-            buttonSize * 3 + spacing * 4, buttonSize + 40,
-            0x2B2115, 0.9
+        const panelY = height - (buttonSize + 40); // Dynamic Y based on button size
+
+        // Panel background (floating pill shape)
+        const panelWidth = buttonSize * 3 + spacing * 4;
+        const panelHeight = buttonSize + 30;
+
+        // Create stage progress indicator (Floating Pill) - Positioned ABOVE control panel
+        if (this.totalStages > 1) {
+            const pillW = 140;
+            const pillH = 40;
+            const pillX = 20;
+            // Position strictly above Key Panel: Top of Panel - Pill Height - Padding
+            const pillY = (panelY - panelHeight / 2) - pillH - 10;
+
+            const pill = this.add.graphics();
+            pill.fillStyle(COLORS.UI_PANEL, 0.9);
+            pill.fillRoundedRect(pillX, pillY, pillW, pillH, 20);
+            pill.lineStyle(2, COLORS.UI_STROKE);
+            pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 20);
+            pill.setDepth(199);
+
+            if (this.stageProgressText) this.stageProgressText.destroy();
+            this.stageProgressText = this.add.text(pillX + pillW / 2, pillY + pillH / 2, `ด่าน ${this.currentStage}/${this.totalStages}`, {
+                fontFamily: 'Sarabun, sans-serif',
+                fontSize: '20px',
+                color: '#2B2115',
+                fontStyle: 'bold',
+                padding: { x: 10, y: 10 }
+            }).setOrigin(0.5).setDepth(200);
+        }
+
+        const panelBg = this.add.graphics();
+        panelBg.fillStyle(COLORS.UI_PANEL, 0.9);
+        panelBg.fillRoundedRect(
+            width / 2 - panelWidth / 2,
+            panelY - panelHeight / 2,
+            panelWidth,
+            panelHeight,
+            20
         );
-        panelBg.setStrokeStyle(4, 0xFFD700);
         panelBg.setDepth(150);
 
-        // Left button
+        // Add subtle shadow to panel
+        const shadow = this.add.graphics();
+        shadow.fillStyle(0x000000, 0.2);
+        shadow.fillRoundedRect(
+            width / 2 - panelWidth / 2 + 4,
+            panelY - panelHeight / 2 + 4,
+            panelWidth,
+            panelHeight,
+            20
+        );
+        shadow.setDepth(149);
+
+        // Left button (Thai: Left)
         this.leftButton = this.createDirectionButton(
             width / 2 - buttonSize - spacing, panelY,
-            'left', '◀', buttonSize
+            'left', 'ซ้าย', buttonSize
         );
 
-        // Forward button
+        // Forward button (Start / Go)
         this.forwardButton = this.createDirectionButton(
             width / 2, panelY,
-            'forward', '▲', buttonSize
+            'forward', 'START', buttonSize
         );
 
-        // Right button
+        // Right button (Thai: Right)
         this.rightButton = this.createDirectionButton(
             width / 2 + buttonSize + spacing, panelY,
-            'right', '▶', buttonSize
+            'right', 'ขวา', buttonSize
         );
     }
 
@@ -640,15 +847,18 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const container = this.add.container(x, y);
         container.setDepth(160);
 
-        // Button background
-        const bg = this.add.rectangle(0, 0, size, size, 0x4285F4);
-        bg.setStrokeStyle(3, 0xFFFFFF);
+        // Button background (Circle)
+        const bg = this.add.circle(0, 0, size / 2, COLORS.UI_PANEL);
+        bg.setStrokeStyle(2, COLORS.UI_STROKE);
 
-        // Button symbol
+        // Icon
+        // Adjust font size for longer text (START) vs symbols
+        const fontSize = symbol.length > 1 ? size * 0.25 : size * 0.4;
         const text = this.add.text(0, 0, symbol, {
-            fontFamily: 'Arial',
-            fontSize: `${size * 0.5}px`,
-            color: '#FFFFFF'
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: `${fontSize}px`,
+            color: '#555555',
+            fontStyle: 'bold'
         }).setOrigin(0.5);
 
         container.add([bg, text]);
@@ -656,51 +866,109 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Make interactive
         bg.setInteractive({ useHandCursor: true });
 
+        // Hover effects
+        bg.on('pointerover', () => {
+            if (this.gameOver) return;
+            bg.setFillStyle(0xFFFFFF);
+            this.tweens.add({
+                targets: container,
+                scale: 1.05,
+                duration: 100
+            });
+        });
+
+        bg.on('pointerout', () => {
+            if (this.gameOver) return;
+            bg.setFillStyle(0xF5F5F5);
+            this.tweens.add({
+                targets: container,
+                scale: 1.0,
+                duration: 100
+            });
+        });
+
         bg.on('pointerdown', () => {
             if (this.gameOver) return;
-
 
             // Handle brake stop with forward button
             if (this.isBrakeStopped && direction === 'forward') {
                 // Visual feedback
-                bg.setFillStyle(0x2962FF);
+                bg.setFillStyle(0x4285F4);
+                text.setColor('#FFFFFF');
                 this.tweens.add({
                     targets: container,
-                    scaleX: 0.9,
-                    scaleY: 0.9,
+                    scale: 0.9,
                     duration: 50,
-                    yoyo: true
+                    yoyo: true,
+                    onComplete: () => {
+                        bg.setFillStyle(0xF5F5F5);
+                        text.setColor('#555555');
+                    }
                 });
                 this.handleForwardPress();
                 return;
             }
 
-            // Allow input when approaching an intersection (not just waiting)
-            if (!this.isApproachingIntersection && !this.isWaitingForInput) return;
+            // Normal direction input
+            this.handleDirectionInput(direction);
 
             // Visual feedback
-            bg.setFillStyle(0x2962FF);
+            bg.setFillStyle(0x4285F4);
+            text.setColor('#FFFFFF');
+
             this.tweens.add({
                 targets: container,
-                scaleX: 0.9,
-                scaleY: 0.9,
+                scale: 0.9,
                 duration: 50,
-                yoyo: true
+                yoyo: true,
+                onComplete: () => {
+                    // Reset after delay or keep active if it's the selected choice?
+                    // For now just quick flash
+                    this.time.delayedCall(100, () => {
+                        bg.setFillStyle(0xF5F5F5);
+                        text.setColor('#555555');
+                    });
+                }
             });
-
-            this.handleDirectionInput(direction);
-        });
-
-        bg.on('pointerup', () => {
-            bg.setFillStyle(0x4285F4);
-        });
-
-        bg.on('pointerout', () => {
-            bg.setFillStyle(0x4285F4);
         });
 
         return container;
     }
+
+    private setupControlSwap() {
+        const delay = Phaser.Math.Between(3000, 6000);
+        this.controlSwapTimer = this.time.delayedCall(delay, () => {
+            this.triggerControlSwap();
+        });
+    }
+
+    private triggerControlSwap() {
+        if (this.gameOver || !this.gameStarted) return;
+
+        // Visual alert
+        this.showFeedback("สลับปุ่ม!", 0xFF0000); // Swap!
+
+        this.controlsSwapped = !this.controlsSwapped;
+
+        // Animate buttons switching positions
+        const leftX = this.leftButton.x;
+        const rightX = this.rightButton.x;
+
+        this.tweens.add({
+            targets: this.leftButton,
+            x: rightX,
+            duration: 1000,
+            ease: 'Cubic.easeInOut'
+        });
+
+        this.tweens.add({
+            targets: this.rightButton,
+            x: leftX,
+            duration: 1000,
+            ease: 'Cubic.easeInOut'
+        });
+    }
+
 
     private startGame() {
         this.messageText.setText('เตรียมพร้อม...');
@@ -733,13 +1001,18 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 if (this.currentLevelConfig.brakeStopEnabled) {
                     this.setupBrakeStops();
                 }
+
+                // Setup control swap if enabled
+                if (this.currentLevelConfig.swapControls) {
+                    this.setupControlSwap();
+                }
             });
         });
     }
 
     private findNextIntersection() {
-        // Find the next intersection after current position
-        for (let i = this.currentPathIndex; i < this.path.length; i++) {
+        // Find the next intersection AFTER the current position (start from next segment)
+        for (let i = this.currentPathIndex + 1; i < this.path.length; i++) {
             if (this.path[i].isIntersection) {
                 this.upcomingIntersectionIndex = i;
                 return;
@@ -864,6 +1137,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isMoving = false;
         this.targetPosition = null;
 
+        // IMPORTANT: Clear any queued direction - user must re-select after pressing forward
+        if (this.queuedDirection) {
+            this.queuedDirection = null;
+            this.isApproachingIntersection = false;
+        }
+
+        // Create elegant stop sign visual ahead of the car
+        this.createStopSign();
+
         // Show STOP message
         this.messageText.setText('หยุด!');
         this.messageText.setColor('#FF4444');
@@ -874,6 +1156,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Play brake sound
         this.playSound('car-honk');
+
+        // Trigger smoke effect
+        this.triggerSmokeEffect(this.car.x, this.car.y);
 
         // Start timer - must press Forward within time limit
         this.brakeStopTimer = this.time.delayedCall(
@@ -887,10 +1172,104 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         );
     }
 
+    private createStopSign() {
+        // Position the stop sign ahead of the car based on heading
+        let signX = this.car.x;
+        let signY = this.car.y;
+        const offset = this.cellSize * 0.8;
+
+        switch (this.carHeading) {
+            case 'N': signY -= offset; break;
+            case 'S': signY += offset; break;
+            case 'E': signX += offset; break;
+            case 'W': signX -= offset; break;
+        }
+
+        // Create stop sign container
+        this.stopSignContainer = this.add.container(signX, signY);
+        this.stopSignContainer.setDepth(150); // Higher depth to be above cars/buildings
+
+        // Sign pole
+        const poleHeight = 40;
+        const pole = this.add.rectangle(0, 25, 6, poleHeight, 0x555555);
+        pole.setStrokeStyle(1, 0x333333);
+
+        // Octagon shape (stop sign)
+        const signRadius = 25;
+        const octagon = this.add.graphics();
+        octagon.fillStyle(0xCC0000, 1);
+        octagon.lineStyle(3, COLORS.ROAD, 1);
+
+        const points: Phaser.Geom.Point[] = [];
+        for (let i = 0; i < 8; i++) {
+            // Start from -22.5 degrees to align flat top
+            const angle = (Math.PI / 8) + (i * Math.PI / 4) - (Math.PI / 8);
+            const px = Math.cos(angle) * signRadius;
+            const py = Math.sin(angle) * signRadius;
+            points.push(new Phaser.Geom.Point(px, py));
+        }
+
+        octagon.beginPath();
+        octagon.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            octagon.lineTo(points[i].x, points[i].y);
+        }
+        octagon.closePath();
+        octagon.fillPath();
+        octagon.strokePath();
+
+        // "STOP" text on sign
+        // In Thai, "หยุด" (Yud)
+        const stopText = this.add.text(0, 0, 'หยุด', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '18px',
+            color: '#FFFFFF',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        this.stopSignContainer.add([pole, octagon, stopText]);
+
+        // Entrance animation - pop in with shake
+        this.stopSignContainer.setScale(0);
+        this.tweens.add({
+            targets: this.stopSignContainer,
+            scale: 1,
+            duration: 200,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Shake animation to draw attention
+                this.tweens.add({
+                    targets: this.stopSignContainer,
+                    x: signX - 5,
+                    duration: 50,
+                    yoyo: true,
+                    repeat: 4,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        });
+    }
+
+    private removeStopSign() {
+        if (this.stopSignContainer) {
+            this.tweens.add({
+                targets: this.stopSignContainer,
+                scale: 0,
+                alpha: 0,
+                duration: 200,
+                onComplete: () => {
+                    this.stopSignContainer?.destroy();
+                    this.stopSignContainer = null;
+                }
+            });
+        }
+    }
+
     private handleBrakeTimeout() {
         this.isBrakeStopped = false;
         this.messageText.setVisible(false);
         this.highlightForwardButton(false);
+        this.removeStopSign();
         this.handleTimeout();
     }
 
@@ -909,6 +1288,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Remove this segment from brake stops
         this.brakeStopSegments = this.brakeStopSegments.filter(s => s !== this.currentPathIndex);
 
+        // Remove stop sign with animation
+        this.removeStopSign();
+
         // Visual feedback
         this.messageText.setText('ไปต่อ!');
         this.messageText.setColor('#58CC02');
@@ -924,7 +1306,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
     private highlightForwardButton(highlight: boolean) {
         if (!this.forwardButton) return;
-        
+
         if (highlight) {
             this.forwardButton.setAlpha(1);
             this.tweens.add({
@@ -970,7 +1352,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private moveCarTowardsTarget(delta: number) {
         if (!this.targetPosition) return;
 
-        const speed = this.currentLevelConfig.carSpeed;
+        // Scale speed by cell size to ensure consistent gameplay speed across devices
+        // Base cell size is 80. If cell size is smaller (mobile), speed reduces proportionally.
+        const speedScale = this.cellSize / 80;
+        const speed = this.currentLevelConfig.carSpeed * speedScale;
+
         const dx = this.targetPosition.x - this.car.x;
         const dy = this.targetPosition.y - this.car.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1032,12 +1418,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.turnData.push(turnData);
         this.hasSuddenChangeOccurred = false;
 
-        // Reset state
+        // Reset intersection state (but keep brake stop state intact)
         this.queuedDirection = null;
         this.isApproachingIntersection = false;
-        this.brakeStopsRemaining = 0;
-        this.isBrakeStopped = false;
-        this.brakeStopSegments = [];
         this.highlightButtons(false);
 
         // Find next intersection
@@ -1119,7 +1502,129 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleVictory() {
-        this.endGame('completed');
+        // Check if more stages remain
+        if (this.currentStage < this.totalStages) {
+            this.triggerPortalTransition();
+        } else {
+            this.endGame('completed');
+        }
+    }
+
+    private triggerPortalTransition() {
+        // Stop movement and show celebration
+        this.isMoving = false;
+        this.targetPosition = null;
+        this.gameStarted = false;
+
+        // Play success sound
+        this.playSound('correct-turn');
+
+        // Show portal transition message
+        this.messageText.setText('ยอดเยี่ยม!');
+        this.messageText.setColor('#58CC02');
+        this.messageText.setVisible(true);
+        this.showFeedback('✓', 0x58CC02);
+
+        // Celebrate!
+        this.triggerConfetti(this.car.x, this.car.y);
+
+        // Fade out the game area
+        const { width, height } = this.scale;
+        const fadeOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0);
+        fadeOverlay.setDepth(180);
+
+        this.tweens.add({
+            targets: fadeOverlay,
+            alpha: 0.7,
+            duration: 500,
+            onComplete: () => {
+                // Show "Next stage" message
+                this.messageText.setText(`ไปด่านถัดไป!`);
+                this.messageText.setColor('#FFFFFF');
+
+                this.time.delayedCall(1000, () => {
+                    // Increment stage
+                    this.currentStage++;
+
+                    // Update stage progress text
+                    if (this.stageProgressText) {
+                        this.stageProgressText.setText(`ด่าน ${this.currentStage}/${this.totalStages}`);
+                    }
+
+                    // Reset for next stage
+                    this.resetForNextStage();
+
+                    // Fade back in
+                    this.tweens.add({
+                        targets: fadeOverlay,
+                        alpha: 0,
+                        duration: 400,
+                        onComplete: () => {
+                            fadeOverlay.destroy();
+                            this.messageText.setVisible(false);
+
+                            // Restart game
+                            this.startGame();
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    private resetForNextStage() {
+        // Clear old path graphics
+        this.pathGraphics.clear();
+
+        // Reset car state
+        this.carGridX = 3;
+        this.carGridY = 6;
+        this.carHeading = 'N';
+        this.currentPathIndex = 0;
+        this.isMoving = false;
+        this.isWaitingForInput = false;
+        this.targetPosition = null;
+
+        // Reset navigation state
+        this.upcomingIntersectionIndex = -1;
+        this.queuedDirection = null;
+        this.isApproachingIntersection = false;
+
+        // Reset brake stops
+        this.brakeStopsRemaining = 0;
+        this.isBrakeStopped = false;
+        this.brakeStopSegments = [];
+        if (this.brakeStopTimer) {
+            this.brakeStopTimer.destroy();
+            this.brakeStopTimer = null;
+        }
+        // Remove any visible stop sign
+        if (this.stopSignContainer) {
+            this.stopSignContainer.destroy();
+            this.stopSignContainer = null;
+        }
+
+        // Reset path fade
+        this.isPathVisible = true;
+        if (this.pathFadeTimer) {
+            this.pathFadeTimer.destroy();
+            this.pathFadeTimer = null;
+        }
+
+        // Clear path and generate new one
+        this.path = [];
+        this.generatePath();
+        this.drawPath();
+
+        // Reset car position
+        const pos = this.gridToWorld(this.carGridX, this.carGridY);
+        this.car.setPosition(pos.x, pos.y);
+        this.updateCarRotation();
+
+        // Hide alert indicator
+        this.alertIndicator.setVisible(false);
+        this.tweens.killTweensOf(this.alertIndicator);
+        this.alertIndicator.setScale(1);
     }
 
     private endGame(reason: 'timeout' | 'wrong_direction' | 'completed') {
@@ -1302,5 +1807,81 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Reposition car
         const pos = this.gridToWorld(this.carGridX, this.carGridY);
         this.car.setPosition(pos.x, pos.y);
+    }
+    private createParticleTextures() {
+        if (this.textures.exists('smoke')) return;
+
+        const graphics = this.make.graphics({ x: 0, y: 0 });
+
+        // Smoke texture
+        graphics.fillStyle(COLORS.ROAD, 1);
+        graphics.fillCircle(16, 16, 16);
+        graphics.generateTexture('smoke', 32, 32);
+        graphics.clear();
+
+        // Confetti texture
+        graphics.fillStyle(COLORS.ROAD, 1);
+        graphics.fillRect(0, 0, 16, 8);
+        graphics.generateTexture('confetti', 16, 8);
+
+        graphics.destroy();
+    }
+
+    private triggerSmokeEffect(x: number, y: number) {
+        this.createParticleTextures();
+
+        const particles = this.add.particles(x, y, 'smoke', {
+            speed: { min: 20, max: 100 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 0.3, end: 0 },
+            lifespan: { min: 500, max: 1000 },
+            gravityY: -20,
+            emitting: false
+        });
+
+        particles.explode(15);
+
+        this.time.delayedCall(1500, () => {
+            particles.destroy();
+        });
+    }
+
+    private triggerConfetti(x: number, y: number) {
+        this.createParticleTextures();
+
+        const particles = this.add.particles(x, y, 'confetti', {
+            speed: { min: 100, max: 300 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 1, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 2000,
+            gravityY: 200,
+            rotate: { start: 0, end: 360 },
+            emitting: false
+        });
+
+        // Set random colors for particles if supported or use tint
+        // Phaser 3 particle tint is usually single value per emitter unless using callbacks
+        // We'll create a few bursts with different tints
+
+        const colors = [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF];
+
+        colors.forEach(color => {
+            const p = this.add.particles(x, y, 'confetti', {
+                speed: { min: 100, max: 300 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 0.8, end: 0 },
+                lifespan: 2000,
+                gravityY: 200,
+                rotate: { start: 0, end: 360 },
+                tint: color,
+                emitting: false
+            });
+            p.explode(10);
+            this.time.delayedCall(2500, () => p.destroy());
+        });
+
+        particles.destroy(); // Destroy the base one since we used colored ones
     }
 }

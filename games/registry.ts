@@ -27,6 +27,7 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-10-miner': MinerGameConfig,
   'game-12-gridhunter': GridHunterGameConfig,
   'game-13-boxpattern': BoxPatternGameConfig,
-  'game-15-taxidriver': TaxiDriverGameConfig
+  'game-15-taxidriver': TaxiDriverGameConfig,
+  'game-15-taxiddriver': TaxiDriverGameConfig // Alias for DB typo
 };
 
