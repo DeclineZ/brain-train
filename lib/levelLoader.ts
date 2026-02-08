@@ -14,6 +14,7 @@ const gameLevelModules = {
   'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
   'game-09-tube-sort': () => import('@/games/game-09-tube-sort/levels'),
   'game-15-taxidriver': () => import('@/games/game-15-taxidriver/levels'),
+  'game-10-miner': () => import('@/games/game-10-miner/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -73,9 +74,11 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
+    } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MINER_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
-      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS', 'TUBE_SORT_LEVELS'];
+      const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS', 'TUBE_SORT_LEVELS', 'MINER_LEVELS'];
       for (const name of possibleNames) {
         if (name in levelModule) {
           levelConfigs = (levelModule as any)[name];
@@ -153,6 +156,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return (levelModule as any).TUBE_SORT_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       return (levelModule as any).TAXIDRIVER_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
+      return (levelModule as any).MINER_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -239,6 +244,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
+    } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).MINER_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)
