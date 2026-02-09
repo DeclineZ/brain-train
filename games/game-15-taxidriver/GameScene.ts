@@ -52,6 +52,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private roadGraphics!: Phaser.GameObjects.Graphics;
     private buildingContainers: Phaser.GameObjects.Container[] = [];
 
+
     // Path data
     private path: RoadSegment[] = [];
     private currentPathIndex = 0;
@@ -148,10 +149,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     preload() {
+        // Load assets
+        this.load.image('tuktuk-body', '/assets/game-15-taxidriver/tuktuk_asset.png');
+
         // Load sounds
-        this.load.audio('car-honk', '/assets/sounds/taxidriver/car-honk.mp3');
-        this.load.audio('correct-turn', '/assets/sounds/taxidriver/correct-turn.mp3');
-        this.load.audio('wrong-turn', '/assets/sounds/taxidriver/wrong-turn.mp3');
+        this.load.audio('engine-idle', '/assets/sounds/taxidriver/Engine_Idle.mp3');
+        this.load.audio('correct-turn', '/assets/sounds/taxidriver/Turn_Swooosh.mp3');
+        this.load.audio('wrong-turn', '/assets/sounds/global/error.mp3');
+        this.load.audio('game-bgm', '/assets/sounds/taxidriver/taxidriver-bg.mp3');
         this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
         this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
     }
@@ -209,6 +214,17 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.layoutGame();
         });
 
+        // Initialize particle textures
+        this.createParticleTextures();
+
+        // Audio Setup
+        this.sound.stopAll();
+        // BGM
+        this.sound.play('game-bgm', { volume: 0.4, loop: true });
+        // Engine
+        this.engineSound = this.sound.add('engine-idle', { volume: 0.2, loop: true });
+        this.engineSound.play();
+
         // Start game sequence
         this.startGame();
 
@@ -225,6 +241,18 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.moveCarTowardsTarget(delta);
             this.checkApproachingIntersection();
             this.updateAlertIndicator();
+
+            // Emit dust trail
+            if (Math.random() < 0.1) { // 10% chance per frame (~6 times/sec at 60fps)
+                // Emit from rear tires
+                const angle = this.car.angle * Phaser.Math.DEG_TO_RAD;
+                // Correct math for "behind" the car based on 0 deg = Up (-Y)
+                // Forward vector relative to angle is (sin(a), -cos(a))
+                // Backward vector is (-sin(a), cos(a))
+                const offsetX = -Math.sin(angle) * 30;
+                const offsetY = Math.cos(angle) * 30;
+                this.emitDust(this.car.x + offsetX, this.car.y + offsetY);
+            }
         }
     }
 
@@ -643,65 +671,40 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.car = this.add.container(pos.x, pos.y);
         this.car.setDepth(100);
 
-        // Dimensions
-        const width = this.cellSize * 0.5;
-        const length = this.cellSize * 0.7;
+        // Dimensions - Increased size based on user feedback
+        const width = this.cellSize * 1.0;
+        const length = this.cellSize * 1.3;
 
-        // 1. Shadow (grounded feel)
+        // 1. Shadow (grounded feel) - Reduced size
         const shadow = this.add.graphics();
-        shadow.fillStyle(0x000000, 0.3);
-        shadow.fillRoundedRect(-width / 2, -length / 2 + 4, width, length, 8);
+        shadow.fillStyle(0x000000, 0.4);
+        shadow.fillEllipse(0, 4, width * 0.7, length * 0.7);
 
-        // 2. Chassis (Main body)
-        // Yellow Taxi Color
-        const chassisColor = 0xFFD700;
-        const chassis = this.add.graphics();
-        chassis.fillStyle(chassisColor, 1);
-        chassis.lineStyle(1, 0xDAA520); // Golden Rod border
-        // Draw centered rounded rect
-        chassis.fillRoundedRect(-width / 2, -length / 2, width, length, 6);
-        chassis.strokeRoundedRect(-width / 2, -length / 2, width, length, 6);
+        // 2. Headlight Beams (Cone of light)
+        // Beam should be strictly "In Front" relative to the car's local Up (-Y)
 
-        // 3. Roof (Top)
-        const roofWidth = width * 0.85;
-        const roofLength = length * 0.55;
-        const roof = this.add.rectangle(0, 0, roofWidth, roofLength, 0xFFCC00); // Slightly lighter
-        roof.setStrokeStyle(1, 0xC68E17);
+        const beamOriginY = -length / 2 + 10; // Front of car (Top in local space)
 
-        // 4. Windshield (Front) & Rear Window
-        // Front is "Up" in local space (-y)
-        const windshield = this.add.rectangle(0, -length * 0.15, roofWidth * 0.9, length * 0.15, 0x87CEEB); // Sky blue
-        const rearWindow = this.add.rectangle(0, length * 0.2, roofWidth * 0.9, length * 0.1, 0x444444); // Dark gray
-
-        // 5. Headlights (Front)
-        const lightY = -length / 2 + 2;
-        const lightX = width / 2 - 6;
-        const headlightLeft = this.add.circle(-lightX, lightY, 3, 0xFFFFFF);
-        const headlightRight = this.add.circle(lightX, lightY, 3, 0xFFFFFF);
-
-        // 6. Brake Lights (Rear)
-        const brakeY = length / 2 - 2;
-        const brakeLeft = this.add.rectangle(-lightX, brakeY, 5, 3, 0xFF0000);
-        const brakeRight = this.add.rectangle(lightX, brakeY, 5, 3, 0xFF0000);
-
-        // 7. Headlight Beams (Cone of light)
         const beam = this.add.graphics();
-        beam.fillStyle(0xFFFFCC, 0.3);
-        // Left beam
+        beam.fillStyle(0xFFFFCC, 0.4);
+
+        // Single central beam (Cone) pointing UP (-Y)
         beam.beginPath();
-        beam.moveTo(-lightX, lightY);
-        beam.lineTo(-lightX - 15, lightY - 60);
-        beam.lineTo(-lightX + 10, lightY - 60);
-        beam.closePath();
-        // Right beam
-        beam.beginPath();
-        beam.moveTo(lightX, lightY);
-        beam.lineTo(lightX - 10, lightY - 60);
-        beam.lineTo(lightX + 15, lightY - 60);
+        beam.moveTo(0, beamOriginY); // Start at center front (X=0, Y=Front)
+        beam.lineTo(-30, beamOriginY - 100); // Fan out Left-Up
+        beam.lineTo(30, beamOriginY - 100);  // Fan out Right-Up
         beam.closePath();
         beam.fillPath();
 
-        this.car.add([shadow, beam, chassis, brakeLeft, brakeRight, windshield, rearWindow, roof, headlightLeft, headlightRight]);
+        // 3. Tuktuk Sprite
+        const tuktuk = this.add.image(0, 0, 'tuktuk-body');
+        tuktuk.setDisplaySize(width, length);
+
+        // Rotate 180 degrees (Facing Left)
+        tuktuk.setAngle(180);
+
+        // Add to container (Shadow bottom, Beam middle, Tuktuk top)
+        this.car.add([shadow, beam, tuktuk]);
 
         // Set initial rotation based on heading
         this.updateCarRotation();
@@ -1631,6 +1634,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.gameOver = true;
         this.isMoving = false;
 
+        if (this.engineSound) {
+            this.engineSound.stop();
+        }
+
         // Stop all timers
         if (this.decisionTimer) {
             this.decisionTimer.destroy();
@@ -1809,48 +1816,152 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.car.setPosition(pos.x, pos.y);
     }
     private createParticleTextures() {
-        if (this.textures.exists('smoke')) return;
+        // Use unique keys to avoid conflicts with global texture cache
+        if (!this.textures.exists('td-smoke')) {
+            const graphics = this.make.graphics({ x: 0, y: 0 });
 
-        const graphics = this.make.graphics({ x: 0, y: 0 });
+            // Smoke/Dust texture - Soft circle
+            graphics.fillStyle(0xFFFFFF, 1);
+            graphics.fillCircle(16, 16, 14); // Slightly smaller than 32x32 to leave margin
+            graphics.generateTexture('td-smoke', 32, 32);
+            graphics.clear();
 
-        // Smoke texture
-        graphics.fillStyle(COLORS.ROAD, 1);
-        graphics.fillCircle(16, 16, 16);
-        graphics.generateTexture('smoke', 32, 32);
-        graphics.clear();
+            // Confetti texture
+            graphics.fillStyle(0xFFFFFF, 1);
+            graphics.fillRect(0, 0, 16, 8);
+            graphics.generateTexture('td-confetti', 16, 8);
+            graphics.clear();
 
-        // Confetti texture
-        graphics.fillStyle(COLORS.ROAD, 1);
-        graphics.fillRect(0, 0, 16, 8);
-        graphics.generateTexture('confetti', 16, 8);
+            // Sparkle texture (Star)
+            graphics.fillStyle(0xFFFFFF, 1);
 
-        graphics.destroy();
+            // Draw a star shape manually for better look
+            graphics.beginPath();
+            graphics.moveTo(16, 0);
+            graphics.lineTo(20, 12);
+            graphics.lineTo(32, 16);
+            graphics.lineTo(20, 20);
+            graphics.lineTo(16, 32);
+            graphics.lineTo(12, 20);
+            graphics.lineTo(0, 16);
+            graphics.lineTo(12, 12);
+            graphics.closePath();
+            graphics.fillPath();
+
+            graphics.generateTexture('td-sparkle', 32, 32);
+
+            graphics.destroy();
+        }
     }
 
     private triggerSmokeEffect(x: number, y: number) {
-        this.createParticleTextures();
-
-        const particles = this.add.particles(x, y, 'smoke', {
-            speed: { min: 20, max: 100 },
+        const particles = this.add.particles(x, y, 'td-smoke', {
+            speed: { min: 20, max: 50 },
             angle: { min: 0, max: 360 },
             scale: { start: 0.5, end: 0 },
+            alpha: { start: 0.6, end: 0 },
+            lifespan: 800,
+            quantity: 10,
+            tint: 0xCCCCCC
+        });
+        particles.setDepth(150);
+        this.time.delayedCall(1000, () => particles.destroy());
+    }
+
+    private emitDust(x: number, y: number) {
+        const particles = this.add.particles(x, y, 'td-smoke', {
+            speed: { min: 5, max: 20 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.2, end: 0 },
             alpha: { start: 0.3, end: 0 },
-            lifespan: { min: 500, max: 1000 },
-            gravityY: -20,
-            emitting: false
+            lifespan: 600,
+            quantity: 1,
+            tint: 0xAAAAAA
+        });
+        particles.setDepth(90); // Below car
+        this.time.delayedCall(600, () => particles.destroy());
+    }
+
+    private emitSparkle(x: number, y: number) {
+        const particles = this.add.particles(x, y, 'td-sparkle', {
+            speed: { min: 50, max: 100 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.6, end: 0 },
+            lifespan: 500,
+            quantity: 8,
+            blendMode: 'ADD',
+            tint: 0xFFD700
+        });
+        particles.setDepth(200);
+        this.time.delayedCall(500, () => particles.destroy());
+    }
+
+    private showSwapPopup() {
+        this.isPaused = true;
+
+        // Overlay
+        const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.7)
+            .setOrigin(0)
+            .setDepth(300)
+            .setInteractive(); // Block clicks
+
+        // Popup Container
+        const popup = this.add.container(this.scale.width / 2, this.scale.height / 2).setDepth(301);
+
+        // Background
+        const bg = this.add.rectangle(0, 0, 300, 200, 0xFFFFFF)
+            .setStrokeStyle(4, 0xFF4444);
+
+        // Text
+        const title = this.add.text(0, -40, 'ระวัง!', {
+            fontFamily: 'Sarabun', fontSize: '48px', color: '#FF0000', fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const subtitle = this.add.text(0, 20, 'ปุ่มกำลังจะสลับ...', {
+            fontFamily: 'Sarabun', fontSize: '24px', color: '#333333'
+        }).setOrigin(0.5);
+
+        popup.add([bg, title, subtitle]);
+
+        // Animate popup
+        this.tweens.add({
+            targets: popup,
+            scale: { from: 0, to: 1 },
+            duration: 300,
+            ease: 'Back.out'
         });
 
-        particles.explode(15);
+        // Countdown and Swap
+        this.time.delayedCall(2000, () => {
+            // Perform swap visually behind popup
+            this.controlsSwapped = !this.controlsSwapped;
 
-        this.time.delayedCall(1500, () => {
-            particles.destroy();
+            // Swap animation
+            const leftX = this.leftButton.x;
+            const rightX = this.rightButton.x;
+            this.tweens.add({ targets: this.leftButton, x: rightX, duration: 1000, ease: 'Cubic.easeInOut' });
+            this.tweens.add({ targets: this.rightButton, x: leftX, duration: 1000, ease: 'Cubic.easeInOut' });
+
+            // Close popup
+            this.tweens.add({
+                targets: [popup, overlay],
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                    popup.destroy();
+                    overlay.destroy();
+                    this.isPaused = false;
+                    this.showFeedback("สลับแล้ว!", 0x44FF44);
+                }
+            });
         });
     }
+
 
     private triggerConfetti(x: number, y: number) {
         this.createParticleTextures();
 
-        const particles = this.add.particles(x, y, 'confetti', {
+        const particles = this.add.particles(x, y, 'td-confetti', {
             speed: { min: 100, max: 300 },
             angle: { min: 0, max: 360 },
             scale: { start: 1, end: 0 },
@@ -1868,7 +1979,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const colors = [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF];
 
         colors.forEach(color => {
-            const p = this.add.particles(x, y, 'confetti', {
+            const p = this.add.particles(x, y, 'td-confetti', {
                 speed: { min: 100, max: 300 },
                 angle: { min: 0, max: 360 },
                 scale: { start: 0.8, end: 0 },
