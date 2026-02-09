@@ -163,6 +163,38 @@ export interface GridHunterGameStats {
   phaseReached: number;
 }
 
+export interface TaxiDriverGameStats {
+  levelPlayed: number;
+  difficultyMultiplier: number;
+
+  // Turn accuracy by car heading (for stat_visual - mental rotation)
+  northFacingCorrect: number;
+  northFacingAttempts: number;
+  southFacingCorrect: number;
+  southFacingAttempts: number;
+
+  // Focus tracking - simple "Forward" commands (for stat_focus)
+  forwardCorrect: number;
+  forwardAttempts: number;
+
+  // Memory tracking - blind turns when path hidden (for stat_memory)
+  blindTurnCorrect: number;
+  blindTurnAttempts: number;
+
+  // Speed tracking - reaction times on sudden changes (for stat_speed)
+  suddenChangeReactionTimes: number[];
+
+  // Planning tracking - distance from intersection when input received (for stat_planning)
+  preTurnDistances: number[];
+
+  // General stats
+  totalTurns: number;
+  correctTurns: number;
+  stars: number;
+  gameOverReason: 'timeout' | 'wrong_direction' | 'completed';
+  totalTimeMs: number;
+}
+
 export interface ClinicalStats {
   stat_memory: number | null;
   stat_speed: number | null;

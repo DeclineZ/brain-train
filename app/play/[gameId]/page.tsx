@@ -87,8 +87,9 @@ export default function GamePage({ params }: PageProps) {
         : gameId === 'game-05-wormtrain' ? 15
             : gameId === 'game-06-dreamdirect' ? 30
                 : gameId === 'game-08-mysterysound' ? 20
-                    : gameId === 'game-10-miner' ? 30
-                        : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+                    : gameId === 'game-15-taxidriver' ? 35
+                        : gameId === 'game-10-miner' ? 30
+                            : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -538,6 +539,15 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
+                    {/* Game 15 (Taxi Driver) with yellow taxi theme */}
+                    {
+                        gameId === 'game-15-taxidriver' && (
+                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-yellow-100 text-yellow-800 border-yellow-400 transition-all duration-300 animate-in slide-in-from-top-4">
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
+                    {/* Game 10 (Miner) with tier-based styling */}
                     {
                         gameId === 'game-10-miner' && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
@@ -546,8 +556,7 @@ export default function GamePage({ params }: PageProps) {
                         )
                     }
                 </>
-            )
-            }
+            )}
 
             {/* The Game */}
             {/* The Game - Force remount on level change */}
