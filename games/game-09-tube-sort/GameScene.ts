@@ -285,28 +285,38 @@ export class TubeSortGameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const { tubeCount, tubeCapacity } = this.currentLevelConfig;
 
-    const rows = tubeCount > 6 ? 2 : 1;
-    const cols = rows === 1 ? tubeCount : Math.ceil(tubeCount / 2);
+    const minTubeWidth = 72;
+    const minSpacingX = 90;
+    let rows = tubeCount > 6 ? 2 : 1;
+    let cols = rows === 1 ? tubeCount : Math.ceil(tubeCount / 2);
 
     const topPadding = 170;
     const bottomPadding = 150;
     const availableW = width * 0.84;
     const availableH = Math.max(220, height - topPadding - bottomPadding);
 
-    const tubeWidth = Math.max(64, Math.min(112, availableW / (cols + 0.4)));
+    if (rows === 1) {
+      const requiredWidth = tubeCount * minTubeWidth + (tubeCount - 1) * minSpacingX;
+      if (requiredWidth > availableW) {
+        rows = 2;
+        cols = Math.ceil(tubeCount / 2);
+      }
+    }
+
+    const tubeWidth = Math.max(minTubeWidth, Math.min(112, availableW / (cols + 0.4)));
     const tubeHeight = Math.max(190, Math.min(270, availableH / rows));
 
-    const elementGap = Math.max(4, Math.min(10, tubeWidth * 0.07));
-    const maxRadiusFromHeight = (tubeHeight - 28 - elementGap * (tubeCapacity - 1)) / (tubeCapacity * 2);
-    const elementRadius = Math.max(16, Math.min(tubeWidth * 0.52, maxRadiusFromHeight));
+    const elementGap = Math.max(5, Math.min(12, tubeWidth * 0.08));
+    const maxRadiusFromHeight = (tubeHeight - 30 - elementGap * (tubeCapacity - 1)) / (tubeCapacity * 2);
+    const desiredRadius = Math.max(22, tubeWidth * 0.58);
+    const elementRadius = Math.max(12, Math.min(desiredRadius, maxRadiusFromHeight));
 
     const rawSpacingX = cols > 1 ? (availableW - tubeWidth) / (cols - 1) : 0;
-    const minSpacingX = 80;
     const maxSpacingX = 150;
     const spacingX = cols > 1
       ? Math.min(maxSpacingX, Math.max(rawSpacingX, minSpacingX))
       : 0;
-    const spacingY = tubeHeight + tubeHeight * 0.12;
+    const spacingY = tubeHeight + tubeHeight * (rows === 1 ? 0.12 : 0.1);
     const gridHeight = tubeHeight + (rows - 1) * spacingY;
     const startX = width / 2 - (cols - 1) * spacingX / 2;
     const startY = topPadding + (availableH - gridHeight) / 2 + tubeHeight / 2;
@@ -521,7 +531,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       tube.shine.lineTo(-tubeWidth / 2 + tubeWidth * 0.42, tubeHeight / 2 - 18);
       tube.shine.strokePath();
 
-      const rimHeight = Math.max(8, tubeWidth * 0.12);
+      const rimHeight = Math.max(8, tubeWidth * 0.24);
       const rimOuterWidth = tubeWidth * 1.06;
       const rimInnerWidth = tubeWidth * 0.86;
       const rimY = -tubeHeight / 2 - rimHeight * 0.35;
@@ -548,8 +558,6 @@ export class TubeSortGameScene extends Phaser.Scene {
       tube.elements = [];
 
       const stack = this.tubeState[index] || [];
-      const topBallOutsideOffset = elementRadius * 1.6;
-      const topBallOutsideY = -tubeHeight / 2 - elementRadius * 0.2;
       stack.forEach((type, stackIndex) => {
         const color = TUBE_SORT_COLORS[type % TUBE_SORT_COLORS.length];
         const textureKey = this.getBallTexture(color);
@@ -557,11 +565,7 @@ export class TubeSortGameScene extends Phaser.Scene {
         element.setDisplaySize(elementRadius * 2, elementRadius * 2);
         element.setOrigin(0.5);
         const y = tubeHeight / 2 - elementRadius - stackIndex * (elementRadius * 2 + elementGap);
-        if (isSelected && stackIndex === stack.length - 1) {
-          element.setPosition(0, topBallOutsideY - topBallOutsideOffset);
-        } else {
-          element.setPosition(0, y - 6);
-        }
+        element.setPosition(0, y - 6);
         const ballId = this.tubeBallIds[index]?.[stackIndex];
         const ballState = ballId !== undefined ? this.ballStates.get(ballId) : undefined;
         const isFrozen = this.isBallFrozen(ballState);
@@ -581,6 +585,24 @@ export class TubeSortGameScene extends Phaser.Scene {
             Math.max(ballState.remainingMoves ?? 0, 0)
           );
           tube.elements.push(badgeLabel);
+        }
+
+        if (isSelected && stackIndex === stack.length - 1) {
+          const highlight = this.add.circle(0, 0, elementRadius * 1.12, strokeColor, 0.22);
+          highlight.setPosition(element.x, element.y);
+          highlight.setStrokeStyle(Math.max(2, elementRadius * 0.12), strokeColor, 0.8);
+          tube.container.add(highlight);
+          tube.elements.push(highlight);
+
+          this.tweens.add({
+            targets: highlight,
+            alpha: 0.5,
+            scale: 1.1,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+          });
         }
 
         if (isFrozen) {
@@ -613,15 +635,15 @@ export class TubeSortGameScene extends Phaser.Scene {
     const base = Phaser.Display.Color.IntegerToColor(color);
     const highlight = Phaser.Display.Color.IntegerToColor(0xffffff);
     const dark = new Phaser.Display.Color(
-      Math.max(0, base.red - 40),
-      Math.max(0, base.green - 40),
-      Math.max(0, base.blue - 40)
+      Math.max(0, base.red - 55),
+      Math.max(0, base.green - 55),
+      Math.max(0, base.blue - 55)
     );
 
-    const gradient = ctx.createRadialGradient(size * 0.32, size * 0.32, size * 0.1, size * 0.5, size * 0.5, size * 0.46);
-    gradient.addColorStop(0, `rgba(${highlight.red}, ${highlight.green}, ${highlight.blue}, 0.9)`);
-    gradient.addColorStop(0.35, `rgba(${base.red}, ${base.green}, ${base.blue}, 0.95)`);
-    gradient.addColorStop(1, `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 0.95)`);
+    const gradient = ctx.createRadialGradient(size * 0.3, size * 0.28, size * 0.08, size * 0.5, size * 0.5, size * 0.48);
+    gradient.addColorStop(0, `rgba(${highlight.red}, ${highlight.green}, ${highlight.blue}, 0.95)`);
+    gradient.addColorStop(0.35, `rgba(${base.red}, ${base.green}, ${base.blue}, 1)`);
+    gradient.addColorStop(1, `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 1)`);
 
     ctx.clearRect(0, 0, size, size);
     ctx.fillStyle = gradient;
@@ -629,9 +651,18 @@ export class TubeSortGameScene extends Phaser.Scene {
     ctx.arc(size / 2, size / 2, size * 0.46, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.strokeStyle = `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 0.8)`;
+    ctx.lineWidth = Math.max(2, size * 0.04);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.beginPath();
-    ctx.arc(size * 0.3, size * 0.28, size * 0.13, 0, Math.PI * 2);
+    ctx.arc(size * 0.28, size * 0.26, size * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.arc(size * 0.62, size * 0.66, size * 0.1, 0, Math.PI * 2);
     ctx.fill();
 
     canvas.refresh();
@@ -1267,12 +1298,12 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     const label = this.add.text(0, 0, `${remainingMoves}`, {
       fontFamily: 'Sarabun, sans-serif',
-      fontSize: `${Math.max(18, Math.floor(elementRadius * 0.95))}px`,
+      fontSize: `${Math.max(22, Math.floor(elementRadius * 1.3))}px`,
       color: textColor,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    label.setStroke(strokeColor, Math.max(2, Math.round(elementRadius * 0.12)));
-    label.setShadow(0, 2, 'rgba(0,0,0,0.4)', 4, false, true);
+    label.setStroke(strokeColor, Math.max(3, Math.round(elementRadius * 0.16)));
+    label.setShadow(0, 3, 'rgba(0,0,0,0.45)', 6, false, true);
     label.setPosition(x, y);
 
     container.add(label);
