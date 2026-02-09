@@ -22,6 +22,7 @@ type TubeData = {
   glass: Phaser.GameObjects.Graphics;
   shine: Phaser.GameObjects.Graphics;
   shadow: Phaser.GameObjects.Graphics;
+  mouth: Phaser.GameObjects.Graphics;
   elements: Phaser.GameObjects.GameObject[];
   index: number;
 };
@@ -100,10 +101,15 @@ export class TubeSortGameScene extends Phaser.Scene {
   private backgroundGlow?: Phaser.GameObjects.Graphics;
   private messageText!: Phaser.GameObjects.Text;
   private moveText!: Phaser.GameObjects.Text;
-  private timeText!: Phaser.GameObjects.Text;
   private progressBar!: Phaser.GameObjects.Graphics;
   private progressText!: Phaser.GameObjects.Text;
-  private timerRing?: Phaser.GameObjects.Graphics;
+  private timerContainer?: Phaser.GameObjects.Container;
+  private timerBar?: Phaser.GameObjects.Graphics;
+  private timerText?: Phaser.GameObjects.Text;
+  private lastTimerPct = 100;
+  private lastTimerSec = 0;
+  private timeWarningTriggered = false;
+  private timerShakeTween?: Phaser.Tweens.Tween;
   private timerEvent?: Phaser.Time.TimerEvent;
   private bgMusic?: Phaser.Sound.BaseSound;
   private readonly soundKeys = {
@@ -183,7 +189,6 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   update() {
     if (!this.timerEvent) return;
-    this.updateTimerText();
   }
 
   private resetState() {
@@ -200,6 +205,8 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.totalActions = 0;
     this.completedTubes.clear();
     this.isGameOver = false;
+    this.timeWarningTriggered = false;
+    this.stopTimerShake();
 
     this.tubeBallIds = [];
     this.ballStates.clear();
@@ -239,12 +246,16 @@ export class TubeSortGameScene extends Phaser.Scene {
       padding: { top: 4, bottom: 4, left: 8, right: 8 }
     });
 
-    this.timeText = this.add.text(width - 88, 44, '0วิ', {
+    this.timerContainer = this.add.container(0, 0).setDepth(12);
+    this.timerBar = this.add.graphics();
+    this.timerContainer.add(this.timerBar);
+    this.timerText = this.add.text(0, 0, '', {
       fontFamily: 'Sarabun, sans-serif',
       fontSize: '16px',
-      color: this.theme.softText,
-      padding: { top: 4, bottom: 4, left: 6, right: 6 }
+      color: this.theme.text,
+      fontStyle: 'bold'
     }).setOrigin(0.5, 0.5);
+    this.timerContainer.add(this.timerText);
 
     this.progressBar = this.add.graphics();
     this.progressText = this.add.text(width / 2, this.scale.height - 100, '0% สำเร็จ', {
@@ -254,47 +265,58 @@ export class TubeSortGameScene extends Phaser.Scene {
       padding: { top: 4, bottom: 4, left: 8, right: 8 }
     }).setOrigin(0.5);
 
-    this.timerRing = this.add.graphics();
-
     this.layoutUI();
     this.updateProgressUI();
     this.updateMoveText();
+    this.drawTimerBar(100, this.currentLevelConfig.targetTimeSeconds);
   }
 
   private layoutUI() {
     const { width } = this.scale;
     this.messageText.setPosition(width / 2, 128);
     this.moveText.setPosition(24, this.scale.height - 56);
-    this.timeText.setPosition(width - 88, 44);
     this.progressText.setPosition(width / 2, this.scale.height - 100);
+    if (this.timerBar?.visible) {
+      this.drawTimerBar(this.lastTimerPct, this.lastTimerSec);
+    }
   }
 
   private computeLayoutMetrics() {
     const { width, height } = this.scale;
     const { tubeCount, tubeCapacity } = this.currentLevelConfig;
 
-    const rows = tubeCount > 6 ? 2 : 1;
-    const cols = rows === 1 ? tubeCount : Math.ceil(tubeCount / 2);
+    const minTubeWidth = 72;
+    const minSpacingX = 90;
+    let rows = tubeCount > 6 ? 2 : 1;
+    let cols = rows === 1 ? tubeCount : Math.ceil(tubeCount / 2);
 
     const topPadding = 170;
     const bottomPadding = 150;
     const availableW = width * 0.84;
     const availableH = Math.max(220, height - topPadding - bottomPadding);
 
-    const tubeWidth = Math.max(52, Math.min(96, availableW / (cols + 0.6)));
-    const tubeHeight = Math.max(170, Math.min(245, availableH / rows));
+    if (rows === 1) {
+      const requiredWidth = tubeCount * minTubeWidth + (tubeCount - 1) * minSpacingX;
+      if (requiredWidth > availableW) {
+        rows = 2;
+        cols = Math.ceil(tubeCount / 2);
+      }
+    }
 
-    const elementGap = Math.max(4, Math.min(8, tubeWidth * 0.08));
-    const maxRadiusFromHeight = (tubeHeight - 24 - elementGap * (tubeCapacity - 1)) / (tubeCapacity * 2);
-    const elementRadius = Math.max(12, Math.min(tubeWidth * 0.32, maxRadiusFromHeight));
+    const tubeWidth = Math.max(minTubeWidth, Math.min(112, availableW / (cols + 0.4)));
+    const tubeHeight = Math.max(190, Math.min(270, availableH / rows));
+
+    const elementGap = Math.max(5, Math.min(12, tubeWidth * 0.08));
+    const maxRadiusFromHeight = (tubeHeight - 30 - elementGap * (tubeCapacity - 1)) / (tubeCapacity * 2);
+    const desiredRadius = Math.max(22, tubeWidth * 0.58);
+    const elementRadius = Math.max(12, Math.min(desiredRadius, maxRadiusFromHeight));
 
     const rawSpacingX = cols > 1 ? (availableW - tubeWidth) / (cols - 1) : 0;
-    const minSpacingX = 40;
-    const maxSpacingX = 100;
+    const maxSpacingX = 150;
     const spacingX = cols > 1
       ? Math.min(maxSpacingX, Math.max(rawSpacingX, minSpacingX))
       : 0;
-    const spacingY = tubeHeight + tubeHeight * 0.12;
+    const spacingY = tubeHeight + tubeHeight * (rows === 1 ? 0.12 : 0.1);
     const gridHeight = tubeHeight + (rows - 1) * spacingY;
     const startX = width / 2 - (cols - 1) * spacingX / 2;
     const startY = topPadding + (availableH - gridHeight) / 2 + tubeHeight / 2;
@@ -327,10 +349,12 @@ export class TubeSortGameScene extends Phaser.Scene {
       const glass = this.add.graphics();
       const outline = this.add.graphics();
       const shine = this.add.graphics();
+      const mouth = this.add.graphics();
       container.add(shadow);
       container.add(glass);
       container.add(outline);
       container.add(shine);
+      container.add(mouth);
 
       const tube: TubeData = {
         container,
@@ -338,6 +362,7 @@ export class TubeSortGameScene extends Phaser.Scene {
         glass,
         shine,
         shadow,
+        mouth,
         elements: [],
         index: i
       };
@@ -480,32 +505,59 @@ export class TubeSortGameScene extends Phaser.Scene {
       tube.glass.clear();
       tube.outline.clear();
       tube.shine.clear();
+      tube.mouth.clear();
 
       const isSelected = this.selectedTubeIndex === index;
       const strokeColor = isSelected
           ? this.theme.accent
           : this.theme.tubeStroke;
 
-      tube.shadow.fillStyle(0x0, 0.12);
-      tube.shadow.fillRoundedRect(-tubeWidth / 2 + 6, -tubeHeight / 2 + 8, tubeWidth, tubeHeight, 22);
+      tube.shadow.fillStyle(0x0, 0.08);
+      tube.shadow.fillRoundedRect(-tubeWidth / 2 + 8, -tubeHeight / 2 + 10, tubeWidth, tubeHeight, 26);
 
-      tube.glass.fillStyle(this.theme.tubeFill, 0.18);
-      tube.glass.fillRoundedRect(-tubeWidth / 2, -tubeHeight / 2, tubeWidth, tubeHeight, 20);
-      tube.glass.lineStyle(3, strokeColor, 0.85);
-      tube.glass.strokeRoundedRect(-tubeWidth / 2, -tubeHeight / 2, tubeWidth, tubeHeight, 20);
+      tube.glass.fillGradientStyle(0xFFFFFF, 0xF8FAFC, 0xE2E8F0, 0xF8FAFC, 0.26);
+      tube.glass.fillRoundedRect(-tubeWidth / 2, -tubeHeight / 2, tubeWidth, tubeHeight, 24);
+      tube.glass.lineStyle(2.5, strokeColor, 0.9);
+      tube.glass.strokeRoundedRect(-tubeWidth / 2, -tubeHeight / 2, tubeWidth, tubeHeight, 24);
 
-      tube.outline.lineStyle(2, 0xFFFFFF, 0.5);
-      tube.outline.strokeRoundedRect(-tubeWidth / 2 + 4, -tubeHeight / 2 + 4, tubeWidth - 8, tubeHeight - 8, 18);
+      tube.outline.lineStyle(1.4, 0xFFFFFF, 0.55);
+      tube.outline.strokeRoundedRect(-tubeWidth / 2 + 5, -tubeHeight / 2 + 6, tubeWidth - 10, tubeHeight - 12, 20);
 
-      tube.shine.lineStyle(2, this.theme.tubeHighlight, 0.35);
-      tube.shine.strokeRoundedRect(-tubeWidth / 2 + 10, -tubeHeight / 2 + 12, tubeWidth * 0.28, tubeHeight - 24, 16);
+      tube.shine.lineStyle(2, this.theme.tubeHighlight, 0.4);
+      tube.shine.strokeRoundedRect(-tubeWidth / 2 + 12, -tubeHeight / 2 + 14, tubeWidth * 0.24, tubeHeight - 28, 18);
+      tube.shine.lineStyle(1.5, 0xFFFFFF, 0.35);
+      tube.shine.beginPath();
+      tube.shine.moveTo(-tubeWidth / 2 + 18, -tubeHeight / 2 + 18);
+      tube.shine.lineTo(-tubeWidth / 2 + tubeWidth * 0.42, tubeHeight / 2 - 18);
+      tube.shine.strokePath();
+
+      const rimHeight = Math.max(8, tubeWidth * 0.24);
+      const rimOuterWidth = tubeWidth * 1.06;
+      const rimInnerWidth = tubeWidth * 0.86;
+      const rimY = -tubeHeight / 2 - rimHeight * 0.35;
+      const rimRadius = rimHeight * 0.55;
+
+      tube.mouth.fillStyle(0x000000, 0.08);
+      tube.mouth.fillRoundedRect(
+        -rimOuterWidth / 2 + 2,
+        rimY + rimHeight * 0.45,
+        rimOuterWidth - 4,
+        rimHeight * 0.6,
+        rimRadius
+      );
+      tube.mouth.fillStyle(0xFFFFFF, 0.7);
+      tube.mouth.fillRoundedRect(-rimOuterWidth / 2, rimY, rimOuterWidth, rimHeight, rimRadius);
+      tube.mouth.lineStyle(1.4, strokeColor, 0.9);
+      tube.mouth.strokeRoundedRect(-rimOuterWidth / 2, rimY, rimOuterWidth, rimHeight, rimRadius);
+      tube.mouth.fillStyle(0xE2E8F0, 0.9);
+      tube.mouth.fillRoundedRect(-rimInnerWidth / 2, rimY + rimHeight * 0.18, rimInnerWidth, rimHeight * 0.64, rimRadius * 0.8);
+      tube.mouth.lineStyle(1, 0xFFFFFF, 0.75);
+      tube.mouth.strokeRoundedRect(-rimInnerWidth / 2, rimY + rimHeight * 0.18, rimInnerWidth, rimHeight * 0.64, rimRadius * 0.8);
 
       tube.elements.forEach(element => element.destroy());
       tube.elements = [];
 
       const stack = this.tubeState[index] || [];
-      const topBallOutsideOffset = elementRadius * 2.4;
-      const topBallOutsideY = -tubeHeight / 2 - elementRadius * 0.2;
       stack.forEach((type, stackIndex) => {
         const color = TUBE_SORT_COLORS[type % TUBE_SORT_COLORS.length];
         const textureKey = this.getBallTexture(color);
@@ -513,11 +565,7 @@ export class TubeSortGameScene extends Phaser.Scene {
         element.setDisplaySize(elementRadius * 2, elementRadius * 2);
         element.setOrigin(0.5);
         const y = tubeHeight / 2 - elementRadius - stackIndex * (elementRadius * 2 + elementGap);
-        if (isSelected && stackIndex === stack.length - 1) {
-          element.setPosition(0, topBallOutsideY - topBallOutsideOffset);
-        } else {
-          element.setPosition(0, y - 6);
-        }
+        element.setPosition(0, y - 6);
         const ballId = this.tubeBallIds[index]?.[stackIndex];
         const ballState = ballId !== undefined ? this.ballStates.get(ballId) : undefined;
         const isFrozen = this.isBallFrozen(ballState);
@@ -537,6 +585,24 @@ export class TubeSortGameScene extends Phaser.Scene {
             Math.max(ballState.remainingMoves ?? 0, 0)
           );
           tube.elements.push(badgeLabel);
+        }
+
+        if (isSelected && stackIndex === stack.length - 1) {
+          const highlight = this.add.circle(0, 0, elementRadius * 1.12, strokeColor, 0.22);
+          highlight.setPosition(element.x, element.y);
+          highlight.setStrokeStyle(Math.max(2, elementRadius * 0.12), strokeColor, 0.8);
+          tube.container.add(highlight);
+          tube.elements.push(highlight);
+
+          this.tweens.add({
+            targets: highlight,
+            alpha: 0.5,
+            scale: 1.1,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+          });
         }
 
         if (isFrozen) {
@@ -561,7 +627,7 @@ export class TubeSortGameScene extends Phaser.Scene {
     const key = `tube-sort-ball-${color}`;
     if (this.textures.exists(key)) return key;
 
-    const size = 64;
+    const size = 80;
     const canvas = this.textures.createCanvas(key, size, size);
     if (!canvas) return key;
     const ctx = canvas.getContext();
@@ -569,25 +635,34 @@ export class TubeSortGameScene extends Phaser.Scene {
     const base = Phaser.Display.Color.IntegerToColor(color);
     const highlight = Phaser.Display.Color.IntegerToColor(0xffffff);
     const dark = new Phaser.Display.Color(
-      Math.max(0, base.red - 40),
-      Math.max(0, base.green - 40),
-      Math.max(0, base.blue - 40)
+      Math.max(0, base.red - 55),
+      Math.max(0, base.green - 55),
+      Math.max(0, base.blue - 55)
     );
 
-    const gradient = ctx.createRadialGradient(size * 0.35, size * 0.35, size * 0.1, size * 0.5, size * 0.5, size * 0.45);
-    gradient.addColorStop(0, `rgba(${highlight.red}, ${highlight.green}, ${highlight.blue}, 0.9)`);
-    gradient.addColorStop(0.35, `rgba(${base.red}, ${base.green}, ${base.blue}, 0.95)`);
-    gradient.addColorStop(1, `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 0.95)`);
+    const gradient = ctx.createRadialGradient(size * 0.3, size * 0.28, size * 0.08, size * 0.5, size * 0.5, size * 0.48);
+    gradient.addColorStop(0, `rgba(${highlight.red}, ${highlight.green}, ${highlight.blue}, 0.95)`);
+    gradient.addColorStop(0.35, `rgba(${base.red}, ${base.green}, ${base.blue}, 1)`);
+    gradient.addColorStop(1, `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 1)`);
 
     ctx.clearRect(0, 0, size, size);
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size * 0.45, 0, Math.PI * 2);
+    ctx.arc(size / 2, size / 2, size * 0.46, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.strokeStyle = `rgba(${dark.red}, ${dark.green}, ${dark.blue}, 0.8)`;
+    ctx.lineWidth = Math.max(2, size * 0.04);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.beginPath();
-    ctx.arc(size * 0.32, size * 0.3, size * 0.12, 0, Math.PI * 2);
+    ctx.arc(size * 0.28, size * 0.26, size * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.arc(size * 0.62, size * 0.66, size * 0.1, 0, Math.PI * 2);
     ctx.fill();
 
     canvas.refresh();
@@ -789,22 +864,38 @@ export class TubeSortGameScene extends Phaser.Scene {
   }
 
   private startTimer() {
+    this.lastTimerPct = 100;
+    this.lastTimerSec = Math.ceil(this.currentLevelConfig.targetTimeSeconds);
+    this.timeWarningTriggered = false;
+    this.stopTimerShake();
     this.timerEvent = this.time.addEvent({
-      delay: 500,
+      delay: 100,
       loop: true,
-      callback: () => this.updateTimerText()
+      callback: () => {
+        const limitMs = this.currentLevelConfig.targetTimeSeconds * 1000;
+        const elapsed = Date.now() - this.startTime;
+        const remainingMs = Math.max(0, limitMs - elapsed);
+        const remainingSec = Math.ceil(remainingMs / 1000);
+        const pct = limitMs > 0 ? Math.max(0, (remainingMs / limitMs) * 100) : 0;
+        this.lastTimerPct = pct;
+        this.lastTimerSec = remainingSec;
+        this.drawTimerBar(pct, remainingSec);
+
+        if (pct <= 25 && !this.timeWarningTriggered) {
+          this.triggerTimeWarning();
+        }
+
+        if (remainingMs <= 0 && !this.isGameOver) {
+          this.endGame(false);
+        }
+
+        this.updateFreezeState();
+      }
     });
 
     if (this.currentLevelConfig.freezeFeature.enabled) {
       this.nextFreezeAt = Date.now() + this.freezeCooldownMs;
     }
-  }
-
-  private updateTimerText() {
-    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-    this.timeText.setText(`${elapsed}วิ`);
-    this.drawTimerRing(elapsed);
-    this.updateFreezeState();
   }
 
   private updateMoveText() {
@@ -1119,7 +1210,7 @@ export class TubeSortGameScene extends Phaser.Scene {
     const toIndex = toStack.length - 1;
 
     const startX = sourceTube.container.x;
-    const pulledOffset = elementRadius * 2.4;
+    const pulledOffset = elementRadius * 1.6;
     const pulledTopY = -tubeHeight / 2 - elementRadius * 0.2;
     const startLocalY = fromPulled ? pulledTopY - pulledOffset : this.getElementY(tubeHeight, elementRadius, elementGap, fromIndex);
     const startY = sourceTube.container.y + startLocalY;
@@ -1207,12 +1298,12 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     const label = this.add.text(0, 0, `${remainingMoves}`, {
       fontFamily: 'Sarabun, sans-serif',
-      fontSize: `${Math.max(18, Math.floor(elementRadius * 0.95))}px`,
+      fontSize: `${Math.max(22, Math.floor(elementRadius * 1.3))}px`,
       color: textColor,
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    label.setStroke(strokeColor, Math.max(2, Math.round(elementRadius * 0.12)));
-    label.setShadow(0, 2, 'rgba(0,0,0,0.4)', 4, false, true);
+    label.setStroke(strokeColor, Math.max(3, Math.round(elementRadius * 0.16)));
+    label.setShadow(0, 3, 'rgba(0,0,0,0.45)', 6, false, true);
     label.setPosition(x, y);
 
     container.add(label);
@@ -1283,24 +1374,71 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.progressBar.fillRoundedRect(x, y, (barWidth * percent) / 100, barHeight, 6);
   }
 
-  private drawTimerRing(elapsedSeconds: number) {
-    if (!this.timerRing) return;
+  private drawTimerBar(pct: number, remainingSec: number) {
+    if (!this.timerBar) return;
     const { width } = this.scale;
-    const radius = 18;
-    const centerX = width - 88;
-    const centerY = 44;
-    const maxTime = this.currentLevelConfig.targetTimeSeconds;
-    const progress = Math.min(elapsedSeconds / Math.max(maxTime, 1), 1);
+    const radius = Math.min(30, Math.max(22, width * 0.04));
+    const thickness = Math.max(5, radius * 0.28);
+    const margin = Math.max(14, radius * 0.6);
+    const x = width - margin - radius;
+    const y = margin + radius;
 
-    let color = 0x22C55E;
-    if (progress > 0.7) color = 0xF97316;
-    if (progress > 0.9) color = 0xEF4444;
+    const safeColor = 0x22C55E;
+    const warnColor = 0xF97316;
+    const dangerColor = 0xEF4444;
+    const isDanger = pct <= 10;
+    const isWarn = pct <= 25 && !isDanger;
+    const ringColor = isDanger ? dangerColor : isWarn ? warnColor : safeColor;
 
-    this.timerRing.clear();
-    this.timerRing.lineStyle(4, color, 1);
-    this.timerRing.beginPath();
-    this.timerRing.arc(centerX, centerY, radius, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + progress * 360), false);
-    this.timerRing.strokePath();
+    this.timerBar.clear();
+    this.timerBar.lineStyle(thickness, 0x1F2937, 0.15);
+    this.timerBar.strokeCircle(x, y, radius);
+
+    if (pct > 0) {
+      this.timerBar.lineStyle(thickness, ringColor, 0.95);
+      this.timerBar.beginPath();
+      const startAngle = -Math.PI / 2;
+      const sweep = (Math.PI * 2 * pct) / 100;
+      this.timerBar.arc(x, y, radius, startAngle, startAngle + sweep, false);
+      this.timerBar.strokePath();
+    }
+
+    if (this.timerText) {
+      this.timerText.setPosition(x, y);
+      this.timerText.setText(`${Math.max(0, remainingSec)}`);
+      this.timerText.setColor(isWarn || isDanger ? '#B91C1C' : this.theme.text);
+    }
+  }
+
+  private triggerTimeWarning() {
+    this.timeWarningTriggered = true;
+    this.startTimerShake();
+    try {
+      this.sound.play(this.soundKeys.timerWarning, { volume: 0.6 });
+    } catch (error) {
+      console.warn('timer-warning sound failed to play', error);
+    }
+  }
+
+  private startTimerShake() {
+    if (this.timerShakeTween || !this.timerContainer) return;
+    this.timerShakeTween = this.tweens.add({
+      targets: this.timerContainer,
+      x: { from: -2, to: 2 },
+      y: { from: 2, to: -2 },
+      duration: 70,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  private stopTimerShake() {
+    if (this.timerShakeTween) {
+      this.timerShakeTween.stop();
+      this.timerShakeTween = undefined;
+    }
+    this.timerContainer?.setPosition(0, 0);
   }
 
   private handleTubeCompletion(prevState: number[][], nextState: number[][]) {
@@ -1470,6 +1608,7 @@ export class TubeSortGameScene extends Phaser.Scene {
     if (this.timerEvent) {
       this.timerEvent.remove();
     }
+    this.stopTimerShake();
 
     if (this.bgMusic?.isPlaying) {
       this.bgMusic.stop();
