@@ -350,7 +350,8 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopCount: 2,
         brakeStopTimeMs: 2500,
         stageCount: 3,
-        difficultyMultiplier: 1.55
+        difficultyMultiplier: 1.55,
+        swapControls: true,
     },
     17: {
         level: 17,
@@ -368,7 +369,8 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopCount: 2,
         brakeStopTimeMs: 2400,
         stageCount: 3,
-        difficultyMultiplier: 1.6
+        difficultyMultiplier: 1.6,
+        swapControls: true,
     },
     18: {
         level: 18,
@@ -386,7 +388,8 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopCount: 2,
         brakeStopTimeMs: 2300,
         stageCount: 3,
-        difficultyMultiplier: 1.65
+        difficultyMultiplier: 1.65,
+        swapControls: true,
     },
     19: {
         level: 19,
@@ -404,7 +407,8 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopCount: 3,
         brakeStopTimeMs: 2200,
         stageCount: 4,
-        difficultyMultiplier: 1.7
+        difficultyMultiplier: 1.7,
+        swapControls: true,
     },
     20: {
         level: 20,
@@ -422,7 +426,8 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopCount: 3,
         brakeStopTimeMs: 2000,
         stageCount: 4,
-        difficultyMultiplier: 1.75
+        difficultyMultiplier: 1.75,
+        swapControls: true,
     },
 
     // === CHAPTER 6: COMBINED MECHANICS (Levels 21-28) ===
