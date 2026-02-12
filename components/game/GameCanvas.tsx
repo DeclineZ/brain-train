@@ -115,6 +115,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-16-doorguardian') {
           const { DoorGuardianTutorialScene } = await import('@/games/game-16-doorguardian/TutorialScene');
           config.scene = DoorGuardianTutorialScene;
+        }
       }
 
       // Destroy old instance if it exists (prevents duplicates)
