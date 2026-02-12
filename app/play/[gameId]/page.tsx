@@ -85,7 +85,7 @@ export default function GamePage({ params }: PageProps) {
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
-            : gameId === 'game-06-dreamdirect' ? 30
+            : gameId === 'game-06-dreamdirect' ? 40
                 : gameId === 'game-08-mysterysound' ? 20
                     : gameId === 'game-15-taxidriver' ? 35
                         : gameId === 'game-10-miner' ? 30

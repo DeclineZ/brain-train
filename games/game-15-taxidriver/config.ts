@@ -1,4 +1,5 @@
 import { TaxiDriverGameScene } from './GameScene';
+import { TaxiDriverTutorialScene } from './TutorialScene';
 
 export const TaxiDriverGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -17,5 +18,5 @@ export const TaxiDriverGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [TaxiDriverGameScene]
+    scene: [TaxiDriverGameScene, TaxiDriverTutorialScene]
 };

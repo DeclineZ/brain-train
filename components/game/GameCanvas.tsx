@@ -106,6 +106,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-13-boxpattern') {
           const { BoxPatternTutorialScene } = await import('@/games/game-13-boxpattern/TutorialScene');
           config.scene = BoxPatternTutorialScene;
+        } else if (gameId === 'game-15-taxidriver') {
+          const { TaxiDriverTutorialScene } = await import('@/games/game-15-taxidriver/TutorialScene');
+          config.scene = TaxiDriverTutorialScene;
         }
       }
 

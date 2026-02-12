@@ -20,6 +20,7 @@ export class GridHunterGameScene extends Phaser.Scene {
     private nextNumber = 100; // Starting high number for replacements
     private trapIndices: Set<number> = new Set(); // Indices with "hot" red numbers
     private trapLives: Map<number, number> = new Map(); // Turns remaining for each trap
+    private trapAlertCount = 0; // How many times we've shown the red-card alert (max 3)
 
     // Timing
     private lastTapTime = 0;
@@ -436,6 +437,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.targetEven = false;
         this.targetOdd = false;
         this.targetHighest = false;
+        this.trapAlertCount = 0;
         this.updateInstructionIndicator();
 
         this.nextNumber = 100;
@@ -771,11 +773,17 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.trapAvoided++; // Will decrement if hit
 
         this.rebuildGrid();
+
+        // Show a reminder alert for the first 3 trap spawns
+        if (this.trapAlertCount < 3) {
+            this.trapAlertCount++;
+            this.showTrapAlert();
+        }
     }
 
     updateTraps() {
         let changed = false;
-        for (const [index, lives] of this.trapLives.entries()) {
+        for (const [index, lives] of Array.from(this.trapLives.entries())) {
             if (lives <= 1) {
                 // Expire
                 this.trapLives.delete(index);
@@ -789,6 +797,64 @@ export class GridHunterGameScene extends Phaser.Scene {
         if (changed) {
             this.rebuildGrid();
         }
+    }
+
+    // --- TRAP ALERT POPUP ---
+    showTrapAlert() {
+        const { width } = this.scale;
+
+        // Alert container
+        const alertContainer = this.add.container(width / 2, 180);
+        alertContainer.setDepth(300);
+
+        // Background pill
+        const msgs = [
+            'บัตรสีแดงปรากฏแล้ว ระวังอย่ากด!',
+            'อย่าลืม! สีแดง คือกับดัก',
+            'ระวังบัตรแดง! เลือกเลขอื่นแทน'
+        ];
+        const msg = msgs[Math.min(this.trapAlertCount - 1, msgs.length - 1)];
+
+        const text = this.add.text(0, 0, msg, {
+            fontFamily: '"Mali", "Sarabun", sans-serif',
+            fontSize: '20px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            padding: { top: 6, bottom: 6, left: 6, right: 6 }
+        }).setOrigin(0.5);
+
+        const pillW = text.width + 36;
+        const pillH = text.height + 20;
+        const bg = this.add.graphics();
+        bg.fillStyle(0xCC4444, 0.92);
+        bg.fillRoundedRect(-pillW / 2, -pillH / 2, pillW, pillH, 12);
+        bg.lineStyle(2, 0xffffff, 0.5);
+        bg.strokeRoundedRect(-pillW / 2, -pillH / 2, pillW, pillH, 12);
+
+        alertContainer.add([bg, text]);
+
+        // Entrance: slide down + fade in
+        alertContainer.setAlpha(0);
+        alertContainer.setY(160);
+        this.tweens.add({
+            targets: alertContainer,
+            alpha: 1,
+            y: 180,
+            duration: 250,
+            ease: 'Back.out'
+        });
+
+        // Auto-dismiss after 2 seconds
+        this.time.delayedCall(2000, () => {
+            this.tweens.add({
+                targets: alertContainer,
+                alpha: 0,
+                y: 160,
+                duration: 300,
+                ease: 'Power2',
+                onComplete: () => alertContainer.destroy()
+            });
+        });
     }
 
     checkPhaseTransition() {
