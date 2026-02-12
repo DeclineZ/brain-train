@@ -111,6 +111,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private stageProgressText!: Phaser.GameObjects.Text;
     private controlsSwapped = false;
     private controlSwapTimer: Phaser.Time.TimerEvent | null = null;
+    private swapAlertPopup: Phaser.GameObjects.Container | null = null;
 
     constructor() {
         super({ key: 'TaxiDriverGameScene' });
@@ -157,6 +158,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.load.audio('correct-turn', '/assets/sounds/taxidriver/Turn_Swooosh.mp3');
         this.load.audio('wrong-turn', '/assets/sounds/global/error.mp3');
         this.load.audio('game-bgm', '/assets/sounds/taxidriver/taxidriver-bg.mp3');
+        this.load.audio('car-horn', '/assets/sounds/taxidriver/horn.mp3'); // Added per user request
         this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
         this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
     }
@@ -259,9 +261,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private calculateGridDimensions() {
         const { width, height } = this.scale;
 
-        // Reserve space for UI at bottom
-        // Reduced from 0.7 to 0.65 to ensure grid doesn't overlap with the taller mobile UI
-        const availableHeight = height * 0.65;
+        // Reserve space for UI at bottom and top
+        // Reduced to 0.55 to ensure grid fits between top bar and bottom controls
+        const availableHeight = height * 0.55;
         const availableWidth = width * 0.95;
 
         // Calculate cell size to fit grid
@@ -278,7 +280,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const gridHeight = this.GRID_SIZE * this.cellSize;
 
         this.gridOffsetX = (width - gridWidth) / 2;
-        this.gridOffsetY = height * 0.08;
+        // Move map down significantly to accommodate top UI and be closer to controls
+        this.gridOffsetY = height * 0.20;
     }
 
     private gridToWorld(gridX: number, gridY: number): { x: number; y: number } {
@@ -773,19 +776,24 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const buttonSize = Math.min(80, width * 0.2);
         const spacing = Math.min(30, width * 0.05);
 
-        const panelY = height - (buttonSize + 40); // Dynamic Y based on button size
+        // Move controls UP significantly (from bottom - buttonSize - 40)
+        // Previous was height - (buttonSize + 40).
+        // Let's move it up by another 10% of height or fixed amount.
+        const panelY = height - (buttonSize + 40) - (height * 0.05);
 
         // Panel background (floating pill shape)
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
 
-        // Create stage progress indicator (Floating Pill) - Positioned ABOVE control panel
+        // Create stage progress indicator (Floating Pill) - Positioned closer to map top
         if (this.totalStages > 1) {
             const pillW = 140;
             const pillH = 40;
-            const pillX = 20;
-            // Position strictly above Key Panel: Top of Panel - Pill Height - Padding
-            const pillY = (panelY - panelHeight / 2) - pillH - 10;
+            // Center horizontally
+            const pillX = width / 2 - pillW / 2;
+            // Position above the control panel
+            // panelY is center of panel. Top of panel is panelY - panelHeight/2.
+            const pillY = (panelY - panelHeight / 2) - pillH - 20;
 
             const pill = this.add.graphics();
             pill.fillStyle(COLORS.UI_PANEL, 0.9);
@@ -795,7 +803,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             pill.setDepth(199);
 
             if (this.stageProgressText) this.stageProgressText.destroy();
-            this.stageProgressText = this.add.text(pillX + pillW / 2, pillY + pillH / 2, `ด่าน ${this.currentStage}/${this.totalStages}`, {
+            this.stageProgressText = this.add.text(width / 2, pillY + pillH / 2, `ด่าน ${this.currentStage}/${this.totalStages}`, {
                 fontFamily: 'Sarabun, sans-serif',
                 fontSize: '20px',
                 color: '#2B2115',
@@ -861,7 +869,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             fontFamily: 'Sarabun, sans-serif',
             fontSize: `${fontSize}px`,
             color: '#555555',
-            fontStyle: 'bold'
+            fontStyle: 'bold',
+            padding: { top: 5, bottom: 5, left: 5, right: 5 }
         }).setOrigin(0.5);
 
         container.add([bg, text]);
@@ -939,7 +948,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private setupControlSwap() {
-        const delay = Phaser.Math.Between(3000, 6000);
+        const delay = Phaser.Math.Between(4000, 8000); // Increased delay slightly
         this.controlSwapTimer = this.time.delayedCall(delay, () => {
             this.triggerControlSwap();
         });
@@ -948,9 +957,104 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private triggerControlSwap() {
         if (this.gameOver || !this.gameStarted) return;
 
-        // Visual alert
-        this.showFeedback("สลับปุ่ม!", 0xFF0000); // Swap!
+        // If currently in a critical state (braking or approaching intersection), defer the swap
+        if (this.isBrakeStopped || this.isApproachingIntersection || this.queuedDirection) {
+            this.controlSwapTimer = this.time.delayedCall(2000, () => this.triggerControlSwap());
+            return;
+        }
 
+        // Pause the game
+        this.isPaused = true;
+
+        // Show Alert Popup
+        this.createSwapAlertPopup();
+    }
+
+    private createSwapAlertPopup() {
+        const { width, height } = this.scale;
+
+        this.swapAlertPopup = this.add.container(0, 0);
+        this.swapAlertPopup.setDepth(300); // Above everything
+
+        // Dim background
+        const bg = this.add.rectangle(0, 0, width, height, 0x000000, 0.7);
+        bg.setOrigin(0);
+        bg.setInteractive(); // Block clicks
+
+        // Popup Box
+        const boxW = Math.min(400, width * 0.85);
+        const boxH = 250;
+        const boxX = width / 2;
+        const boxY = height / 2;
+
+        const box = this.add.graphics();
+        box.fillStyle(COLORS.UI_PANEL, 1);
+        box.fillRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 20);
+        box.lineStyle(4, 0xFF4444); // Red warning border
+        box.strokeRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 20);
+
+        // Warning Icon or Text
+        const titleText = this.add.text(boxX, boxY - 60, 'ระวัง!', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '48px',
+            color: '#FF4444',
+            fontStyle: 'bold',
+            padding: { top: 10, bottom: 10, left: 10, right: 10 }
+        }).setOrigin(0.5);
+
+        const msgText = this.add.text(boxX, boxY, 'ปุ่มกดกำลังจะสลับด้าน', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '28px',
+            color: '#2B2115',
+            align: 'center',
+            wordWrap: { width: boxW - 40 },
+            padding: { top: 5, bottom: 5, left: 5, right: 5 }
+        }).setOrigin(0.5);
+
+        // OK Button
+        const btnW = 160;
+        const btnH = 60;
+        const btnY = boxY + 70;
+
+        const btnBg = this.add.graphics();
+        btnBg.fillStyle(0x58CC02, 1); // Green
+        btnBg.fillRoundedRect(boxX - btnW / 2, btnY - btnH / 2, btnW, btnH, 15);
+
+        const btnText = this.add.text(boxX, btnY, 'ไปต่อ', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: '28px',
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+            padding: { top: 5, bottom: 5, left: 5, right: 5 }
+        }).setOrigin(0.5);
+
+        const btnContainer = this.add.container(0, 0, [btnBg, btnText]);
+        btnContainer.setSize(btnW, btnH);
+        btnContainer.setInteractive(new Phaser.Geom.Rectangle(boxX - btnW / 2, btnY - btnH / 2, btnW, btnH), Phaser.Geom.Rectangle.Contains);
+
+        btnContainer.on('pointerdown', () => {
+            // Animate button press
+            this.tweens.add({
+                targets: btnContainer,
+                scale: 0.95,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => {
+                    this.performControlSwap();
+                }
+            });
+        });
+
+        this.swapAlertPopup.add([bg, box, titleText, msgText, btnContainer]);
+    }
+
+    private performControlSwap() {
+        if (this.swapAlertPopup) {
+            this.swapAlertPopup.destroy();
+            this.swapAlertPopup = null;
+        }
+
+        // Swap logic
         this.controlsSwapped = !this.controlsSwapped;
 
         // Animate buttons switching positions
@@ -968,7 +1072,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             targets: this.rightButton,
             x: leftX,
             duration: 1000,
-            ease: 'Cubic.easeInOut'
+            ease: 'Cubic.easeInOut',
+            onComplete: () => {
+                // Resume game after swap is done (or sufficiently underway)
+                this.isPaused = false;
+            }
         });
     }
 
@@ -1157,8 +1265,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Highlight forward button
         this.highlightForwardButton(true);
 
-        // Play brake sound
-        this.playSound('car-honk');
+        // Play brake sound (Horn) - Removed per user feedback (sounded like swoosh/unpolished)
+        // this.playSound('car-horn');
 
         // Trigger smoke effect
         this.triggerSmokeEffect(this.car.x, this.car.y);
@@ -1277,7 +1385,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleForwardPress() {
-        if (!this.isBrakeStopped) return;
+        if (!this.isBrakeStopped || this.isPaused) return;
 
         // Player pressed Forward - continue driving!
         if (this.brakeStopTimer) {
@@ -1441,7 +1549,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleDirectionInput(direction: Direction) {
-        if (this.gameOver) return;
+        if (this.gameOver || this.isPaused) return;
 
         // Only accept input when approaching an intersection
         if (!this.isApproachingIntersection) return;
@@ -1520,7 +1628,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.gameStarted = false;
 
         // Play success sound
-        this.playSound('correct-turn');
+        this.playSound('level-pass');
 
         // Show portal transition message
         this.messageText.setText('ยอดเยี่ยม!');
@@ -1613,6 +1721,19 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.pathFadeTimer.destroy();
             this.pathFadeTimer = null;
         }
+
+        // Reset control swap
+        this.controlsSwapped = false; // Reset swap state? Typically level resets usually mean clear state.
+        if (this.controlSwapTimer) {
+            this.controlSwapTimer.destroy();
+            this.controlSwapTimer = null;
+        }
+        if (this.swapAlertPopup) {
+            this.swapAlertPopup.destroy();
+            this.swapAlertPopup = null;
+        }
+        this.isPaused = false;
+
 
         // Clear path and generate new one
         this.path = [];
