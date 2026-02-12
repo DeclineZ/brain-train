@@ -81,13 +81,15 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern';
+    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize';
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
-            : gameId === 'game-06-dreamdirect' ? 30
+            : gameId === 'game-06-dreamdirect' ? 40
                 : gameId === 'game-08-mysterysound' ? 20
-                    : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+                    : gameId === 'game-15-taxidriver' ? 35
+                        : gameId === 'game-10-miner' ? 30
+                            : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -480,6 +482,10 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
+    } else if (gameId === 'game-10-miner') {
+        if (activeLevel <= 10) currentTier = 'easy';
+        else if (activeLevel <= 20) currentTier = 'normal';
+        else currentTier = 'hard';
     }
 
     const { color: tierColor } = getDifficultyVisuals(currentTier);
@@ -517,6 +523,12 @@ export default function GamePage({ params }: PageProps) {
                             <span className="text-2xl">Box Pattern</span>
                         </div>
                     )}
+                    {/* Game 14 (Word Recognize) - Purple styling */}
+                    {(gameId === 'game-14-wordrecognize') && (
+                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-purple-100 text-purple-700 border-purple-300 transition-all duration-300 animate-in slide-in-from-top-4 whitespace-nowrap">
+                            <span className="text-2xl">จดจำคำ</span>
+                        </div>
+                    )}
                     {/* Game 07 (Pinkcup) with tier-based styling */}
                     {
                         gameId === 'game-07-pinkcup' && (
@@ -533,9 +545,24 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
+                    {/* Game 15 (Taxi Driver) with yellow taxi theme */}
+                    {
+                        gameId === 'game-15-taxidriver' && (
+                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-yellow-100 text-yellow-800 border-yellow-400 transition-all duration-300 animate-in slide-in-from-top-4">
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
+                    {/* Game 10 (Miner) with tier-based styling */}
+                    {
+                        gameId === 'game-10-miner' && (
+                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
                 </>
-            )
-            }
+            )}
 
             {/* The Game */}
             {/* The Game - Force remount on level change */}
@@ -691,12 +718,6 @@ export default function GamePage({ params }: PageProps) {
                                                     </span>
                                                 </div>
                                             )}
-                                            {result.statChanges?.stat_memory >
-                                                0 && (
-                                                    <div className="bg-chip-memory-bg text-chip-memory-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                        ^ ความจำ
-                                                    </div>
-                                                )}
                                             {result.statChanges?.stat_speed > 0 && (
                                                 <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                                                     ^ ความเร็ว
@@ -712,12 +733,6 @@ export default function GamePage({ params }: PageProps) {
                                                 (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
                                                     <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
                                                         ^ การวางแผน
-                                                    </div>
-                                                )}
-                                            {result.statChanges?.stat_emotion >
-                                                0 && (
-                                                    <div className="bg-chip-emotion-bg text-chip-emotion-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                        ^ ควบคุมอารมณ์
                                                     </div>
                                                 )}
                                         </div>
@@ -757,9 +772,10 @@ export default function GamePage({ params }: PageProps) {
                                         (result.stat_speed !== null ||
                                             result.stat_focus !== null ||
                                             result.stat_planning !== null ||
-                                            gameId === 'game-05-wormtrain')) ||
+                                            gameId === 'game-05-wormtrain' ||
+                                            gameId === 'game-16-doorguardian')) ||
                                         (isEndless &&
-                                            result.stat_focus !== null)) && (
+                                            (result.stat_focus !== null || !isSaving))) && (
                                             <div className="flex flex-col gap-3 w-full">
                                                 {isSaving && (
                                                     <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">

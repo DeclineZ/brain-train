@@ -74,6 +74,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
     private targetGraphics!: Phaser.GameObjects.Graphics;
     private glowGraphics!: Phaser.GameObjects.Graphics;
     private scoreText!: Phaser.GameObjects.Text;
+    private progressBarContainer!: Phaser.GameObjects.Container;
+    private progressBarBg!: Phaser.GameObjects.Graphics;
+    private progressBarFill!: Phaser.GameObjects.Graphics;
+    private starIcons: Phaser.GameObjects.Graphics[] = [];
+    private starGlows: Phaser.GameObjects.Graphics[] = [];
+    private starLit: boolean[] = [false, false, false];
     private comboText!: Phaser.GameObjects.Text;
     private beatIndicator!: Phaser.GameObjects.Graphics;
     private buttons: Map<Direction, Phaser.GameObjects.Container> = new Map();
@@ -375,24 +381,175 @@ export class DreamDirectGameScene extends Phaser.Scene {
     createUI() {
         const { width } = this.scale;
 
-        // Score
-        // Moved down to avoid overlapping the top Level/Header bar (approx height 80-100px)
-        this.scoreText = this.add.text(width / 2, 120, 'SCORE: 0', {
+        // === PROGRESS BAR WITH STARS ===
+        this.progressBarContainer = this.add.container(width / 2, 70).setDepth(100);
+
+        const barWidth = Math.min(width * 0.75, 320);
+        const barHeight = 28;
+        const barRadius = barHeight / 2;
+
+        // Bar Background (dark rounded rect)
+        this.progressBarBg = this.add.graphics();
+        this.progressBarBg.fillStyle(0x1a1a2e, 0.85);
+        this.progressBarBg.fillRoundedRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight, barRadius);
+        this.progressBarBg.lineStyle(2, 0x6a6a9e, 0.6);
+        this.progressBarBg.strokeRoundedRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight, barRadius);
+        this.progressBarContainer.add(this.progressBarBg);
+
+        // Bar Fill (gradient-like fill, starts empty)
+        this.progressBarFill = this.add.graphics();
+        this.progressBarContainer.add(this.progressBarFill);
+
+        // Score Text (centered on bar)
+        this.scoreText = this.add.text(0, 0, '0', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '32px',
+            fontSize: '18px',
             color: '#ffffff',
-            stroke: '#1a1a2e',
-            strokeThickness: 4,
-        }).setOrigin(0.5).setDepth(100);
+            stroke: '#000000',
+            strokeThickness: 3,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+        this.progressBarContainer.add(this.scoreText);
+
+        // Star Markers at thresholds: 1★ = 0% (start), 2★ = 50%, 3★ = 85%
+        const starPositions = [0, DreamDirectConstants.STARS.TWO / 100, DreamDirectConstants.STARS.THREE / 100];
+        this.starIcons = [];
+        this.starGlows = [];
+        this.starLit = [false, false, false];
+
+        starPositions.forEach((pos, i) => {
+            const starX = -barWidth / 2 + barWidth * pos;
+            const starY = -barHeight / 2 - 14;
+            const starSize = 12;
+
+            // Glow (hidden initially)
+            const glow = this.add.graphics();
+            glow.fillStyle(0xffd700, 0.3);
+            glow.fillCircle(starX, starY, starSize + 6);
+            glow.setAlpha(0);
+            this.progressBarContainer.add(glow);
+            this.starGlows.push(glow);
+
+            // Star shape
+            const star = this.add.graphics();
+            this.drawStar(star, starX, starY, starSize, 0x4a4a6e, 0x2a2a4e); // dim
+            this.progressBarContainer.add(star);
+            this.starIcons.push(star);
+        });
+
+        // Initial fill (empty)
+        this.updateProgressBar();
 
         // Combo
-        this.comboText = this.add.text(width / 2, 160, '', {
+        this.comboText = this.add.text(width / 2, 110, '', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '28px',
+            fontSize: '24px',
             color: '#ffaa00',
             stroke: '#1a1a2e',
             strokeThickness: 3,
         }).setOrigin(0.5).setDepth(100);
+    }
+
+    drawStar(graphics: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, fillColor: number, strokeColor: number) {
+        graphics.clear();
+        const points: Phaser.Geom.Point[] = [];
+        const spikes = 5;
+        const outerRadius = size;
+        const innerRadius = size * 0.45;
+
+        for (let i = 0; i < spikes * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI / 2 * -1) + (i * Math.PI / spikes);
+            points.push(new Phaser.Geom.Point(
+                cx + Math.cos(angle) * radius,
+                cy + Math.sin(angle) * radius
+            ));
+        }
+
+        graphics.fillStyle(fillColor, 1);
+        graphics.fillPoints(points, true);
+        graphics.lineStyle(1.5, strokeColor, 1);
+        graphics.strokePoints(points, true);
+    }
+
+    updateProgressBar() {
+        const { width } = this.scale;
+        const barWidth = Math.min(width * 0.75, 320);
+        const barHeight = 28;
+        const barRadius = barHeight / 2;
+
+        const percentage = this.maxScore > 0 ? Math.min(1, this.score / this.maxScore) : 0;
+        const fillWidth = Math.max(0, barWidth * percentage);
+
+        // Redraw fill
+        this.progressBarFill.clear();
+
+        if (fillWidth > 0) {
+            // Create gradient effect with multiple color stops
+            const fillRadius = Math.min(barRadius, fillWidth / 2);
+
+            // Use a canvas texture for gradient
+            this.progressBarFill.fillStyle(0x00bfff, 1); // Cyan/blue
+            this.progressBarFill.fillRoundedRect(-barWidth / 2, -barHeight / 2, fillWidth, barHeight, {
+                tl: fillRadius,
+                bl: fillRadius,
+                tr: fillWidth >= barWidth - 1 ? fillRadius : 2,
+                br: fillWidth >= barWidth - 1 ? fillRadius : 2
+            });
+
+            // Highlight stripe on top
+            this.progressBarFill.fillStyle(0x66d9ff, 0.4);
+            this.progressBarFill.fillRoundedRect(-barWidth / 2 + 2, -barHeight / 2 + 2, Math.max(0, fillWidth - 4), barHeight * 0.35, {
+                tl: fillRadius > 2 ? fillRadius - 2 : 0,
+                bl: 0,
+                tr: fillWidth >= barWidth - 1 ? Math.max(0, fillRadius - 2) : 1,
+                br: 0
+            });
+        }
+
+        // Update score text
+        this.scoreText.setText(`${this.score}`);
+
+        // Update stars
+        const pct = percentage * 100;
+        const thresholds = [0, DreamDirectConstants.STARS.TWO, DreamDirectConstants.STARS.THREE]; // 0%, 50%, 85%
+
+        thresholds.forEach((threshold, i) => {
+            if (pct >= threshold && !this.starLit[i]) {
+                this.starLit[i] = true;
+
+                // Redraw star in gold
+                const starPositions = [0, DreamDirectConstants.STARS.TWO / 100, DreamDirectConstants.STARS.THREE / 100];
+                const starX = -barWidth / 2 + barWidth * starPositions[i];
+                const starY = -barHeight / 2 - 14;
+                const starSize = 12;
+
+                this.drawStar(this.starIcons[i], starX, starY, starSize, 0xffd700, 0xcc9900);
+
+                // Show glow
+                this.starGlows[i].setAlpha(1);
+                this.tweens.add({
+                    targets: this.starGlows[i],
+                    alpha: { from: 1, to: 0.3 },
+                    duration: 600,
+                    yoyo: true,
+                    repeat: 1,
+                    onComplete: () => {
+                        this.starGlows[i]?.setAlpha(0.4);
+                    }
+                });
+
+                // Pop animation on the star
+                if (i > 0) { // Skip first star pop (always lit from start)
+                    this.tweens.add({
+                        targets: this.starIcons[i],
+                        scale: { from: 1.5, to: 1 },
+                        duration: 300,
+                        ease: 'Back.out'
+                    });
+                }
+            }
+        });
     }
 
     createInputButtons() {
@@ -1194,13 +1351,13 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // TUTORIAL CHECK: Show ONLY if it's the specific Intro Level for this arrow type
             // AND we haven't shown it yet this session.
             const ARROW_INTRO_LEVELS: Record<string, number> = {
-                'anchor': 3,
-                'fade': 6,
-                'double': 9,
-                'wiggler': 11,
-                'spinner': 13,
-                'hold_solid': 21,
-                'hold_hollow': 26
+                'ghost': 6,
+                'fade': 11,
+                'double': 14,
+                'wiggler': 16,
+                'spinner': 19,
+                'hold_solid': 25,
+                'hold_hollow': 31
             };
 
             const introLevel = ARROW_INTRO_LEVELS[arrowType];
@@ -1748,7 +1905,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
     addScore(points: number, arrow: Arrow) {
         this.score += points;
-        this.scoreText.setText(`SCORE: ${this.score}`);
+        this.updateProgressBar();
     }
 
     updateComboDisplay() {
@@ -1921,8 +2078,41 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.spawnY = height * DreamDirectConstants.SPAWN_Y;
 
         // Update UI positions
-        this.scoreText?.setPosition(width / 2, 60);
-        this.comboText?.setPosition(width / 2, 100);
+        // Reposition progress bar container
+        if (this.progressBarContainer) {
+            this.progressBarContainer.setPosition(width / 2, 70);
+            // Redraw bar at new width
+            const barWidth = Math.min(width * 0.75, 320);
+            const barHeight = 28;
+            const barRadius = barHeight / 2;
+
+            this.progressBarBg.clear();
+            this.progressBarBg.fillStyle(0x1a1a2e, 0.85);
+            this.progressBarBg.fillRoundedRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight, barRadius);
+            this.progressBarBg.lineStyle(2, 0x6a6a9e, 0.6);
+            this.progressBarBg.strokeRoundedRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight, barRadius);
+
+            // Redraw stars at new positions
+            const starPositions = [0, DreamDirectConstants.STARS.TWO / 100, DreamDirectConstants.STARS.THREE / 100];
+            starPositions.forEach((pos, i) => {
+                const starX = -barWidth / 2 + barWidth * pos;
+                const starY = -barHeight / 2 - 14;
+                const starSize = 12;
+                const isLit = this.starLit[i];
+                this.drawStar(this.starIcons[i], starX, starY, starSize,
+                    isLit ? 0xffd700 : 0x4a4a6e,
+                    isLit ? 0xcc9900 : 0x2a2a4e
+                );
+                // Reposition glow
+                this.starGlows[i].clear();
+                this.starGlows[i].fillStyle(0xffd700, 0.3);
+                this.starGlows[i].fillCircle(starX, starY, starSize + 6);
+                this.starGlows[i].setAlpha(isLit ? 0.4 : 0);
+            });
+
+            this.updateProgressBar();
+        }
+        this.comboText?.setPosition(width / 2, 110);
 
         // Redraw hit zone visuals
         this.drawHitZone();

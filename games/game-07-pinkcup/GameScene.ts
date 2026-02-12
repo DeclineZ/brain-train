@@ -557,7 +557,10 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   showTutorialHint() {
     const { width, height } = this.scale;
-    const message = 'เคลื่อนถ้วยสีชมพูไปยังช่องเป้าหมาย!\nหลังจากเคลื่อนครั้งแรก จะมีตัวเลขปรากฏในช่อง\nจำตำแหน่งตัวเลขให้ดี!';
+    const hasNumberedTiles = (this.currentLevelConfig.numberedTilesCount ?? 0) > 0;
+    const message = hasNumberedTiles
+      ? 'เคลื่อนถ้วยสีชมพูไปยังช่องเป้าหมาย!\nหลังจากเคลื่อนครั้งแรก จะมีตัวเลขปรากฏในช่อง\nจำตำแหน่งตัวเลขให้ดี!'
+      : 'เคลื่อนถ้วยสีชมพูไปยังช่องเป้าหมาย!';
 
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000)
       .setAlpha(0.7)
@@ -880,6 +883,9 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   revealNumbers() {
     if (this.isNumbersRevealed) return;
+
+    const hasNumberedTiles = (this.currentLevelConfig.numberedTilesCount ?? 0) > 0;
+    if (!hasNumberedTiles) return;
 
     this.isNumbersRevealed = true;
     this.numbersRevealedAt = Date.now();
