@@ -177,7 +177,7 @@ function getDefaultLevelCount(gameId: string): number {
     case 'game-04-floating-ball-math':
       return 50; // Floating Pool Balls has 50 levels
     case 'game-06-dreamdirect':
-      return 35;
+      return 40;
     case 'game-07-pinkcup':
       return 30; // Pinkcup has 30 levels
     case 'game-09-tube-sort':

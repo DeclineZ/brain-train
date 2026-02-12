@@ -399,7 +399,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         shadowG.setDepth(149);
 
         this.leftButton = this.createDirectionButton(width / 2 - buttonSize - spacing, panelY, 'left', 'ซ้าย', buttonSize);
-        this.forwardButton = this.createDirectionButton(width / 2, panelY, 'forward', 'ตรง', buttonSize);
+        this.forwardButton = this.createDirectionButton(width / 2, panelY, 'forward', 'START', buttonSize);
         this.rightButton = this.createDirectionButton(width / 2 + buttonSize + spacing, panelY, 'right', 'ขวา', buttonSize);
 
         // Dim buttons initially
@@ -511,11 +511,16 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.instructionOverlay = this.add.container(0, 0);
         this.instructionOverlay.setDepth(400);
 
-        // Semi-transparent panel at top
+        // Position panel between grid bottom and button panel
+        const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
+        const buttonSize = Math.min(80, width * 0.2);
+        const buttonPanelY = height - (buttonSize + 40) - (height * 0.05);
+        const gapCenter = (gridBottom + buttonPanelY) / 2;
+
         const panelWidth = Math.min(width * 0.95, 500);
-        const panelHeight = 160;
+        const panelHeight = Math.min(120, (buttonPanelY - gridBottom) * 0.85);
         const panelX = width / 2 - panelWidth / 2;
-        const panelY = 20;
+        const panelY = gapCenter - panelHeight / 2;
 
         this.instructionPanel = this.add.graphics();
         this.instructionPanel.fillStyle(0x000000, 0.85);
@@ -523,14 +528,15 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.instructionPanel.lineStyle(3, 0x4285F4, 1);
         this.instructionPanel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
 
+        const fontSize = Math.min(22, Math.max(16, panelHeight * 0.16));
         this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '24px',
+            fontSize: `${fontSize}px`,
             color: '#FFFFFF',
             align: 'center',
             wordWrap: { width: panelWidth - 40 },
-            lineSpacing: 8,
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
+            lineSpacing: 6,
+            padding: { top: 8, bottom: 8, left: 8, right: 8 }
         }).setOrigin(0.5).setDepth(401);
 
         this.instructionOverlay.add([this.instructionPanel, this.instructionText]);
@@ -603,7 +609,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private startPhase2() {
         this.currentPhase = 2;
 
-        this.showInstruction('ใช้ปุ่มด้านล่างเพื่อบังคับทิศทาง\nซ้าย  ·  ตรง  ·  ขวา');
+        this.showInstruction('ใช้ปุ่มด้านล่างเพื่อบังคับทิศทาง\nซ้าย  ·  START  ·  ขวา');
 
         // Highlight buttons one by one
         this.setButtonsEnabled(true);
@@ -661,10 +667,10 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.isMoving = false;
         this.targetPosition = null;
 
-        this.showInstruction('เก่งมาก! 🎉\nต่อไป: บางครั้งรถจะหยุดกะทันหัน\nต้องกดปุ่ม "ตรง" เพื่อขับต่อ');
+        this.showInstruction('เก่งมาก! 🎉\nต่อไป: บางครั้งรถจะหยุดกะทันหัน\nต้องกดปุ่ม "START" เพื่อขับต่อ');
 
         this.time.delayedCall(4000, () => {
-            this.showInstruction('ลองกดปุ่ม "ตรง" เมื่อรถหยุด!');
+            this.showInstruction('ลองกดปุ่ม "START" เมื่อรถหยุด!');
 
             // Setup a short path with a forced brake stop
             this.resetCar(3, 6, 'N');
@@ -715,8 +721,8 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
             ]);
             this.drawPath();
 
-            // Add a brake stop at an appropriate segment
-            this.brakeStopSegments = [4];
+            // Add a brake stop at a non-intersection segment
+            this.brakeStopSegments = [5];
             this.setButtonsEnabled(true);
 
             this.showInstruction('พร้อมแล้ว... ไปเลย! 🛺');
@@ -923,7 +929,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private showPracticeHint(direction: Direction) {
         // Brief hint text in the instruction area
         const dirText = direction === 'left' ? 'ซ้าย' :
-            direction === 'right' ? 'ขวา' : 'ตรง';
+            direction === 'right' ? 'ขวา' : 'START';
         this.showInstruction(`เลี้ยว${dirText}!`);
 
         this.time.delayedCall(1500, () => {
@@ -1026,6 +1032,10 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private triggerBrakeStop() {
         this.isBrakeStopped = true;
         this.isMoving = false;
+
+        // Snap car to current segment position so it doesn't float
+        const pos = this.gridToWorld(this.carGridX, this.carGridY);
+        this.car.setPosition(pos.x, pos.y);
         this.targetPosition = null;
 
         if (this.queuedDirection) {
@@ -1037,7 +1047,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.createStopSign();
 
         // Show message
-        this.showInstruction('รถหยุด! กดปุ่ม "ตรง" เพื่อขับต่อ');
+        this.showInstruction('รถหยุด! กดปุ่ม "START" เพื่อขับต่อ');
 
         // Highlight forward button
         this.highlightForwardButton(true);
@@ -1055,7 +1065,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                 this.highlightForwardButton(false);
                 this.hideHandIcon();
 
-                this.showInstruction('หมดเวลา! ลองอีกครั้ง\nกดปุ่ม "ตรง" ให้เร็วขึ้น');
+                this.showInstruction('หมดเวลา! ลองอีกครั้ง\nกดปุ่ม "START" ให้เร็วขึ้น');
                 this.time.delayedCall(2000, () => {
                     if (this.currentPhase === 4) {
                         this.gameStarted = false;
