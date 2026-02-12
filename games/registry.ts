@@ -13,6 +13,7 @@ import { BoxPatternGameConfig } from './game-13-boxpattern/config';
 import { TaxiDriverGameConfig } from './game-15-taxidriver/config';
 import { MinerGameConfig } from './game-10-miner/config';
 import { WordRecognizeGameConfig } from './game-14-wordrecognize/config';
+import { DoorGuardianGameConfig } from './game-16-doorguardian/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-00-example': ExampleGameConfig,
@@ -29,6 +30,7 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-12-gridhunter': GridHunterGameConfig,
   'game-13-boxpattern': BoxPatternGameConfig,
   'game-15-taxidriver': TaxiDriverGameConfig,
-  'game-14-wordrecognize': WordRecognizeGameConfig
+  'game-14-wordrecognize': WordRecognizeGameConfig,
+  'game-16-doorguardian': DoorGuardianGameConfig,
 };
 

@@ -106,6 +106,12 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-13-boxpattern') {
           const { BoxPatternTutorialScene } = await import('@/games/game-13-boxpattern/TutorialScene');
           config.scene = BoxPatternTutorialScene;
+        } else if (gameId === 'game-14-wordrecognize') {
+          const { WordRecognizeTutorialScene } = await import('@/games/game-14-wordrecognize/TutorialScene');
+          config.scene = WordRecognizeTutorialScene;
+        } else if (gameId === 'game-16-doorguardian') {
+          const { DoorGuardianTutorialScene } = await import('@/games/game-16-doorguardian/TutorialScene');
+          config.scene = DoorGuardianTutorialScene;
         }
       }
 
