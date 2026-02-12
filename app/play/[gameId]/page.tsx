@@ -772,7 +772,8 @@ export default function GamePage({ params }: PageProps) {
                                         (result.stat_speed !== null ||
                                             result.stat_focus !== null ||
                                             result.stat_planning !== null ||
-                                            gameId === 'game-05-wormtrain')) ||
+                                            gameId === 'game-05-wormtrain' ||
+                                            gameId === 'game-16-doorguardian')) ||
                                         (isEndless &&
                                             (result.stat_focus !== null || !isSaving))) && (
                                             <div className="flex flex-col gap-3 w-full">
