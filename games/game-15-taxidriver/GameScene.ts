@@ -102,13 +102,19 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private brakeStopSegments: number[] = [];  // Indices of segments where brake stops will occur
     private stopSignContainer: Phaser.GameObjects.Container | null = null;
 
+    // Road closure / obstacle reroute state
+    private roadClosureSegments: number[] = [];  // Indices of segments where obstacles appear
+    private roadClosureContainer: Phaser.GameObjects.Container | null = null;
+    private isRoadClosed = false;
+    private roadClosuresTriggered = 0;
+
     // Audio
     private engineSound: Phaser.Sound.BaseSound | null = null;
 
-    // Stage/Portal system state
-    private currentStage = 1;
-    private totalStages = 1;
-    private stageProgressText!: Phaser.GameObjects.Text;
+    // Objective system state
+    private currentObjective = 1;
+    private totalObjectives = 1;
+    private objectiveProgressText!: Phaser.GameObjects.Text;
     private controlsSwapped = false;
     private controlSwapTimer: Phaser.Time.TimerEvent | null = null;
     private swapAlertPopup: Phaser.GameObjects.Container | null = null;
@@ -144,9 +150,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isBrakeStopped = false;
         this.brakeStopSegments = [];
 
-        // Initialize stage tracking
-        this.currentStage = 1;
-        this.totalStages = this.currentLevelConfig.stageCount || 1;
+        // Reset road closure state
+        this.roadClosureSegments = [];
+        this.isRoadClosed = false;
+        this.roadClosuresTriggered = 0;
+
+        // Initialize objective tracking
+        this.currentObjective = 1;
+        this.totalObjectives = this.currentLevelConfig.objectiveCount || 1;
     }
 
     preload() {
@@ -479,28 +490,35 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         }
     }
 
-    private generatePath() {
+    private generatePath(fromX?: number, fromY?: number, fromHeading?: Heading) {
         // Generate a random path from start to end
         const pathLength = this.currentLevelConfig.pathLength;
 
-        // Adjust starting position based on map rotation
-        let startX = 3, startY = 6;
-        let endY = 0;
-        let heading: Heading = 'N';
+        let startX: number, startY: number;
+        let heading: Heading;
 
-        switch (this.currentLevelConfig.mapRotation) {
-            case 0:
-                startX = 3; startY = 6; heading = 'N'; endY = 0;
-                break;
-            case 90:
-                startX = 0; startY = 3; heading = 'E'; endY = 3; // End is right side
-                break;
-            case 180:
-                startX = 3; startY = 0; heading = 'S'; endY = 6;
-                break;
-            case 270:
-                startX = 6; startY = 3; heading = 'W'; endY = 3; // End is left side
-                break;
+        if (fromX !== undefined && fromY !== undefined && fromHeading !== undefined) {
+            // Continue from a given position (subsequent objectives)
+            startX = fromX;
+            startY = fromY;
+            heading = fromHeading;
+        } else {
+            // Default start based on map rotation (first objective)
+            startX = 3; startY = 6; heading = 'N';
+            switch (this.currentLevelConfig.mapRotation) {
+                case 0:
+                    startX = 3; startY = 6; heading = 'N';
+                    break;
+                case 90:
+                    startX = 0; startY = 3; heading = 'E';
+                    break;
+                case 180:
+                    startX = 3; startY = 0; heading = 'S';
+                    break;
+                case 270:
+                    startX = 6; startY = 3; heading = 'W';
+                    break;
+            }
         }
 
         this.carGridX = startX;
@@ -785,9 +803,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
 
-        // Create stage progress indicator (Floating Pill) - Positioned closer to map top
-        if (this.totalStages > 1) {
-            const pillW = 140;
+        // Create objective progress indicator (Floating Pill) - Positioned closer to map top
+        if (this.totalObjectives > 1) {
+            const pillW = 160;
             const pillH = 40;
             // Center horizontally
             const pillX = width / 2 - pillW / 2;
@@ -802,8 +820,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 20);
             pill.setDepth(199);
 
-            if (this.stageProgressText) this.stageProgressText.destroy();
-            this.stageProgressText = this.add.text(width / 2, pillY + pillH / 2, `ด่าน ${this.currentStage}/${this.totalStages}`, {
+            if (this.objectiveProgressText) this.objectiveProgressText.destroy();
+            this.objectiveProgressText = this.add.text(width / 2, pillY + pillH / 2, `จุดหมาย ${this.currentObjective}/${this.totalObjectives}`, {
                 fontFamily: 'Sarabun, sans-serif',
                 fontSize: '20px',
                 color: '#2B2115',
@@ -1011,7 +1029,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             padding: { top: 5, bottom: 5, left: 5, right: 5 }
         }).setOrigin(0.5);
 
-        // OK Button
+        // OK Button — created OUTSIDE the popup container so the bg overlay doesn't block it
         const btnW = 160;
         const btnH = 60;
         const btnY = boxY + 70;
@@ -1019,6 +1037,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const btnBg = this.add.graphics();
         btnBg.fillStyle(0x58CC02, 1); // Green
         btnBg.fillRoundedRect(boxX - btnW / 2, btnY - btnH / 2, btnW, btnH, 15);
+        btnBg.setDepth(301);
 
         const btnText = this.add.text(boxX, btnY, 'ไปต่อ', {
             fontFamily: 'Sarabun, sans-serif',
@@ -1026,26 +1045,22 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             color: '#FFFFFF',
             fontStyle: 'bold',
             padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(301);
 
-        const btnContainer = this.add.container(0, 0, [btnBg, btnText]);
-        btnContainer.setSize(btnW, btnH);
-        btnContainer.setInteractive(new Phaser.Geom.Rectangle(boxX - btnW / 2, btnY - btnH / 2, btnW, btnH), Phaser.Geom.Rectangle.Contains);
+        // Use a simple interactive zone for the button
+        const btnZone = this.add.zone(boxX, btnY, btnW, btnH)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(302);
 
-        btnContainer.on('pointerdown', () => {
-            // Animate button press
-            this.tweens.add({
-                targets: btnContainer,
-                scale: 0.95,
-                duration: 100,
-                yoyo: true,
-                onComplete: () => {
-                    this.performControlSwap();
-                }
-            });
+        btnZone.on('pointerdown', () => {
+            // Immediately perform the swap — no animation delay
+            btnBg.destroy();
+            btnText.destroy();
+            btnZone.destroy();
+            this.performControlSwap();
         });
 
-        this.swapAlertPopup.add([bg, box, titleText, msgText, btnContainer]);
+        this.swapAlertPopup.add([bg, box, titleText, msgText]);
     }
 
     private performControlSwap() {
@@ -1108,7 +1123,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                     this.setupPathFade();
                 }
 
-                // Setup brake stops if enabled
+                // Setup road closures FIRST (before brake stops, so they get priority
+                // on the limited non-intersection segments)
+                if (this.currentLevelConfig.roadClosureEnabled) {
+                    this.setupRoadClosures();
+                }
+
+                // Setup brake stops if enabled (avoids road closure segments)
                 if (this.currentLevelConfig.brakeStopEnabled) {
                     this.setupBrakeStops();
                 }
@@ -1220,10 +1241,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const config = this.currentLevelConfig;
         if (!config.brakeStopEnabled || config.brakeStopCount <= 0) return;
 
-        // Get non-intersection segments for brake stops
+        // Get non-intersection segments for brake stops, also avoiding road closure segments
         const validSegments: number[] = [];
         for (let i = 1; i < this.path.length - 1; i++) {
-            if (!this.path[i].isIntersection) {
+            if (!this.path[i].isIntersection && !this.roadClosureSegments.includes(i)) {
                 validSegments.push(i);
             }
         }
@@ -1415,6 +1436,378 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         });
     }
 
+    // ==========================================
+    // Road Closure / Obstacle Reroute System
+    // ==========================================
+
+    private setupRoadClosures() {
+        const closureCount = this.currentLevelConfig.roadClosureCount || 0;
+        if (closureCount <= 0) return;
+
+        this.roadClosureSegments = [];
+        this.roadClosuresTriggered = 0;
+
+        // Find valid segments for obstacles:
+        // Not first 2 or last 2 segments, not intersections
+        const validIndices: number[] = [];
+        for (let i = 2; i < this.path.length - 2; i++) {
+            const seg = this.path[i];
+            if (seg.isIntersection) continue;
+            validIndices.push(i);
+        }
+
+        console.log(`[RoadClosure] Path length: ${this.path.length}, Valid indices: [${validIndices.join(',')}], Brake stops: [${this.brakeStopSegments.join(',')}], Want: ${closureCount}`);
+
+        // Pick closure segments with spacing (at least 3 segments apart)
+        const shuffled = Phaser.Utils.Array.Shuffle([...validIndices]);
+        for (const idx of shuffled) {
+            if (this.roadClosureSegments.length >= closureCount) break;
+            // Ensure spacing from already-selected closure segments
+            const tooClose = this.roadClosureSegments.some(s => Math.abs(s - idx) < 3);
+            if (!tooClose) {
+                this.roadClosureSegments.push(idx);
+            }
+        }
+
+        // Sort so we encounter them in order
+        this.roadClosureSegments.sort((a, b) => a - b);
+        console.log(`[RoadClosure] Selected closure segments: [${this.roadClosureSegments.join(',')}]`);
+    }
+
+    private checkRoadClosure(): boolean {
+        if (!this.currentLevelConfig.roadClosureEnabled) return false;
+        if (this.roadClosureSegments.length === 0) return false;
+
+        // Check if current segment index matches a road closure
+        if (this.roadClosureSegments.includes(this.currentPathIndex)) {
+            this.triggerRoadClosure();
+            return true;
+        }
+        return false;
+    }
+
+    private triggerRoadClosure() {
+        this.isRoadClosed = true;
+        this.isMoving = false;
+        this.targetPosition = null;
+        this.roadClosuresTriggered++;
+        this.hasSuddenChangeOccurred = true;
+
+        // Place the car at the closure segment position
+        const closureSeg = this.path[this.currentPathIndex];
+        const worldPos = this.gridToWorld(closureSeg.x, closureSeg.y);
+        this.car.setPosition(worldPos.x, worldPos.y);
+
+        // Play brake sound
+        this.playSound('brake');
+
+        // Show barricade on the NEXT segment (the blocked road ahead)
+        const nextIdx = this.currentPathIndex + 1;
+        if (nextIdx < this.path.length) {
+            const nextSeg = this.path[nextIdx];
+            const barricadePos = this.gridToWorld(nextSeg.x, nextSeg.y);
+            this.createBarricade(barricadePos.x, barricadePos.y);
+        }
+
+        // Show message
+        this.messageText.setText('🚧 ทางปิด!');
+        this.messageText.setColor('#FF6B35');
+        this.messageText.setVisible(true);
+        this.showFeedback('✗', 0xFF6B35);
+
+        // Remove this from the closure segments list
+        this.roadClosureSegments = this.roadClosureSegments.filter(s => s !== this.currentPathIndex);
+
+        // Generate reroute after a brief pause
+        this.time.delayedCall(1500, () => {
+            this.generateAndApplyReroute();
+        });
+    }
+
+    private createBarricade(x: number, y: number) {
+        if (this.roadClosureContainer) {
+            this.roadClosureContainer.destroy();
+        }
+
+        this.roadClosureContainer = this.add.container(x, y);
+        this.roadClosureContainer.setDepth(155);
+
+        const barricadeWidth = this.cellSize * 0.7;
+        const barricadeHeight = this.cellSize * 0.35;
+
+        // Barricade base
+        const base = this.add.graphics();
+        base.fillStyle(0xFF6B35, 1);
+        base.fillRoundedRect(-barricadeWidth / 2, -barricadeHeight / 2, barricadeWidth, barricadeHeight, 4);
+        base.lineStyle(2, 0xCC4400);
+        base.strokeRoundedRect(-barricadeWidth / 2, -barricadeHeight / 2, barricadeWidth, barricadeHeight, 4);
+
+        // Diagonal stripes
+        const stripes = this.add.graphics();
+        stripes.lineStyle(3, 0xFFFFFF, 0.8);
+        const stripeSpacing = 10;
+        for (let i = -barricadeWidth; i < barricadeWidth; i += stripeSpacing) {
+            const x1 = Math.max(-barricadeWidth / 2, i);
+            const x2 = Math.min(barricadeWidth / 2, i + barricadeHeight);
+            if (x2 > -barricadeWidth / 2 && x1 < barricadeWidth / 2) {
+                stripes.lineBetween(x1, -barricadeHeight / 2, x2, barricadeHeight / 2);
+            }
+        }
+
+        // Warning icon
+        const warningText = this.add.text(0, -barricadeHeight / 2 - 12, '⚠', {
+            fontSize: '16px'
+        }).setOrigin(0.5);
+
+        this.roadClosureContainer.add([base, stripes, warningText]);
+
+        // Entrance animation
+        this.roadClosureContainer.setScale(0);
+        this.roadClosureContainer.setAlpha(0);
+        this.tweens.add({
+            targets: this.roadClosureContainer,
+            scale: 1,
+            alpha: 1,
+            duration: 300,
+            ease: 'Back.easeOut'
+        });
+    }
+
+    private removeBarricade() {
+        if (!this.roadClosureContainer) return;
+
+        const container = this.roadClosureContainer;
+        this.tweens.add({
+            targets: container,
+            scale: 0,
+            alpha: 0,
+            duration: 300,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+                container.destroy();
+            }
+        });
+        this.roadClosureContainer = null;
+    }
+
+    private generateAndApplyReroute() {
+        // Save the destination (last segment of the current path)
+        const destination = this.path[this.path.length - 1];
+        const destX = destination.x;
+        const destY = destination.y;
+
+        // Current car position
+        const startX = this.carGridX;
+        const startY = this.carGridY;
+        const startHeading = this.carHeading;
+
+        // Collect cells used by the OLD path from current position onwards (to avoid them)
+        // The reroute should take a DIFFERENT route
+        const blockedCells = new Set<string>();
+        for (let i = this.currentPathIndex + 1; i < this.path.length - 1; i++) {
+            blockedCells.add(`${this.path[i].x},${this.path[i].y}`);
+        }
+
+        // BFS to find a new path from current position to destination
+        const newPath = this.bfsReroute(startX, startY, startHeading, destX, destY, blockedCells);
+
+        if (newPath && newPath.length > 1) {
+            this.resumeAfterReroute(newPath);
+        } else {
+            // Fallback: couldn't find reroute — generate a completely new path from current position
+            // and consider it successful (the destination may change)
+            this.resumeWithNewPath();
+        }
+    }
+
+    private bfsReroute(
+        startX: number, startY: number, startHeading: Heading,
+        destX: number, destY: number,
+        blockedCells: Set<string>
+    ): RoadSegment[] | null {
+        interface BFSNode {
+            x: number;
+            y: number;
+            heading: Heading;
+            path: RoadSegment[];
+        }
+
+        const directions: Record<Heading, { dx: number; dy: number }> = {
+            'N': { dx: 0, dy: -1 },
+            'S': { dx: 0, dy: 1 },
+            'E': { dx: 1, dy: 0 },
+            'W': { dx: -1, dy: 0 }
+        };
+        const leftTurns: Record<Heading, Heading> = { 'N': 'W', 'W': 'S', 'S': 'E', 'E': 'N' };
+        const rightTurns: Record<Heading, Heading> = { 'N': 'E', 'E': 'S', 'S': 'W', 'W': 'N' };
+
+        const visited = new Set<string>();
+        const startSeg: RoadSegment = { x: startX, y: startY, direction: startHeading, isIntersection: false };
+        const queue: BFSNode[] = [{ x: startX, y: startY, heading: startHeading, path: [startSeg] }];
+        visited.add(`${startX},${startY},${startHeading}`);
+
+        const maxPathLength = 40;
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+
+            if (node.path.length > maxPathLength) continue;
+
+            // Try all three directions: forward, left, right
+            const headings: { heading: Heading; direction: Direction }[] = [
+                { heading: node.heading, direction: 'forward' },
+                { heading: leftTurns[node.heading], direction: 'left' },
+                { heading: rightTurns[node.heading], direction: 'right' }
+            ];
+
+            for (const { heading, direction } of headings) {
+                const d = directions[heading];
+                const nx = node.x + d.dx;
+                const ny = node.y + d.dy;
+
+                if (!this.isValidCell(nx, ny)) continue;
+
+                const key = `${nx},${ny},${heading}`;
+                if (visited.has(key)) continue;
+
+                // Don't revisit cells already in our BFS path
+                const inPath = node.path.some(seg => seg.x === nx && seg.y === ny);
+                if (inPath) continue;
+
+                // Allow destination cell even if blocked, but skip other blocked cells
+                const isDestination = nx === destX && ny === destY;
+                if (!isDestination && blockedCells.has(`${nx},${ny}`)) continue;
+
+                visited.add(key);
+
+                // Mark previous segment as intersection if turning
+                const newPath = [...node.path];
+                if (direction !== 'forward' && newPath.length > 0) {
+                    newPath[newPath.length - 1] = {
+                        ...newPath[newPath.length - 1],
+                        isIntersection: true,
+                        turnRequired: direction
+                    };
+                }
+
+                const newSeg: RoadSegment = {
+                    x: nx, y: ny,
+                    direction: heading,
+                    isIntersection: false
+                };
+                newPath.push(newSeg);
+
+                // Reached destination!
+                if (isDestination) {
+                    return newPath;
+                }
+
+                queue.push({ x: nx, y: ny, heading: heading, path: newPath });
+            }
+        }
+
+        return null; // No path found
+    }
+
+    private resumeAfterReroute(newPath: RoadSegment[]) {
+        // Remove barricade
+        this.removeBarricade();
+
+        // Clear old path and set new one
+        this.pathGraphics.clear();
+        this.path = newPath;
+        this.currentPathIndex = 0;
+        this.isRoadClosed = false;
+
+        // Reset navigation for new path
+        this.upcomingIntersectionIndex = -1;
+        this.queuedDirection = null;
+        this.isApproachingIntersection = false;
+
+        // Setup remaining road closures for the new path (BEFORE brake stops)
+        this.roadClosureSegments = [];
+        const remainingClosures = this.currentLevelConfig.roadClosureCount - this.roadClosuresTriggered;
+        if (remainingClosures > 0) {
+            const originalCount = this.currentLevelConfig.roadClosureCount;
+            this.currentLevelConfig = { ...this.currentLevelConfig, roadClosureCount: remainingClosures };
+            this.setupRoadClosures();
+            this.currentLevelConfig = { ...this.currentLevelConfig, roadClosureCount: originalCount };
+        }
+
+        // Setup brake stops for the new path (avoids road closure segments)
+        this.brakeStopSegments = [];
+        this.brakeStopsRemaining = 0;
+        if (this.currentLevelConfig.brakeStopEnabled) {
+            this.setupBrakeStops();
+        }
+
+        // Redraw path
+        this.drawPath();
+
+        // Show reroute message
+        this.messageText.setText('ไปทางใหม่!');
+        this.messageText.setColor('#4285F4');
+        this.showFeedback('↻', 0x4285F4);
+
+        // Brief pause then resume
+        this.time.delayedCall(1000, () => {
+            this.messageText.setVisible(false);
+            this.findNextIntersection();
+            this.isMoving = true;
+            this.moveToNextSegment();
+        });
+    }
+
+    private resumeWithNewPath() {
+        // Fallback: generate entirely new path from current position
+        this.removeBarricade();
+        this.pathGraphics.clear();
+        this.isRoadClosed = false;
+
+        // Reset navigation
+        this.upcomingIntersectionIndex = -1;
+        this.queuedDirection = null;
+        this.isApproachingIntersection = false;
+
+        // Generate fresh path
+        this.path = [];
+        this.generatePath(this.carGridX, this.carGridY, this.carHeading);
+        this.drawPath();
+
+        // Setup mechanics for new path (road closures first, then brake stops)
+        this.roadClosureSegments = [];
+        const remainingClosures = this.currentLevelConfig.roadClosureCount - this.roadClosuresTriggered;
+        if (remainingClosures > 0) {
+            const originalCount = this.currentLevelConfig.roadClosureCount;
+            this.currentLevelConfig = { ...this.currentLevelConfig, roadClosureCount: remainingClosures };
+            this.setupRoadClosures();
+            this.currentLevelConfig = { ...this.currentLevelConfig, roadClosureCount: originalCount };
+        }
+
+        this.brakeStopSegments = [];
+        this.brakeStopsRemaining = 0;
+        if (this.currentLevelConfig.brakeStopEnabled) {
+            this.setupBrakeStops();
+        }
+
+        // Show reroute message
+        this.messageText.setText('ไปทางใหม่!');
+        this.messageText.setColor('#4285F4');
+        this.showFeedback('↻', 0x4285F4);
+
+        // Resume
+        this.time.delayedCall(1000, () => {
+            this.messageText.setVisible(false);
+            this.findNextIntersection();
+            this.isMoving = true;
+            this.moveToNextSegment();
+        });
+    }
+
+    // ==========================================
+    // End Road Closure System
+    // ==========================================
+
     private highlightForwardButton(highlight: boolean) {
         if (!this.forwardButton) return;
 
@@ -1453,6 +1846,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.carHeading = nextSeg.direction;
 
         this.updateCarRotation();
+
+        // Check road closure first (takes priority over brake stop)
+        if (this.checkRoadClosure()) return;
 
         // Check if this segment has a brake stop
         this.checkBrakeStop();
@@ -1613,16 +2009,16 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleVictory() {
-        // Check if more stages remain
-        if (this.currentStage < this.totalStages) {
-            this.triggerPortalTransition();
+        // Check if more objectives remain
+        if (this.currentObjective < this.totalObjectives) {
+            this.transitionToNextObjective();
         } else {
             this.endGame('completed');
         }
     }
 
-    private triggerPortalTransition() {
-        // Stop movement and show celebration
+    private transitionToNextObjective() {
+        // Stop movement but stay in place (no teleport)
         this.isMoving = false;
         this.targetPosition = null;
         this.gameStarted = false;
@@ -1630,7 +2026,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Play success sound
         this.playSound('level-pass');
 
-        // Show portal transition message
+        // Show celebration at current position
         this.messageText.setText('ยอดเยี่ยม!');
         this.messageText.setColor('#58CC02');
         this.messageText.setVisible(true);
@@ -1638,70 +2034,52 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Celebrate!
         this.triggerConfetti(this.car.x, this.car.y);
+        this.emitSparkle(this.car.x, this.car.y);
 
-        // Fade out the game area
-        const { width, height } = this.scale;
-        const fadeOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0);
-        fadeOverlay.setDepth(180);
+        this.time.delayedCall(1200, () => {
+            // Increment objective
+            this.currentObjective++;
 
-        this.tweens.add({
-            targets: fadeOverlay,
-            alpha: 0.7,
-            duration: 500,
-            onComplete: () => {
-                // Show "Next stage" message
-                this.messageText.setText(`ไปด่านถัดไป!`);
-                this.messageText.setColor('#FFFFFF');
-
-                this.time.delayedCall(1000, () => {
-                    // Increment stage
-                    this.currentStage++;
-
-                    // Update stage progress text
-                    if (this.stageProgressText) {
-                        this.stageProgressText.setText(`ด่าน ${this.currentStage}/${this.totalStages}`);
-                    }
-
-                    // Reset for next stage
-                    this.resetForNextStage();
-
-                    // Fade back in
-                    this.tweens.add({
-                        targets: fadeOverlay,
-                        alpha: 0,
-                        duration: 400,
-                        onComplete: () => {
-                            fadeOverlay.destroy();
-                            this.messageText.setVisible(false);
-
-                            // Restart game
-                            this.startGame();
-                        }
-                    });
-                });
+            // Update objective progress text
+            if (this.objectiveProgressText) {
+                this.objectiveProgressText.setText(`จุดหมาย ${this.currentObjective}/${this.totalObjectives}`);
             }
+
+            // Show next objective message
+            this.messageText.setText('จุดหมายถัดไป!');
+            this.messageText.setColor('#4285F4');
+
+            // Setup next objective from current position (no reset!)
+            this.setupNextObjective();
+
+            this.time.delayedCall(800, () => {
+                this.messageText.setVisible(false);
+                // Restart game loop
+                this.startGame();
+            });
         });
     }
 
-    private resetForNextStage() {
+    private setupNextObjective() {
         // Clear old path graphics
         this.pathGraphics.clear();
 
-        // Reset car state
-        this.carGridX = 3;
-        this.carGridY = 6;
-        this.carHeading = 'N';
+        // Keep car at current position — DO NOT reset carGridX/carGridY/carHeading
+        // Save current position for path generation
+        const continueX = this.carGridX;
+        const continueY = this.carGridY;
+        const continueHeading = this.carHeading;
+
+        // Reset navigation state
         this.currentPathIndex = 0;
         this.isMoving = false;
         this.isWaitingForInput = false;
         this.targetPosition = null;
-
-        // Reset navigation state
         this.upcomingIntersectionIndex = -1;
         this.queuedDirection = null;
         this.isApproachingIntersection = false;
 
-        // Reset brake stops
+        // Reset per-objective brake stops
         this.brakeStopsRemaining = 0;
         this.isBrakeStopped = false;
         this.brakeStopSegments = [];
@@ -1715,6 +2093,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.stopSignContainer = null;
         }
 
+        // Reset per-objective road closures
+        this.roadClosureSegments = [];
+        this.isRoadClosed = false;
+        this.roadClosuresTriggered = 0;
+        if (this.roadClosureContainer) {
+            this.roadClosureContainer.destroy();
+            this.roadClosureContainer = null;
+        }
+
         // Reset path fade
         this.isPathVisible = true;
         if (this.pathFadeTimer) {
@@ -1722,8 +2109,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.pathFadeTimer = null;
         }
 
-        // Reset control swap
-        this.controlsSwapped = false; // Reset swap state? Typically level resets usually mean clear state.
+        // Control swap timer resets but swapped state persists across objectives
         if (this.controlSwapTimer) {
             this.controlSwapTimer.destroy();
             this.controlSwapTimer = null;
@@ -1734,13 +2120,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         }
         this.isPaused = false;
 
+        // NOTE: turnData is NOT cleared — it accumulates across all objectives for final scoring
 
-        // Clear path and generate new one
+        // Generate new path from current car position
         this.path = [];
-        this.generatePath();
+        this.generatePath(continueX, continueY, continueHeading);
         this.drawPath();
 
-        // Reset car position
+        // Position car (should already be there, but ensure alignment)
         const pos = this.gridToWorld(this.carGridX, this.carGridY);
         this.car.setPosition(pos.x, pos.y);
         this.updateCarRotation();
