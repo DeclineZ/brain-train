@@ -89,7 +89,8 @@ export default function GamePage({ params }: PageProps) {
                 : gameId === 'game-08-mysterysound' ? 20
                     : gameId === 'game-15-taxidriver' ? 35
                         : gameId === 'game-10-miner' ? 30
-                            : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+                            : gameId === 'game-17-floatingmarket' ? 30
+                                : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);

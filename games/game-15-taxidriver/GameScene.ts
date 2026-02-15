@@ -107,6 +107,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private roadClosureContainer: Phaser.GameObjects.Container | null = null;
     private isRoadClosed = false;
     private roadClosuresTriggered = 0;
+    private isApproachingRoadClosure = false;
 
     // Audio
     private engineSound: Phaser.Sound.BaseSound | null = null;
@@ -154,6 +155,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.roadClosureSegments = [];
         this.isRoadClosed = false;
         this.roadClosuresTriggered = 0;
+        this.isApproachingRoadClosure = false;
+        this.isApproachingRoadClosure = false;
 
         // Initialize objective tracking
         this.currentObjective = 1;
@@ -163,6 +166,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     preload() {
         // Load assets
         this.load.image('tuktuk-body', '/assets/game-15-taxidriver/tuktuk_asset.png');
+        this.load.image('barricade', '/assets/game-15-taxidriver/barricade.png');
 
         // Load sounds
         this.load.audio('engine-idle', '/assets/sounds/taxidriver/Engine_Idle.mp3');
@@ -1456,7 +1460,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             validIndices.push(i);
         }
 
-        console.log(`[RoadClosure] Path length: ${this.path.length}, Valid indices: [${validIndices.join(',')}], Brake stops: [${this.brakeStopSegments.join(',')}], Want: ${closureCount}`);
+
 
         // Pick closure segments with spacing (at least 3 segments apart)
         const shuffled = Phaser.Utils.Array.Shuffle([...validIndices]);
@@ -1471,19 +1475,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Sort so we encounter them in order
         this.roadClosureSegments.sort((a, b) => a - b);
-        console.log(`[RoadClosure] Selected closure segments: [${this.roadClosureSegments.join(',')}]`);
+
     }
 
     private checkRoadClosure(): boolean {
         if (!this.currentLevelConfig.roadClosureEnabled) return false;
         if (this.roadClosureSegments.length === 0) return false;
-
-        // Check if current segment index matches a road closure
-        if (this.roadClosureSegments.includes(this.currentPathIndex)) {
-            this.triggerRoadClosure();
-            return true;
-        }
-        return false;
+        return this.roadClosureSegments.includes(this.currentPathIndex);
     }
 
     private triggerRoadClosure() {
@@ -1492,11 +1490,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.targetPosition = null;
         this.roadClosuresTriggered++;
         this.hasSuddenChangeOccurred = true;
-
-        // Place the car at the closure segment position
-        const closureSeg = this.path[this.currentPathIndex];
-        const worldPos = this.gridToWorld(closureSeg.x, closureSeg.y);
-        this.car.setPosition(worldPos.x, worldPos.y);
 
         // Play brake sound
         this.playSound('brake');
@@ -1532,34 +1525,16 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.roadClosureContainer = this.add.container(x, y);
         this.roadClosureContainer.setDepth(155);
 
-        const barricadeWidth = this.cellSize * 0.7;
-        const barricadeHeight = this.cellSize * 0.35;
+        // Barricade sprite
+        const barricade = this.add.image(0, 0, 'barricade');
+        barricade.setAngle(90);
 
-        // Barricade base
-        const base = this.add.graphics();
-        base.fillStyle(0xFF6B35, 1);
-        base.fillRoundedRect(-barricadeWidth / 2, -barricadeHeight / 2, barricadeWidth, barricadeHeight, 4);
-        base.lineStyle(2, 0xCC4400);
-        base.strokeRoundedRect(-barricadeWidth / 2, -barricadeHeight / 2, barricadeWidth, barricadeHeight, 4);
+        // Scale to fit approx 80% of cell width
+        const targetWidth = this.cellSize * 0.8;
+        const scale = targetWidth / barricade.width;
+        barricade.setScale(scale);
 
-        // Diagonal stripes
-        const stripes = this.add.graphics();
-        stripes.lineStyle(3, 0xFFFFFF, 0.8);
-        const stripeSpacing = 10;
-        for (let i = -barricadeWidth; i < barricadeWidth; i += stripeSpacing) {
-            const x1 = Math.max(-barricadeWidth / 2, i);
-            const x2 = Math.min(barricadeWidth / 2, i + barricadeHeight);
-            if (x2 > -barricadeWidth / 2 && x1 < barricadeWidth / 2) {
-                stripes.lineBetween(x1, -barricadeHeight / 2, x2, barricadeHeight / 2);
-            }
-        }
-
-        // Warning icon
-        const warningText = this.add.text(0, -barricadeHeight / 2 - 12, '⚠', {
-            fontSize: '16px'
-        }).setOrigin(0.5);
-
-        this.roadClosureContainer.add([base, stripes, warningText]);
+        this.roadClosureContainer.add([barricade]);
 
         // Entrance animation
         this.roadClosureContainer.setScale(0);
@@ -1847,8 +1822,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         this.updateCarRotation();
 
-        // Check road closure first (takes priority over brake stop)
-        if (this.checkRoadClosure()) return;
+        this.updateCarRotation();
+
+        // Check road closure - if found, we drive TO it, then trigger the closure event
+        if (this.checkRoadClosure()) {
+            this.isApproachingRoadClosure = true;
+        }
 
         // Check if this segment has a brake stop
         this.checkBrakeStop();
@@ -1871,6 +1850,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         if (distance < 5) {
             // Reached target cell
             this.car.setPosition(this.targetPosition.x, this.targetPosition.y);
+
+            if (this.isApproachingRoadClosure) {
+                this.isApproachingRoadClosure = false;
+                this.triggerRoadClosure();
+                return;
+            }
 
             // Check if we just reached an intersection
             const currentSeg = this.path[this.currentPathIndex];
@@ -2097,6 +2082,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.roadClosureSegments = [];
         this.isRoadClosed = false;
         this.roadClosuresTriggered = 0;
+        this.isApproachingRoadClosure = false;
         if (this.roadClosureContainer) {
             this.roadClosureContainer.destroy();
             this.roadClosureContainer = null;
