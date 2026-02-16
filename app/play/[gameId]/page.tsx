@@ -436,8 +436,12 @@ export default function GamePage({ params }: PageProps) {
 
     const handleNextLevel = () => {
         setResult(null); // Explicitly clear before push
-        // For max level, maybe loop or show "Complete"
-        if (activeLevel >= maxLevel) {
+
+        if (isEndless) {
+            // Endless games should restart at Level 1 when "Play Again" is clicked
+            // We can use replace to avoid history stack buildup if desired, but push is standard
+            router.push(`/play/${gameId}?level=1`);
+        } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
             // Force reload by pushing new URL or just state update?

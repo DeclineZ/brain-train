@@ -54,15 +54,15 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         'น้ำใจ', 'น้ำตา', 'น้ำมัน', 'น้ำผึ้ง'
     ];
 
+
     // Phase Intro Messages
     private readonly PHASE_MESSAGES: Record<number, { title: string; sub: string }> = {
         1: { title: 'คำง่ายๆ', sub: 'จำคำสั้นๆ แล้วบอกว่าเคยเห็นรึยัง' },
         2: { title: 'จำตัวเลข', sub: 'ตัวเลข 4 หลัก! ระวังสับสนนะ' },
         3: { title: 'คำคล้ายกัน', sub: 'คำยาวๆ ที่คล้ายกัน ต้องจำให้ดี!' },
         4: { title: 'จำใบหน้า', sub: 'ใครเคยเห็น? ดูดีๆ หน้าคล้ายกันหมด!' },
-        5: { title: 'Endless Mode', sub: 'ทุกอย่างรวมกัน! แสดงฝีมือเลย' }
+        5: { title: 'Endless Mode', sub: 'เริ่มใหม่! คำจากด่านก่อน ถือว่า "ไม่เคยเห็น" นะ' }
     };
-
     // UI Elements
     protected backgroundGraphics!: Phaser.GameObjects.Graphics;
     protected cardContainer!: Phaser.GameObjects.Container;
@@ -286,7 +286,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     }
 
     private drawTimerBar(pct: number) {
-        const { width } = this.scale;
+        const { width, height } = this.scale;
         const cardW = Math.min(width * 0.85, 400);
         const barW = cardW - 40;
         const barH = 12;
@@ -427,10 +427,9 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         this.updateScoreUI();
         this.startPhase(startPhase);
     }
-
     private async startPhase(phase: number) {
         this.phase = phase;
-        this.seenItems.clear();
+        this.seenItems.clear(); // Reset memory for new phase (Endless starts fresh)
         this.roundsInPhase = 0;
 
         // Set total rounds for this phase
@@ -557,6 +556,11 @@ export class WordRecognizeGameScene extends Phaser.Scene {
             if (seenArray.length > 0) {
                 this.currentItem = seenArray[Phaser.Math.Between(0, seenArray.length - 1)];
                 this.isNewItem = false;
+
+                // CRITICAL FIX: Determine if the selected seen item is an image
+                // In endless mode, we might pick a seen image while the current round type was text, or vice versa.
+                // Images always start with "char_"
+                this.currentItemIsImage = this.currentItem.startsWith('char_');
             } else {
                 // Fallback to new
                 this.pickNewItem(items);
