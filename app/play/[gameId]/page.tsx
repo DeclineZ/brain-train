@@ -553,18 +553,10 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
-                    {/* Game 10 (Miner) with tier-based styling */}
+                    {/* Game 11 (Power Pump) Game 10 (Miner) with tier-based styling */}
                     {
-                        gameId === 'game-10-miner' && (
+                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' )&& (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 11 (Power Pump) with same badge style family as other level-based games */}
-                    {
-                        gameId === 'game-11-power-pump' && (
-                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-blue-100 text-blue-700 border-blue-300 transition-all duration-300 animate-in slide-in-from-top-4">
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>
                         )
