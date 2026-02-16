@@ -13,6 +13,7 @@ const gameLevelModules = {
   'game-06-dreamdirect': () => import('@/games/game-06-dreamdirect/levels'),
   'game-07-pinkcup': () => import('@/games/game-07-pinkcup/levels'),
   'game-09-tube-sort': () => import('@/games/game-09-tube-sort/levels'),
+  'game-11-power-pump': () => import('@/games/game-11-power-pump/levels'),
   'game-15-taxidriver': () => import('@/games/game-15-taxidriver/levels'),
   'game-10-miner': () => import('@/games/game-10-miner/levels'),
 } as const;
@@ -72,6 +73,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = levelModule.PINKCUP_LEVELS;
     } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
+    } else if (gameId === 'game-11-power-pump' && 'POWER_PUMP_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).POWER_PUMP_LEVELS;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
@@ -154,6 +157,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return levelModule.PINKCUP_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
       return (levelModule as any).TUBE_SORT_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-11-power-pump' && 'POWER_PUMP_LEVELS' in levelModule) {
+      return (levelModule as any).POWER_PUMP_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       return (levelModule as any).TAXIDRIVER_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
@@ -242,6 +247,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = levelModule.PINKCUP_LEVELS;
     } else if (gameId === 'game-09-tube-sort' && 'TUBE_SORT_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TUBE_SORT_LEVELS;
+    } else if (gameId === 'game-11-power-pump' && 'POWER_PUMP_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).POWER_PUMP_LEVELS;
     } else if (gameId === 'game-15-taxidriver' && 'TAXIDRIVER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
