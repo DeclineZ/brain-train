@@ -482,7 +482,7 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
-    } else if (gameId === 'game-10-miner') {
+    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' ) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
