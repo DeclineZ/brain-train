@@ -482,7 +482,7 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
-    } else if (gameId === 'game-10-miner') {
+    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' ) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
@@ -553,9 +553,9 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
-                    {/* Game 10 (Miner) with tier-based styling */}
+                    {/* Game 11 (Power Pump) Game 10 (Miner) with tier-based styling */}
                     {
-                        gameId === 'game-10-miner' && (
+                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' )&& (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>
