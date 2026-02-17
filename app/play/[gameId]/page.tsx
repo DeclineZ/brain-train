@@ -81,7 +81,7 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize';
+    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize' || gameId === 'game-18-runforyourlife';
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
@@ -145,12 +145,25 @@ export default function GamePage({ params }: PageProps) {
                     if (nextLevel > maxLevel) nextLevel = maxLevel;
                 }
 
+                if (gameId === 'game-14-wordrecognize') {
+                    nextLevel = 1;
+                }
+
                 setResumeLevel(nextLevel);
 
                 // Only override activeLevel if no param was provided
                 if (!paramLevel) {
-                    if (data && data.current_played) {
+                    if (data && data.current_played && gameId !== 'game-14-wordrecognize') {
                         setActiveLevel(nextLevel);
+                    } else if (gameId === 'game-14-wordrecognize') {
+                        // Game 14 logic:
+                        // If returning player (data exists), start at Level 1
+                        // If new player (!data), start at tutorial (Level 0)
+                        if (data && data.current_played) {
+                            setActiveLevel(1);
+                        } else {
+                            setActiveLevel(0);
+                        }
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
                         // if (
@@ -273,8 +286,15 @@ export default function GamePage({ params }: PageProps) {
     }, [result, highScore]);
 
     const handleRestartLevel = useCallback(() => {
+        if (isEndless) {
+            if (activeLevel !== 1) {
+                router.replace(`/play/${gameId}?level=1`);
+                setActiveLevel(1);
+                return;
+            }
+        }
         handleReplay();
-    }, [handleReplay]);
+    }, [handleReplay, isEndless, activeLevel, gameId, router]);
 
     const handleGameOver = useCallback(
         async (rawData: any) => {
@@ -436,8 +456,12 @@ export default function GamePage({ params }: PageProps) {
 
     const handleNextLevel = () => {
         setResult(null); // Explicitly clear before push
-        // For max level, maybe loop or show "Complete"
-        if (activeLevel >= maxLevel) {
+
+        if (isEndless) {
+            // Endless games should restart at Level 1 when "Play Again" is clicked
+            // We can use replace to avoid history stack buildup if desired, but push is standard
+            router.push(`/play/${gameId}?level=1`);
+        } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
             // Force reload by pushing new URL or just state update?
