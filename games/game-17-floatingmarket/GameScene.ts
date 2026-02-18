@@ -1,30 +1,40 @@
 import * as Phaser from 'phaser';
 import { FLOATING_MARKET_LEVELS } from './levels';
-import type { FloatingMarketLevelConfig, Encounter, EncounterResult, QuestionType } from './types';
+import type { FloatingMarketLevelConfig, MarketItem, ItemCategory, GameMode, LevelRule } from './types';
+import { AssetFactory } from './AssetFactory';
 
-// ==================== QUESTION GENERATORS ====================
+// ==================== ITEM DATABASE ====================
 
-interface MenuItem {
-    name: string;
-    price: number;
-}
-
-const MENU_ITEMS: MenuItem[] = [
-    { name: 'ทุเรียน', price: 10 },
-    { name: 'มะม่วง', price: 15 },
-    { name: 'ส้มตำ', price: 40 },
-    { name: 'ข้าวเหนียว', price: 20 },
-    { name: 'น้ำเปล่า', price: 5 },
-    { name: 'น้ำมะพร้าว', price: 25 },
-    { name: 'ขนมจีน', price: 30 },
-    { name: 'กล้วยทอด', price: 10 },
-    { name: 'ลูกชิ้น', price: 15 },
-    { name: 'ไอศกรีม', price: 20 },
-    { name: 'ปลาหมึกย่าง', price: 35 },
-    { name: 'แตงโม', price: 10 },
-    { name: 'มะพร้าวเผา', price: 30 },
-    { name: 'ข้าวต้ม', price: 25 },
-    { name: 'ผัดไทย', price: 45 },
+const ALL_ITEMS: MarketItem[] = [
+    // Fruits
+    { id: 'mango', nameThai: 'มะม่วง', category: 'fruit', color: 0xFFCC02, shape: 'oval' },
+    { id: 'durian', nameThai: 'ทุเรียน', category: 'fruit', color: 0x6B8E23, shape: 'spiky', priceTag: 80 },
+    { id: 'watermelon', nameThai: 'แตงโม', category: 'fruit', color: 0x2E8B57, shape: 'circle', priceTag: 35 },
+    { id: 'apple', nameThai: 'แอปเปิ้ล', category: 'fruit', color: 0xDC143C, shape: 'circle', priceTag: 25 },
+    { id: 'banana', nameThai: 'กล้วย', category: 'fruit', color: 0xFFE135, shape: 'curved', priceTag: 15 },
+    { id: 'orange', nameThai: 'ส้ม', category: 'fruit', color: 0xFF8C00, shape: 'circle', priceTag: 20 },
+    { id: 'papaya', nameThai: 'มะละกอ', category: 'fruit', color: 0xFFAE42, shape: 'oval', priceTag: 25 },
+    { id: 'coconut', nameThai: 'มะพร้าว', category: 'fruit', color: 0x8B6914, shape: 'circle', priceTag: 20 },
+    { id: 'guava', nameThai: 'ฝรั่ง', category: 'fruit', color: 0x90EE90, shape: 'circle', priceTag: 15 },
+    { id: 'lime', nameThai: 'มะนาว', category: 'fruit', color: 0x32CD32, shape: 'circle', priceTag: 10 },
+    { id: 'greenmango', nameThai: 'มะม่วงดิบ', category: 'fruit', color: 0x7CCD7C, shape: 'oval', priceTag: 20 },
+    // Desserts
+    { id: 'thongyod', nameThai: 'ทองหยอด', category: 'dessert', color: 0xFFD700, shape: 'drop', priceTag: 40 },
+    { id: 'foithong', nameThai: 'ฝอยทอง', category: 'dessert', color: 0xFFC125, shape: 'rectangle', priceTag: 45 },
+    { id: 'khanomchan', nameThai: 'ขนมชั้น', category: 'dessert', color: 0xFFE4B5, shape: 'rectangle', priceTag: 30 },
+    // Vegetables
+    { id: 'morningglory', nameThai: 'ผักบุ้ง', category: 'vegetable', color: 0x228B22, shape: 'oval', priceTag: 15 },
+    { id: 'pumpkin', nameThai: 'ฟักทอง', category: 'vegetable', color: 0xFF7518, shape: 'circle', priceTag: 20 },
+    { id: 'corn', nameThai: 'ข้าวโพด', category: 'vegetable', color: 0xFBEC5D, shape: 'oval', priceTag: 15 },
+    // Fish
+    { id: 'fish', nameThai: 'ปลา', category: 'fish', color: 0x4682B4, shape: 'oval', priceTag: 35 },
+    { id: 'squid', nameThai: 'ปลาหมึก', category: 'fish', color: 0x9370DB, shape: 'drop', priceTag: 40 },
+    { id: 'shrimp', nameThai: 'กุ้ง', category: 'fish', color: 0xFF6B6B, shape: 'curved', priceTag: 50 },
+    // Noodle
+    { id: 'noodle', nameThai: 'ก๋วยเตี๋ยว', category: 'noodle', color: 0xFAEBD7, shape: 'rectangle', priceTag: 35 },
+    // Special
+    { id: 'lotus', nameThai: 'ดอกบัว', category: 'lotus', color: 0xFF69B4, shape: 'circle' },
+    { id: 'rock', nameThai: 'หิน', category: 'rock', color: 0x808080, shape: 'circle' },
 ];
 
 function pickRandom<T>(arr: T[]): T {
@@ -40,142 +50,28 @@ function shuffleArray<T>(arr: T[]): T[] {
     return a;
 }
 
-function generateWrongAnswer(correct: number, min: number = 5, max: number = 200): number {
-    const offsets = [5, 10, 15, 20, -5, -10, -15, -20, 25, -25, 30];
-    let wrong: number;
-    let attempts = 0;
-    do {
-        wrong = correct + pickRandom(offsets);
-        attempts++;
-    } while ((wrong === correct || wrong < min || wrong > max) && attempts < 20);
-    if (wrong === correct || wrong < min) wrong = correct + 10;
-    return wrong;
-}
-
-function generateIdentifyQuestion(): Encounter {
-    const item = pickRandom(MENU_ITEMS);
-    const correctAnswer = item.price;
-    const wrong1 = generateWrongAnswer(correctAnswer);
-    let wrong2 = generateWrongAnswer(correctAnswer);
-    while (wrong2 === wrong1) wrong2 = generateWrongAnswer(correctAnswer);
-
-    // User feedback: Don't test memory of prices. Test steering.
-    // Question: "Durian (10 Baht)" -> Options: "10 Baht", "20 Baht", ...
-    return {
-        questionText: `${item.name} (${item.price} บาท)`,
-        correctAnswer,
-        options: shuffleArray([
-            { label: `${correctAnswer} บาท`, value: correctAnswer },
-            { label: `${wrong1} บาท`, value: wrong1 },
-            { label: `${wrong2} บาท`, value: wrong2 },
-        ]),
-        questionType: 'identify',
-        chatText: `อยากกิน${item.name}จัง!`
-    };
-}
-
-function generateAdditionQuestion(): Encounter {
-    const item1 = pickRandom(MENU_ITEMS);
-    let item2 = pickRandom(MENU_ITEMS);
-    while (item2.name === item1.name) item2 = pickRandom(MENU_ITEMS);
-
-    const correctAnswer = item1.price + item2.price;
-    const wrong1 = generateWrongAnswer(correctAnswer);
-    let wrong2 = generateWrongAnswer(correctAnswer);
-    while (wrong2 === wrong1) wrong2 = generateWrongAnswer(correctAnswer);
-
-    return {
-        questionText: `ซื้อ${item1.name} ${item1.price}บ. และ${item2.name} ${item2.price}บ. รวมเป็น?`,
-        correctAnswer,
-        options: shuffleArray([
-            { label: `${correctAnswer} บาท`, value: correctAnswer },
-            { label: `${wrong1} บาท`, value: wrong1 },
-            { label: `${wrong2} บาท`, value: wrong2 },
-        ]),
-        questionType: 'addition',
-        chatText: `ป้าๆ เอา${item1.name}กับ${item2.name}หน่อยจ้า`
-    };
-}
-
-function generateChangeQuestion(): Encounter {
-    const item = pickRandom(MENU_ITEMS);
-    // Payment amounts: round up to nearest 10 or 50 or 100
-    const payOptions = [50, 100, 20, 200];
-    const payment = payOptions.find(p => p > item.price) || 100;
-    const correctAnswer = payment - item.price;
-    const wrong1 = generateWrongAnswer(correctAnswer, 1);
-    let wrong2 = generateWrongAnswer(correctAnswer, 1);
-    while (wrong2 === wrong1 || wrong2 === correctAnswer) wrong2 = generateWrongAnswer(correctAnswer, 1);
-
-    return {
-        questionText: `ซื้อ${item.name} ${item.price}บ. ให้เงิน ${payment}บ. ทอนเท่าไร?`,
-        correctAnswer,
-        options: shuffleArray([
-            { label: `${correctAnswer} บาท`, value: correctAnswer },
-            { label: `${wrong1} บาท`, value: wrong1 },
-            { label: `${wrong2} บาท`, value: wrong2 },
-        ]),
-        questionType: 'change',
-        chatText: `ซื้อ${item.name} จ่ายแบงก์ ${payment} นะ`
-    };
-}
-
-function generateMultiplicationQuestion(): Encounter {
-    const item = pickRandom(MENU_ITEMS);
-    const quantity = Math.floor(Math.random() * 4) + 2; // 2-5
-    const correctAnswer = item.price * quantity;
-    const wrong1 = generateWrongAnswer(correctAnswer);
-    let wrong2 = generateWrongAnswer(correctAnswer);
-    while (wrong2 === wrong1 || wrong2 === correctAnswer) wrong2 = generateWrongAnswer(correctAnswer);
-
-    return {
-        questionText: `ซื้อ${item.name} ${quantity} ชิ้น ชิ้นละ ${item.price}บ. ต้องจ่ายกี่บาท?`,
-        correctAnswer,
-        options: shuffleArray([
-            { label: `${correctAnswer} บาท`, value: correctAnswer },
-            { label: `${wrong1} บาท`, value: wrong1 },
-            { label: `${wrong2} บาท`, value: wrong2 },
-        ]),
-        questionType: 'multiplication',
-        chatText: `เหมา${item.name} ${quantity} ชิ้นเลย!`
-    };
-}
-
-function generateEncounter(type: QuestionType, optionCount: number): Encounter {
-    let encounter: Encounter;
-
-    if (type === 'mixed') {
-        const subType = pickRandom(['addition', 'change', 'multiplication'] as QuestionType[]);
-        encounter = subType === 'addition' ? generateAdditionQuestion()
-            : subType === 'change' ? generateChangeQuestion()
-                : generateMultiplicationQuestion();
-    } else if (type === 'identify') {
-        encounter = generateIdentifyQuestion();
-    } else if (type === 'addition') {
-        encounter = generateAdditionQuestion();
-    } else if (type === 'change') {
-        encounter = generateChangeQuestion();
-    } else {
-        encounter = generateMultiplicationQuestion();
+function getItemsForLevel(config: FloatingMarketLevelConfig): MarketItem[] {
+    const rule = config.rule;
+    if (rule.filterByItemId) {
+        const allIds = new Set<string>([
+            ...(rule.collectFilter as string[]),
+            ...((rule.avoidFilter || []) as string[]),
+        ]);
+        return ALL_ITEMS.filter(item => allIds.has(item.id));
     }
-
-    // Trim to optionCount
-    if (optionCount === 2) {
-        const correctOpt = encounter.options.find(o => o.value === encounter.correctAnswer)!;
-        const wrongOpt = encounter.options.find(o => o.value !== encounter.correctAnswer)!;
-        encounter.options = shuffleArray([correctOpt, wrongOpt]);
-    }
-
-    return encounter;
+    return ALL_ITEMS.filter(item =>
+        config.itemPoolCategories.includes(item.category)
+    );
 }
 
-// ==================== OBSTACLE / VISUAL TYPES ====================
+// ==================== OBJECT TYPES ====================
 
 interface ObstacleObj {
     sprite: Phaser.GameObjects.Container;
     body: Phaser.Physics.Arcade.Body;
     width: number;
     height: number;
+    type: string;
 }
 
 interface CoinObj {
@@ -184,21 +80,18 @@ interface CoinObj {
     collected: boolean;
 }
 
-interface AnswerGate {
+interface FloatingItem {
     sprite: Phaser.GameObjects.Container;
     body: Phaser.Physics.Arcade.Body;
-    value: number;
-    label: string;
-    triggered: boolean;
+    item: MarketItem;
+    collected: boolean;
+    driftSpeed?: number;
 }
 
 // ==================== MAIN SCENE ====================
 
 export class FloatingMarketScene extends Phaser.Scene {
-    // Config
     private levelConfig!: FloatingMarketLevelConfig;
-
-    // River dimensions
     private riverLeft = 0;
     private riverRight = 0;
     private riverWidth = 0;
@@ -207,17 +100,14 @@ export class FloatingMarketScene extends Phaser.Scene {
     private boat!: Phaser.GameObjects.Container;
     private boatBody!: Phaser.Physics.Arcade.Body;
     private boatWidth = 40;
-    private boatHeight = 60;
-    // Boat Physics
     private currentSpeedX = 0;
     private maxSpeedX = 350;
     private accelX = 800;
-    private dragX = 0.92; // Friction per frame
-
+    private dragX = 0.92;
 
     // Input
     private useTilt = false;
-    private tiltGamma = 0; // -90 to 90
+    private tiltGamma = 0;
     private touchLeft = false;
     private touchRight = false;
     private leftZone!: Phaser.GameObjects.Rectangle;
@@ -227,10 +117,9 @@ export class FloatingMarketScene extends Phaser.Scene {
     private scrollSpeed = 0;
     private scrollY = 0;
     private riverBgTiles: Phaser.GameObjects.TileSprite[] = [];
-
-    // Market stalls (decorative)
-    private marketStallsLeft: Phaser.GameObjects.Rectangle[] = [];
-    private marketStallsRight: Phaser.GameObjects.Rectangle[] = [];
+    private dockBgTiles: Phaser.GameObjects.TileSprite[] = [];
+    private marketStallsLeft: Phaser.GameObjects.Sprite[] = [];
+    private marketStallsRight: Phaser.GameObjects.Sprite[] = [];
 
     // Obstacles
     private obstacles: ObstacleObj[] = [];
@@ -242,48 +131,58 @@ export class FloatingMarketScene extends Phaser.Scene {
     private coinTimer = 0;
     private coinGroup!: Phaser.Physics.Arcade.Group;
 
-    // Encounters
-    private encounters: Encounter[] = [];
-    private encounterResults: EncounterResult[] = [];
-    private currentEncounterIndex = 0;
-    private encounterActive = false;
-    private encounterStartTime = 0;
-    private encounterFirstTiltDirection: number | null = null;
-    private answerGates: AnswerGate[] = [];
-    private answerGateGroup!: Phaser.Physics.Arcade.Group;
-    private chatBubbles: { sprite: Phaser.GameObjects.Container; age: number }[] = [];
-    private questionText!: Phaser.GameObjects.Text;
-    private questionBg!: Phaser.GameObjects.Rectangle;
-    private encounterDistanceCounter = 0;
-    private nextEncounterDistance = 0;
+    // Floating items (Memory game core)
+    private floatingItems: FloatingItem[] = [];
+    private itemTimer = 0;
+    private itemGroup!: Phaser.Physics.Arcade.Group;
+    private availableItems: MarketItem[] = [];
+    private itemSpawnQueue: MarketItem[] = [];
+    private totalItemsSpawned = 0;
 
-    // Stats tracking
+    // Mode B: Hidden Basket
+    private basketItems: Set<string> = new Set();
+    private basketCount = 0;
+    private basketResetCount = 0;
+
+    // Active rule (can change in hybrid mode)
+    private activeRule!: LevelRule;
+    private activeMode!: GameMode;
+    private hybridSwitched = false;
+
+    // UI elements
+    private ruleBanner!: Phaser.GameObjects.Text;
+    private ruleBannerBg!: Phaser.GameObjects.Rectangle;
+    private sackIcon!: Phaser.GameObjects.Sprite;
+    private sackCountText!: Phaser.GameObjects.Text;
+    private progressBar!: Phaser.GameObjects.Graphics;
+    private coinCountText!: Phaser.GameObjects.Text;
+    private fogOverlay?: Phaser.GameObjects.Rectangle;
+
+    // Stats
     private reactionTimes: number[] = [];
     private hesitationCount = 0;
     private totalCollisions = 0;
-    private correctAnswers = 0;
-    private changeQuestionCorrect = 0;
-    private changeQuestionTotal = 0;
+    private correctCollections = 0;
+    private incorrectCollections = 0;
+    private missedItems = 0;
+    private duplicatePickups = 0;
     private bonusCoins = 0;
 
-    // Game state
+    // State
     private gameStartTime = 0;
     private gameOver = false;
     private distanceTraveled = 0;
     private totalDistanceNeeded = 0;
-    private progressBar!: Phaser.GameObjects.Graphics;
-    private coinCountText!: Phaser.GameObjects.Text;
-
-    // Collision cooldown
     private collisionCooldown = 0;
-
-    // Water decoration
-    private waterGraphics!: Phaser.GameObjects.Graphics;
-    private waterParticleTimer = 0;
-    private waterRipples: { x: number; y: number; age: number; maxAge: number }[] = [];
-
-    // Compatibility alert
     private alertShown = false;
+
+    // Water effects
+    private waterParticleTimer = 0;
+    private waterRipples: { sprite: Phaser.GameObjects.Sprite; age: number; maxAge: number }[] = [];
+
+    // Encounter tracking for hesitation
+    private lastItemContactTime = 0;
+    private encounterFirstTiltDirection: number | null = null;
 
     constructor() {
         super({ key: 'FloatingMarketScene' });
@@ -294,253 +193,370 @@ export class FloatingMarketScene extends Phaser.Scene {
         const level = data.level || regLevel || 1;
         this.levelConfig = FLOATING_MARKET_LEVELS[level] || FLOATING_MARKET_LEVELS[1];
 
-        // Reset all state
         this.obstacles = [];
         this.coins = [];
-        this.answerGates = [];
-        this.encounters = [];
-        this.encounterResults = [];
-        this.currentEncounterIndex = 0;
-        this.encounterActive = false;
+        this.floatingItems = [];
         this.reactionTimes = [];
         this.hesitationCount = 0;
         this.totalCollisions = 0;
-        this.correctAnswers = 0;
-        this.changeQuestionCorrect = 0;
-        this.changeQuestionTotal = 0;
+        this.correctCollections = 0;
+        this.incorrectCollections = 0;
+        this.missedItems = 0;
+        this.duplicatePickups = 0;
         this.bonusCoins = 0;
         this.gameOver = false;
         this.distanceTraveled = 0;
         this.obstacleTimer = 0;
         this.coinTimer = 0;
+        this.itemTimer = 0;
         this.tiltGamma = 0;
         this.touchLeft = false;
         this.touchRight = false;
-        this.encounterDistanceCounter = 0;
         this.collisionCooldown = 0;
         this.scrollY = 0;
         this.waterRipples = [];
-        this.encounterFirstTiltDirection = null;
+        this.riverBgTiles = [];
+        this.dockBgTiles = [];
         this.alertShown = false;
+        this.basketItems = new Set();
+        this.basketCount = 0;
+        this.basketResetCount = 0;
+        this.hybridSwitched = false;
+        this.totalItemsSpawned = 0;
+        this.encounterFirstTiltDirection = null;
+        this.itemSpawnQueue = [];
+
+        this.activeRule = { ...this.levelConfig.rule };
+        this.activeMode = this.levelConfig.mode === 'hybrid' ? 'modeA' : this.levelConfig.mode;
     }
 
     preload() {
-        // Load audio
         this.load.audio('coin-collect', '/assets/sounds/global/level-pass.mp3');
         this.load.audio('collision', '/assets/sounds/cardmatch/match-fail.mp3');
+        this.load.image('boat_player_img', '/assets/game-17-floatingmarket/longtail_boat.png');
+        this.load.image('boat_npc_img', '/assets/game-17-floatingmarket/npc_boat.png');
         this.load.audio('correct', '/assets/sounds/cardmatch/match-success.mp3');
         this.load.audio('wrong', '/assets/sounds/cardmatch/match-fail.mp3');
         this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+
+        // Hand-drawn item sprites (88x88px)
+        // Map item_id -> filename (handles typos in filenames)
+        const itemSpriteMap: Record<string, string> = {
+            apple: 'item_apple', banana: 'item_bannana', coconut: 'item_coconut',
+            corn: 'item_corn', durian: 'item_durian', fish: 'item_fish',
+            foithong: 'item_foithong', greenmango: 'item_greenmango',
+            guava: 'item_guava', khanomchan: 'item_khanomchan', lime: 'item_lime',
+            mango: 'item_mango', morningglory: 'item_morningglory',
+            orange: 'item_orange', papaya: 'item_pappaya', pumpkin: 'item_pumpkin',
+            shrimp: 'item_shrimp', squid: 'item_squid', thongyod: 'item_thongyod',
+            watermelon: 'item_watermelon',
+        };
+        for (const [itemId, filename] of Object.entries(itemSpriteMap)) {
+            this.load.image(`item_${itemId}`, `/assets/game-17-floatingmarket/${filename}.png`);
+        }
+
+        // Hand-drawn stall sprites (100x60px landscape)
+        const stallColors = ['blue', 'green', 'purple', 'orange', 'red'];
+        stallColors.forEach(c => {
+            this.load.image(`stall_img_${c}`, `/assets/game-17-floatingmarket/stall_${c}.png`);
+        });
+
+        // Ambient and music
+        this.load.audio('river-flow', '/assets/sounds/floatingmarket/river_flow.mp3');
+        this.load.audio('bg-music', '/assets/sounds/pinkcup/bg-music.mp3');
     }
 
     create() {
+        new AssetFactory(this).generateTextures();
         const { width, height } = this.scale;
 
-        // Calculate river boundaries
-        this.riverWidth = width * this.levelConfig.riverWidthRatio;
+        // Cap river width so large screens don't make the game trivially easy
+        const maxRiverPx = 380;
+        const rawRiverW = width * this.levelConfig.riverWidthRatio;
+        this.riverWidth = Math.min(rawRiverW, maxRiverPx);
         this.riverLeft = (width - this.riverWidth) / 2;
         this.riverRight = this.riverLeft + this.riverWidth;
 
-        // Scroll speed from level config
-        this.scrollSpeed = this.levelConfig.boatSpeed;
+        // 1.4x speed multiplier for snappier pacing
+        this.scrollSpeed = this.levelConfig.boatSpeed * 1.4;
 
-        // Total distance for level completion
         const totalTime = this.levelConfig.timeLimitSeconds;
-        this.totalDistanceNeeded = this.scrollSpeed * (totalTime * 0.6); // ~60% of max time
-        this.nextEncounterDistance = this.totalDistanceNeeded / (this.levelConfig.encounterCount + 1);
+        this.totalDistanceNeeded = this.scrollSpeed * (totalTime * 0.6);
 
-        // Generate encounters
-        for (let i = 0; i < this.levelConfig.encounterCount; i++) {
-            this.encounters.push(
-                generateEncounter(this.levelConfig.questionType, this.levelConfig.optionCount)
-            );
-        }
+        this.availableItems = getItemsForLevel(this.levelConfig);
+        this.buildItemSpawnQueue();
 
-        // --- Draw scene ---
         this.drawBackground(width, height);
         this.drawMarketStalls(width, height);
         this.createBoat(width, height);
         this.createUI(width, height);
 
-        // Physics groups
         this.obstacleGroup = this.physics.add.group();
         this.coinGroup = this.physics.add.group();
-        this.answerGateGroup = this.physics.add.group();
+        this.itemGroup = this.physics.add.group();
 
-        // --- Input Setup ---
         this.setupInput(width, height);
 
-        // --- Collisions ---
         this.physics.add.overlap(this.boat, this.obstacleGroup, this.handleObstacleCollision, undefined, this);
         this.physics.add.overlap(this.boat, this.coinGroup, this.handleCoinCollect, undefined, this);
-        this.physics.add.overlap(this.boat, this.answerGateGroup, this.handleAnswerGateHit, undefined, this);
+        this.physics.add.overlap(this.boat, this.itemGroup, this.handleItemCollect, undefined, this);
 
-        // Water decoration graphics
-        this.waterGraphics = this.add.graphics();
-        this.waterGraphics.setDepth(1);
+        if (this.levelConfig.lowVisibility) {
+            this.fogOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.45);
+            this.fogOverlay.setDepth(15);
+        }
 
-        // Start timer
         this.gameStartTime = Date.now();
+        this.scale.on('resize', () => this.handleResize());
 
-        // Handle resize
-        this.scale.on('resize', () => {
-            this.handleResize();
-        });
+        // Ambient river flow sound
+        try {
+            this.sound.play('river-flow', { loop: true, volume: 0.25 });
+            this.sound.play('bg-music', { loop: true, volume: 0.15 });
+        } catch (e) { /* audio may not be available */ }
+    }
+
+    private buildItemSpawnQueue() {
+        const items = this.availableItems;
+        if (items.length === 0) return;
+
+        const count = this.levelConfig.itemCount;
+        const mode = this.activeMode;
+        const queue: MarketItem[] = [];
+
+        if (mode === 'modeB' || (this.levelConfig.mode === 'hybrid')) {
+            const cap = this.levelConfig.memoryCapacity || 3;
+            const uniquePool = shuffleArray([...items]).slice(0, Math.min(items.length, cap + 3));
+            for (let i = 0; i < count; i++) {
+                queue.push(pickRandom(uniquePool));
+            }
+        } else {
+            for (let i = 0; i < count; i++) {
+                queue.push(pickRandom(items));
+            }
+        }
+        this.itemSpawnQueue = queue;
     }
 
     // ==================== DRAWING ====================
 
     drawBackground(width: number, height: number) {
-        // Sky/water gradient
-        const bg = this.add.graphics();
-        bg.setDepth(0);
+        // Layout per side: [grass]...[stall 120px][dock 40px][river]
+        const dockW = 40;
+        const stallW = 120;
 
-        // River water
-        bg.fillStyle(0x4A90A4, 1);
-        bg.fillRect(this.riverLeft, 0, this.riverWidth, height);
+        // === OUTER GRASS (only visible on wide screens beyond the stalls) ===
+        const leftStallEdge = this.riverLeft - dockW - stallW;
+        const rightStallEdge = this.riverRight + dockW + stallW;
 
-        // Market/bank areas (left and right of river)
-        bg.fillStyle(0x8B6914, 1); // Wooden dock color
-        bg.fillRect(0, 0, this.riverLeft, height);
-        bg.fillRect(this.riverRight, 0, width - this.riverRight, height);
+        // Left grass
+        if (leftStallEdge > 0) {
+            const grassL = this.add.tileSprite(
+                leftStallEdge / 2, height / 2, leftStallEdge, height, 'grass_tile'
+            );
+            grassL.setDepth(0);
+            this.dockBgTiles.push(grassL);
+        }
+        // Right grass
+        if (rightStallEdge < width) {
+            const outerW = width - rightStallEdge;
+            const grassR = this.add.tileSprite(
+                rightStallEdge + outerW / 2, height / 2, outerW, height, 'grass_tile'
+            );
+            grassR.setDepth(0);
+            this.dockBgTiles.push(grassR);
+        }
 
-        // River edge lines
-        bg.lineStyle(3, 0x365F6D, 0.8);
-        bg.moveTo(this.riverLeft, 0);
-        bg.lineTo(this.riverLeft, height);
-        bg.moveTo(this.riverRight, 0);
-        bg.lineTo(this.riverRight, height);
-        bg.strokePath();
+        // === DOCK (wood planks under stalls and between stalls and river) ===
+        const leftDockStart = Math.max(0, leftStallEdge);
+        const leftDockW = this.riverLeft - leftDockStart;
+        if (leftDockW > 0) {
+            const leftDock = this.add.tileSprite(
+                leftDockStart + leftDockW / 2, height / 2, leftDockW, height, 'dock_tile'
+            );
+            leftDock.setDepth(1);
+            this.dockBgTiles.push(leftDock);
+        }
+        const rightDockEnd = Math.min(width, rightStallEdge);
+        const rightDockW = rightDockEnd - this.riverRight;
+        if (rightDockW > 0) {
+            const rightDock = this.add.tileSprite(
+                this.riverRight + rightDockW / 2, height / 2, rightDockW, height, 'dock_tile'
+            );
+            rightDock.setDepth(1);
+            this.dockBgTiles.push(rightDock);
+        }
+
+        // === DOCK ↔ GRASS TRANSITION BORDER ===
+        const transG = this.add.graphics();
+        transG.setDepth(2);
+        if (leftStallEdge > 0) {
+            // Dark wood strip at grass→dock boundary
+            transG.fillStyle(0x3E2723, 1);
+            transG.fillRect(leftStallEdge - 3, 0, 6, height);
+            transG.fillStyle(0x2C1E17, 1);
+            transG.fillRect(leftStallEdge - 1, 0, 2, height);
+        }
+        if (rightStallEdge < width) {
+            transG.fillStyle(0x3E2723, 1);
+            transG.fillRect(rightStallEdge - 3, 0, 6, height);
+            transG.fillStyle(0x2C1E17, 1);
+            transG.fillRect(rightStallEdge - 1, 0, 2, height);
+        }
+
+        // === RIVER ===
+        const waterTile = this.add.tileSprite(
+            this.riverLeft + this.riverWidth / 2, height / 2,
+            this.riverWidth, height, 'water_tile'
+        );
+        waterTile.setDepth(3);
+        this.riverBgTiles.push(waterTile);
+
+        // Dock edge — wooden border along river
+        const edgeG = this.add.graphics();
+        edgeG.setDepth(4);
+        edgeG.fillStyle(0x5D4037, 1);
+        edgeG.fillRect(this.riverLeft - 6, 0, 6, height);
+        edgeG.fillRect(this.riverRight, 0, 6, height);
+        edgeG.fillStyle(0x795548, 1);
+        edgeG.fillRect(this.riverLeft - 4, 0, 2, height);
+        edgeG.fillRect(this.riverRight + 2, 0, 2, height);
     }
 
-    drawMarketStalls(width: number, height: number) {
-        // Decorative market stalls on the banks
-        const stallColors = [0xC0392B, 0xE67E22, 0x27AE60, 0x2980B9, 0x8E44AD, 0xD4AC0D];
-        const stallH = 60;
-        const count = Math.ceil(height / stallH) + 2;
+    drawMarketStalls(_width: number, height: number) {
+        // Stall sprites are 100x60 landscape, rotated 90° to display as portrait
+        // Display sizes after rotation: width ~100, height ~166
+        const stallDisplayW = 100;
+        const stallDisplayH = 166;
+        const dockW = 40;
+        const gap = 28; // generous spacing between stalls
+        const cellH = stallDisplayH + gap;
+        const stallColors = ['blue', 'green', 'purple', 'orange', 'red'];
 
-        for (let i = -1; i < count; i++) {
-            const y = i * stallH;
-            
-            // Left Bank Stalls
-            const leftColor = pickRandom(stallColors);
-            const leftStall = this.add.rectangle(
-                this.riverLeft / 2, y,
-                this.riverLeft - 10, stallH, // Slight gap from edge
-                leftColor, 1
-            );
-            // Add slight bevel/border
-            leftStall.setStrokeStyle(2, 0x000000, 0.2);
-            leftStall.setDepth(0);
-            this.marketStallsLeft.push(leftStall);
+        const rowCount = Math.ceil(height / cellH) + 3;
 
-            // Right Bank Stalls
-            const rightColor = pickRandom(stallColors);
-            const rightStall = this.add.rectangle(
-                this.riverRight + (width - this.riverRight) / 2, y,
-                (width - this.riverRight) - 10, stallH,
-                rightColor, 1
-            );
-            rightStall.setStrokeStyle(2, 0x000000, 0.2);
-            rightStall.setDepth(0);
-            this.marketStallsRight.push(rightStall);
+        // Left stalls: right-aligned to dock edge
+        const leftCx = this.riverLeft - dockW - stallDisplayW / 2;
+        for (let row = -1; row < rowCount; row++) {
+            const y = row * cellH + gap / 2;
+            const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
+            const stall = this.add.sprite(leftCx, y, `stall_img_${color}`);
+            stall.setAngle(90); // rotate landscape → portrait
+            stall.displayWidth = stallDisplayH; // swapped because rotated
+            stall.displayHeight = stallDisplayW;
+            stall.setDepth(5);
+            this.marketStallsLeft.push(stall);
+        }
+
+        // Right stalls: left-aligned to dock edge
+        const rightCx = this.riverRight + dockW + stallDisplayW / 2;
+        for (let row = -1; row < rowCount; row++) {
+            const y = row * cellH + gap / 2;
+            const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
+            const stall = this.add.sprite(rightCx, y, `stall_img_${color}`);
+            stall.setAngle(-90); // mirror rotation for right side
+            stall.displayWidth = stallDisplayH;
+            stall.displayHeight = stallDisplayW;
+            stall.setDepth(5);
+            this.marketStallsRight.push(stall);
         }
     }
 
     createBoat(width: number, height: number) {
         const boatX = width / 2;
         const boatY = height - 120;
-
-        // Boat as container with shapes
         this.boat = this.add.container(boatX, boatY);
         this.boat.setDepth(10);
 
-        // Hull
-        const hull = this.add.rectangle(0, 0, this.boatWidth, this.boatHeight, 0x8B4513);
-        hull.setStrokeStyle(2, 0x5D3612);
+        const boatSprite = this.add.sprite(0, 0, 'boat_player_img');
+        const targetWidth = 60;
+        boatSprite.displayWidth = targetWidth;
+        boatSprite.scaleY = boatSprite.scaleX;
+        this.boat.add(boatSprite);
 
-        // Bow (pointed front)
-        const bow = this.add.triangle(0, -this.boatHeight / 2 - 10,
-            -this.boatWidth / 2, 10,
-            this.boatWidth / 2, 10,
-            0, -15,
-            0x8B4513
-        );
-        bow.setStrokeStyle(2, 0x5D3612);
+        const bw = boatSprite.displayWidth;
+        const bh = boatSprite.displayHeight;
+        this.boat.setSize(bw, bh);
 
-        // Passenger (circle head)
-        const head = this.add.circle(0, -10, 10, 0xFFDBAC);
-        head.setStrokeStyle(1, 0x333333);
-
-        // Hat
-        const hat = this.add.ellipse(0, -20, 28, 10, 0xD4AC0D);
-
-        this.boat.add([hull, bow, head, hat]);
-        this.boat.setSize(this.boatWidth, this.boatHeight + 20);
-
-        // Physics
         this.physics.add.existing(this.boat);
         this.boatBody = this.boat.body as Phaser.Physics.Arcade.Body;
         this.boatBody.setCollideWorldBounds(false);
-        this.boatBody.setSize(this.boatWidth - 4, this.boatHeight);
+        // Hitbox: 60% of boat width, 50% of boat height, centered within container
+        // Container body offset is relative to container's top-left corner (at -bw/2, -bh/2)
+        const hitW = bw * 0.6;
+        const hitH = bh * 0.5;
+        this.boatBody.setSize(hitW, hitH);
+        this.boatBody.setOffset((bw - hitW) / 2, (bh - hitH) / 2);
     }
 
     createUI(_width: number, _height: number) {
         const width = this.scale.width;
+        const height = this.scale.height;
 
-        // Progress bar
         this.progressBar = this.add.graphics();
         this.progressBar.setDepth(100);
 
-        // Question text background (use Graphics for rounded corners)
-        this.questionBg = this.add.rectangle(width / 2, 110, width * 0.85, 70, 0x000000, 0.7);
-        this.questionBg.setDepth(99);
-        this.questionBg.setVisible(false);
-        this.questionText = this.add.text(width / 2, 110, '', {
-            fontSize: '22px',
-            fontFamily: "'Noto Sans Thai', sans-serif",
-            color: '#FFFFFF',
-            align: 'center',
-            wordWrap: { width: width * 0.8 },
+        // Rule banner — large & prominent so older players cannot miss it
+        const bannerY = 75;
+        this.ruleBannerBg = this.add.rectangle(width / 2, bannerY, width * 0.96, 56, 0x1A1A2E, 0.9);
+        this.ruleBannerBg.setStrokeStyle(2, 0xFFD700, 0.8);
+        this.ruleBannerBg.setDepth(99);
+        this.ruleBanner = this.add.text(width / 2, bannerY, this.activeRule.instructionThai, {
+            fontSize: '22px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFD700', align: 'center', fontStyle: 'bold',
+            wordWrap: { width: width * 0.88 }, padding: { x: 12, y: 6 },
+            stroke: '#000000', strokeThickness: 2,
         });
-        this.questionText.setOrigin(0.5);
-        this.questionText.setDepth(100);
-        this.questionText.setVisible(false);
+        this.ruleBanner.setOrigin(0.5);
+        this.ruleBanner.setDepth(100);
+
+        // Pulse the banner for the first 4 seconds to draw attention
+        this.tweens.add({
+            targets: [this.ruleBannerBg],
+            scaleX: 1.03, scaleY: 1.08,
+            duration: 600, yoyo: true, repeat: 3,
+            ease: 'Sine.easeInOut',
+        });
 
         // Coin counter
         this.coinCountText = this.add.text(width - 20, 20, '🪙 0', {
-            fontSize: '20px',
-            fontFamily: "'Noto Sans Thai', sans-serif",
-            color: '#FFD700',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 3,
+            fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
         });
         this.coinCountText.setOrigin(1, 0);
         this.coinCountText.setDepth(100);
+
+        // Mode B: Basket/Sack UI — bottom-right to avoid React top-bar overlap
+        if (this.levelConfig.mode === 'modeB' || this.levelConfig.mode === 'hybrid') {
+            const sackX = width - 60;
+            const sackY = height - 60;
+            this.sackIcon = this.add.sprite(sackX, sackY, 'ui_sack');
+            this.sackIcon.setDisplaySize(44, 44);
+            this.sackIcon.setDepth(100);
+            this.sackIcon.setOrigin(0.5);
+
+            this.sackCountText = this.add.text(sackX, sackY - 30, '0', {
+                fontSize: '22px', fontFamily: "'Noto Sans Thai', sans-serif",
+                color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4,
+            });
+            this.sackCountText.setOrigin(0.5);
+            this.sackCountText.setDepth(100);
+        }
     }
 
     // ==================== INPUT ====================
 
     setupInput(width: number, height: number) {
-        // Check for tilt support
         if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
-            // Try requesting permission (iOS 13+)
             const DeviceOrientationEventTyped = DeviceOrientationEvent as any;
             if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
                 DeviceOrientationEventTyped.requestPermission()
                     .then((state: string) => {
-                        if (state === 'granted') {
-                            this.enableTilt();
-                        } else {
-                            this.enableTouchFallback(width, height);
-                        }
+                        if (state === 'granted') this.enableTilt();
+                        else this.enableTouchFallback(width, height);
                     })
-                    .catch(() => {
-                        this.enableTouchFallback(width, height);
-                    });
+                    .catch(() => this.enableTouchFallback(width, height));
             } else {
-                // Non-iOS - test if events actually fire
                 let tiltTestReceived = false;
                 const testHandler = (e: DeviceOrientationEvent) => {
                     if (e.gamma !== null && e.gamma !== undefined) {
@@ -550,16 +566,12 @@ export class FloatingMarketScene extends Phaser.Scene {
                     }
                 };
                 window.addEventListener('deviceorientation', testHandler);
-
-                // Fallback if no tilt data within 1.5 seconds
                 this.time.delayedCall(1500, () => {
                     if (!tiltTestReceived) {
                         window.removeEventListener('deviceorientation', testHandler);
                         this.enableTouchFallback(width, height);
                     }
                 });
-
-                // Always enable touch as a parallel option
                 this.setupTouchZones(width, height);
             }
         } else {
@@ -570,53 +582,35 @@ export class FloatingMarketScene extends Phaser.Scene {
     enableTilt() {
         this.useTilt = true;
         window.addEventListener('deviceorientation', (e: DeviceOrientationEvent) => {
-            if (e.gamma !== null) {
-                this.tiltGamma = e.gamma;
-            }
+            if (e.gamma !== null) this.tiltGamma = e.gamma;
         });
-        // Also set up touch zones as secondary
         this.setupTouchZones(this.scale.width, this.scale.height);
     }
 
     enableTouchFallback(width: number, height: number) {
         if (!this.alertShown) {
             this.alertShown = true;
-            // Show in-game alert (Thai)
             const alertBg = this.add.rectangle(width / 2, height / 2, width * 0.85, 120, 0x000000, 0.85);
-            // rounded corners not available on Rectangle; skip
             alertBg.setDepth(200);
-
             const alertText = this.add.text(width / 2, height / 2,
                 'อุปกรณ์ไม่รองรับการเอียง\nกรุณากดค้างซ้าย-ขวาที่หน้าจอแทน', {
-                fontSize: '18px',
-                fontFamily: "'Noto Sans Thai', sans-serif",
-                color: '#FFFFFF',
-                align: 'center',
+                fontSize: '18px', fontFamily: "'Noto Sans Thai', sans-serif",
+                color: '#FFFFFF', align: 'center',
             });
             alertText.setOrigin(0.5);
             alertText.setDepth(201);
-
-            // Auto-dismiss after 3 seconds
             this.time.delayedCall(3000, () => {
                 this.tweens.add({
-                    targets: [alertBg, alertText],
-                    alpha: 0,
-                    duration: 500,
-                    onComplete: () => {
-                        alertBg.destroy();
-                        alertText.destroy();
-                    }
+                    targets: [alertBg, alertText], alpha: 0, duration: 500,
+                    onComplete: () => { alertBg.destroy(); alertText.destroy(); }
                 });
             });
         }
-
         this.setupTouchZones(width, height);
     }
 
     setupTouchZones(width: number, height: number) {
-        if (this.leftZone) return; // Already set up
-
-        // Left touch zone
+        if (this.leftZone) return;
         this.leftZone = this.add.rectangle(width / 4, height / 2, width / 2, height, 0x000000, 0);
         this.leftZone.setDepth(50);
         this.leftZone.setInteractive();
@@ -624,7 +618,6 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.leftZone.on('pointerup', () => { this.touchLeft = false; });
         this.leftZone.on('pointerout', () => { this.touchLeft = false; });
 
-        // Right touch zone
         this.rightZone = this.add.rectangle(width * 3 / 4, height / 2, width / 2, height, 0x000000, 0);
         this.rightZone.setDepth(50);
         this.rightZone.setInteractive();
@@ -632,7 +625,6 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.rightZone.on('pointerup', () => { this.touchRight = false; });
         this.rightZone.on('pointerout', () => { this.touchRight = false; });
 
-        // Keyboard fallback for desktop testing
         if (this.input.keyboard) {
             this.input.keyboard.on('keydown-LEFT', () => { this.touchLeft = true; });
             this.input.keyboard.on('keyup-LEFT', () => { this.touchLeft = false; });
@@ -645,25 +637,21 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     update(_time: number, delta: number) {
         if (this.gameOver) return;
+        const dt = delta / 1000;
 
-        const dt = delta / 1000; // Convert to seconds
-
-        // --- Move boat ---
         this.moveBoat(dt);
 
-        // --- Scroll river ---
         this.scrollY += this.scrollSpeed * dt;
         this.distanceTraveled += this.scrollSpeed * dt;
-        this.encounterDistanceCounter += this.scrollSpeed * dt;
 
-        // --- Spawn obstacles ---
+        // Spawn obstacles
         this.obstacleTimer += dt;
         if (this.obstacleTimer >= this.levelConfig.obstacleFrequency) {
             this.obstacleTimer = 0;
             this.spawnObstacle();
         }
 
-        // --- Spawn coins ---
+        // Spawn coins
         if (this.levelConfig.coinFrequency > 0) {
             this.coinTimer += dt;
             if (this.coinTimer >= this.levelConfig.coinFrequency) {
@@ -672,188 +660,182 @@ export class FloatingMarketScene extends Phaser.Scene {
             }
         }
 
-        // --- Move obstacles & coins down ---
-        this.moveScrollables(dt);
-
-        // --- Encounter trigger ---
-        if (!this.encounterActive && this.currentEncounterIndex < this.encounters.length) {
-            if (this.encounterDistanceCounter >= this.nextEncounterDistance) {
-                this.encounterDistanceCounter = 0;
-                this.triggerEncounter();
+        // Spawn floating items (memory game core)
+        if (this.levelConfig.itemSpawnRate > 0 && this.totalItemsSpawned < this.levelConfig.itemCount) {
+            this.itemTimer += dt;
+            if (this.itemTimer >= this.levelConfig.itemSpawnRate) {
+                this.itemTimer = 0;
+                this.spawnFloatingItem();
             }
         }
 
-        // --- Collision cooldown ---
-        if (this.collisionCooldown > 0) {
-            this.collisionCooldown -= dt;
+        this.moveScrollables(dt);
+
+        // Hybrid mode switch
+        if (this.levelConfig.mode === 'hybrid' && !this.hybridSwitched && this.levelConfig.hybridSwitchAt) {
+            const progress = this.distanceTraveled / this.totalDistanceNeeded;
+            if (progress >= this.levelConfig.hybridSwitchAt) {
+                this.hybridSwitched = true;
+                this.switchToModeB();
+            }
         }
 
-        // --- Water ripples ---
-        this.updateWaterEffects(dt);
+        if (this.collisionCooldown > 0) this.collisionCooldown -= dt;
 
-        // --- Progress check ---
+        this.updateWaterEffects(dt);
         this.drawProgress();
 
-        // --- Check level complete ---
-        if (this.distanceTraveled >= this.totalDistanceNeeded && !this.encounterActive) {
+        // Check level complete
+        const allItemsSpawned = this.totalItemsSpawned >= this.levelConfig.itemCount;
+        const allItemsGone = this.floatingItems.length === 0;
+        if (allItemsSpawned && allItemsGone && this.distanceTraveled >= this.totalDistanceNeeded * 0.5) {
+            this.endGame(true);
+        }
+        // Bonus levels: just distance
+        if (this.levelConfig.mode === 'bonus' && this.distanceTraveled >= this.totalDistanceNeeded) {
             this.endGame(true);
         }
 
-        // --- Time limit ---
+        // Time limit
         const elapsed = (Date.now() - this.gameStartTime) / 1000;
         if (elapsed >= this.levelConfig.timeLimitSeconds) {
-            this.endGame(false);
+            this.endGame(this.levelConfig.noFailState || false);
         }
+    }
+
+    // ==================== HYBRID SWITCH ====================
+
+    private switchToModeB() {
+        this.activeMode = 'modeB';
+        if (this.levelConfig.switchToRule) {
+            this.activeRule = { ...this.levelConfig.switchToRule };
+        }
+        this.basketItems.clear();
+        this.basketCount = 0;
+
+        // Flash "CHANGE RULES!" banner
+        const { width, height } = this.scale;
+        const flash = this.add.text(width / 2, height / 2, '⚡ เปลี่ยนกฎ! ⚡', {
+            fontSize: '36px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 5,
+        });
+        flash.setOrigin(0.5);
+        flash.setDepth(150);
+        this.tweens.add({
+            targets: flash, alpha: 0, y: height / 2 - 60, duration: 2000,
+            onComplete: () => flash.destroy(),
+        });
+
+        // Update banner
+        this.ruleBanner.setText(this.activeRule.instructionThai);
+        const textBounds = this.ruleBanner.getBounds();
+        this.ruleBannerBg.setSize(textBounds.width + 30, textBounds.height + 16);
+
+        // Show sack if not already
+        if (!this.sackIcon) {
+            this.sackIcon = this.add.sprite(40, 20, 'ui_sack');
+            this.sackIcon.setDisplaySize(36, 36);
+            this.sackIcon.setDepth(100);
+            this.sackIcon.setOrigin(0, 0);
+            this.sackCountText = this.add.text(78, 28, '0', {
+                fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+                color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+            });
+            this.sackCountText.setOrigin(0, 0);
+            this.sackCountText.setDepth(100);
+        }
+
+        this.buildItemSpawnQueue();
     }
 
     // ==================== BOAT MOVEMENT ====================
 
     moveBoat(dt: number) {
-        // ==================== BOAT MOVEMENT (PHYSICS) ====================
-        
-        let targetDirection = 0; // -1 (left), 0 (none), 1 (right)
-        // Tilt input
+        let targetDirection = 0;
         if (this.useTilt && Math.abs(this.tiltGamma) > 3) {
-            // Deadzone of 3 degrees
-            // Map tilt to direction intensity (-1 to 1)
             targetDirection = Phaser.Math.Clamp(this.tiltGamma / 25, -1, 1);
         }
-
-        // Touch input (overrides tilt if active)
         if (this.touchLeft) targetDirection = -1;
         if (this.touchRight) targetDirection = 1;
 
-        // Apply Acceleration
         if (targetDirection !== 0) {
             this.currentSpeedX += targetDirection * this.accelX * dt;
         } else {
-            // Apply Drag (Friction) when no input
-            // Using frame-rate independent friction approximation
-            // v = v * (drag ^ (dt * 60))
             this.currentSpeedX *= Math.pow(this.dragX, dt * 60);
-            
-            // Snap to 0 if very slow
             if (Math.abs(this.currentSpeedX) < 10) this.currentSpeedX = 0;
         }
 
-        // Clamp Speed
         this.currentSpeedX = Phaser.Math.Clamp(this.currentSpeedX, -this.maxSpeedX, this.maxSpeedX);
-
-        // Update Position
         const newX = this.boat.x + this.currentSpeedX * dt;
-
-        // Clamp to River Bounds
         const halfBoat = this.boatWidth / 2;
-        // Bounce off walls slightly
+
         if (newX <= this.riverLeft + halfBoat + 5 || newX >= this.riverRight - halfBoat - 5) {
-             this.currentSpeedX *= -0.5; // Bounce back
-             this.boat.x = Phaser.Math.Clamp(newX, this.riverLeft + halfBoat + 6, this.riverRight - halfBoat - 6);
-             
-             // Trigger collision logic if hitting hard
-             if (this.collisionCooldown <= 0 && Math.abs(this.currentSpeedX) > 50) {
-                 this.handleBankCollision();
-             }
+            this.currentSpeedX *= -0.5;
+            this.boat.x = Phaser.Math.Clamp(newX, this.riverLeft + halfBoat + 6, this.riverRight - halfBoat - 6);
+            if (this.collisionCooldown <= 0 && Math.abs(this.currentSpeedX) > 50) {
+                this.handleBankCollision();
+            }
         } else {
             this.boat.x = newX;
         }
 
-        // Visual Lean (Rotation)
-        // Max lean 15 degrees based on speed ratio
         const targetAngle = (this.currentSpeedX / this.maxSpeedX) * 15;
         this.boat.setAngle(targetAngle);
-
-        // Hesitation Tracking for Stats
-        if (this.encounterActive && Math.abs(this.currentSpeedX) > 50) {
-            const direction = this.currentSpeedX > 0 ? 1 : -1;
-            if (this.encounterFirstTiltDirection === null) {
-                this.encounterFirstTiltDirection = direction;
-                // Record reaction time
-                const reactionTime = Date.now() - this.encounterStartTime;
-                this.reactionTimes.push(reactionTime);
-            } else if (this.encounterFirstTiltDirection !== direction) {
-                // Changed direction = hesitation!
-                this.hesitationCount++;
-                this.encounterFirstTiltDirection = direction; 
-            }
-        }
     }
 
-    // ==================== OBSTACLES ====================
+    // ==================== SPAWNING ====================
 
     spawnObstacle() {
-        const { width } = this.scale;
         const padding = 30;
-        const x = Phaser.Math.Between(
-            this.riverLeft + padding,
-            this.riverRight - padding
-        );
-
+        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
         const obstacleTypes = ['rock', 'log', 'boat'];
         const type = pickRandom(obstacleTypes);
-
         const container = this.add.container(x, -50);
         container.setDepth(5);
 
-        let w = 30, h = 30;
+        let w = 40, h = 40;
+        let sprite: Phaser.GameObjects.Sprite;
 
         if (type === 'rock') {
-            w = Phaser.Math.Between(25, 40);
-            h = Phaser.Math.Between(25, 35);
-            const rock = this.add.ellipse(0, 0, w, h, 0x696969);
-            rock.setStrokeStyle(2, 0x444444);
-            // Add some texture dots
-            const dot1 = this.add.circle(-5, -3, 3, 0x888888);
-            const dot2 = this.add.circle(5, 4, 2, 0x555555);
-            container.add([rock, dot1, dot2]);
+            sprite = this.add.sprite(0, 0, 'obs_rock');
+            w = 50; h = 50;
+            sprite.setDisplaySize(w, h);
+            sprite.setAngle(Phaser.Math.Between(0, 360));
         } else if (type === 'log') {
-            w = Phaser.Math.Between(50, 80);
-            h = 18;
-            const log = this.add.rectangle(0, 0, w, h, 0x8B6914);
-            log.setStrokeStyle(2, 0x5D4614);
-            // Wood grain lines
-            const line1 = this.add.rectangle(-10, 0, 1, h - 4, 0x725510);
-            const line2 = this.add.rectangle(10, 0, 1, h - 4, 0x725510);
-            container.add([log, line1, line2]);
+            sprite = this.add.sprite(0, 0, 'obs_log');
+            w = 80; h = 30;
+            sprite.setDisplaySize(w, h);
+            sprite.setAngle(Phaser.Math.Between(-20, 20));
         } else {
-            // Other boat
-            w = 30;
-            h = 50;
-            const otherHull = this.add.rectangle(0, 0, w, h, 0x654321);
-            otherHull.setStrokeStyle(2, 0x4A3015);
-            const otherBow = this.add.triangle(0, -h / 2 - 8, -w / 2, 8, w / 2, 8, 0, -12, 0x654321);
-            container.add([otherHull, otherBow]);
+            sprite = this.add.sprite(0, 0, 'boat_npc_img');
+            const targetW = 50;
+            sprite.displayWidth = targetW;
+            sprite.scaleY = sprite.scaleX;
+            w = sprite.displayWidth;
+            h = sprite.displayHeight;
+            sprite.setAngle(180);
         }
 
+        container.add(sprite);
         container.setSize(w, h);
         this.physics.add.existing(container);
         const body = container.body as Phaser.Physics.Arcade.Body;
-        body.setSize(w - 4, h - 4);
+        body.setSize(w * 0.8, h * 0.8);
         body.setImmovable(true);
-
         this.obstacleGroup.add(container);
-        this.obstacles.push({ sprite: container, body, width: w, height: h });
+        this.obstacles.push({ sprite: container, body, width: w, height: h, type });
     }
 
     spawnCoin() {
         const padding = 40;
-        const x = Phaser.Math.Between(
-            this.riverLeft + padding,
-            this.riverRight - padding
-        );
-
+        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
         const container = this.add.container(x, -30);
         container.setDepth(6);
 
-        // Coin visual
         const coinCircle = this.add.circle(0, 0, 12, 0xFFD700);
         coinCircle.setStrokeStyle(2, 0xDAA520);
-        const coinText = this.add.text(0, 0, '฿', {
-            fontSize: '12px',
-            color: '#8B6914',
-            fontStyle: 'bold',
-        });
+        const coinText = this.add.text(0, 0, '฿', { fontSize: '12px', color: '#8B6914', fontStyle: 'bold' });
         coinText.setOrigin(0.5);
-
         container.add([coinCircle, coinText]);
         container.setSize(24, 24);
 
@@ -861,22 +843,80 @@ export class FloatingMarketScene extends Phaser.Scene {
         const body = container.body as Phaser.Physics.Arcade.Body;
         body.setSize(20, 20);
         body.setImmovable(true);
-
         this.coinGroup.add(container);
         this.coins.push({ sprite: container, body, collected: false });
     }
 
+    spawnFloatingItem() {
+        if (this.itemSpawnQueue.length === 0) return;
+        const item = this.itemSpawnQueue.shift()!;
+        this.totalItemsSpawned++;
+
+        const padding = 40;
+        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
+        const container = this.add.container(x, -50);
+        container.setDepth(7);
+
+        // Item sprite — large and clear for older audience
+        const textureKey = `item_${item.id}`;
+        const itemSprite = this.add.sprite(0, 0, textureKey);
+        itemSprite.setDisplaySize(60, 60);
+
+        // Label underneath — big and readable
+        const label = this.add.text(0, 38, item.nameThai, {
+            fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFFFFF', stroke: '#000000', strokeThickness: 4,
+            align: 'center',
+        });
+        label.setOrigin(0.5);
+
+        // Price tag for level 26
+        if (item.priceTag && this.levelConfig.level === 26) {
+            const priceLabel = this.add.text(0, -36, `${item.priceTag}฿`, {
+                fontSize: '14px', fontFamily: "'Noto Sans Thai', sans-serif",
+                color: '#FFD700', stroke: '#000000', strokeThickness: 3,
+            });
+            priceLabel.setOrigin(0.5);
+            container.add(priceLabel);
+        }
+
+        container.add([itemSprite, label]);
+        container.setSize(64, 64);
+
+        this.physics.add.existing(container);
+        const body = container.body as Phaser.Physics.Arcade.Body;
+        body.setSize(54, 54);
+        body.setImmovable(true);
+        this.itemGroup.add(container);
+
+        const driftSpeed = this.levelConfig.itemDrift
+            ? Phaser.Math.Between(-30, 30) : 0;
+
+        this.floatingItems.push({ sprite: container, body, item, collected: false, driftSpeed });
+
+        // Gentle bob animation — slightly more pronounced
+        this.tweens.add({
+            targets: itemSprite, y: -5, duration: 800, yoyo: true,
+            repeat: -1, ease: 'Sine.easeInOut',
+        });
+    }
+
+    // ==================== SCROLLING ====================
+
     moveScrollables(dt: number) {
         const speed = this.scrollSpeed * dt;
         const { height } = this.scale;
-        // Update visuals
-        this.moveStalls(dt, speed);
-        this.updateWater(dt);
+
+        this.moveStalls(speed);
+        this.riverBgTiles.forEach(tile => { tile.tilePositionY -= speed; });
+        this.dockBgTiles.forEach(tile => { tile.tilePositionY -= speed; });
 
         // Move obstacles
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
-            obs.sprite.y += speed;
+            // NPC boats move faster toward the player (extra velocity)
+            const extraSpeed = obs.type === 'boat' ? 60 * dt : 0;
+            obs.sprite.y += speed + extraSpeed;
             if (obs.sprite.y > height + 60) {
                 obs.sprite.destroy();
                 this.obstacles.splice(i, 1);
@@ -893,428 +933,350 @@ export class FloatingMarketScene extends Phaser.Scene {
             }
         }
 
-        // Move answer gates
-        for (let i = this.answerGates.length - 1; i >= 0; i--) {
-            const gate = this.answerGates[i];
-            gate.sprite.y += speed;
-            if (gate.sprite.y > height + 100) {
-                gate.sprite.destroy();
-                this.answerGates.splice(i, 1);
+        // Move floating items
+        for (let i = this.floatingItems.length - 1; i >= 0; i--) {
+            const fi = this.floatingItems[i];
+            fi.sprite.y += speed;
+            if (fi.driftSpeed) {
+                fi.sprite.x += fi.driftSpeed * dt;
+                fi.sprite.x = Phaser.Math.Clamp(fi.sprite.x, this.riverLeft + 30, this.riverRight - 30);
             }
-        }
-
-        // Move Chat Bubbles
-        for (let i = this.chatBubbles.length - 1; i >= 0; i--) {
-            const bubble = this.chatBubbles[i];
-            bubble.sprite.y += speed;
-            bubble.age += dt;
-            
-            // Fade out
-            if (bubble.age > 3.5) {
-                bubble.sprite.alpha -= dt;
-            }
-
-            if (bubble.sprite.y > height + 80 || bubble.sprite.alpha <= 0) {
-                bubble.sprite.destroy();
-                this.chatBubbles.splice(i, 1);
+            if (fi.sprite.y > height + 60) {
+                // Missed item — count if it was collectible
+                if (!fi.collected && this.isCollectible(fi.item)) {
+                    this.missedItems++;
+                }
+                fi.sprite.destroy();
+                this.floatingItems.splice(i, 1);
             }
         }
     }
 
-    moveStalls(dt: number, speed: number) {
+    private moveStalls(speed: number) {
         const { height } = this.scale;
-        const stallH = 60;
-        const stallColors = [0xC0392B, 0xE67E22, 0x27AE60, 0x2980B9, 0x8E44AD, 0xD4AC0D];
-
-        // Combine arrays for iteration
+        const cellH = 194; // stallDisplayH(166) + gap(28)
+        const stallColors = ['blue', 'green', 'purple', 'orange', 'red'];
         const allStalls = [...this.marketStallsLeft, ...this.marketStallsRight];
-        
         allStalls.forEach(stall => {
             stall.y += speed;
-            if (stall.y > height + stallH / 2) {
-                // Recycle to top
-                stall.y = -stallH * 1.5;
-                stall.fillColor = pickRandom(stallColors);
+            if (stall.y > height + cellH) {
+                stall.y -= (Math.ceil(height / cellH) + 3) * cellH;
+                // Swap to a random stall color for variety
+                const newColor = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
+                (stall as Phaser.GameObjects.Sprite).setTexture(`stall_img_${newColor}`);
             }
         });
     }
 
-    updateWater(dt: number) {
-        this.waterGraphics.clear();
-        this.waterParticleTimer += dt;
-        const { height } = this.scale;
-        const time = Date.now() * 0.001;
+    // ==================== ITEM COLLECTION LOGIC ====================
 
-        // Draw sine wave currents
-        this.waterGraphics.lineStyle(2, 0xFFFFFF, 0.15);
-        for (let i = 0; i < 4; i++) {
-            const xOffset = i * (this.riverWidth / 4);
-            const speed = (i % 2 === 0 ? 1 : 1.2);
-            const phase = i * 2;
-            
-            this.waterGraphics.beginPath();
-            for (let y = -50; y < height + 50; y += 50) {
-                 const x = this.riverLeft + 20 + xOffset + Math.sin(y * 0.01 + time * speed + phase) * 15;
-                 if (y === -50) this.waterGraphics.moveTo(x, y);
-                 else this.waterGraphics.lineTo(x, y);
+    private isCollectible(item: MarketItem): boolean {
+        const rule = this.activeRule;
+        if (rule.negativeRule) {
+            // Collect everything EXCEPT avoidFilter
+            if (rule.filterByItemId) {
+                return !(rule.avoidFilter || []).includes(item.id);
             }
-            this.waterGraphics.strokePath();
+            return !(rule.avoidFilter || []).includes(item.category);
         }
-
-        // Wake particles
-        if (this.waterParticleTimer > 0.08) {
-            this.waterParticleTimer = 0;
-            const p = { 
-                x: this.boat.x + (Math.random() - 0.5) * 20, 
-                y: this.boat.y + 35, 
-                age: 0, 
-                maxAge: 1.2 
-            };
-            this.waterRipples.push(p);
+        if (rule.filterByItemId) {
+            return (rule.collectFilter as string[]).includes(item.id);
         }
+        return (rule.collectFilter as string[]).includes(item.category);
+    }
 
-        // Draw particles
-        for (let i = this.waterRipples.length - 1; i >= 0; i--) {
-            const p = this.waterRipples[i];
-            p.y += this.scrollSpeed * dt; 
-            p.age += dt;
-            if (p.age > p.maxAge) {
-                this.waterRipples.splice(i, 1);
-            } else {
-                const life = p.age / p.maxAge;
-                const alpha = (1 - life) * 0.6;
-                const size = 5 + (life * 25);
-                this.waterGraphics.fillStyle(0xFFFFFF, alpha);
-                this.waterGraphics.fillCircle(p.x, p.y, size);
-                this.waterGraphics.lineStyle(1, 0xFFFFFF, alpha);
-                this.waterGraphics.strokeCircle(p.x, p.y, size);
+    private isAvoidable(item: MarketItem): boolean {
+        const rule = this.activeRule;
+        if (rule.negativeRule) {
+            if (rule.filterByItemId) {
+                return ((rule.avoidFilter || []) as string[]).includes(item.id);
+            }
+            return ((rule.avoidFilter || []) as string[]).includes(item.category);
+        }
+        if (!rule.avoidFilter) return false;
+        if (rule.filterByItemId) {
+            return (rule.avoidFilter as string[]).includes(item.id);
+        }
+        return (rule.avoidFilter as string[]).includes(item.category);
+    }
+
+    handleItemCollect(_boat: any, itemSprite: any) {
+        const fi = this.floatingItems.find(f =>
+            f.sprite === itemSprite || (f.body as any) === itemSprite.body
+        );
+        if (!fi || fi.collected) return;
+        fi.collected = true;
+
+        const item = fi.item;
+        const reactionTime = Date.now() - this.lastItemContactTime;
+        this.lastItemContactTime = Date.now();
+        if (reactionTime < 10000) this.reactionTimes.push(reactionTime);
+
+        if (this.activeMode === 'modeB') {
+            this.handleModeBCollection(fi, item);
+        } else {
+            this.handleModeACollection(fi, item);
+        }
+    }
+
+    private handleModeACollection(fi: FloatingItem, item: MarketItem) {
+        const shouldCollect = this.isCollectible(item);
+        const shouldAvoid = this.isAvoidable(item);
+
+        if (shouldCollect) {
+            this.correctCollections++;
+            this.showCollectFeedback(fi.sprite.x, fi.sprite.y, true);
+            this.animateItemCollect(fi);
+        } else if (shouldAvoid || !shouldCollect) {
+            this.incorrectCollections++;
+            this.showCollectFeedback(fi.sprite.x, fi.sprite.y, false);
+            this.cameras.main.shake(150, 0.008);
+            this.animateItemReject(fi);
+        }
+    }
+
+    private handleModeBCollection(fi: FloatingItem, item: MarketItem) {
+        if (this.basketItems.has(item.id)) {
+            // DUPLICATE! Player already has this
+            this.duplicatePickups++;
+            this.incorrectCollections++;
+            this.showDuplicateWarning(fi.sprite.x, fi.sprite.y, item);
+            this.shakeBasket();
+            this.cameras.main.shake(150, 0.008);
+            this.animateItemReject(fi);
+        } else {
+            // New item — collect it!
+            this.basketItems.add(item.id);
+            this.basketCount++;
+            this.correctCollections++;
+            this.updateBasketUI();
+            this.showCollectFeedback(fi.sprite.x, fi.sprite.y, true);
+            this.animateItemIntoSack(fi);
+
+            // Check basket reset
+            if (this.levelConfig.resetBasketAt && this.basketCount >= this.levelConfig.resetBasketAt) {
+                this.basketResetCount++;
+                if (this.basketResetCount < 2) {
+                    this.time.delayedCall(1500, () => this.resetBasket());
+                }
             }
         }
     }
 
+    // ==================== VISUAL FEEDBACK ====================
 
-    showChatBubble(text?: string) {
-        if (!text) return;
-        const { width } = this.scale;
-        const side = Math.random() > 0.5 ? 'left' : 'right';
-        const isMobile = width < 600;
-        const bubbleW = isMobile ? Math.min(200, width * 0.55) : 240;
-        const fontSize = isMobile ? 16 : 20;
-        const margin = 10;
-        const x = side === 'left' ? this.riverLeft + margin : this.riverRight - margin;
-        const y = -80; 
-        const container = this.add.container(x, y);
-        container.setDepth(20);
-        const chatText = this.add.text(0, 0, text, {
-            fontSize: `${fontSize}px`,
-            fontFamily: "'Noto Sans Thai', sans-serif",
-            color: '#000000',
-            align: 'center',
-            wordWrap: { width: bubbleW - 24 },
-            fontStyle: 'bold'
+    private showCollectFeedback(x: number, y: number, correct: boolean) {
+        const text = correct ? '✓' : '✗';
+        const color = correct ? '#2ECC71' : '#E74C3C';
+        const fb = this.add.text(x, y, text, {
+            fontSize: '32px', color, fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3,
         });
-        chatText.setOrigin(0.5);
-        const textBounds = chatText.getBounds();
-        const bubbleH = textBounds.height + 24; 
-
-        const graphics = this.add.graphics();
-        
-        // Calculate Positions
-        let bodyX = 0;
-        if (side === 'left') {
-            bodyX = 15;
-            chatText.setPosition(bodyX + bubbleW/2, 0);
-        } else {
-            bodyX = -15 - bubbleW;
-            chatText.setPosition(bodyX + bubbleW/2, 0);
-        }
-        // Shadow
-        graphics.fillStyle(0x000000, 0.25);
-            const shadowOffset = 5;
-        if (side === 'left') {
-             graphics.fillRoundedRect(bodyX + shadowOffset, -bubbleH/2 + shadowOffset, bubbleW, bubbleH, 16);
-             graphics.fillTriangle(shadowOffset, shadowOffset, 16 + shadowOffset, -8 + shadowOffset, 16 + shadowOffset, 8 + shadowOffset);
-        } else {
-             graphics.fillRoundedRect(bodyX + shadowOffset, -bubbleH/2 + shadowOffset, bubbleW, bubbleH, 16);
-             graphics.fillTriangle(shadowOffset, shadowOffset, -16 + shadowOffset, -8 + shadowOffset, -16 + shadowOffset, 8 + shadowOffset);
-        }
-
-        // Main Bubble - Body
-        graphics.fillStyle(0xFFFFFF, 1);
-        graphics.lineStyle(2, 0x000000, 1);
-        graphics.fillRoundedRect(bodyX, -bubbleH/2, bubbleW, bubbleH, 16);
-        graphics.strokeRoundedRect(bodyX, -bubbleH/2, bubbleW, bubbleH, 16);
-
-        // Main Bubble - Pointer
-        graphics.fillStyle(0xFFFFFF, 1);
-        if (side === 'left') {
-            graphics.fillTriangle(0, 0, 16, -8, 16, 8);
-        } else {
-            graphics.fillTriangle(0, 0, -16, -8, -16, 8);
-        }
-        container.add([graphics, chatText]);
-        this.chatBubbles.push({ sprite: container, age: 0 });
+        fb.setOrigin(0.5);
+        fb.setDepth(120);
+        this.tweens.add({
+            targets: fb, y: y - 40, alpha: 0, duration: 600,
+            onComplete: () => fb.destroy(),
+        });
+        try {
+            this.sound.play(correct ? 'correct' : 'wrong', { volume: 0.4 });
+        } catch (e) { /* ignore */ }
     }
 
-    // ==================== ENCOUNTERS ====================
-
-    triggerEncounter() {
-        if (this.currentEncounterIndex >= this.encounters.length) return;
-
-        const encounter = this.encounters[this.currentEncounterIndex];
-        this.encounterActive = true;
-        this.encounterStartTime = Date.now();
-        this.encounterFirstTiltDirection = null;
-
-        // Show question
-        this.questionText.setText(encounter.questionText);
-        this.questionText.setVisible(true);
-        this.questionBg.setVisible(true);
-        // Show chat bubble
-        this.showChatBubble(encounter.chatText);
-
-        // Resize question background to fit text
-        const textBounds = this.questionText.getBounds();
-        this.questionBg.setSize(textBounds.width + 40, textBounds.height + 24);
-
-        // Spawn answer gates
-        const optCount = encounter.options.length;
-        const gateWidth = (this.riverWidth - 20) / optCount;
-        const gateHeight = 70;
-        const gateY = -350; // Spawn further up to create delay (approx 3-5s)
-
-        encounter.options.forEach((opt, idx) => {
-            const gateX = this.riverLeft + 10 + gateWidth * idx + gateWidth / 2;
-
-            const container = this.add.container(gateX, gateY);
-            container.setDepth(8);
-
-            // Gate background
-            const isCorrect = opt.value === encounter.correctAnswer;
-            const gateBg = this.add.rectangle(0, 0, gateWidth - 8, gateHeight, 0x2C3E50, 0.85);
-            gateBg.setStrokeStyle(3, 0xECF0F1);
-            // gateBg.setRoundedRectRadius(12); // skip
-
-            // Gate label
-            const gateLabel = this.add.text(0, 0, opt.label, {
-                fontSize: '20px',
-                fontFamily: "'Noto Sans Thai', sans-serif",
-                color: '#FFFFFF',
-                fontStyle: 'bold',
-                align: 'center',
-                wordWrap: { width: gateWidth - 20 },
-            });
-            gateLabel.setOrigin(0.5);
-
-            container.add([gateBg, gateLabel]);
-            container.setSize(gateWidth - 8, gateHeight);
-
-            this.physics.add.existing(container);
-            const body = container.body as Phaser.Physics.Arcade.Body;
-            body.setSize(gateWidth - 12, gateHeight - 4);
-            body.setImmovable(true);
-
-            this.answerGateGroup.add(container);
-            this.answerGates.push({
-                sprite: container,
-                body,
-                value: opt.value,
-                label: opt.label,
-                triggered: false,
-            });
+    private showDuplicateWarning(x: number, y: number, item: MarketItem) {
+        const warnText = this.add.text(x, y - 30, `มีแล้ว! (${item.nameThai})`, {
+            fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FF6B6B', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 3,
         });
+        warnText.setOrigin(0.5);
+        warnText.setDepth(120);
+        this.tweens.add({
+            targets: warnText, y: y - 70, alpha: 0, duration: 1200,
+            onComplete: () => warnText.destroy(),
+        });
+    }
+
+    private animateItemCollect(fi: FloatingItem) {
+        this.tweens.add({
+            targets: fi.sprite, y: fi.sprite.y - 30, alpha: 0,
+            scaleX: 1.3, scaleY: 1.3, duration: 300,
+            onComplete: () => {
+                fi.sprite.destroy();
+                const idx = this.floatingItems.indexOf(fi);
+                if (idx >= 0) this.floatingItems.splice(idx, 1);
+            },
+        });
+    }
+
+    private animateItemReject(fi: FloatingItem) {
+        this.tweens.add({
+            targets: fi.sprite, alpha: 0.3, duration: 200, yoyo: true,
+            repeat: 2,
+            onComplete: () => {
+                fi.sprite.destroy();
+                const idx = this.floatingItems.indexOf(fi);
+                if (idx >= 0) this.floatingItems.splice(idx, 1);
+            },
+        });
+    }
+
+    private animateItemIntoSack(fi: FloatingItem) {
+        if (!this.sackIcon) {
+            this.animateItemCollect(fi);
+            return;
+        }
+        this.tweens.add({
+            targets: fi.sprite,
+            x: this.sackIcon.x + 18, y: this.sackIcon.y + 18,
+            scaleX: 0.3, scaleY: 0.3, alpha: 0, duration: 400,
+            onComplete: () => {
+                fi.sprite.destroy();
+                const idx = this.floatingItems.indexOf(fi);
+                if (idx >= 0) this.floatingItems.splice(idx, 1);
+                // Pulse sack
+                if (this.sackIcon) {
+                    this.tweens.add({
+                        targets: this.sackIcon, scaleX: 1.3, scaleY: 1.3,
+                        duration: 150, yoyo: true,
+                    });
+                }
+            },
+        });
+    }
+
+    private shakeBasket() {
+        if (!this.sackIcon) return;
+        this.tweens.add({
+            targets: this.sackIcon, x: this.sackIcon.x - 5,
+            duration: 50, yoyo: true, repeat: 4,
+        });
+    }
+
+    private updateBasketUI() {
+        if (this.sackCountText) {
+            this.sackCountText.setText(`${this.basketCount}`);
+        }
+    }
+
+    private resetBasket() {
+        const { width, height } = this.scale;
+        const flash = this.add.text(width / 2, height / 2, '🔄 ตะกร้าว่างแล้ว!', {
+            fontSize: '28px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4,
+        });
+        flash.setOrigin(0.5);
+        flash.setDepth(150);
+        this.tweens.add({
+            targets: flash, alpha: 0, y: height / 2 - 50, duration: 2000,
+            onComplete: () => flash.destroy(),
+        });
+
+        this.basketItems.clear();
+        this.basketCount = 0;
+        this.updateBasketUI();
     }
 
     // ==================== COLLISION HANDLERS ====================
 
-    handleObstacleCollision(_boat: any, obstacle: any) {
+    handleObstacleCollision(_boat: any, _obstacle: any) {
         if (this.collisionCooldown > 0) return;
-        this.collisionCooldown = 1.0; // 1 second cooldown
-
+        this.collisionCooldown = 1.0;
         this.totalCollisions++;
-
-        // Visual feedback
+        this.incorrectCollections++; // Crash counts as an accuracy penalty
         this.cameras.main.shake(200, 0.01);
         this.boat.setAlpha(0.5);
-        this.time.delayedCall(300, () => {
-            if (this.boat) this.boat.setAlpha(1);
-        });
-
-        try {
-            this.sound.play('collision', { volume: 0.5 });
-        } catch (e) { /* ignore audio errors */ }
+        this.createSplash(this.boat.x, this.boat.y);
+        this.time.delayedCall(300, () => { if (this.boat) this.boat.setAlpha(1); });
+        try { this.sound.play('collision', { volume: 0.5 }); } catch (e) { /* ignore */ }
     }
 
     handleBankCollision() {
         if (this.collisionCooldown > 0) return;
         this.collisionCooldown = 0.5;
-
         this.totalCollisions++;
-
-        // Gentle shake
+        this.incorrectCollections++; // Bank crash counts as an accuracy penalty
         this.cameras.main.shake(100, 0.005);
         this.boat.setAlpha(0.7);
-        this.time.delayedCall(200, () => {
-            if (this.boat) this.boat.setAlpha(1);
-        });
+        this.createSplash(this.boat.x, this.boat.y);
+        this.time.delayedCall(200, () => { if (this.boat) this.boat.setAlpha(1); });
     }
 
     handleCoinCollect(_boat: any, coinSprite: any) {
-        // Find the coin in our array
         const coinIndex = this.coins.findIndex(c => c.sprite === coinSprite || c.body === coinSprite.body);
         if (coinIndex === -1) return;
-
         const coin = this.coins[coinIndex];
         if (coin.collected) return;
         coin.collected = true;
-
         this.bonusCoins++;
         this.coinCountText.setText(`🪙 ${this.bonusCoins}`);
-
-        // Animate coin collection
         this.tweens.add({
-            targets: coin.sprite,
-            y: coin.sprite.y - 30,
-            alpha: 0,
-            scaleX: 1.5,
-            scaleY: 1.5,
-            duration: 300,
+            targets: coin.sprite, y: coin.sprite.y - 30, alpha: 0,
+            scaleX: 1.5, scaleY: 1.5, duration: 300,
             onComplete: () => {
                 coin.sprite.destroy();
                 this.coins.splice(this.coins.indexOf(coin), 1);
             }
         });
-
-        try {
-            this.sound.play('coin-collect', { volume: 0.3, rate: 1.5 });
-        } catch (e) { /* ignore */ }
-    }
-
-    handleAnswerGateHit(_boat: any, gateSprite: any) {
-        // Find the gate
-        const gate = this.answerGates.find(g => g.sprite === gateSprite || (g.body as any) === gateSprite.body);
-        if (!gate || gate.triggered) return;
-
-        // Mark all gates as triggered to prevent double-hits
-        this.answerGates.forEach(g => g.triggered = true);
-
-        const encounter = this.encounters[this.currentEncounterIndex];
-        const isCorrect = gate.value === encounter.correctAnswer;
-
-        // Record result
-        const reactionTime = this.reactionTimes.length > 0
-            ? this.reactionTimes[this.reactionTimes.length - 1]
-            : Date.now() - this.encounterStartTime;
-
-        const result: EncounterResult = {
-            reactionTimeMs: reactionTime,
-            hesitated: this.encounterFirstTiltDirection !== null && this.hesitationCount > 0,
-            correct: isCorrect,
-            questionType: encounter.questionType,
-        };
-        this.encounterResults.push(result);
-
-        if (isCorrect) {
-            this.correctAnswers++;
-            if (encounter.questionType === 'change') {
-                this.changeQuestionCorrect++;
-            }
-        }
-        if (encounter.questionType === 'change') {
-            this.changeQuestionTotal++;
-        }
-
-        // Visual feedback on gates
-        this.answerGates.forEach(g => {
-            const bg = g.sprite.list[0] as Phaser.GameObjects.Rectangle;
-            if (g.value === encounter.correctAnswer) {
-                bg.setFillStyle(0x27AE60, 0.9); // Green = correct
-            } else if (g === gate && !isCorrect) {
-                bg.setFillStyle(0xE74C3C, 0.9); // Red = wrong choice
-            }
-        });
-
-        try {
-            this.sound.play(isCorrect ? 'correct' : 'wrong', { volume: 0.5 });
-        } catch (e) { /* ignore */ }
-
-        // Flash feedback text
-        const feedbackText = this.add.text(this.scale.width / 2, this.scale.height / 2,
-            isCorrect ? '✓ ถูกต้อง!' : '✗ ผิด!', {
-            fontSize: '36px',
-            fontFamily: "'Noto Sans Thai', sans-serif",
-            color: isCorrect ? '#2ECC71' : '#E74C3C',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 4,
-        });
-        feedbackText.setOrigin(0.5);
-        feedbackText.setDepth(120);
-
-        this.tweens.add({
-            targets: feedbackText,
-            y: feedbackText.y - 50,
-            alpha: 0,
-            duration: 1000,
-            onComplete: () => feedbackText.destroy(),
-        });
-
-        // Clean up encounter after delay
-        this.time.delayedCall(1200, () => {
-            this.questionText.setVisible(false);
-            this.questionBg.setVisible(false);
-
-            // Destroy remaining gates
-            this.answerGates.forEach(g => {
-                this.tweens.add({
-                    targets: g.sprite,
-                    alpha: 0,
-                    duration: 300,
-                    onComplete: () => g.sprite.destroy(),
-                });
-            });
-            this.answerGates = [];
-
-            this.encounterActive = false;
-            this.currentEncounterIndex++;
-            this.encounterFirstTiltDirection = null;
-        });
+        try { this.sound.play('coin-collect', { volume: 0.3, rate: 1.5 }); } catch (e) { /* ignore */ }
     }
 
     // ==================== WATER EFFECTS ====================
 
     updateWaterEffects(dt: number) {
         this.waterParticleTimer += dt;
-
-        // Spawn ripples near boat
-        if (this.waterParticleTimer > 0.3) {
+        if (this.waterParticleTimer > 0.1) {
             this.waterParticleTimer = 0;
-            this.waterRipples.push({
-                x: this.boat.x + Phaser.Math.Between(-15, 15),
-                y: this.boat.y + this.boatHeight / 2 + 5,
-                age: 0,
-                maxAge: 1.5,
-            });
+
+            // Player boat wake (behind the boat)
+            const px = this.boat.x + Phaser.Math.Between(-10, 10);
+            const py = this.boat.y + 60;
+            const pSprite = this.add.sprite(px, py, 'particle_wake');
+            pSprite.setDepth(6);
+            pSprite.setAlpha(0.6);
+            pSprite.setScale(0.5);
+            this.waterRipples.push({ sprite: pSprite, age: 0, maxAge: 1.0 });
+
+            // NPC boat wakes (in front of them since they face toward player)
+            for (const obs of this.obstacles) {
+                if (obs.type !== 'boat') continue;
+                const nx = obs.sprite.x + Phaser.Math.Between(-8, 8);
+                const ny = obs.sprite.y - 40; // wake in front (above, since they move down)
+                const nSprite = this.add.sprite(nx, ny, 'particle_wake');
+                nSprite.setDepth(6);
+                nSprite.setAlpha(0.4);
+                nSprite.setScale(0.4);
+                this.waterRipples.push({ sprite: nSprite, age: 0, maxAge: 0.8 });
+            }
         }
 
-        // Update & draw ripples
-        this.waterGraphics.clear();
         for (let i = this.waterRipples.length - 1; i >= 0; i--) {
             const r = this.waterRipples[i];
             r.age += dt;
-            r.y += this.scrollSpeed * dt * 0.3;
-
+            r.sprite.y += this.scrollSpeed * dt * 0.8;
             if (r.age >= r.maxAge) {
+                r.sprite.destroy();
                 this.waterRipples.splice(i, 1);
                 continue;
             }
-
             const progress = r.age / r.maxAge;
-            const alpha = 1 - progress;
-            const radius = 5 + progress * 20;
+            r.sprite.setAlpha((1 - progress) * 0.6);
+            r.sprite.setScale(0.5 + progress * 1.5);
+        }
+    }
 
-            this.waterGraphics.lineStyle(1, 0xADD8E6, alpha * 0.5);
-            this.waterGraphics.strokeCircle(r.x, r.y, radius);
+    createSplash(x: number, y: number) {
+        for (let i = 0; i < 5; i++) {
+            const splash = this.add.sprite(x, y, 'particle_splash');
+            splash.setDepth(11);
+            const angle = Phaser.Math.Between(0, 360);
+            const duration = Phaser.Math.Between(300, 500);
+            this.tweens.add({
+                targets: splash,
+                x: x + Math.cos(angle) * 30, y: y + Math.sin(angle) * 30,
+                alpha: 0, scale: 0.1, duration,
+                onComplete: () => splash.destroy()
+            });
         }
     }
 
@@ -1323,22 +1285,27 @@ export class FloatingMarketScene extends Phaser.Scene {
     drawProgress() {
         const { width } = this.scale;
         this.progressBar.clear();
-
         const barW = width * 0.3;
         const barH = 8;
-        const barX = 15;
+        const barX = (width - barW) / 2;
         const barY = 15;
-        const progress = Math.min(1, this.distanceTraveled / this.totalDistanceNeeded);
 
-        // Background
+        let progress: number;
+        if (this.levelConfig.itemCount > 0) {
+            // Level ends when all items spawned+gone AND distance >= 50%
+            // Weight: 70% items, 30% distance (items are the main objective)
+            const itemProgress = this.totalItemsSpawned / this.levelConfig.itemCount;
+            const itemsGoneProgress = this.floatingItems.length === 0 && this.totalItemsSpawned >= this.levelConfig.itemCount ? 1 : itemProgress;
+            const distProgress = Math.min(1, this.distanceTraveled / (this.totalDistanceNeeded * 0.5));
+            progress = Math.min(1, itemsGoneProgress * 0.7 + distProgress * 0.3);
+        } else {
+            progress = Math.min(1, this.distanceTraveled / this.totalDistanceNeeded);
+        }
+
         this.progressBar.fillStyle(0x000000, 0.3);
         this.progressBar.fillRoundedRect(barX, barY, barW, barH, 4);
-
-        // Fill
         this.progressBar.fillStyle(0x2ECC71, 1);
         this.progressBar.fillRoundedRect(barX, barY, barW * progress, barH, 4);
-
-        // Border
         this.progressBar.lineStyle(1, 0xFFFFFF, 0.5);
         this.progressBar.strokeRoundedRect(barX, barY, barW, barH, 4);
     }
@@ -1349,6 +1316,10 @@ export class FloatingMarketScene extends Phaser.Scene {
         if (this.gameOver) return;
         this.gameOver = true;
 
+        // Stop ambient sounds
+        try { this.sound.stopByKey('river-flow'); } catch (e) { /* ignore */ }
+        try { this.sound.stopByKey('bg-music'); } catch (e) { /* ignore */ }
+
         const totalTimeMs = Date.now() - this.gameStartTime;
         const stars = this.calculateStars();
 
@@ -1357,20 +1328,23 @@ export class FloatingMarketScene extends Phaser.Scene {
             onGameOver({
                 current_played: this.levelConfig.level,
                 difficultyMultiplier: this.levelConfig.difficultyMultiplier,
+                mode: this.levelConfig.mode,
+                correctCollections: this.correctCollections,
+                incorrectCollections: this.incorrectCollections,
+                missedItems: this.missedItems,
+                duplicatePickups: this.duplicatePickups,
+                memoryCapacity: this.levelConfig.memoryCapacity,
+                totalCollisions: this.totalCollisions,
                 reactionTimes: this.reactionTimes,
                 hesitationCount: this.hesitationCount,
-                totalCollisions: this.totalCollisions,
-                correctAnswers: this.correctAnswers,
-                totalEncounters: this.encounters.length,
-                changeQuestionCorrect: this.changeQuestionCorrect,
-                changeQuestionTotal: this.changeQuestionTotal,
                 bonusCoins: this.bonusCoins,
                 stars,
                 success,
                 totalTimeMs,
+                totalItemsSpawned: this.totalItemsSpawned,
+                totalItemsCollected: this.correctCollections,
                 starHint: stars < 3 ? this.getStarHint() : null,
             });
-
             try {
                 this.sound.play(success ? 'level-pass' : 'collision', { volume: 0.6 });
             } catch (e) { /* ignore */ }
@@ -1378,45 +1352,45 @@ export class FloatingMarketScene extends Phaser.Scene {
     }
 
     calculateStars(): number {
-        const isObstacleOnly = this.levelConfig.encounterCount === 0;
+        const mode = this.levelConfig.mode;
+        if (mode === 'bonus') return 3;
 
-        if (isObstacleOnly) {
-            // Star based on collision count
-            if (this.totalCollisions === 0) return 3;
-            if (this.totalCollisions <= 2) return 2;
+        const totalAttempted = this.correctCollections + this.incorrectCollections;
+        const accuracy = totalAttempted > 0 ? this.correctCollections / totalAttempted : 0;
+
+        // Collection ratio: how many items did the player actually collect vs how many spawned?
+        const collectionRatio = this.levelConfig.itemCount > 0
+            ? this.correctCollections / this.levelConfig.itemCount
+            : 1;
+
+        if (mode === 'modeB' || mode === 'hybrid') {
+            // Memory game: accuracy + collection ratio + no duplicates
+            if (accuracy >= 0.9 && collectionRatio >= 0.5 && this.duplicatePickups === 0 && this.totalCollisions <= 1) return 3;
+            if (accuracy >= 0.7 && collectionRatio >= 0.3 && this.duplicatePickups <= 1 && this.totalCollisions <= 3) return 2;
             return 1;
         }
 
-        // Math levels: based on accuracy + collisions
-        const accuracy = this.encounters.length > 0
-            ? this.correctAnswers / this.encounters.length
-            : 1;
-
-        if (accuracy >= 0.9 && this.totalCollisions <= 1) return 3;
-        if (accuracy >= 0.7 && this.totalCollisions <= 3) return 2;
+        // Mode A / tutorial
+        if (accuracy >= 0.9 && collectionRatio >= 0.5 && this.totalCollisions <= 1) return 3;
+        if (accuracy >= 0.7 && collectionRatio >= 0.3 && this.totalCollisions <= 3) return 2;
         return 1;
     }
 
     getStarHint(): string {
-        const isObstacleOnly = this.levelConfig.encounterCount === 0;
+        const mode = this.levelConfig.mode;
+        const totalAttempted = this.correctCollections + this.incorrectCollections;
+        const accuracy = totalAttempted > 0 ? this.correctCollections / totalAttempted : 0;
+        const collectionRatio = this.levelConfig.itemCount > 0
+            ? this.correctCollections / this.levelConfig.itemCount : 1;
 
-        if (isObstacleOnly) {
-            if (this.totalCollisions > 2) {
-                return 'พยายามหลบสิ่งกีดขวางให้มากขึ้น!';
-            }
-            return 'หลบให้เก่งขึ้นอีกนิด!';
+        if (mode === 'modeB' || mode === 'hybrid') {
+            if (this.duplicatePickups > 0) return 'พยายามจำของที่เก็บแล้ว อย่าเก็บซ้ำ!';
+            if (collectionRatio < 0.3) return 'เก็บของให้มากขึ้น อย่าข้ามของ!';
+            if (accuracy < 0.7) return 'เก็บของให้ถูกชนิดมากขึ้น!';
         }
-
-        const accuracy = this.encounters.length > 0
-            ? this.correctAnswers / this.encounters.length
-            : 1;
-
-        if (accuracy < 0.7) {
-            return 'ตอบให้ถูกมากขึ้น คิดเลขให้ดีก่อนเอียง!';
-        }
-        if (this.totalCollisions > 3) {
-            return 'หลบสิ่งกีดขวางให้มากขึ้น!';
-        }
+        if (collectionRatio < 0.3) return 'เก็บของให้มากขึ้น!';
+        if (accuracy < 0.7) return 'ดูกฎให้ดี แล้วเก็บของให้ถูกชนิด!';
+        if (this.totalCollisions > 3) return 'หลบสิ่งกีดขวางให้มากขึ้น!';
         return 'เร็วขึ้นอีกนิดแล้วจะได้ 3 ดาว!';
     }
 
@@ -1424,26 +1398,29 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     handleResize() {
         const { width, height } = this.scale;
-
-        // Recalculate river bounds
-        this.riverWidth = width * this.levelConfig.riverWidthRatio;
+        const maxRiverPx = 380;
+        const rawRiverW = width * this.levelConfig.riverWidthRatio;
+        this.riverWidth = Math.min(rawRiverW, maxRiverPx);
         this.riverLeft = (width - this.riverWidth) / 2;
         this.riverRight = this.riverLeft + this.riverWidth;
 
-        // Reposition boat
-        this.boat.x = Phaser.Math.Clamp(
-            this.boat.x,
+        this.boat.x = Phaser.Math.Clamp(this.boat.x,
             this.riverLeft + this.boatWidth / 2 + 5,
-            this.riverRight - this.boatWidth / 2 - 5
-        );
+            this.riverRight - this.boatWidth / 2 - 5);
         this.boat.y = height - 120;
 
-        // Reposition UI
-        this.questionBg.setPosition(width / 2, 60);
-        this.questionText.setPosition(width / 2, 60);
+        this.ruleBannerBg.setPosition(width / 2, 75);
+        this.ruleBanner.setPosition(width / 2, 75);
         this.coinCountText.setPosition(width - 20, 20);
 
-        // Reposition touch zones
+        // Reposition sack to bottom-right
+        if (this.sackIcon) {
+            this.sackIcon.setPosition(width - 60, height - 60);
+        }
+        if (this.sackCountText) {
+            this.sackCountText.setPosition(width - 60, height - 90);
+        }
+
         if (this.leftZone) {
             this.leftZone.setPosition(width / 4, height / 2);
             this.leftZone.setSize(width / 2, height);
