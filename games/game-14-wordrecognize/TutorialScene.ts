@@ -62,7 +62,7 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
         // Set up the item display
         this.currentItem = step.word;
         this.isNewItem = step.isNew;
-        this.currentItemIsImage = false;
+        this.currentItemType = 'text';
 
         // Show the word on card
         if (this.itemImage) this.itemImage.setVisible(false);

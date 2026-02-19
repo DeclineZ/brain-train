@@ -175,6 +175,8 @@ export default function GamePage({ params }: PageProps) {
                         } else {
                             setActiveLevel(0);
                         }
+                    } else if (gameId === 'game-17-floatingmarket') {
+                        setActiveLevel(1);
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
                         // if (
