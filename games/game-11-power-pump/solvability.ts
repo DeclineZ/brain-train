@@ -34,6 +34,7 @@ function isPumpAdjacentToAnyTarget(pump: Point, targets: Point[]) {
 
 export type PowerPumpLevelSolution = {
   level: number;
+  wireEnabled: boolean;
   gridW: number;
   gridH: number;
   source: Point;
@@ -449,6 +450,90 @@ function countPathTurns(path: Point[] | null) {
 function countPathTurnsInMaskGrid(maskGrid: number[][], start: Point, end: Point) {
   const path = findPathInMaskGrid(maskGrid, start, end);
   return countPathTurns(path);
+}
+
+function addPipeDecisionLoop(
+  maskGrid: number[][],
+  levelConfig: PowerPumpLevelConfig,
+  source: Point,
+  pump: Point,
+  targets: Point[],
+  seed: number
+) {
+  if (levelConfig.level < 3) return;
+
+  const longestPath = targets
+    .map(target => findPathInMaskGrid(maskGrid, pump, target))
+    .filter((path): path is Point[] => Boolean(path && path.length >= 5))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (!longestPath || longestPath.length < 5) return;
+
+  const special = new Set<string>([
+    `${source.x},${source.y}`,
+    `${pump.x},${pump.y}`,
+    ...targets.map(t => `${t.x},${t.y}`)
+  ]);
+
+  const minStart = 1;
+  const maxStart = Math.max(1, longestPath.length - 4);
+  const startIdx = minStart + ((seed * 7) % (maxStart - minStart + 1));
+  const maxGap = Math.min(4, longestPath.length - 1 - startIdx);
+  if (maxGap < 2) return;
+  const endIdx = startIdx + 2 + ((seed * 11) % (maxGap - 1));
+
+  const start = longestPath[startIdx];
+  const end = longestPath[endIdx];
+
+  const candidateWaypoints: Point[] = [
+    { x: clamp((seed + levelConfig.level * 3) % levelConfig.gridW, 0, levelConfig.gridW - 1), y: start.y },
+    { x: end.x, y: clamp((seed + levelConfig.level * 5) % levelConfig.gridH, 0, levelConfig.gridH - 1) },
+    {
+      x: clamp((seed + Math.floor(levelConfig.gridW / 2) + levelConfig.level) % levelConfig.gridW, 0, levelConfig.gridW - 1),
+      y: clamp((seed + Math.floor(levelConfig.gridH / 2) + levelConfig.level * 2) % levelConfig.gridH, 0, levelConfig.gridH - 1)
+    }
+  ];
+
+  for (const waypoint of candidateWaypoints) {
+    const key = `${waypoint.x},${waypoint.y}`;
+    if (special.has(key)) continue;
+    if ((waypoint.x === start.x && waypoint.y === start.y) || (waypoint.x === end.x && waypoint.y === end.y)) continue;
+
+    connectManhattanSeeded(maskGrid, start, waypoint, seed + 401);
+    connectManhattanSeeded(maskGrid, waypoint, end, seed + 463);
+    return;
+  }
+}
+
+function hasPipeDecisionPoint(maskGrid: number[][], source: Point, pump: Point, targets: Point[]) {
+  const special = new Set<string>([
+    `${source.x},${source.y}`,
+    `${pump.x},${pump.y}`,
+    ...targets.map(t => `${t.x},${t.y}`)
+  ]);
+
+  const reachable = bfsMaskGrid(maskGrid, pump);
+  let hasJunction = false;
+
+  for (const key of reachable) {
+    if (special.has(key)) continue;
+    const [xStr, yStr] = key.split(',');
+    const x = Number(xStr);
+    const y = Number(yStr);
+    const degree = getMaskDegree(maskGrid[y]?.[x] ?? 0);
+    if (degree >= 3) {
+      hasJunction = true;
+      break;
+    }
+  }
+
+  if (hasJunction) return true;
+
+  const maxTurns = targets.reduce((best, target) => {
+    const turns = countPathTurnsInMaskGrid(maskGrid, pump, target);
+    return Math.max(best, turns);
+  }, 0);
+  return maxTurns >= 2;
 }
 
 function resolveChannelOverlaps(pipeGrid: number[][], wireGrid: number[][], source: Point, pump: Point, targets: Point[]) {
@@ -1254,8 +1339,11 @@ function buildSolutionForSeed(levelConfig: PowerPumpLevelConfig, seed: number): 
   const initialTargets = generateTargets(source, pump, gridW, gridH, levelConfig.targetsCount, seed + 3);
   const targets = enforcePumpTargetSpacing(source, pump, initialTargets, gridW, gridH, seed + 41);
 
-  connectWireRoute(wireSolvedMasks, levelConfig, source, pump, seed + 17);
+  if (levelConfig.wireEnabled) {
+    connectWireRoute(wireSolvedMasks, levelConfig, source, pump, seed + 17);
+  }
   targets.forEach((target, index) => connectPipeRoute(pipeSolvedMasks, levelConfig, pump, target, seed + index * 97));
+  addPipeDecisionLoop(pipeSolvedMasks, levelConfig, source, pump, targets, seed + 79);
   addDeadEnds(pipeSolvedMasks, source, pump, levelConfig.deadEndTilesCount, seed + 101);
   enforceDeadEndPairIsolation(pipeSolvedMasks, source, pump, targets, seed + 151);
   resolveChannelOverlaps(pipeSolvedMasks, wireSolvedMasks, source, pump, targets);
@@ -1313,14 +1401,23 @@ function buildSolutionForSeed(levelConfig: PowerPumpLevelConfig, seed: number): 
   }
 
   enforceGeneratorPipeSpacing(pipeSolvedMasks, source);
-  enforceWireBackboneConnected(wireSolvedMasks, source, pump);
-  enforceSingleSourceWirePort(wireSolvedMasks, levelConfig, source, pump);
-  reduceWireJunctionComplexity(wireSolvedMasks, source, pump, targets, seed + 2661);
-  enforceWireBackboneConnected(wireSolvedMasks, source, pump);
-  enforceSingleSourceWirePort(wireSolvedMasks, levelConfig, source, pump);
+  if (levelConfig.wireEnabled) {
+    enforceWireBackboneConnected(wireSolvedMasks, source, pump);
+    enforceSingleSourceWirePort(wireSolvedMasks, levelConfig, source, pump);
+    reduceWireJunctionComplexity(wireSolvedMasks, source, pump, targets, seed + 2661);
+    enforceWireBackboneConnected(wireSolvedMasks, source, pump);
+    enforceSingleSourceWirePort(wireSolvedMasks, levelConfig, source, pump);
+  } else {
+    for (let y = 0; y < gridH; y++) {
+      for (let x = 0; x < gridW; x++) {
+        wireSolvedMasks[y][x] = 0;
+      }
+    }
+  }
 
   return {
     level: levelConfig.level,
+    wireEnabled: levelConfig.wireEnabled,
     gridW,
     gridH,
     source,
@@ -1403,7 +1500,7 @@ function ensureValidTargetInlets(
 }
 
 function isStrictSolvable(solution: PowerPumpLevelSolution) {
-  if (!isWireGridStrictlyValid(solution.wireSolvedMasks, solution.source, solution.pump)) return false;
+  if (solution.wireEnabled && !isWireGridStrictlyValid(solution.wireSolvedMasks, solution.source, solution.pump)) return false;
   if (!isPipeNetworkStrictlyValid(solution.pipeSolvedMasks, solution.pump, solution.targets)) return false;
 
   if (getMaskDegree(solution.pipeSolvedMasks[solution.pump.y]?.[solution.pump.x] ?? 0) !== 1) return false;
@@ -1424,6 +1521,14 @@ function isStrictSolvable(solution: PowerPumpLevelSolution) {
     return false;
   }
   if (hasDeadEndTargetDirectConnection(solution.pipeSolvedMasks, solution.pump, solution.targets)) {
+    return false;
+  }
+
+  if (
+    solution.level >= 3
+    && solution.level <= 8
+    && !hasPipeDecisionPoint(solution.pipeSolvedMasks, solution.source, solution.pump, solution.targets)
+  ) {
     return false;
   }
   return true;
@@ -1450,17 +1555,19 @@ export function validatePowerPumpLevelSolvability(level: number): PowerPumpSolva
   const solution = getPowerPumpLevelSolution(level);
   const issues: string[] = [];
 
-  const wireReachable = bfsMaskGrid(solution.wireSolvedMasks, solution.source);
-  if (!wireReachable.has(`${solution.pump.x},${solution.pump.y}`)) {
-    issues.push('wire path from source to pump is disconnected');
-  }
+  if (solution.wireEnabled) {
+    const wireReachable = bfsMaskGrid(solution.wireSolvedMasks, solution.source);
+    if (!wireReachable.has(`${solution.pump.x},${solution.pump.y}`)) {
+      issues.push('wire path from source to pump is disconnected');
+    }
 
-  const sourceMask = solution.wireSolvedMasks[solution.source.y]?.[solution.source.x] ?? 0;
-  if (getMaskDegree(sourceMask) !== 1) {
-    issues.push('source(generator) must have exactly one wire outlet direction');
-  }
-  if (!isWireGridStrictlyValid(solution.wireSolvedMasks, solution.source, solution.pump)) {
-    issues.push('wire network has invalid edges or disconnected source-to-pump route');
+    const sourceMask = solution.wireSolvedMasks[solution.source.y]?.[solution.source.x] ?? 0;
+    if (getMaskDegree(sourceMask) !== 1) {
+      issues.push('source(generator) must have exactly one wire outlet direction');
+    }
+    if (!isWireGridStrictlyValid(solution.wireSolvedMasks, solution.source, solution.pump)) {
+      issues.push('wire network has invalid edges or disconnected source-to-pump route');
+    }
   }
 
   const pumpMask = solution.pipeSolvedMasks[solution.pump.y]?.[solution.pump.x] ?? 0;
@@ -1506,6 +1613,14 @@ export function validatePowerPumpLevelSolvability(level: number): PowerPumpSolva
 
   if (hasDeadEndTargetDirectConnection(solution.pipeSolvedMasks, solution.pump, solution.targets)) {
     issues.push('dead-end pipe must not be the direct source inlet for any target');
+  }
+
+  if (
+    solution.level >= 3
+    && solution.level <= 8
+    && !hasPipeDecisionPoint(solution.pipeSolvedMasks, solution.source, solution.pump, solution.targets)
+  ) {
+    issues.push('early level must include at least one meaningful decision point (junction or critical turn path)');
   }
 
   return {

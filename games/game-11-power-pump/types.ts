@@ -18,6 +18,7 @@ export interface PowerPumpLevelConfig {
   level: number;
   gridW: number;
   gridH: number;
+  wireEnabled: boolean;
   wireComplexity: number;
   targetsCount: number;
   pipeJunctionsEnabled: boolean;
@@ -27,6 +28,12 @@ export interface PowerPumpLevelConfig {
   parWasteMs: number;
   targetTimeMs: number;
   seed: number;
+  intro?: {
+    title: string;
+    description: string;
+    imageKey?: string;
+    oncePerSession?: boolean;
+  };
 }
 
 export interface PowerPumpTile {

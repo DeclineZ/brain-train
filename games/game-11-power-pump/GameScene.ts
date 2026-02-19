@@ -89,6 +89,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
   private wasteMs = 0;
   private leakEventCount = 0;
   private activeLayer: 'pipe' | 'wire' = 'pipe';
+  private levelStarted = false;
 
   private history: Snapshot[] = [];
 
@@ -115,6 +116,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
   private bgLoopSfx?: Phaser.Sound.BaseSound;
 
   private static hasValidatedAllLevels = false;
+  private static shownIntroLevels = new Set<number>();
 
   constructor() {
     super({ key: 'PowerPumpGameScene' });
@@ -162,11 +164,22 @@ export class PowerPumpGameScene extends Phaser.Scene {
     this.renderAllTiles();
     this.updateDerivedState();
 
-    this.startTime = Date.now();
-    this.lastTick = this.startTime;
-    this.flowWireStartMs = this.startTime;
-    this.flowPipeStartMs = 0;
-    this.hasStartedPipeFlow = false;
+    const intro = this.levelConfig.intro;
+    const shouldShowIntro = Boolean(
+      intro
+      && (!intro.oncePerSession || !PowerPumpGameScene.shownIntroLevels.has(this.levelConfig.level))
+    );
+
+    if (shouldShowIntro && intro) {
+      this.levelStarted = false;
+      PowerPumpGameScene.shownIntroLevels.add(this.levelConfig.level);
+      this.game.events.emit('SHOW_INTRO', intro);
+      this.game.events.once('START_LEVEL', () => {
+        this.beginLevelRun();
+      });
+    } else {
+      this.beginLevelRun();
+    }
 
     try {
       this.bgLoopSfx = this.sound.add('pp-bg-loop', { loop: true, volume: 0.28 });
@@ -189,10 +202,13 @@ export class PowerPumpGameScene extends Phaser.Scene {
         // noop
       }
       this.bgLoopSfx = undefined;
+      this.game.events.off('START_LEVEL');
     });
   }
 
   update() {
+    if (!this.levelStarted) return;
+
     const now = Date.now();
     const dt = Math.max(0, now - this.lastTick);
     this.lastTick = now;
@@ -202,7 +218,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
       if (this.isPumpOn) {
         this.pumpOnMs += dt;
         const filled = this.getFilledTargets().length;
-        if (filled < this.targets.length) {
+        if (this.isDrainSystemEnabled() && filled < this.targets.length) {
           this.wasteMs += dt;
         }
       }
@@ -235,6 +251,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
     this.wasteMs = 0;
     this.leakEventCount = 0;
     this.activeLayer = 'pipe';
+    this.levelStarted = false;
     this.history = [];
     this.pipeWetKeys.clear();
     this.hasStartedPipeFlow = false;
@@ -242,11 +259,30 @@ export class PowerPumpGameScene extends Phaser.Scene {
     this.flowPipeStartMs = 0;
   }
 
+  private isWireEnabled() {
+    return this.levelConfig.wireEnabled;
+  }
+
+  private isDrainSystemEnabled() {
+    return this.isWireEnabled();
+  }
+
+  private beginLevelRun() {
+    const now = Date.now();
+    this.levelStarted = true;
+    this.startTime = now;
+    this.lastTick = now;
+    this.flowWireStartMs = now;
+    this.flowPipeStartMs = 0;
+    this.hasStartedPipeFlow = false;
+  }
+
   private buildLevel() {
     const { gridW, gridH, seed } = this.levelConfig;
     const solved = getPowerPumpLevelSolution(this.levelConfig.level);
     const pipeSolved = solved.pipeSolvedMasks.map(row => [...row]);
     const wireSolved = solved.wireSolvedMasks.map(row => [...row]);
+    const wireEnabled = this.isWireEnabled();
 
     this.source = { ...solved.source };
     this.pump = { ...solved.pump };
@@ -260,13 +296,21 @@ export class PowerPumpGameScene extends Phaser.Scene {
     // Runtime rule: targets are destination-only for pipe, so wire must not occupy target tiles.
     // After clearing target wire masks, rebuild and validate a source->pump wire backbone that
     // explicitly routes around targets (and does not rely on any removed/blocked tile).
-    this.clearMaskConnectionsAtTargets(wireSolved);
-    this.ensureWireBackboneConnected(wireSolved);
-    this.enforceSingleSourceWirePort(wireSolved);
-    this.ensureWireRouteComplexity(wireSolved);
-    this.reduceWireJunctionComplexity(wireSolved, seed + 2661);
-    this.ensureWireBackboneConnected(wireSolved);
-    this.enforceSingleSourceWirePort(wireSolved);
+    if (wireEnabled) {
+      this.clearMaskConnectionsAtTargets(wireSolved);
+      this.ensureWireBackboneConnected(wireSolved);
+      this.enforceSingleSourceWirePort(wireSolved);
+      this.ensureWireRouteComplexity(wireSolved);
+      this.reduceWireJunctionComplexity(wireSolved, seed + 2661);
+      this.ensureWireBackboneConnected(wireSolved);
+      this.enforceSingleSourceWirePort(wireSolved);
+    } else {
+      for (let y = 0; y < gridH; y++) {
+        for (let x = 0; x < gridW; x++) {
+          wireSolved[y][x] = 0;
+        }
+      }
+    }
 
     // Keep incoming wire links into pump. Clearing both sides here makes every level unwinnable
     // because source power can never reach the pump.
@@ -283,11 +327,11 @@ export class PowerPumpGameScene extends Phaser.Scene {
           ? 'special'
           : isObstacle
             ? 'obstacle'
-            : (wireSolved[y][x] !== 0 ? 'wire' : 'pipe');
+            : (wireEnabled && wireSolved[y][x] !== 0 ? 'wire' : 'pipe');
         const randomPipeRot = (isSource || isPump || isObstacle || isTarget)
           ? 0
           : ((seed + id * 37) % 4) as Direction;
-        const randomWireRot = (isSource || isPump || isObstacle || isTarget)
+        const randomWireRot = (!wireEnabled || isSource || isPump || isObstacle || isTarget)
           ? 0
           : ((seed + id * 53 + 7) % 4) as Direction;
         const locked = isSource || isPump || isObstacle || isTarget;
@@ -335,9 +379,10 @@ export class PowerPumpGameScene extends Phaser.Scene {
   private ensureDisconnectedStartState() {
     const unlockedTiles = this.tiles.filter(tile => !tile.locked);
     const seed = this.levelConfig.seed;
+    const wireEnabled = this.isWireEnabled();
 
     const isValidStartState = () => {
-      const wireConnected = this.isWireConnected(this.source, this.pump);
+      const wireConnected = wireEnabled ? this.isWireConnected(this.source, this.pump) : false;
       const targetsReachableFromPump = this.getFilledTargets(true).length;
       return !wireConnected && targetsReachableFromPump === 0;
     };
@@ -351,7 +396,9 @@ export class PowerPumpGameScene extends Phaser.Scene {
     for (let attempt = 1; attempt <= 28; attempt++) {
       for (const tile of unlockedTiles) {
         const nextPipeRot = ((seed + tile.id * 37 + attempt * 53) % 4) as Direction;
-        const nextWireRot = ((seed + tile.id * 41 + attempt * 67) % 4) as Direction;
+        const nextWireRot = wireEnabled
+          ? ((seed + tile.id * 41 + attempt * 67) % 4) as Direction
+          : tile.wireRotation;
         this.setTileRotation(tile, nextPipeRot, nextWireRot);
       }
       if (isValidStartState()) {
@@ -366,7 +413,9 @@ export class PowerPumpGameScene extends Phaser.Scene {
       this.setTileRotation(
         tile,
         ((tile.pipeRotation + 1 + (idx % 2)) % 4) as Direction,
-        ((tile.wireRotation + 2 + (idx % 2)) % 4) as Direction
+        wireEnabled
+          ? ((tile.wireRotation + 2 + (idx % 2)) % 4) as Direction
+          : tile.wireRotation
       );
     });
 
@@ -375,19 +424,75 @@ export class PowerPumpGameScene extends Phaser.Scene {
         this.setTileRotation(
           tile,
           ((tile.pipeRotation + 2 + (idx % 3)) % 4) as Direction,
-          ((tile.wireRotation + 1 + (idx % 2)) % 4) as Direction
+          wireEnabled
+            ? ((tile.wireRotation + 1 + (idx % 2)) % 4) as Direction
+            : tile.wireRotation
         );
       });
     }
 
     for (let i = 0; i < 10 && !isValidStartState(); i++) {
-      const brokenWire = this.breakConnectedWirePath();
+      const brokenWire = wireEnabled ? this.breakConnectedWirePath() : false;
       const brokenPipe = this.breakConnectedPipePath();
       if (!brokenWire && !brokenPipe) break;
     }
 
+    if (this.levelConfig.level <= 8) {
+      for (let attempt = 1; attempt <= 14; attempt++) {
+        if (isValidStartState() && this.hasEarlyFairOpeningMove()) break;
+
+        for (const tile of unlockedTiles) {
+          const nextPipeRot = ((seed + tile.id * 19 + attempt * 41) % 4) as Direction;
+          const nextWireRot = wireEnabled
+            ? ((seed + tile.id * 23 + attempt * 59) % 4) as Direction
+            : tile.wireRotation;
+          this.setTileRotation(tile, nextPipeRot, nextWireRot);
+        }
+      }
+    }
+
     this.flowWireStartMs = Date.now();
     this.flowPipeStartMs = Date.now();
+  }
+
+  private hasEarlyFairOpeningMove() {
+    if (this.levelConfig.level > 8) return true;
+
+    const unlockedTiles = this.tiles.filter(tile => !tile.locked);
+    if (unlockedTiles.length === 0) return true;
+
+    const baseWireConnected = this.isWireEnabled() ? this.isWireConnected(this.source, this.pump) : false;
+    const baseReachableTargets = this.targets.filter(target => this.bfs(this.pump, 'pipe').has(`${target.x},${target.y}`)).length;
+    const baseLeak = this.hasLeak();
+
+    const hasImprovement = () => {
+      const nowWireConnected = this.isWireEnabled() ? this.isWireConnected(this.source, this.pump) : false;
+      const nowReachableTargets = this.targets.filter(target => this.bfs(this.pump, 'pipe').has(`${target.x},${target.y}`)).length;
+      const nowLeak = this.hasLeak();
+
+      const improvedPipe = nowReachableTargets > baseReachableTargets || (baseLeak && !nowLeak);
+      const improvedWire = this.isWireEnabled() && !baseWireConnected && nowWireConnected;
+      return improvedPipe || improvedWire;
+    };
+
+    for (const tile of unlockedTiles) {
+      const basePipeRot = tile.pipeRotation;
+      const baseWireRot = tile.wireRotation;
+
+      this.setTileRotation(tile, ((basePipeRot + 1) % 4) as Direction, baseWireRot);
+      const pipeImproves = hasImprovement();
+      this.setTileRotation(tile, basePipeRot, baseWireRot);
+      if (pipeImproves) return true;
+
+      if (this.isWireEnabled()) {
+        this.setTileRotation(tile, basePipeRot, ((baseWireRot + 1) % 4) as Direction);
+        const wireImproves = hasImprovement();
+        this.setTileRotation(tile, basePipeRot, baseWireRot);
+        if (wireImproves) return true;
+      }
+    }
+
+    return !baseLeak;
   }
 
   private clearMaskConnectionsAtTargets(maskGrid: number[][]) {
@@ -425,6 +530,8 @@ export class PowerPumpGameScene extends Phaser.Scene {
   }
 
   private breakConnectedWirePath() {
+    if (!this.isWireEnabled()) return false;
+
     const path = this.findRuntimePath(this.source, this.pump, 'wire');
     if (!path || path.length < 3) return false;
 
@@ -1499,7 +1606,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
 
   private renderAllTiles() {
     this.renderNowMs = Date.now();
-    this.wireDistanceMap = this.computeDistances(this.source, 'wire');
+    this.wireDistanceMap = this.isWireEnabled() ? this.computeDistances(this.source, 'wire') : new Map();
     this.pipeDistanceMap = this.isPumpOn ? this.computeDistances(this.pump, 'pipe') : new Map();
     this.pipeWetKeys = this.isPumpOn ? this.getReachedPipeKeys() : new Set();
     this.tiles.forEach(tile => this.drawTile(tile));
@@ -1569,7 +1676,9 @@ export class PowerPumpGameScene extends Phaser.Scene {
       return;
     }
 
-    const wireLayerVisibility = this.activeLayer === 'wire' ? 1 : 0.04;
+    const wireLayerVisibility = this.isWireEnabled()
+      ? (this.activeLayer === 'wire' ? 1 : 0.04)
+      : 0;
     const pipeLayerVisibility = this.activeLayer === 'pipe' ? 1 : 0.04;
     const wireAlpha = 0.98 * wireLayerVisibility;
     const pipeAlpha = 0.98 * pipeLayerVisibility;
@@ -2106,7 +2215,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
   }
 
   private rotateTile(tile: RuntimeTile) {
-    if (tile.locked || this.isSolved) return;
+    if (!this.levelStarted || tile.locked || this.isSolved) return;
 
     this.pushHistory();
 
@@ -2122,7 +2231,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
       tile.pipeRotation = nextRot;
       tile.pipeMask = rotateMask(tile.pipeSolvedMask, nextRot);
     }
-    if (this.activeLayer === 'wire') {
+    if (this.activeLayer === 'wire' && this.isWireEnabled()) {
       const nextRot = ((tile.wireRotation + 1) % 4) as Direction;
       tile.wireRotation = nextRot;
       tile.wireMask = rotateMask(tile.wireSolvedMask, nextRot);
@@ -2159,9 +2268,9 @@ export class PowerPumpGameScene extends Phaser.Scene {
 
   private updateDerivedState(fromRotation = false) {
     const now = Date.now();
-    const wireDistances = this.computeDistances(this.source, 'wire');
+    const wireDistances = this.isWireEnabled() ? this.computeDistances(this.source, 'wire') : new Map<string, number>();
     const pumpDistance = wireDistances.get(`${this.pump.x},${this.pump.y}`);
-    const pumpPowered = this.hasFlowArrived(pumpDistance, 'wire', now);
+    const pumpPowered = this.isWireEnabled() ? this.hasFlowArrived(pumpDistance, 'wire', now) : true;
     const prevPumpOn = this.isPumpOn;
 
     if (pumpPowered !== prevPumpOn) {
@@ -2230,6 +2339,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
   }
 
   private isWireConnected(a: { x: number; y: number }, b: { x: number; y: number }) {
+    if (!this.isWireEnabled()) return false;
     return this.bfs(a, 'wire').has(`${b.x},${b.y}`);
   }
 
@@ -2390,6 +2500,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
   }
 
   private setActiveLayer(layer: 'pipe' | 'wire') {
+    if (layer === 'wire' && !this.isWireEnabled()) return;
     if (this.activeLayer === layer) return;
     this.activeLayer = layer;
     this.refreshLayerToggleVisual();
@@ -2398,6 +2509,30 @@ export class PowerPumpGameScene extends Phaser.Scene {
 
   private refreshLayerToggleVisual() {
     if (!this.pipeLayerBg || !this.wireLayerBg || !this.pipeLayerText || !this.wireLayerText) return;
+    if (!this.isWireEnabled()) {
+      this.activeLayer = 'pipe';
+      this.layerHintTween?.stop();
+      this.layerHintTween?.remove();
+      this.layerHintTween = undefined;
+
+      this.wireLayerBg.disableInteractive();
+      this.wireLayerBg.setVisible(false);
+      this.wireLayerText.setVisible(false);
+
+      this.pipeLayerBg.setFillStyle(0x46CCF2, 0.98);
+      this.pipeLayerBg.setStrokeStyle(2, 0xE9FBFF, 0.98);
+      this.pipeLayerText.setColor('#FFFFFF');
+      this.pipeLayerBg.setAlpha(1);
+      this.pipeLayerText.setAlpha(1);
+      this.pipeLayerBg.setScale(1);
+      this.pipeLayerText.setScale(1);
+      return;
+    }
+
+    this.wireLayerBg.setVisible(true);
+    this.wireLayerText.setVisible(true);
+    this.wireLayerBg.setInteractive({ useHandCursor: true });
+
     const pipeActive = this.activeLayer === 'pipe';
 
     this.layerHintTween?.stop();
@@ -2508,7 +2643,7 @@ export class PowerPumpGameScene extends Phaser.Scene {
 
   private refreshTopHud() {
     const filled = this.getFilledTargets().length;
-    const showWaste = this.isPumpOn && filled < this.targets.length;
+    const showWaste = this.isDrainSystemEnabled() && this.isPumpOn && filled < this.targets.length;
     if (!showWaste) {
       this.wasteText.setText('');
       this.wasteText.setVisible(false);

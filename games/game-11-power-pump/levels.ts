@@ -1,6 +1,11 @@
 import type { PowerPumpLevelConfig } from './types';
 
 const LEVEL_COUNT = 30;
+export const WIRE_UNLOCK_LEVEL = 7;
+
+export function isWireEnabledForLevel(level: number) {
+  return level >= WIRE_UNLOCK_LEVEL;
+}
 
 // Explicit unique seed per level (deterministic + easy manual tuning)
 const LEVEL_SEEDS: Record<number, number> = {
@@ -44,7 +49,7 @@ function lerpInt(min: number, max: number, level: number) {
 }
 
 function getGrid(level: number) {
-  if (level <= 4) return { w: 3, h: 4 };
+  if (level <= 2) return { w: 3, h: 4 };
   if (level <= 8) return { w: 4, h: 4 };
   if (level <= 14) return { w: 5, h: 5 };
   if (level <= 20) return { w: 6, h: 5 };
@@ -60,7 +65,8 @@ function getTargets(level: number) {
 }
 
 function getHybrids(level: number) {
-  if (level <= 5) return 0;
+  if (level <= 4) return 0;
+  if (level <= 8) return 1;
   if (level <= 10) return 1;
   if (level <= 15) return 2;
   if (level <= 22) return 3;
@@ -68,13 +74,31 @@ function getHybrids(level: number) {
 }
 
 function getDeadEnds(level: number) {
-  if (level <= 4) return 0;
+  if (level <= 1) return 0;
+  if (level <= 4) return 1;
+  if (level <= 8) return 2;
   if (level <= 10) return 1;
   if (level <= 18) return 2;
   return 3;
 }
 
+type EarlyLevelTuning = Pick<PowerPumpLevelConfig,
+  'parRotations' | 'parWasteMs' | 'targetTimeMs' | 'deadEndTilesCount' | 'hybridTilesCount'
+>;
+
+const EARLY_LEVEL_TUNING: Partial<Record<number, EarlyLevelTuning>> = {
+  1: { parRotations: 8, parWasteMs: 1484, targetTimeMs: 62420, deadEndTilesCount: 0, hybridTilesCount: 0 },
+  2: { parRotations: 8, parWasteMs: 1484, targetTimeMs: 62560, deadEndTilesCount: 1, hybridTilesCount: 0 },
+  3: { parRotations: 7, parWasteMs: 1365, targetTimeMs: 65000, deadEndTilesCount: 1, hybridTilesCount: 0 },
+  4: { parRotations: 9, parWasteMs: 1655, targetTimeMs: 67000, deadEndTilesCount: 1, hybridTilesCount: 0 },
+  5: { parRotations: 10, parWasteMs: 1730, targetTimeMs: 69000, deadEndTilesCount: 2, hybridTilesCount: 1 },
+  6: { parRotations: 11, parWasteMs: 1710, targetTimeMs: 70000, deadEndTilesCount: 2, hybridTilesCount: 1 },
+  7: { parRotations: 13, parWasteMs: 1950, targetTimeMs: 72000, deadEndTilesCount: 2, hybridTilesCount: 1 },
+  8: { parRotations: 13, parWasteMs: 1980, targetTimeMs: 73500, deadEndTilesCount: 2, hybridTilesCount: 1 }
+};
+
 function getWireComplexity(level: number) {
+  if (!isWireEnabledForLevel(level)) return 0;
   return clamp(lerpInt(6, 18, level), 6, 18);
 }
 
@@ -124,6 +148,40 @@ function getTargetTimeMs(level: number) {
   return clamp(target, 60000, 98000);
 }
 
+function getLevelIntro(level: number): PowerPumpLevelConfig['intro'] {
+  if (level === 3) {
+    return {
+      title: 'เริ่มมีทางหลอกแล้ว 🧩',
+      description:
+        'ด่านนี้มีทางตัน/ทางอ้อมมากขึ้นเล็กน้อย\n'
+        + 'ลองไล่เส้นจากปั๊มไปปลายทางทีละช่วง จะช่วยลดการหมุนซ้ำ',
+      oncePerSession: true
+    };
+  }
+
+  if (level === 5) {
+    return {
+      title: 'วางแผนเป็นลำดับขั้น 🧠',
+      description:
+        'ด่านนี้เริ่มต้องคิดหลายชั้นมากขึ้น\n'
+        + 'แนะนำ: วางเส้นหลักก่อน แล้วค่อยเก็บทางย่อย/ทางหลอกทีหลัง',
+      oncePerSession: true
+    };
+  }
+
+  if (level !== WIRE_UNLOCK_LEVEL) return undefined;
+
+  return {
+    title: 'ระบบสายไฟมาแล้ว! ⚡',
+    description:
+      'ด่านนี้ปลดล็อก "เลเยอร์สายไฟ"\n\n'
+      + '1) สลับไปที่แท็บ "สายไฟ" แล้วหมุนให้ไฟจากเครื่องกำเนิดไหลถึงปั๊ม\n'
+      + '2) เมื่อปั๊มติดแล้ว ค่อยสลับกลับมา "ท่อน้ำ" เพื่อส่งน้ำไปยังทุกปลายทาง\n\n'
+      + 'ทริค: ต่อสายไฟให้ถึงปั๊มเป็นขั้นตอนท้าย ๆ เพื่อลดน้ำเสียระหว่างจัดท่อ',
+    oncePerSession: true
+  };
+}
+
 export function getPowerPumpLevel(level: number): PowerPumpLevelConfig {
   const bounded = clamp(level, 1, LEVEL_COUNT);
   const grid = getGrid(bounded);
@@ -133,19 +191,23 @@ export function getPowerPumpLevel(level: number): PowerPumpLevelConfig {
     throw new Error(`Missing seed for Power Pump level ${bounded}`);
   }
 
+  const early = EARLY_LEVEL_TUNING[bounded];
+
   return {
     level: bounded,
     gridW: grid.w,
     gridH: grid.h,
+    wireEnabled: isWireEnabledForLevel(bounded),
     wireComplexity: getWireComplexity(bounded),
     targetsCount: getTargets(bounded),
     pipeJunctionsEnabled: bounded >= 10,
-    hybridTilesCount: getHybrids(bounded),
-    deadEndTilesCount: getDeadEnds(bounded),
-    parRotations: getParRotations(bounded),
-    parWasteMs: getParWasteMs(bounded),
-    targetTimeMs: getTargetTimeMs(bounded),
-    seed
+    hybridTilesCount: early?.hybridTilesCount ?? getHybrids(bounded),
+    deadEndTilesCount: early?.deadEndTilesCount ?? getDeadEnds(bounded),
+    parRotations: early?.parRotations ?? getParRotations(bounded),
+    parWasteMs: early?.parWasteMs ?? getParWasteMs(bounded),
+    targetTimeMs: early?.targetTimeMs ?? getTargetTimeMs(bounded),
+    seed,
+    intro: getLevelIntro(bounded)
   };
 }
 
