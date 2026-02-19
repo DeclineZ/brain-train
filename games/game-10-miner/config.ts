@@ -1,5 +1,6 @@
 import { Types } from 'phaser';
 import { MinerGameScene } from './GameScene';
+import { MinerTutorialScene } from './TutorialScene';
 
 export const MinerGameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -18,5 +19,5 @@ export const MinerGameConfig: Types.Core.GameConfig = {
       gravity: { x: 0, y: 0 }
     }
   },
-  scene: [MinerGameScene]
+  scene: [MinerGameScene, MinerTutorialScene]
 };
