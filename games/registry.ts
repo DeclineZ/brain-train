@@ -15,7 +15,6 @@ import { MinerGameConfig } from './game-10-miner/config';
 import { WordRecognizeGameConfig } from './game-14-wordrecognize/config';
 import { DoorGuardianGameConfig } from './game-16-doorguardian/config';
 import { FloatingMarketGameConfig } from './game-17-floatingmarket/config';
-<<<<<<< HEAD
 import { PowerPumpGameConfig } from './game-11-power-pump/config';
 import { RunForYourLifeGameConfig } from './game-18-runforyourlife/config';
 
