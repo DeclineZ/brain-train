@@ -459,9 +459,10 @@ export default function GamePage({ params }: PageProps) {
         setResult(null); // Explicitly clear before push
 
         if (isEndless) {
-            // Endless games should restart at Level 1 when "Play Again" is clicked
-            // We can use replace to avoid history stack buildup if desired, but push is standard
-            router.push(`/play/${gameId}?level=1`);
+            // Endless games: use handleReplay to increment retryCount,
+            // which changes the GameCanvas key and forces a full remount
+            handleReplay();
+            return;
         } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
@@ -507,7 +508,7 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
-    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' ) {
+    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
@@ -580,7 +581,7 @@ export default function GamePage({ params }: PageProps) {
                     }
                     {/* Game 11 (Power Pump) Game 10 (Miner) with tier-based styling */}
                     {
-                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner' )&& (
+                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>

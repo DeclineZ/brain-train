@@ -233,6 +233,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   // Get game-specific background color to fill any gaps from FIT mode scaling
   const getContainerBackground = () => {
     if (gameId === 'game-05-wormtrain') return '#4a7c4e'; // Match Phaser bg
+    if (gameId === 'game-18-runforyourlife') return '#0a0a2e'; // Dark space
     return 'transparent';
   };
 
