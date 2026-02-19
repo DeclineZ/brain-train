@@ -20,8 +20,8 @@ export interface TaxiDriverLevelConfig {
     brakeStopCount: number;    // Number of brake stops per level
     brakeStopTimeMs: number;   // Time allowed to press Forward
 
-    // Stage/Portal System - multiple mini-maps per level
-    stageCount: number;        // Number of stages (mini-maps) per level (1-5)
+    // Objective System - sequential paths per level
+    objectiveCount: number;    // Number of objectives (sequential paths) per level (1-5)
 
     // Button Swapping Mechanic (Levels 21+)
     swapControls?: boolean;
@@ -46,7 +46,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 4000,
-        stageCount: 1,
+        objectiveCount: 1,
         swapControls: false,
         difficultyMultiplier: 1.0
     },
@@ -68,7 +68,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 3500,
-        stageCount: 1,
+        objectiveCount: 1,
         difficultyMultiplier: 1.0
     },
     2: {
@@ -86,7 +86,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 3200,
-        stageCount: 1,
+        objectiveCount: 1,
         difficultyMultiplier: 1.05
     },
     3: {
@@ -104,7 +104,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 3000,
-        stageCount: 1,
+        objectiveCount: 1,
         difficultyMultiplier: 1.1
     },
 
@@ -125,7 +125,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 3000,
-        stageCount: 1,
+        objectiveCount: 1,
         difficultyMultiplier: 1.15
     },
     5: {
@@ -143,7 +143,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 2800,
-        stageCount: 1,
+        objectiveCount: 1,
         difficultyMultiplier: 1.2
     },
     6: {
@@ -161,7 +161,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2700,
-        stageCount: 2,
+        objectiveCount: 2,
         difficultyMultiplier: 1.25
     },
     7: {
@@ -179,7 +179,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2500,
-        stageCount: 2,
+        objectiveCount: 2,
         difficultyMultiplier: 1.3
     },
 
@@ -200,7 +200,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 2800,
-        stageCount: 2,
+        objectiveCount: 2,
         difficultyMultiplier: 1.3
     },
     9: {
@@ -218,7 +218,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 2600,
-        stageCount: 2,
+        objectiveCount: 2,
         difficultyMultiplier: 1.35
     },
     10: {
@@ -236,7 +236,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2500,
-        stageCount: 2,
+        objectiveCount: 2,
         difficultyMultiplier: 1.4
     },
 
@@ -256,7 +256,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 1,
         brakeStopTimeMs: 2500,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.4
     },
     12: {
@@ -274,7 +274,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2400,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.45
     },
     13: {
@@ -292,7 +292,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2300,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.5
     },
     14: {
@@ -310,7 +310,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2200,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.55
     },
     15: {
@@ -328,7 +328,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2200,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.6
     },
 
@@ -349,7 +349,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2500,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.55,
         swapControls: true,
     },
@@ -368,7 +368,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2400,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.6,
         swapControls: true,
     },
@@ -387,7 +387,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2300,
-        stageCount: 3,
+        objectiveCount: 3,
         difficultyMultiplier: 1.65,
         swapControls: true,
     },
@@ -406,7 +406,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 2200,
-        stageCount: 4,
+        objectiveCount: 4,
         difficultyMultiplier: 1.7,
         swapControls: true,
     },
@@ -425,7 +425,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 2000,
-        stageCount: 4,
+        objectiveCount: 4,
         difficultyMultiplier: 1.75,
         swapControls: true,
     },
@@ -446,7 +446,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2200,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 1.75
     },
@@ -465,7 +465,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2100,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 1.8
     },
@@ -484,7 +484,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 2,
         brakeStopTimeMs: 2000,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 1.85
     },
@@ -503,7 +503,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 2000,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 1.9
     },
@@ -522,7 +522,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1900,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 1.95
     },
@@ -541,7 +541,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1900,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 2.0
     },
@@ -560,7 +560,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1800,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 2.05
     },
@@ -579,7 +579,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1800,
-        stageCount: 4,
+        objectiveCount: 4,
         swapControls: true,
         difficultyMultiplier: 2.1
     },
@@ -600,7 +600,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1800,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.15
     },
@@ -619,7 +619,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 3,
         brakeStopTimeMs: 1700,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.2
     },
@@ -638,7 +638,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 4,
         brakeStopTimeMs: 1700,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.25
     },
@@ -657,7 +657,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 4,
         brakeStopTimeMs: 1600,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.3
     },
@@ -676,7 +676,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 4,
         brakeStopTimeMs: 1600,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.35
     },
@@ -695,7 +695,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 4,
         brakeStopTimeMs: 1500,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.4
     },
@@ -714,7 +714,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
         brakeStopEnabled: true,
         brakeStopCount: 4,
         brakeStopTimeMs: 1500,
-        stageCount: 5,
+        objectiveCount: 5,
         swapControls: true,
         difficultyMultiplier: 2.5
     }
