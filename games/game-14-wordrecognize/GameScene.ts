@@ -17,7 +17,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     protected itemStartTime = 0;
     protected timeLimit = 4000;
     protected isShowingMessage = false;
-    protected currentItemIsImage = false;
+    protected currentItemType: 'text' | 'image' | 'color' = 'text';
 
     // Stats tracking
     protected correctCount = 0;
@@ -27,18 +27,20 @@ export class WordRecognizeGameScene extends Phaser.Scene {
 
     // --- Configuration ---
     private readonly PHASE_ROUNDS = {
-        PHASE_1: 15,
-        PHASE_2: 15,
-        PHASE_3: 15,
-        PHASE_4: 15,
+        PHASE_1: 10,  // Color
+        PHASE_2: 12,  // Face
+        PHASE_3: 15,  // Simple Words
+        PHASE_4: 15,  // Numbers
+        PHASE_5: 15,  // Similar Words
         ENDLESS: 999
     };
 
     private readonly PHASE_POINTS = {
-        PHASE_1: 200,
-        PHASE_2: 500,
-        PHASE_3: 420,
-        PHASE_4: 625,
+        PHASE_1: 150, // Color
+        PHASE_2: 250, // Face
+        PHASE_3: 200, // Simple Words
+        PHASE_4: 500, // Numbers
+        PHASE_5: 420, // Similar Words
         ENDLESS: 1000
     };
 
@@ -54,20 +56,29 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         'น้ำใจ', 'น้ำตา', 'น้ำมัน', 'น้ำผึ้ง'
     ];
 
+
+    // Colors
+    private readonly COLORS = [
+        0xFF0000, 0x0000FF, 0x008000, 0xFFFF00, 0xFFA500,
+        0x800080, 0xFFC0CB, 0x000000, 0xFFFFFF, 0x8B4513,
+        0x00FFFF, 0x808080
+    ];
+
     // Phase Intro Messages
     private readonly PHASE_MESSAGES: Record<number, { title: string; sub: string }> = {
-        1: { title: 'คำง่ายๆ', sub: 'จำคำสั้นๆ แล้วบอกว่าเคยเห็นรึยัง' },
-        2: { title: 'จำตัวเลข', sub: 'ตัวเลข 4 หลัก! ระวังสับสนนะ' },
-        3: { title: 'คำคล้ายกัน', sub: 'คำยาวๆ ที่คล้ายกัน ต้องจำให้ดี!' },
-        4: { title: 'จำใบหน้า', sub: 'ใครเคยเห็น? ดูดีๆ หน้าคล้ายกันหมด!' },
-        5: { title: 'Endless Mode', sub: 'ทุกอย่างรวมกัน! แสดงฝีมือเลย' }
+        1: { title: 'จำสี', sub: 'สีนี้... เคยเห็นหรือยัง?' },
+        2: { title: 'จำใบหน้า', sub: 'ใครเคยเห็น? ดูดีๆ หน้าคล้ายกันหมด!' },
+        3: { title: 'คำง่ายๆ', sub: 'จำคำสั้นๆ แล้วบอกว่าเคยเห็นรึยัง' },
+        4: { title: 'จำตัวเลข', sub: 'ตัวเลขยาวๆ! ระวังสับสนนะ' },
+        5: { title: 'คำคล้ายกัน', sub: 'คำยาวๆ ที่คล้ายกัน ต้องจำให้ดี!' },
+        6: { title: 'Endless Mode', sub: 'รวมทุกอย่าง! ความจำขั้นเทพ' }
     };
-
     // UI Elements
     protected backgroundGraphics!: Phaser.GameObjects.Graphics;
     protected cardContainer!: Phaser.GameObjects.Container;
     protected itemText!: Phaser.GameObjects.Text;
     protected itemImage!: Phaser.GameObjects.Image;
+    protected itemColor!: Phaser.GameObjects.Graphics;
     protected timerBar!: Phaser.GameObjects.Graphics;
     private timerIcon!: Phaser.GameObjects.Graphics;
     protected scoreText!: Phaser.GameObjects.Text;
@@ -266,6 +277,11 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         this.itemImage.setVisible(false);
         this.cardContainer.add(this.itemImage);
 
+        // Item Color - for color phase
+        this.itemColor = this.add.graphics();
+        this.itemColor.setVisible(false);
+        this.cardContainer.add(this.itemColor);
+
         // Timer Below Card
         const timerY = cardH + 20;
 
@@ -286,7 +302,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     }
 
     private drawTimerBar(pct: number) {
-        const { width } = this.scale;
+        const { width, height } = this.scale;
         const cardW = Math.min(width * 0.85, 400);
         const barW = cardW - 40;
         const barH = 12;
@@ -420,24 +436,26 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         this.maxStreak = 0;
 
         // Read starting level from registry (set via URL ?level=X)
+        // Read starting level from registry (set via URL ?level=X)
         const registryLevel = this.registry.get('level') || 1;
-        const startPhase = Math.min(Math.max(registryLevel, 1), 5);
+        const startPhase = Math.min(Math.max(registryLevel, 1), 6);
         this.phase = startPhase;
 
         this.updateScoreUI();
         this.startPhase(startPhase);
     }
-
     private async startPhase(phase: number) {
         this.phase = phase;
-        this.seenItems.clear();
+        this.seenItems.clear(); // Reset memory for new phase (Endless starts fresh)
         this.roundsInPhase = 0;
 
+        // Set total rounds for this phase
         // Set total rounds for this phase
         if (phase === 1) this.totalRoundsInPhase = this.PHASE_ROUNDS.PHASE_1;
         else if (phase === 2) this.totalRoundsInPhase = this.PHASE_ROUNDS.PHASE_2;
         else if (phase === 3) this.totalRoundsInPhase = this.PHASE_ROUNDS.PHASE_3;
         else if (phase === 4) this.totalRoundsInPhase = this.PHASE_ROUNDS.PHASE_4;
+        else if (phase === 5) this.totalRoundsInPhase = this.PHASE_ROUNDS.PHASE_5;
         else this.totalRoundsInPhase = this.PHASE_ROUNDS.ENDLESS;
 
         // Reset Lives (Phase 2+)
@@ -466,22 +484,28 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         this.generateItem();
 
         // Calculate time limit
-        if (this.currentItemIsImage) {
+        // Calculate time limit
+        if (this.currentItemType === 'image') {
             this.timeLimit = 8000;
+        } else if (this.currentItemType === 'color') {
+            this.timeLimit = 4000;
         } else {
             const length = this.currentItem.length;
             this.timeLimit = 5000 + (length * 400);
         }
 
         // Endless mode: adapt by type but decay over time (95% per round)
-        if (this.phase === 5) {
+        if (this.phase === 6) {
             const decay = Math.pow(0.95, this.roundsInPhase);
             this.timeLimit = Math.max(2500, Math.round(this.timeLimit * decay));
         }
 
-        // Update display - show image or text
-        if (this.currentItemIsImage) {
-            this.itemText.setVisible(false);
+        // Update display - show image or text or color
+        this.itemText.setVisible(false);
+        this.itemImage.setVisible(false);
+        this.itemColor.setVisible(false);
+
+        if (this.currentItemType === 'image') {
             this.itemImage.setTexture(this.currentItem);
             this.itemImage.setVisible(true);
             // Re-scale image to fit card
@@ -489,8 +513,15 @@ export class WordRecognizeGameScene extends Phaser.Scene {
             const cardW = Math.min(width * 0.85, 400);
             const imgSize = Math.min(cardW * 0.55, 200);
             this.itemImage.setDisplaySize(imgSize, imgSize);
+        } else if (this.currentItemType === 'color') {
+            this.itemColor.setVisible(true);
+            this.itemColor.clear();
+            const colorVal = parseInt(this.currentItem.split('_')[1], 16);
+            this.itemColor.fillStyle(colorVal, 1);
+            this.itemColor.fillCircle(0, 150, 80); // Center in card (approx)
+            this.itemColor.lineStyle(4, 0xDDDDDD, 1);
+            this.itemColor.strokeCircle(0, 150, 80);
         } else {
-            this.itemImage.setVisible(false);
             this.itemText.setVisible(true);
             this.itemText.setText(this.currentItem);
         }
@@ -512,33 +543,51 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     private generateItem() {
         // Determine item type based on phase
         let items: string[] = [];
-        this.currentItemIsImage = false;
+        this.currentItemType = 'text';
 
         if (this.phase === 1) {
-            items = this.SIMPLE_WORDS;
+            // Colors
+            this.currentItemType = 'color';
+            items = this.COLORS.map(c => `color_${c.toString(16)}`);
         } else if (this.phase === 2) {
-            // Generate numbers with 1-3 digits
-            items = this.generateNumbers(1, 3);
-        } else if (this.phase === 3) {
-            items = this.SIMILAR_WORDS;
-        } else if (this.phase === 4) {
-            // Image recognition - male characters only, pick 10 from 21
-            this.currentItemIsImage = true;
+            // Faces (Male 1-21)
+            this.currentItemType = 'image';
             items = Phaser.Utils.Array.Shuffle([...this.MALE_IMAGES]).slice(0, 10);
+        } else if (this.phase === 3) {
+            // Simple Words
+            this.currentItemType = 'text';
+            items = this.SIMPLE_WORDS;
+        } else if (this.phase === 4) {
+            // Numbers
+            this.currentItemType = 'text';
+            items = this.generateNumbers(1, 4);
+        } else if (this.phase === 5) {
+            // Similar Words
+            this.currentItemType = 'text';
+            items = this.SIMILAR_WORDS;
         } else {
-            // Endless: Mix everything including images
-            const mixType = Phaser.Math.Between(1, 4);
+            // Endless: Mix everything
+            const mixType = Phaser.Math.Between(1, 5);
             if (mixType === 1) {
-                items = this.SIMPLE_WORDS;
+                // Colors
+                this.currentItemType = 'color';
+                items = this.COLORS.map(c => `color_${c.toString(16)}`);
             } else if (mixType === 2) {
-                // Generate numbers with 1-4 digits, 1 digit less frequent
-                items = this.generateNumbers(1, 4, true);
-            } else if (mixType === 3) {
-                items = this.SIMILAR_WORDS;
-            } else {
-                // All images (male + female)
-                this.currentItemIsImage = true;
+                // Faces
+                this.currentItemType = 'image';
                 items = [...this.ALL_IMAGES];
+            } else if (mixType === 3) {
+                // Simple Words
+                this.currentItemType = 'text';
+                items = this.SIMPLE_WORDS;
+            } else if (mixType === 4) {
+                // Numbers
+                this.currentItemType = 'text';
+                items = this.generateNumbers(1, 4, true);
+            } else {
+                // Similar Words
+                this.currentItemType = 'text';
+                items = this.SIMILAR_WORDS;
             }
         }
 
@@ -546,10 +595,12 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         // - Early rounds: more new items
         // - Later rounds: 50/50 chance
         const seenCount = this.seenItems.size;
+
+        // In endless, allow more repeats
         const newItemChance = seenCount < 3 ? 0.8 : 0.5;
 
-        // Sometimes force repeat (surprise!)
-        const forceRepeat = seenCount >= 2 && Math.random() < 0.2;
+        // Force repeat sometimes
+        const forceRepeat = seenCount >= 2 && Math.random() < 0.3;
 
         if (forceRepeat || Math.random() > newItemChance) {
             // Show a seen item
@@ -557,6 +608,12 @@ export class WordRecognizeGameScene extends Phaser.Scene {
             if (seenArray.length > 0) {
                 this.currentItem = seenArray[Phaser.Math.Between(0, seenArray.length - 1)];
                 this.isNewItem = false;
+
+                // CRITICAL FIX: Explicitly set type based on the content
+                if (this.currentItem.startsWith('color_')) this.currentItemType = 'color';
+                else if (this.currentItem.startsWith('char_')) this.currentItemType = 'image';
+                else this.currentItemType = 'text';
+
             } else {
                 // Fallback to new
                 this.pickNewItem(items);
@@ -569,9 +626,20 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     private pickNewItem(items: string[]) {
         // Filter out already seen items
         const available = items.filter(i => !this.seenItems.has(i));
+
+        // Use a Set to prevent picking duplicates from the 'available' list if items list had duplicates, 
+        // but our lists are unique. 
+        // HOWEVER: If we switch types in endless, 'items' changes. 
+        // We only care if it's in this.seenItems.
+
         if (available.length === 0) {
-            // All seen, pick random
+            // All seen, pick random seen item (forced repeat) or fallback
+            // If we really run out of new items (unlikely for numbers, likely for small sets), we MUST repeat.
             this.currentItem = items[Phaser.Math.Between(0, items.length - 1)];
+
+            // It is technically seen if it was in available list? 
+            // If available is empty, it means ALL items are in seenItems.
+            // So this IS a seen item.
             this.isNewItem = false;
         } else {
             this.currentItem = available[Phaser.Math.Between(0, available.length - 1)];
@@ -629,6 +697,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         else if (this.phase === 2) points = this.PHASE_POINTS.PHASE_2;
         else if (this.phase === 3) points = this.PHASE_POINTS.PHASE_3;
         else if (this.phase === 4) points = this.PHASE_POINTS.PHASE_4;
+        else if (this.phase === 5) points = this.PHASE_POINTS.PHASE_5;
         else points = this.PHASE_POINTS.ENDLESS;
 
         this.score += points;
@@ -643,6 +712,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         else if (this.phase === 2 && this.roundsInPhase >= this.PHASE_ROUNDS.PHASE_2) nextPhase = 3;
         else if (this.phase === 3 && this.roundsInPhase >= this.PHASE_ROUNDS.PHASE_3) nextPhase = 4;
         else if (this.phase === 4 && this.roundsInPhase >= this.PHASE_ROUNDS.PHASE_4) nextPhase = 5;
+        else if (this.phase === 5 && this.roundsInPhase >= this.PHASE_ROUNDS.PHASE_5) nextPhase = 6;
 
         if (nextPhase > this.phase) {
             this.soundLevelUp.play();

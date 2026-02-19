@@ -81,7 +81,7 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize';
+    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize' || gameId === 'game-18-runforyourlife';
     // Determine max level based on game
     const maxLevel = gameId === 'game-01-cardmatch' ? 30
         : gameId === 'game-05-wormtrain' ? 15
@@ -89,7 +89,8 @@ export default function GamePage({ params }: PageProps) {
                 : gameId === 'game-08-mysterysound' ? 20
                     : gameId === 'game-15-taxidriver' ? 35
                         : gameId === 'game-10-miner' ? 30
-                            : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+                            : gameId === 'game-17-floatingmarket' ? 30
+                                : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -145,12 +146,37 @@ export default function GamePage({ params }: PageProps) {
                     if (nextLevel > maxLevel) nextLevel = maxLevel;
                 }
 
+                if (gameId === 'game-14-wordrecognize') {
+                    nextLevel = 1;
+                } else if (gameId === 'game-18-runforyourlife') {
+                    // Force tutorial for first time
+                    if (!data) nextLevel = 0;
+                }
+
                 setResumeLevel(nextLevel);
 
                 // Only override activeLevel if no param was provided
                 if (!paramLevel) {
-                    if (data && data.current_played) {
+                    if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
                         setActiveLevel(nextLevel);
+                    } else if (gameId === 'game-14-wordrecognize') {
+                        // Game 14 logic:
+                        // If returning player (data exists), start at Level 1
+                        // If new player (!data), start at tutorial (Level 0)
+                        if (data && data.current_played) {
+                            setActiveLevel(1);
+                        } else {
+                            setActiveLevel(0);
+                        }
+                    } else if (gameId === 'game-18-runforyourlife') {
+                        // Game 18 logic: Same as 14
+                        if (data && data.current_played) {
+                            setActiveLevel(1);
+                        } else {
+                            setActiveLevel(0);
+                        }
+                    } else if (gameId === 'game-17-floatingmarket') {
+                        setActiveLevel(1);
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
                         // if (
@@ -273,8 +299,15 @@ export default function GamePage({ params }: PageProps) {
     }, [result, highScore]);
 
     const handleRestartLevel = useCallback(() => {
+        if (isEndless) {
+            if (activeLevel !== 1) {
+                router.replace(`/play/${gameId}?level=1`);
+                setActiveLevel(1);
+                return;
+            }
+        }
         handleReplay();
-    }, [handleReplay]);
+    }, [handleReplay, isEndless, activeLevel, gameId, router]);
 
     const handleGameOver = useCallback(
         async (rawData: any) => {
@@ -436,8 +469,13 @@ export default function GamePage({ params }: PageProps) {
 
     const handleNextLevel = () => {
         setResult(null); // Explicitly clear before push
-        // For max level, maybe loop or show "Complete"
-        if (activeLevel >= maxLevel) {
+
+        if (isEndless) {
+            // Endless games: use handleReplay to increment retryCount,
+            // which changes the GameCanvas key and forces a full remount
+            handleReplay();
+            return;
+        } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
             // Force reload by pushing new URL or just state update?
@@ -482,7 +520,7 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
-    } else if (gameId === 'game-10-miner') {
+    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
@@ -553,9 +591,9 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
-                    {/* Game 10 (Miner) with tier-based styling */}
+                    {/* Game 11 (Power Pump) Game 10 (Miner) with tier-based styling */}
                     {
-                        gameId === 'game-10-miner' && (
+                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>

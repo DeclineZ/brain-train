@@ -53,6 +53,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     protected cardPanelContainer!: Phaser.GameObjects.Container;
     protected cardIndex = 0;
     protected allowedCharacterIds: string[] = [];
+    protected refViewsUsed = 0;
 
     // --- Background ---
     protected bgContainer!: Phaser.GameObjects.Container;
@@ -88,6 +89,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.isAnimating = false;
         this.timerActive = false;
         this.charImageKeys = new Set();
+        this.refViewsUsed = 0;
     }
 
     preload() {
@@ -419,13 +421,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         // Try image first, fall back to procedural
         if (this.charImageKeys.has(spriteKey)) {
             const img = this.add.image(0, 0, spriteKey);
-            // Responsive sizing for 1500x1500 images - INCREASED SIZE significantly
-            const maxH = height * 0.85;
-            const maxW = width * 0.85;
+            // Responsive sizing - REDUCED SIZE to avoid overlapping with UI/Choices
+            const maxH = height * 0.55;
+            const maxW = width * 0.65;
             const scaleF = Math.min(maxW / img.width, maxH / img.height);
             img.setScale(scaleF);
-            // Shift character down a bit so it looks like standing on the ground
-            img.setY(maxH * 0.05);
+            // Shift character down to be more central but not blocking speech bubble
+            img.setY(maxH * 0.1);
             this.characterContainer.add(img);
         } else {
             // Procedural character
@@ -459,6 +461,10 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             rabbit: { body: 0xFFFFFF, head: 0xFFFFFF, accent: 0xFFB6C1, abnormalHead: 0xFFFFFF },
             bear: { body: 0x8B4513, head: 0x8B4513, accent: 0x654321, abnormalBody: 0x9370DB, abnormalHead: 0x9370DB },
             fox: { body: 0xFF8C00, head: 0xFF8C00, accent: 0xFFD700 },
+            alien: { body: 0x32CD32, head: 0x32CD32, accent: 0x00FF00 },
+            monster: { body: 0x1E90FF, head: 0x1E90FF, accent: 0xFF4500 },
+            ghost: { body: 0xE6E6FA, head: 0xE6E6FA, accent: 0xFFFFFF },
+            robot: { body: 0xA9A9A9, head: 0xC0C0C0, accent: 0xFF0000 },
         };
 
         const p = palettes[char.id] || palettes.woman;
@@ -466,9 +472,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         const headColor = (isAbnormal && p.abnormalHead) ? p.abnormalHead : p.head;
 
         const isAnimal = ['dog', 'cat', 'rabbit', 'bear', 'fox'].includes(char.id);
+        const isCreature = ['alien', 'monster', 'ghost', 'robot'].includes(char.id);
 
         if (isAnimal) {
             this.drawAnimal(g, char.id, bodyColor, headColor, p.accent, isAbnormal);
+        } else if (isCreature) {
+            this.drawCreature(g, char.id, bodyColor, headColor, p.accent, isAbnormal);
         } else {
             this.drawHuman(g, char.id, bodyColor, headColor, p.accent, isAbnormal);
         }
@@ -702,6 +711,98 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         }
     }
 
+    private drawCreature(g: Phaser.GameObjects.Graphics, id: string, bodyColor: number, headColor: number, accent: number, isAbnormal: boolean) {
+        // Shared basic shape
+        g.fillStyle(bodyColor, 1);
+
+        if (id === 'ghost') {
+            // Wavy bottom (simplified to jagged)
+            g.beginPath();
+            g.moveTo(-35, -50); // Top-left
+            g.lineTo(35, -50);  // Top-right
+            g.lineTo(35, 50);   // Bottom-right
+            g.lineTo(17.5, 60); // Jagged point 1
+            g.lineTo(0, 50);    // Jagged point 2
+            g.lineTo(-17.5, 60); // Jagged point 3
+            g.lineTo(-35, 50);  // Bottom-left
+            g.closePath(); // Closes path back to (-35, -50)
+            g.fillPath();
+            // Face
+            g.fillStyle(0x000000, 0.6);
+            g.fillCircle(-12, -15, 6);
+            g.fillCircle(12, -15, 6);
+            g.fillEllipse(0, 10, 10, 15);
+        }
+        else if (id === 'alien') {
+            // Body
+            g.fillRoundedRect(-25, 10, 50, 60, 10);
+            // Head (inverted pear ish)
+            g.fillStyle(headColor, 1);
+            g.fillEllipse(0, -25, 45, 55);
+            // Eyes
+            g.fillStyle(0x000000, 1);
+            g.fillEllipse(-15, -25, 12, 20); // Big eyes
+            g.fillEllipse(15, -25, 12, 20);
+            g.fillStyle(0xFFFFFF, 1);
+            g.fillCircle(-12, -30, 3);
+            g.fillCircle(18, -30, 3);
+
+            if (isAbnormal) {
+                // 3rd eye
+                g.fillStyle(0x000000, 1);
+                g.fillEllipse(0, -45, 10, 15);
+                g.fillStyle(0xFFFFFF, 1);
+                g.fillCircle(0, -48, 2);
+            }
+        }
+        else if (id === 'monster') {
+            // Furry body
+            g.fillRoundedRect(-40, -10, 80, 90, 20);
+            // Horns
+            g.fillStyle(0xFFD700, 1);
+            g.fillTriangle(-20, -10, -35, -40, -10, -10);
+            g.fillTriangle(20, -10, 35, -40, 10, -10);
+            // Face
+            g.fillStyle(0xFFFFFF, 1);
+            g.fillCircle(0, 20, 15); // One eye
+            g.fillStyle(0x333333, 1);
+            g.fillCircle(0, 20, 6);
+            // Teeth
+            g.fillStyle(0xFFFFFF, 1);
+            g.fillTriangle(-10, 50, 10, 50, 0, 65);
+
+            if (isAbnormal) {
+                // Extra horns
+                g.fillStyle(0xFF4500, 1);
+                g.fillTriangle(0, -10, 0, -50, 10, -10);
+            }
+        }
+        else if (id === 'robot') {
+            // Body
+            g.fillStyle(bodyColor, 1);
+            g.fillRect(-35, 10, 70, 70);
+            // Head
+            g.fillStyle(headColor, 1);
+            g.fillRect(-25, -40, 50, 45);
+            // Eyes (visor)
+            g.fillStyle(accent, 1);
+            g.fillRect(-20, -25, 40, 10);
+            // Antenna
+            g.lineStyle(2, 0x333333, 1);
+            g.moveTo(0, -40);
+            g.lineTo(0, -60);
+            g.strokePath();
+            g.fillStyle(accent, 1);
+            g.fillCircle(0, -60, 4);
+
+            if (isAbnormal) {
+                // Broken arm / sparks logic simplified
+                g.fillStyle(0xFF0000, 1);
+                g.fillRect(-45, 20, 10, 40); // Weird arm
+            }
+        }
+    }
+
     // ============ SPEECH BUBBLE ============
 
     private showSpeechBubble(text: string) {
@@ -879,6 +980,21 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.cardPanelContainer.add(hitArea);
 
         hitArea.on('pointerdown', () => {
+            const maxViews = this.levelConfig.maxRefViews;
+            if (maxViews !== undefined && this.refViewsUsed >= maxViews) {
+                // Cannot view anymore
+                // Shake the panel
+                this.tweens.add({
+                    targets: this.cardPanelContainer,
+                    x: panelX + 5,
+                    duration: 50,
+                    yoyo: true,
+                    repeat: 3,
+                });
+                return;
+            }
+
+            this.refViewsUsed++;
             this.cardIndex = (this.cardIndex + 1) % this.allowedCharacterIds.length;
             this.drawReferenceCard();
 
@@ -900,11 +1016,39 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             if (child.type !== 'Rectangle') child.destroy();
         });
 
-        const charId = this.allowedCharacterIds[this.cardIndex] as CharacterId;
-        const char = CHARACTERS[charId];
-
         const cardW = 210;
         const cardH = 230;
+
+        // Check view limit
+        const maxViews = this.levelConfig.maxRefViews;
+        if (maxViews !== undefined && this.refViewsUsed >= maxViews) {
+            // Show "Locked" state
+            const bg = this.add.graphics();
+            bg.fillStyle(0xEEEEEE, 0.95);
+            bg.lineStyle(3, 0x888888, 1);
+            bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+            bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+            this.cardPanelContainer.add(bg);
+
+            const lockText = this.add.text(0, 0, 'จำไว้ให้ดีนะ!', {
+                fontFamily: '"Mali", "Sarabun", sans-serif',
+                fontSize: '24px',
+                color: '#555555',
+                fontStyle: 'bold'
+            }).setOrigin(0.5);
+            this.cardPanelContainer.add(lockText);
+
+            const subText = this.add.text(0, 40, '(ดูครบโควต้าแล้ว)', {
+                fontFamily: '"Mali", "Sarabun", sans-serif',
+                fontSize: '18px',
+                color: '#888888',
+            }).setOrigin(0.5);
+            this.cardPanelContainer.add(subText);
+            return;
+        }
+
+        const charId = this.allowedCharacterIds[this.cardIndex] as CharacterId;
+        const char = CHARACTERS[charId];
 
         // Card background
         const bg = this.add.graphics();
@@ -932,6 +1076,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
                 woman: 0xD2B48C, man: 0x6495ED, kid: 0xFFD700,
                 dog: 0xD2B48C, cat: 0xFF8C00, rabbit: 0xFFFFFF,
                 bear: 0x8B4513, fox: 0xFF8C00,
+                alien: 0x32CD32, monster: 0x1E90FF, ghost: 0xE6E6FA, robot: 0xC0C0C0
             };
             const col = palette[charId] || 0xCCCCCC;
             miniG.fillStyle(col, 1);
@@ -957,7 +1102,15 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             this.cardPanelContainer.add(dot);
         }
 
-        // Swipe arrow hint
+        // Swipe arrow hint OR views remaining
+        if (maxViews !== undefined) {
+            const remaining = maxViews - this.refViewsUsed;
+            const limitText = this.add.text(cardW / 2 - 5, -cardH / 2 + 15, `${remaining}`, {
+                fontSize: '16px', color: '#FF6B6B', fontStyle: 'bold'
+            }).setOrigin(1, 0);
+            this.cardPanelContainer.add(limitText);
+        }
+
         const arrow = this.add.text(cardW / 2 + 5, -10, '↔', {
             fontSize: '18px', color: '#AAAAAA',
         }).setOrigin(0.5);
@@ -1033,47 +1186,66 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         const config = this.levelConfig;
         const pool = config.characterPool as CharacterId[];
         const allowedSet = new Set(config.allowedCharacters);
-        const notAllowedInPool = pool.filter(id => !allowedSet.has(id));
 
-        // Guarantee at least 1 non-allowed visitor if possible
-        const guaranteedNotAllowed = notAllowedInPool.length > 0 ? 1 : 0;
+        // Count how many guaranteed abnormals
+        let abnormalCount = config.guaranteedAbnormal || 0;
+        // Remaining visitors
+        let remaining = config.totalVisitors - abnormalCount;
+        if (remaining < 0) { abnormalCount = config.totalVisitors; remaining = 0; }
 
-        for (let i = 0; i < config.totalVisitors; i++) {
+        const generated: Visitor[] = [];
+        let previousCharId: CharacterId | null = null;
+
+        // Helper to get random char that isn't previous (reduce repetition)
+        const getChar = () => {
             let charId: CharacterId;
+            let attempts = 0;
+            do {
+                charId = pool[Math.floor(Math.random() * pool.length)];
+                attempts++;
+            } while (charId === previousCharId && attempts < 10);
+            previousCharId = charId;
+            return charId;
+        };
 
-            if (i < guaranteedNotAllowed) {
-                // Force a non-allowed visitor first
-                charId = notAllowedInPool[Math.floor(Math.random() * notAllowedInPool.length)];
-            } else {
-                // 60% from allowed, 40% from non-allowed (if available)
-                const pickAllowed = notAllowedInPool.length === 0 || Math.random() < 0.6;
-                if (pickAllowed) {
-                    charId = config.allowedCharacters[
-                        Math.floor(Math.random() * config.allowedCharacters.length)
-                    ] as CharacterId;
-                } else {
-                    charId = notAllowedInPool[Math.floor(Math.random() * notAllowedInPool.length)];
-                }
-            }
+        // 1. Generate guaranteed abnormals
+        for (let i = 0; i < abnormalCount; i++) {
+            const charId = getChar();
+            const character = CHARACTERS[charId];
+            // Abnormal guaranteed
+            // Use abnormal dialogue
+            const dialogues = character.abnormalDialogue;
+            const dialogue = dialogues[Math.floor(Math.random() * dialogues.length)];
 
+            generated.push({
+                character,
+                isAbnormal: true,
+                isAllowed: false, // Abnormal is ALWAYS not allowed 
+                dialogue
+            });
+        }
+
+        // 2. Generate remaining (mix of normal allowed/not allowed + chance of extra abnormal)
+        for (let i = 0; i < remaining; i++) {
+            const charId = getChar();
             const character = CHARACTERS[charId];
             const isInAllowed = allowedSet.has(charId);
-            const isAbnormal = isInAllowed && Math.random() < config.abnormalChance;
 
-            // A visitor should be allowed ONLY if:
-            // 1. They are in the allowed list AND
-            // 2. They are NOT abnormal
+            // Chance for extra abnormal?
+            const isAbnormal = Math.random() < (config.abnormalChance || 0);
+
+            // Final decision: Allowed ONLY if In Allowed List AND Normal
             const isAllowed = isInAllowed && !isAbnormal;
 
-            // Pick dialogue
             const dialogues = isAbnormal ? character.abnormalDialogue : character.normalDialogue;
             const dialogue = dialogues[Math.floor(Math.random() * dialogues.length)];
 
-            this.visitors.push({ character, isAbnormal, isAllowed, dialogue });
+            generated.push({ character, isAbnormal, isAllowed, dialogue });
         }
 
         // Shuffle the visitors
-        Phaser.Utils.Array.Shuffle(this.visitors);
+        Phaser.Utils.Array.Shuffle(generated);
+        this.visitors = generated;
     }
 
     protected startRound() {

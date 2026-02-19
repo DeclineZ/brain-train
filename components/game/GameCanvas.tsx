@@ -100,6 +100,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-09-tube-sort') {
           const { TubeSortTutorialScene } = await import('@/games/game-09-tube-sort/TutorialScene');
           config.scene = TubeSortTutorialScene;
+        } else if (gameId === 'game-10-miner') {
+          const { MinerTutorialScene } = await import('@/games/game-10-miner/TutorialScene');
+          config.scene = MinerTutorialScene;
         } else if (gameId === 'game-12-gridhunter') {
           const { TutorialScene } = await import('@/games/game-12-gridhunter/TutorialScene');
           config.scene = TutorialScene;
@@ -111,7 +114,8 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
           config.scene = WordRecognizeTutorialScene;
         } else if (gameId === 'game-15-taxidriver') {
           const { TaxiDriverTutorialScene } = await import('@/games/game-15-taxidriver/TutorialScene');
-          config.scene = TaxiDriverTutorialScene;
+          const { TaxiDriverGameScene } = await import('@/games/game-15-taxidriver/GameScene');
+          config.scene = [TaxiDriverTutorialScene, TaxiDriverGameScene];
         } else if (gameId === 'game-16-doorguardian') {
           const { DoorGuardianTutorialScene } = await import('@/games/game-16-doorguardian/TutorialScene');
           config.scene = DoorGuardianTutorialScene;
@@ -233,6 +237,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   // Get game-specific background color to fill any gaps from FIT mode scaling
   const getContainerBackground = () => {
     if (gameId === 'game-05-wormtrain') return '#4a7c4e'; // Match Phaser bg
+    if (gameId === 'game-18-runforyourlife') return '#0a0a2e'; // Dark space
     return 'transparent';
   };
 
