@@ -34,6 +34,7 @@ export class ObstacleManager {
 
     // Track occupied lanes per spawn wave to guarantee passable path
     private lastOccupiedLanes: Set<number> = new Set();
+    private isTutorial: boolean = false;
 
     constructor(scene: Phaser.Scene, config: TrackConfig) {
         this.scene = scene;
@@ -58,6 +59,15 @@ export class ObstacleManager {
 
     update(time: number, delta: number) {
         if (this.isStopped) return;
+
+        // In tutorial, we don't auto-spawn waves or zones
+        if (this.isTutorial) {
+            this.obstacles.setVelocityY(this.currentSpeed);
+            this.zones.setVelocityY(this.currentSpeed);
+            const offScreenY = this.CANVAS_H + 100;
+            this.cleanupGroup(this.obstacles, offScreenY);
+            return;
+        }
 
         // Speed up (slow ramp)
         if (this.currentSpeed < this.MAX_SPEED) {
@@ -150,7 +160,7 @@ export class ObstacleManager {
         }
     }
 
-    private spawnWreckedShip(laneIndex: number) {
+    public spawnWreckedShip(laneIndex: number) {
         const x = this.laneX(laneIndex);
         const size = Math.floor(this.LANE_WIDTH * 0.85);
         const obstacle = this.obstacles.create(x, -80, 'enemy-wrecked') as Phaser.Physics.Arcade.Sprite;
@@ -279,5 +289,27 @@ export class ObstacleManager {
 
     public getZones() {
         return this.zones;
+    }
+
+    public setTutorialMode(enabled: boolean) {
+        this.isTutorial = enabled;
+    }
+
+    public spawnWreckedShipTarget(laneIndex: number) {
+        const x = this.laneX(laneIndex);
+        const size = Math.floor(this.LANE_WIDTH * 0.85);
+
+        // Target for shooting tutorial - distinct look (maybe flashes?)
+        const obstacle = this.obstacles.create(x, -80, 'enemy-wrecked') as Phaser.Physics.Arcade.Sprite;
+        obstacle.setData('type', 'OBSTACLE');
+        obstacle.setData('isTarget', true); // Identify as tutorial target
+        obstacle.setDisplaySize(size, size);
+        obstacle.setVelocityY(this.currentSpeed * 0.5); // Moves slower
+        obstacle.setImmovable(true);
+        obstacle.setDepth(10);
+        obstacle.setTint(0xFF0000); // Red tint to indicate target
+        if (obstacle.body) {
+            obstacle.body.setSize(size * 0.8, size * 0.8);
+        }
     }
 }

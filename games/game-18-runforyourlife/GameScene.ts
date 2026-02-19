@@ -42,6 +42,17 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private starParticles: { x: number; y: number; size: number; alpha: number; speed: number }[] = [];
     private starGraphics!: Phaser.GameObjects.Graphics;
 
+    // Tutorial State
+    private isTutorial: boolean = false;
+    private tutorialPhase: number = 0;
+    private tutorialInputReceived: boolean = false;
+    private controlsLocked: boolean = false;
+    private leftBtn!: Phaser.GameObjects.Rectangle;
+    private rightBtn!: Phaser.GameObjects.Rectangle;
+
+    // Powerup Tutorial State
+    private seenPowerups: Set<string> = new Set();
+
     // Gun skill
     private gunAmmo: number = 1; // Start with 1
     private gunAmmoText!: Phaser.GameObjects.Text;
@@ -49,6 +60,30 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
 
     constructor() {
         super({ key: 'RunForYourLifeGameScene' });
+    }
+
+    init(data: { level?: number }) {
+        let level = data?.level;
+        if (level === undefined) {
+            level = this.registry.get('level');
+        }
+
+        // If level is 0, start tutorial mode
+        this.isTutorial = level === 0;
+
+        // Reset states
+        this.score = 0;
+        this.coins = 0;
+        this.isGameOver = false;
+        this.isPaused = false;
+        this.magnetActive = false;
+        this.ghostActive = false;
+        this.slowMoActive = false;
+        this.currentSector = 1;
+        this.gunAmmo = 1;
+        this.controlsLocked = false;
+        this.tutorialPhase = 0;
+        this.tutorialInputReceived = false;
     }
 
     preload() {
@@ -143,7 +178,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             color: '#F1C40F',
             stroke: '#000000',
             strokeThickness: 3,
-            padding: { top: 4, bottom: 4 },
+            padding: { top: 8, bottom: 8, left: 8, right: 8 },
         }).setOrigin(0, 0).setDepth(60);
 
         this.sectorText = this.add.text(this.TRACK_LEFT + 4, 70, 'SECTOR 1', {
@@ -152,7 +187,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             color: '#AA88FF',
             stroke: '#000000',
             strokeThickness: 3,
-            padding: { top: 4, bottom: 4 },
+            padding: { top: 8, bottom: 8, left: 8, right: 8 },
         }).setOrigin(0, 0).setDepth(60);
 
         // Player
@@ -174,13 +209,27 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             canvasH: this.CANVAS_H,
         });
 
+        // Create controls (buttons)
+        this.createControls();
+
+        if (this.isTutorial) {
+            this.obstacleManager.setTutorialMode(true);
+            this.runTutorial();
+        } else {
+            // Normal start
+            // Start BGM
+            if (!this.sound.get('bgm')) {
+                this.sound.add('bgm', { loop: true, volume: 0.4 }).play();
+            }
+        }
+
         // Collisions
         this.physics.add.overlap(this.player, this.obstacleManager.getObstacles(), this.handleCollision, undefined, this);
         this.physics.add.overlap(this.player, this.obstacleManager.getLasers(), this.handleCollision, undefined, this);
         this.physics.add.overlap(this.player, this.obstacleManager.getZones(), this.handleZoneOverlap, undefined, this);
 
-        // Controls (direction only, no shape buttons)
-        this.createControls();
+        // Resize handler
+        this.scale.on('resize', this.handleResize, this);
 
         // Resize handler
         this.scale.on('resize', this.handleResize, this);
@@ -289,6 +338,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .setDepth(60)
             .setStrokeStyle(3, 0xFFFFFF, 0.5);
+        this.leftBtn = leftBtn;
         this.add.text(leftBtnX, btnY, '◀', { fontSize: '36px', color: '#FFFFFF' })
             .setOrigin(0.5).setDepth(61);
 
@@ -314,14 +364,25 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .setDepth(60)
             .setStrokeStyle(3, 0xFFFFFF, 0.5);
+        this.rightBtn = rightBtn;
         this.add.text(rightBtnX, btnY, '▶', { fontSize: '36px', color: '#FFFFFF' })
             .setOrigin(0.5).setDepth(61);
 
         // Movement handlers
-        leftBtn.on('pointerdown', () => this.player.startMoveLeft());
+        leftBtn.on('pointerdown', () => {
+            if (!this.controlsLocked) {
+                this.player.startMoveLeft();
+                this.handleTutorialInput();
+            }
+        });
         leftBtn.on('pointerup', () => this.player.stopMove());
         leftBtn.on('pointerout', () => this.player.stopMove());
-        rightBtn.on('pointerdown', () => this.player.startMoveRight());
+        rightBtn.on('pointerdown', () => {
+            if (!this.controlsLocked) {
+                this.player.startMoveRight();
+                this.handleTutorialInput();
+            }
+        });
         rightBtn.on('pointerup', () => this.player.stopMove());
         rightBtn.on('pointerout', () => this.player.stopMove());
 
@@ -329,9 +390,141 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.gunBtn.on('pointerdown', () => this.fireGun());
     }
 
+    private runTutorial() {
+        this.tutorialPhase = 1;
+        this.tutorialInputReceived = false;
+        // Removed speed override to match normal mode
+
+        // Phase 1: Movement
+        this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'แตะปุ่มเพื่อขยับ', {
+            fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FFFFFF',
+            stroke: '#000000', strokeThickness: 4,
+            padding: { top: 10, bottom: 10, left: 10, right: 10 }
+        }).setOrigin(0.5).setDepth(100);
+
+        // Pulse buttons
+        this.tweens.add({
+            targets: [this.leftBtn, this.rightBtn],
+            scale: 1.2,
+            duration: 500,
+            yoyo: true,
+            repeat: -1 // Loop until input
+        });
+    }
+
+    private handleTutorialInput() {
+        if (this.isTutorial && this.tutorialPhase === 1 && !this.tutorialInputReceived) {
+            this.tutorialInputReceived = true;
+
+            // Stop pulsing
+            this.tweens.killTweensOf([this.leftBtn, this.rightBtn]);
+            this.leftBtn.setScale(1);
+            this.rightBtn.setScale(1);
+
+            // Wait 2s then spawn obstacles
+            this.time.delayedCall(2000, () => {
+                if (this.tutorialText) this.tutorialText.destroy();
+                this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'หลบก้อนหิน!', {
+                    fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FF0000',
+                    stroke: '#000000', strokeThickness: 4,
+                    padding: { top: 10, bottom: 10, left: 10, right: 10 }
+                }).setOrigin(0.5).setDepth(100);
+
+                // Spawn 2 wrecked ships
+                this.obstacleManager.spawnWreckedShip(1); // Lane 1
+                this.time.delayedCall(1500, () => {
+                    this.obstacleManager.spawnWreckedShip(3); // Lane 3
+                    if (this.tutorialText) this.tutorialText.destroy();
+
+                    // Phase 2: Shooting
+                    this.time.delayedCall(2000, () => this.startShootingTutorial());
+                });
+            });
+        }
+    }
+
+    private tutorialText?: Phaser.GameObjects.Text;
+
+    private startShootingTutorial() {
+        this.tutorialPhase = 2;
+
+        // Move to center and lock
+        const centerLaneX = this.TRACK_LEFT + 2.5 * this.LANE_WIDTH;
+        if (Math.abs(this.player.x - centerLaneX) > 10) {
+            // Tween player to center if not there
+            this.tweens.add({
+                targets: this.player,
+                x: centerLaneX,
+                duration: 500,
+                onComplete: () => this.lockControlsForShooting()
+            });
+        } else {
+            this.lockControlsForShooting();
+        }
+    }
+
+    private lockControlsForShooting() {
+        this.controlsLocked = true;
+        this.player.stopMove();
+
+        const text3 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'ยิงเพื่อทำลาย!', {
+            fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FFFF00',
+            stroke: '#000000', strokeThickness: 4,
+            padding: { top: 10, bottom: 10, left: 10, right: 10 }
+        }).setOrigin(0.5).setDepth(100);
+
+        // Pulse gun button
+        this.tweens.add({
+            targets: this.gunBtn,
+            scale: 1.3,
+            duration: 600,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Ensure ammo
+        if (this.gunAmmo < 1) {
+            this.gunAmmo = 1;
+            this.gunAmmoText.setText('1');
+            this.updateGunButtonVisual();
+        }
+
+        // Spawn target in center lane
+        this.time.delayedCall(1000, () => {
+            this.obstacleManager.spawnWreckedShipTarget(2); // Center lane (index 2 for 5 lanes: 0,1,2,3,4)
+        });
+    }
+
+    private endTutorial() {
+        this.isTutorial = false;
+        this.controlsLocked = false;
+        this.obstacleManager.setTutorialMode(false);
+        this.tweens.killTweensOf(this.gunBtn);
+        this.gunBtn.setScale(1);
+
+        const text4 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2, 'พร้อมลุย!', {
+            fontSize: '32px', fontFamily: '"Press Start 2P"', color: '#00FF00',
+            stroke: '#000000', strokeThickness: 4,
+            padding: { top: 10, bottom: 10, left: 10, right: 10 }
+        }).setOrigin(0.5).setDepth(100);
+
+        this.time.delayedCall(2000, () => {
+            text4.destroy();
+            // Start music
+            if (!this.sound.get('bgm')) {
+                this.sound.add('bgm', { loop: true, volume: 0.4 }).play();
+            }
+        });
+    }
+
     private fireGun() {
         if (this.isGameOver || this.isPaused) return;
         if (this.gunAmmo <= 0) return;
+
+        // In tutorial phase 2, check if we hit the target
+        if (this.isTutorial && this.tutorialPhase === 2) {
+            // Allow firing
+        }
 
         this.gunAmmo--;
         this.gunAmmoText.setText(String(this.gunAmmo));
@@ -385,6 +578,19 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         for (const sprite of toDestroy) {
             this.spawnExplosionEffect(sprite.x, sprite.y);
             this.score += 100;
+
+            // Check if we destroyed the tutorial target
+            if (this.isTutorial && this.tutorialPhase === 2 && sprite.getData('isTarget')) {
+                // Tutorial complete!
+                this.children.list.forEach(child => {
+                    // Remove "Shoot to destroy!" text
+                    if (child instanceof Phaser.GameObjects.Text && child.text === 'ยิงเพื่อทำลาย!') {
+                        child.destroy();
+                    }
+                });
+                this.endTutorial();
+            }
+
             const group = sprite.getData('type') === 'LASER'
                 ? this.obstacleManager.getLasers()
                 : this.obstacleManager.getObstacles();
@@ -463,7 +669,32 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.player.setSurface('NORMAL');
         this.background.tilePositionY -= this.obstacleManager.currentSpeed * (delta / 1000);
         this.updateStarParticles(delta);
-        this.checkSectorTransition();
+        if (!this.isTutorial) {
+            this.checkSectorTransition();
+        } else {
+            // Tutorial Phase 2 Safety Check
+            if (this.tutorialPhase === 2) {
+                // 1. Replenish ammo if empty
+                if (this.gunAmmo < 1) {
+                    this.gunAmmo = 1;
+                    this.gunAmmoText.setText('1');
+                    this.updateGunButtonVisual();
+                }
+                // 2. Respawn target if missed (no target in obstacles group)
+                const hasTarget = this.obstacleManager.getObstacles().getChildren().some(
+                    (child: any) => child.active && child.getData('isTarget')
+                );
+                if (!hasTarget) {
+                    if (!this.registry.get('tutorial_respawn_cooldown')) {
+                        this.registry.set('tutorial_respawn_cooldown', true);
+                        this.time.delayedCall(1500, () => {
+                            this.obstacleManager.spawnWreckedShipTarget(2); // Center
+                            this.registry.set('tutorial_respawn_cooldown', false);
+                        });
+                    }
+                }
+            }
+        }
     }
 
     private checkSectorTransition() {
@@ -571,18 +802,128 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         const type = powerup.getData('powerupType');
         (powerup as Phaser.Physics.Arcade.Sprite).disableBody(true, true);
         this.sound.play('sfx-powerup', { volume: 0.5 });
+
+        // Check if first time collecting this powerup
+        if (!this.checkSeenPowerup(type)) {
+            this.markSeenPowerup(type);
+            this.showPowerupTutorial(type, () => {
+                this.activatePowerupEffect(type);
+            });
+        } else {
+            this.activatePowerupEffect(type);
+        }
+    }
+
+    private checkSeenPowerup(type: string): boolean {
+        try {
+            const key = 'brain-train-game-18-seen-powerups';
+            const stored = localStorage.getItem(key);
+            const seen = stored ? JSON.parse(stored) : [];
+            return seen.includes(type);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private markSeenPowerup(type: string) {
+        try {
+            const key = 'brain-train-game-18-seen-powerups';
+            const stored = localStorage.getItem(key);
+            const seen = stored ? JSON.parse(stored) : [];
+            if (!seen.includes(type)) {
+                seen.push(type);
+                localStorage.setItem(key, JSON.stringify(seen));
+            }
+            this.seenPowerups.add(type);
+        } catch (e) {
+            // Ignore error
+        }
+    }
+
+    private activatePowerupEffect(type: string) {
         if (type === 'MAGNET') this.activateMagnet();
         else if (type === 'GHOST') this.activateGhost();
         else if (type === 'SLOWMO') this.activateSlowMo();
         else if (type === 'GUN') this.collectGun();
     }
 
-    private collectGun() {
-        if (this.gunAmmo < 1) {
-            this.gunAmmo = 1;
-            this.gunAmmoText.setText(String(this.gunAmmo));
-            this.updateGunButtonVisual();
+    private showPowerupTutorial(type: string, onComplete: () => void) {
+        this.isPaused = true;
+        this.physics.pause();
+        const cx = this.CANVAS_W / 2;
+        const cy = this.CANVAS_H / 2;
+        const fontFamily = '"Press Start 2P", "Courier New", monospace';
+
+        const overlay = this.add.rectangle(cx, cy, this.CANVAS_W, this.CANVAS_H, 0x000000, 0.7).setDepth(90);
+        const popupBg = this.add.rectangle(cx, cy, Math.min(360, this.CANVAS_W * 0.85), 320, 0x1a1a4e, 0.95)
+            .setDepth(91).setStrokeStyle(3, 0x6633CC);
+
+        let title = '';
+        let body = '';
+        let textureKey = '';
+
+        switch (type) {
+            case 'MAGNET':
+                title = '🧲 แม่เหล็ก';
+                body = 'ดูดเหรียญรอบตัว\nเป็นเวลา 5 วินาที';
+                textureKey = 'powerup-magnet-img';
+                break;
+            case 'GHOST':
+                title = '👻 ร่างวิญญาณ';
+                body = 'ทะลุผ่านสิ่งกีดขวาง\nได้ชั่วคราว';
+                textureKey = 'powerup-ghost-img';
+                break;
+            case 'SLOWMO':
+                title = '⏱️ สโลว์โมชั่น';
+                body = 'ลดความเร็วของเกม\nเพื่อให้หลบง่ายขึ้น';
+                textureKey = 'powerup-slowmo-img';
+                break;
+            case 'GUN':
+                title = '🔫 ปืนเลเซอร์';
+                body = 'ยิงทำลายสิ่งกีดขวาง\nกระสุนสูงสุด 2 นัด';
+                textureKey = 'powerup-gun';
+                break;
         }
+
+        const titleText = this.add.text(cx, cy - 110, title, {
+            fontSize: '24px', fontFamily, color: '#FFFF00',
+            stroke: '#000000', strokeThickness: 4,
+            padding: { top: 8, bottom: 8, left: 8, right: 8 },
+        }).setOrigin(0.5).setDepth(92);
+
+        // Powerup Image
+        const img = this.add.image(cx, cy - 50, textureKey)
+            .setDisplaySize(64, 64)
+            .setDepth(92);
+
+        const bodyText = this.add.text(cx, cy + 20, body, {
+            fontSize: '18px', color: '#CCCCFF', align: 'center',
+            lineSpacing: 8, padding: { top: 8, bottom: 8, left: 8, right: 8 },
+        }).setOrigin(0.5).setDepth(92);
+
+        const okBtn = this.add.rectangle(cx, cy + 100, 180, 48, 0x4CAF50, 0.9)
+            .setInteractive({ useHandCursor: true }).setDepth(92)
+            .setStrokeStyle(2, 0xFFFFFF, 0.5);
+
+        const okText = this.add.text(cx, cy + 100, 'ตกลง', {
+            fontSize: '18px', fontFamily, color: '#FFFFFF',
+            padding: { top: 8, bottom: 8, left: 8, right: 8 },
+        }).setOrigin(0.5).setDepth(93);
+
+        const closePopup = () => {
+            [overlay, popupBg, titleText, img, bodyText, okBtn, okText].forEach(o => o.destroy());
+            this.isPaused = false;
+            this.physics.resume();
+            onComplete();
+        };
+
+        okBtn.on('pointerdown', closePopup);
+    }
+
+    private collectGun() {
+        this.gunAmmo = 2; // Always set to 2 (max)
+        if (this.gunAmmoText) this.gunAmmoText.setText(String(this.gunAmmo));
+        this.updateGunButtonVisual();
     }
 
     private activateMagnet() {

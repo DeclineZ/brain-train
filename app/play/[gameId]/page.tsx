@@ -148,18 +148,28 @@ export default function GamePage({ params }: PageProps) {
 
                 if (gameId === 'game-14-wordrecognize') {
                     nextLevel = 1;
+                } else if (gameId === 'game-18-runforyourlife') {
+                    // Force tutorial for first time
+                    if (!data) nextLevel = 0;
                 }
 
                 setResumeLevel(nextLevel);
 
                 // Only override activeLevel if no param was provided
                 if (!paramLevel) {
-                    if (data && data.current_played && gameId !== 'game-14-wordrecognize') {
+                    if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
                         setActiveLevel(nextLevel);
                     } else if (gameId === 'game-14-wordrecognize') {
                         // Game 14 logic:
                         // If returning player (data exists), start at Level 1
                         // If new player (!data), start at tutorial (Level 0)
+                        if (data && data.current_played) {
+                            setActiveLevel(1);
+                        } else {
+                            setActiveLevel(0);
+                        }
+                    } else if (gameId === 'game-18-runforyourlife') {
+                        // Game 18 logic: Same as 14
                         if (data && data.current_played) {
                             setActiveLevel(1);
                         } else {
