@@ -114,7 +114,8 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
           config.scene = WordRecognizeTutorialScene;
         } else if (gameId === 'game-15-taxidriver') {
           const { TaxiDriverTutorialScene } = await import('@/games/game-15-taxidriver/TutorialScene');
-          config.scene = TaxiDriverTutorialScene;
+          const { TaxiDriverGameScene } = await import('@/games/game-15-taxidriver/GameScene');
+          config.scene = [TaxiDriverTutorialScene, TaxiDriverGameScene];
         } else if (gameId === 'game-16-doorguardian') {
           const { DoorGuardianTutorialScene } = await import('@/games/game-16-doorguardian/TutorialScene');
           config.scene = DoorGuardianTutorialScene;

@@ -175,6 +175,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     private totalDistanceNeeded = 0;
     private collisionCooldown = 0;
     private alertShown = false;
+    private gameStarted = false; // Add gameStarted flag
 
     // Water effects
     private waterParticleTimer = 0;
@@ -295,18 +296,11 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.coinGroup = this.physics.add.group();
         this.itemGroup = this.physics.add.group();
 
-        this.setupInput(width, height);
-
-        this.physics.add.overlap(this.boat, this.obstacleGroup, this.handleObstacleCollision, undefined, this);
-        this.physics.add.overlap(this.boat, this.coinGroup, this.handleCoinCollect, undefined, this);
-        this.physics.add.overlap(this.boat, this.itemGroup, this.handleItemCollect, undefined, this);
-
         if (this.levelConfig.lowVisibility) {
             this.fogOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.45);
             this.fogOverlay.setDepth(15);
         }
 
-        this.gameStartTime = Date.now();
         this.scale.on('resize', () => this.handleResize());
 
         // Ambient river flow sound
@@ -314,6 +308,46 @@ export class FloatingMarketScene extends Phaser.Scene {
             this.sound.play('river-flow', { loop: true, volume: 0.25 });
             this.sound.play('bg-music', { loop: true, volume: 0.15 });
         } catch (e) { /* audio may not be available */ }
+
+        // Show "Tap to Start" overlay to ensure valid user gesture for sensor permissions
+        this.showTapToStart(width, height);
+    }
+
+    private showTapToStart(width: number, height: number) {
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+        overlay.setDepth(200);
+        overlay.setInteractive();
+
+        const text = this.add.text(width / 2, height / 2, 'แตะเพื่อเริ่มเกม', {
+            fontSize: '32px', fontFamily: "'Noto Sans Thai', sans-serif",
+            color: '#FFFFFF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        });
+        text.setOrigin(0.5);
+        text.setDepth(201);
+
+        // Pulse effect
+        this.tweens.add({
+            targets: text, scaleX: 1.1, scaleY: 1.1,
+            duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+        });
+
+        overlay.once('pointerdown', () => {
+            overlay.destroy();
+            text.destroy();
+            this.startGame();
+        });
+    }
+
+    private startGame() {
+        this.gameStarted = true;
+        this.gameStartTime = Date.now();
+        const { width, height } = this.scale;
+
+        this.setupInput(width, height);
+
+        this.physics.add.overlap(this.boat, this.obstacleGroup, this.handleObstacleCollision, undefined, this);
+        this.physics.add.overlap(this.boat, this.coinGroup, this.handleCoinCollect, undefined, this);
+        this.physics.add.overlap(this.boat, this.itemGroup, this.handleItemCollect, undefined, this);
     }
 
     private buildItemSpawnQueue() {
@@ -441,7 +475,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             const y = row * cellH + gap / 2;
             const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
             const stall = this.add.sprite(leftCx, y, `stall_img_${color}`);
-            stall.setAngle(90); // rotate landscape → portrait
+            stall.setAngle(-90); // rotate to face river
             stall.displayWidth = stallDisplayH; // swapped because rotated
             stall.displayHeight = stallDisplayW;
             stall.setDepth(5);
@@ -454,7 +488,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             const y = row * cellH + gap / 2;
             const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
             const stall = this.add.sprite(rightCx, y, `stall_img_${color}`);
-            stall.setAngle(-90); // mirror rotation for right side
+            stall.setAngle(90); // mirror rotation for right side
             stall.displayWidth = stallDisplayH;
             stall.displayHeight = stallDisplayW;
             stall.setDepth(5);
@@ -559,16 +593,31 @@ export class FloatingMarketScene extends Phaser.Scene {
             } else {
                 let tiltTestReceived = false;
                 const testHandler = (e: DeviceOrientationEvent) => {
-                    if (e.gamma !== null && e.gamma !== undefined) {
+                    // Give real values, Android occasionally fires exactly 0 initially
+                    if (e.gamma !== null && e.gamma !== undefined && Math.abs(e.gamma) > 0.01) {
                         tiltTestReceived = true;
                         window.removeEventListener('deviceorientation', testHandler);
                         this.enableTilt();
                     }
                 };
                 window.addEventListener('deviceorientation', testHandler);
-                this.time.delayedCall(1500, () => {
+
+                // Absolute fallback for some Android Chrome instances
+                const testAbsoluteHandler = (e: DeviceOrientationEvent) => {
+                    if (e.gamma !== null && e.gamma !== undefined && Math.abs(e.gamma) > 0.01) {
+                        if (!tiltTestReceived) {
+                            tiltTestReceived = true;
+                            this.enableTilt(true);
+                        }
+                        window.removeEventListener('deviceorientationabsolute', testAbsoluteHandler);
+                    }
+                };
+                window.addEventListener('deviceorientationabsolute', testAbsoluteHandler);
+
+                this.time.delayedCall(2500, () => {
                     if (!tiltTestReceived) {
                         window.removeEventListener('deviceorientation', testHandler);
+                        window.removeEventListener('deviceorientationabsolute', testAbsoluteHandler);
                         this.enableTouchFallback(width, height);
                     }
                 });
@@ -579,9 +628,12 @@ export class FloatingMarketScene extends Phaser.Scene {
         }
     }
 
-    enableTilt() {
+    enableTilt(isAbsolute: boolean = false) {
         this.useTilt = true;
-        window.addEventListener('deviceorientation', (e: DeviceOrientationEvent) => {
+
+        const eventName = isAbsolute ? 'deviceorientationabsolute' : 'deviceorientation';
+
+        window.addEventListener(eventName, (e: any) => {
             if (e.gamma !== null) this.tiltGamma = e.gamma;
         });
         this.setupTouchZones(this.scale.width, this.scale.height);
@@ -590,10 +642,14 @@ export class FloatingMarketScene extends Phaser.Scene {
     enableTouchFallback(width: number, height: number) {
         if (!this.alertShown) {
             this.alertShown = true;
+            const isSecure = window.isSecureContext;
+            const message = isSecure
+                ? 'อุปกรณ์ไม่รองรับการเอียง\nกรุณากดค้างซ้าย-ขวาที่หน้าจอแทน'
+                : 'ไม่สามารถใช้เซนเซอร์ได้เนื่องจากไม่ได้เชื่อมต่อผ่าน HTTPS\nกรุณากดค้างซ้าย-ขวาที่หน้าจอแทน';
+
             const alertBg = this.add.rectangle(width / 2, height / 2, width * 0.85, 120, 0x000000, 0.85);
             alertBg.setDepth(200);
-            const alertText = this.add.text(width / 2, height / 2,
-                'อุปกรณ์ไม่รองรับการเอียง\nกรุณากดค้างซ้าย-ขวาที่หน้าจอแทน', {
+            const alertText = this.add.text(width / 2, height / 2, message, {
                 fontSize: '18px', fontFamily: "'Noto Sans Thai', sans-serif",
                 color: '#FFFFFF', align: 'center',
             });
@@ -636,7 +692,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     // ==================== UPDATE LOOP ====================
 
     update(_time: number, delta: number) {
-        if (this.gameOver) return;
+        if (!this.gameStarted || this.gameOver) return;
         const dt = delta / 1000;
 
         this.moveBoat(dt);
@@ -1391,7 +1447,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         if (collectionRatio < 0.3) return 'เก็บของให้มากขึ้น!';
         if (accuracy < 0.7) return 'ดูกฎให้ดี แล้วเก็บของให้ถูกชนิด!';
         if (this.totalCollisions > 3) return 'หลบสิ่งกีดขวางให้มากขึ้น!';
-        return 'เร็วขึ้นอีกนิดแล้วจะได้ 3 ดาว!';
+        return 'เก็บของให้ครบและหลบสิ่งกีดขวางให้ดี!';
     }
 
     // ==================== RESIZE HANDLER ====================

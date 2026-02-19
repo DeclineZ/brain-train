@@ -45,6 +45,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private cellSize = 80;
     private gridOffsetX = 0;
     private gridOffsetY = 0;
+    private controlPanelY = 0;  // Computed in createUI
 
     // Game objects
     private car!: Phaser.GameObjects.Container;
@@ -98,6 +99,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     // Brake stop mechanic state
     private brakeStopsRemaining = 0;
     private isBrakeStopped = false;
+    private isSwapBrake = false;  // true when brake stop is from swap trigger
     private brakeStopTimer: Phaser.Time.TimerEvent | null = null;
     private brakeStopSegments: number[] = [];  // Indices of segments where brake stops will occur
     private stopSignContainer: Phaser.GameObjects.Container | null = null;
@@ -108,6 +110,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private isRoadClosed = false;
     private roadClosuresTriggered = 0;
     private isApproachingRoadClosure = false;
+
+    // Pre-visible trap markers
+    private stopSignMarkers: Phaser.GameObjects.Container[] = [];
+    private barricadeMarkers: Phaser.GameObjects.Container[] = [];
+    private swapMarker: Phaser.GameObjects.Container | null = null;
+    private swapControlSegment: number = -1;  // Segment index for control swap trigger
 
     // Audio
     private engineSound: Phaser.Sound.BaseSound | null = null;
@@ -156,7 +164,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isRoadClosed = false;
         this.roadClosuresTriggered = 0;
         this.isApproachingRoadClosure = false;
-        this.isApproachingRoadClosure = false;
+
+        // Reset trap markers
+        this.stopSignMarkers = [];
+        this.barricadeMarkers = [];
+        this.swapMarker = null;
+        this.swapControlSegment = -1;
 
         // Initialize objective tracking
         this.currentObjective = 1;
@@ -276,9 +289,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private calculateGridDimensions() {
         const { width, height } = this.scale;
 
-        // Reserve space for UI at bottom and top
-        // Reduced to 0.55 to ensure grid fits between top bar and bottom controls
-        const availableHeight = height * 0.55;
+        // Dynamic layout: map sits between top UI (level header ~15%) and control panel bottom
+        const buttonSize = Math.min(100, width * 0.24);
+        const controlPanelHeight = buttonSize + 40;
+        const topMargin = height * 0.14;  // Space for level header
+        const bottomMargin = controlPanelHeight + 50;  // Space for control panel + gap
+
+        const availableHeight = height - topMargin - bottomMargin;
         const availableWidth = width * 0.95;
 
         // Calculate cell size to fit grid
@@ -288,15 +305,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         );
 
         // Limit max cell size
-        this.cellSize = Math.min(this.cellSize, 100);
+        this.cellSize = Math.min(this.cellSize, 120);
 
         // Calculate offsets to center grid
         const gridWidth = this.GRID_SIZE * this.cellSize;
         const gridHeight = this.GRID_SIZE * this.cellSize;
 
         this.gridOffsetX = (width - gridWidth) / 2;
-        // Move map down significantly to accommodate top UI and be closer to controls
-        this.gridOffsetY = height * 0.20;
+        // Center the grid vertically in the available space
+        this.gridOffsetY = topMargin + (availableHeight - gridHeight) / 2;
     }
 
     private gridToWorld(gridX: number, gridY: number): { x: number; y: number } {
@@ -392,101 +409,184 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
     private createBuildings() {
         // Create decorative map elements (buildings, parks, water) between roads
-        // Google Maps palette
-        const buildingColors = [0xE5E5E5, 0xF2F2F2, 0xD9D9D9, 0xEBEBEB, 0xF5F5F0];
-        const parkColor = 0xC1E1C1; // Soft green
-        const waterColor = 0xAADAFF; // Soft blue
-        const shadowColor = 0xCCCCCC;
+        // Enhanced Google Maps palette with varied building sizes
+        const buildingColors = [
+            0xE8E3DD, 0xF2EDE7, 0xDDD8D2, 0xEBE6E0, 0xF5F0EA,  // Warm grays
+            0xD4C4B0, 0xE0D5C7, 0xC9BCA8,  // Warm tans
+        ];
+        const accentColors = [0xC4A882, 0xB8A48C, 0xA89478, 0x9E8A6E];
+        const parkColor = 0xC1E1C1;
+        const waterColor = 0xAADAFF;
+        const shadowColor = 0xBBBBBB;
 
         // Clear existing buildings
         this.buildingContainers.forEach(b => b.destroy());
         this.buildingContainers = [];
 
-        // Grid cells between roads
-        for (let x = 0; x < this.GRID_SIZE - 1; x++) {
-            for (let y = 0; y < this.GRID_SIZE - 1; y++) {
-                const pos1 = this.gridToWorld(x, y);
-                const pos2 = this.gridToWorld(x + 1, y + 1);
+        // Block claim grid: track which block cells are used by multi-cell buildings
+        const blockCols = this.GRID_SIZE - 1;  // 6 columns of blocks
+        const blockRows = this.GRID_SIZE - 1;  // 6 rows of blocks
+        const claimed: boolean[][] = Array.from({ length: blockCols }, () => Array(blockRows).fill(false));
 
-                const centerX = (pos1.x + pos2.x) / 2;
-                const centerY = (pos1.y + pos2.y) / 2;
-                const blockSize = this.cellSize * 0.8;
+        // Determine block type by position (consistent per layout)
+        const getBlockType = (bx: number, by: number): string => {
+            const noise = Math.sin(bx * 0.5) * Math.cos(by * 0.5);
+            if (noise > 0.7) return 'water';
+            if (noise < -0.6) return 'park';
+            return 'building';
+        };
 
-                // Determine block type based on Perlin-like pseudo-randomness or simple probability
-                // Use coordinates to create "clusters" of similar types
-                const noise = Math.sin(x * 0.5) * Math.cos(y * 0.5);
+        // Helper: get center and size for a single block cell
+        // Block (bx, by) sits between grid intersections (bx, by) and (bx+1, by+1)
+        // Its center is at gridToWorld(bx + 0.5, by + 0.5)
+        const getBlockCenter = (bx: number, by: number) => {
+            return this.gridToWorld(bx + 0.5, by + 0.5);
+        };
+        const blockSize = this.cellSize * 0.75;  // Each block stays within its cell
 
-                let type = 'building';
-                if (noise > 0.7) type = 'water';
-                else if (noise < -0.6) type = 'park';
+        // Helper: render a single building block within a cell
+        const renderBuildingCell = (container: Phaser.GameObjects.Container, offsetX: number, offsetY: number, color: number, sz: number) => {
+            const s = this.add.rectangle(offsetX + 4, offsetY + 4, sz, sz, shadowColor);
+            const b = this.add.rectangle(offsetX, offsetY, sz, sz, color).setStrokeStyle(1, 0xBBBBBB);
+            container.add([s, b]);
+        };
 
-                const container = this.add.container(centerX, centerY);
-                container.setDepth(5);
+        // Pass 1: Try to place 2×2 building complexes (4 same-colored blocks)
+        for (let bx = 0; bx < blockCols - 1; bx++) {
+            for (let by = 0; by < blockRows - 1; by++) {
+                if (claimed[bx][by] || claimed[bx + 1][by] || claimed[bx][by + 1] || claimed[bx + 1][by + 1]) continue;
+                if (getBlockType(bx, by) !== 'building' || getBlockType(bx + 1, by + 1) !== 'building') continue;
+                if (Math.random() > 0.18) continue;
+
+                claimed[bx][by] = claimed[bx + 1][by] = claimed[bx][by + 1] = claimed[bx + 1][by + 1] = true;
+                const color = Phaser.Utils.Array.GetRandom(buildingColors);
+                const accent = Phaser.Utils.Array.GetRandom(accentColors);
+
+                // Render each of the 4 cells individually
+                const cells = [[bx, by], [bx + 1, by], [bx, by + 1], [bx + 1, by + 1]];
+                cells.forEach(([cx, cy], idx) => {
+                    const pos = getBlockCenter(cx, cy);
+                    const container = this.add.container(pos.x, pos.y).setDepth(5);
+                    this.buildingContainers.push(container);
+                    const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
+                    const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
+                    container.add([s, b]);
+                    // Add accent detail to one cell (top-left gets AC, bottom-right gets accent stripe)
+                    if (idx === 0) {
+                        const ac = this.add.rectangle(blockSize * 0.2, -blockSize * 0.2, blockSize * 0.15, blockSize * 0.12, 0x999999).setStrokeStyle(1, 0x777777);
+                        container.add([ac]);
+                    } else if (idx === 3) {
+                        const stripe = this.add.rectangle(0, -blockSize * 0.35, blockSize * 0.8, blockSize * 0.08, accent);
+                        container.add([stripe]);
+                    }
+                });
+            }
+        }
+
+        // Pass 2: Try to place 2×1 and 1×2 building pairs (2 same-colored blocks)
+        for (let bx = 0; bx < blockCols; bx++) {
+            for (let by = 0; by < blockRows; by++) {
+                if (claimed[bx][by]) continue;
+                if (getBlockType(bx, by) !== 'building') continue;
+
+                // Try 2×1 (wide pair)
+                if (bx + 1 < blockCols && !claimed[bx + 1][by] && getBlockType(bx + 1, by) === 'building' && Math.random() < 0.25) {
+                    claimed[bx][by] = claimed[bx + 1][by] = true;
+                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
+
+                    [[bx, by], [bx + 1, by]].forEach(([cx, cy], idx) => {
+                        const pos = getBlockCenter(cx, cy);
+                        const container = this.add.container(pos.x, pos.y).setDepth(5);
+                        this.buildingContainers.push(container);
+                        const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
+                        const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
+                        container.add([s, b]);
+                        // Add window dots to distinguish as wide building
+                        for (let wi = -1; wi <= 1; wi++) {
+                            const win = this.add.circle(wi * blockSize * 0.25, 0, blockSize * 0.06, 0xADD8E6).setStrokeStyle(0.5, 0x888888);
+                            container.add([win]);
+                        }
+                    });
+                    continue;
+                }
+
+                // Try 1×2 (tall pair)
+                if (by + 1 < blockRows && !claimed[bx][by + 1] && getBlockType(bx, by + 1) === 'building' && Math.random() < 0.25) {
+                    claimed[bx][by] = claimed[bx][by + 1] = true;
+                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
+                    const accent = Phaser.Utils.Array.GetRandom(accentColors);
+
+                    [[bx, by], [bx, by + 1]].forEach(([cx, cy], idx) => {
+                        const pos = getBlockCenter(cx, cy);
+                        const container = this.add.container(pos.x, pos.y).setDepth(5);
+                        this.buildingContainers.push(container);
+                        const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
+                        const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
+                        container.add([s, b]);
+                        // Add antenna to top cell
+                        if (idx === 0) {
+                            const antenna = this.add.rectangle(blockSize * 0.25, -blockSize / 2 - 4, 2, 10, 0x666666);
+                            const dish = this.add.circle(blockSize * 0.25, -blockSize / 2 - 8, 3, accent);
+                            container.add([antenna, dish]);
+                        }
+                    });
+                    continue;
+                }
+            }
+        }
+
+        // Pass 3: Fill remaining 1×1 blocks
+        for (let bx = 0; bx < blockCols; bx++) {
+            for (let by = 0; by < blockRows; by++) {
+                if (claimed[bx][by]) continue;
+                claimed[bx][by] = true;
+
+                const pos = getBlockCenter(bx, by);
+                const type = getBlockType(bx, by);
+
+                const container = this.add.container(pos.x, pos.y).setDepth(5);
                 this.buildingContainers.push(container);
 
                 if (type === 'water') {
-                    // Water block
                     const water = this.add.rectangle(0, 0, blockSize, blockSize, waterColor);
-                    // Add simple wave effect lines
-                    const wave1 = this.add.text(-blockSize / 3, -blockSize / 4, '~', { color: '#88CCFF', fontSize: '20px' }).setOrigin(0.5);
-                    const wave2 = this.add.text(blockSize / 4, blockSize / 5, '~', { color: '#88CCFF', fontSize: '20px' }).setOrigin(0.5);
+                    const wave1 = this.add.text(-blockSize / 3, -blockSize / 4, '~', { color: '#88CCFF', fontSize: `${blockSize * 0.3}px` }).setOrigin(0.5);
+                    const wave2 = this.add.text(blockSize / 4, blockSize / 5, '~', { color: '#88CCFF', fontSize: `${blockSize * 0.3}px` }).setOrigin(0.5);
                     container.add([water, wave1, wave2]);
                 } else if (type === 'park') {
-                    // Park block
                     const park = this.add.rectangle(0, 0, blockSize, blockSize, parkColor);
-                    // Add simple trees (green dots)
-                    const tree1 = this.add.circle(-blockSize / 4, -blockSize / 4, 6, 0x8FBC8F);
-                    const tree2 = this.add.circle(blockSize / 3, blockSize / 5, 8, 0x8FBC8F);
-                    const tree3 = this.add.circle(-blockSize / 5, blockSize / 3, 5, 0x8FBC8F);
-                    container.add([park, tree1, tree2, tree3]);
+                    const treeRadius = blockSize * 0.08;
+                    const t1 = this.add.circle(-blockSize * 0.25, -blockSize * 0.25, treeRadius, 0x8FBC8F);
+                    const t2 = this.add.circle(blockSize * 0.3, blockSize * 0.2, treeRadius * 1.3, 0x8FBC8F);
+                    const t3 = this.add.circle(-blockSize * 0.15, blockSize * 0.3, treeRadius * 0.9, 0x8FBC8F);
+                    container.add([park, t1, t2, t3]);
                 } else {
-                    // Building block - Varied shapes
-                    // 0: Full block, 1: L-shape, 2: Two small buildings
-                    const shapeType = Phaser.Math.Between(0, 3);
+                    // 1×1 Building — varied shapes
+                    const shapeType = Phaser.Math.Between(0, 4);
                     const color = Phaser.Utils.Array.GetRandom(buildingColors);
 
-                    if (shapeType === 0) {
+                    if (shapeType <= 1) {
                         // Full block
-                        const shadow = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
-                        const b = this.add.rectangle(0, 0, blockSize, blockSize, color);
-                        b.setStrokeStyle(1, 0xBBBBBB);
-                        container.add([shadow, b]);
-                    } else if (shapeType === 1) {
-                        // L-shape (composed of two rectangles)
-                        const w1 = blockSize * 0.4;
-                        const h1 = blockSize;
-                        const w2 = blockSize;
-                        const h2 = blockSize * 0.4;
-
-                        // Shadow
-                        const s1 = this.add.rectangle(-blockSize / 2 + w1 / 2 + 4, 4, w1, h1, shadowColor);
-                        const s2 = this.add.rectangle(4, blockSize / 2 - h2 / 2 + 4, w2, h2, shadowColor);
-
-                        // Main parts
-                        const b1 = this.add.rectangle(-blockSize / 2 + w1 / 2, 0, w1, h1, color);
-                        const b2 = this.add.rectangle(0, blockSize / 2 - h2 / 2, w2, h2, color);
-
-                        b1.setStrokeStyle(1, 0xBBBBBB);
-                        b2.setStrokeStyle(1, 0xBBBBBB);
-
+                        const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
+                        const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1, 0xBBBBBB);
+                        container.add([s, b]);
+                    } else if (shapeType === 2) {
+                        // L-shape
+                        const wh = blockSize * 0.4;
+                        const s1 = this.add.rectangle(-blockSize / 2 + wh / 2 + 3, 3, wh, blockSize, shadowColor);
+                        const s2 = this.add.rectangle(3, blockSize / 2 - wh / 2 + 3, blockSize, wh, shadowColor);
+                        const b1 = this.add.rectangle(-blockSize / 2 + wh / 2, 0, wh, blockSize, color).setStrokeStyle(1, 0xBBBBBB);
+                        const b2 = this.add.rectangle(0, blockSize / 2 - wh / 2, blockSize, wh, color).setStrokeStyle(1, 0xBBBBBB);
                         container.add([s1, s2, b1, b2]);
                     } else {
-                        // Multiple small buildings
-                        const size = blockSize * 0.45;
-                        const offset = blockSize * 0.25;
-
+                        // Two small buildings
+                        const sz = blockSize * 0.42;
+                        const off = blockSize * 0.24;
                         const c1 = Phaser.Utils.Array.GetRandom(buildingColors);
                         const c2 = Phaser.Utils.Array.GetRandom(buildingColors);
-
-                        const s1 = this.add.rectangle(-offset + 3, -offset + 3, size, size, shadowColor);
-                        const b1 = this.add.rectangle(-offset, -offset, size, size, c1);
-
-                        const s2 = this.add.rectangle(offset + 3, offset + 3, size, size, shadowColor);
-                        const b2 = this.add.rectangle(offset, offset, size, size, c2);
-
-                        b1.setStrokeStyle(1, 0xBBBBBB);
-                        b2.setStrokeStyle(1, 0xBBBBBB);
-
+                        const s1 = this.add.rectangle(-off + 3, -off + 3, sz, sz, shadowColor);
+                        const b1 = this.add.rectangle(-off, -off, sz, sz, c1).setStrokeStyle(1, 0xBBBBBB);
+                        const s2 = this.add.rectangle(off + 3, off + 3, sz, sz, shadowColor);
+                        const b2 = this.add.rectangle(off, off, sz, sz, c2).setStrokeStyle(1, 0xBBBBBB);
                         container.add([s1, b1, s2, b2]);
                     }
                 }
@@ -793,41 +893,39 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private createUI() {
         const { width, height } = this.scale;
 
-        // Control panel at bottom
-        // Responsive button size for mobile
-        const buttonSize = Math.min(80, width * 0.2);
-        const spacing = Math.min(30, width * 0.05);
+        // Control panel at bottom — larger buttons for accessibility
+        const buttonSize = Math.min(100, width * 0.24);
+        const spacing = Math.min(35, width * 0.06);
 
-        // Move controls UP significantly (from bottom - buttonSize - 40)
-        // Previous was height - (buttonSize + 40).
-        // Let's move it up by another 10% of height or fixed amount.
-        const panelY = height - (buttonSize + 40) - (height * 0.05);
+        // Fixed distance from bottom to prevent overlap
+        const panelY = height - buttonSize * 0.75;
+        this.controlPanelY = panelY;
 
         // Panel background (floating pill shape)
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
 
-        // Create objective progress indicator (Floating Pill) - Positioned closer to map top
+        // Create objective progress indicator (Floating Pill)
         if (this.totalObjectives > 1) {
-            const pillW = 160;
-            const pillH = 40;
-            // Center horizontally
+            const pillW = 180;
+            const pillH = 44;
             const pillX = width / 2 - pillW / 2;
-            // Position above the control panel
-            // panelY is center of panel. Top of panel is panelY - panelHeight/2.
-            const pillY = (panelY - panelHeight / 2) - pillH - 20;
+            // Position between map bottom and control panel top
+            const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
+            const panelTop = panelY - panelHeight / 2;
+            const pillY = gridBottom + (panelTop - gridBottom - pillH) / 2;
 
             const pill = this.add.graphics();
             pill.fillStyle(COLORS.UI_PANEL, 0.9);
-            pill.fillRoundedRect(pillX, pillY, pillW, pillH, 20);
+            pill.fillRoundedRect(pillX, pillY, pillW, pillH, 22);
             pill.lineStyle(2, COLORS.UI_STROKE);
-            pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 20);
+            pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 22);
             pill.setDepth(199);
 
             if (this.objectiveProgressText) this.objectiveProgressText.destroy();
-            this.objectiveProgressText = this.add.text(width / 2, pillY + pillH / 2, `จุดหมาย ${this.currentObjective}/${this.totalObjectives}`, {
+            this.objectiveProgressText = this.add.text(width / 2, pillY + pillH / 2, `ด่าน ${this.currentObjective}/${this.totalObjectives}`, {
                 fontFamily: 'Sarabun, sans-serif',
-                fontSize: '20px',
+                fontSize: '22px',
                 color: '#2B2115',
                 fontStyle: 'bold',
                 padding: { x: 10, y: 10 }
@@ -970,26 +1068,114 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private setupControlSwap() {
-        const delay = Phaser.Math.Between(4000, 8000); // Increased delay slightly
-        this.controlSwapTimer = this.time.delayedCall(delay, () => {
-            this.triggerControlSwap();
-        });
+        // Segment-based: pick a non-intersection, non-trap segment with spacing
+        const allTrapSegments = [...this.brakeStopSegments, ...this.roadClosureSegments];
+        const validSegments: number[] = [];
+        for (let i = 2; i < this.path.length - 2; i++) {
+            if (this.path[i].isIntersection) continue;
+            if (this.brakeStopSegments.includes(i)) continue;
+            if (this.roadClosureSegments.includes(i)) continue;
+            const tooClose = allTrapSegments.some(s => Math.abs(s - i) < 2);
+            if (tooClose) continue;
+            validSegments.push(i);
+        }
+        if (validSegments.length > 0) {
+            this.swapControlSegment = Phaser.Utils.Array.GetRandom(validSegments);
+        }
     }
 
     private triggerControlSwap() {
         if (this.gameOver || !this.gameStarted) return;
 
-        // If currently in a critical state (braking or approaching intersection), defer the swap
-        if (this.isBrakeStopped || this.isApproachingIntersection || this.queuedDirection) {
-            this.controlSwapTimer = this.time.delayedCall(2000, () => this.triggerControlSwap());
-            return;
+        // Remove the swap marker if it exists
+        if (this.swapMarker) {
+            this.tweens.add({
+                targets: this.swapMarker,
+                scale: 1.5,
+                alpha: 0,
+                duration: 200,
+                onComplete: () => {
+                    this.swapMarker?.destroy();
+                    this.swapMarker = null;
+                }
+            });
         }
 
-        // Pause the game
-        this.isPaused = true;
+        // Brake stop — car must stop, user presses forward, THEN buttons swap
+        this.isBrakeStopped = true;
+        this.isSwapBrake = true;
+        this.isMoving = false;
+        this.targetPosition = null;
 
-        // Show Alert Popup
-        this.createSwapAlertPopup();
+        // Clear any queued direction
+        if (this.queuedDirection) {
+            this.queuedDirection = null;
+            this.isApproachingIntersection = false;
+        }
+
+        // Show swap warning message
+        this.messageText.setText('ปุ่มสลับ!');
+        this.messageText.setColor('#FF4444');
+        this.messageText.setVisible(true);
+
+        // Highlight forward button so user knows to press it
+        this.highlightForwardButton(true);
+
+        // Smoke effect
+        this.triggerSmokeEffect(this.car.x, this.car.y);
+
+        // Timer — if they don't press forward in time, auto-resume
+        this.brakeStopTimer = this.time.delayedCall(
+            Math.max(this.currentLevelConfig.brakeStopTimeMs, 4000),
+            () => {
+                if (this.isBrakeStopped) {
+                    // Auto-resume: perform swap and continue
+                    this.resumeAfterSwapBrake();
+                }
+            }
+        );
+    }
+
+    private resumeAfterSwapBrake() {
+        // Cancel timer if still active
+        if (this.brakeStopTimer) {
+            this.brakeStopTimer.destroy();
+            this.brakeStopTimer = null;
+        }
+
+        this.isBrakeStopped = false;
+        this.isSwapBrake = false;
+        this.highlightForwardButton(false);
+
+        // Now perform the actual button swap
+        this.controlsSwapped = !this.controlsSwapped;
+
+        const leftX = this.leftButton.x;
+        const rightX = this.rightButton.x;
+
+        this.tweens.add({
+            targets: this.leftButton,
+            x: rightX,
+            duration: 600,
+            ease: 'Cubic.easeInOut'
+        });
+
+        this.tweens.add({
+            targets: this.rightButton,
+            x: leftX,
+            duration: 600,
+            ease: 'Cubic.easeInOut'
+        });
+
+        this.messageText.setText('สลับแล้ว!');
+        this.messageText.setColor('#FF4444');
+        this.showFeedback('⇄', 0xFF4444);
+
+        // Resume movement after brief delay
+        this.time.delayedCall(800, () => {
+            this.messageText.setVisible(false);
+            this.moveToNextSegment();
+        });
     }
 
     private createSwapAlertPopup() {
@@ -1101,49 +1287,93 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
 
     private startGame() {
-        this.messageText.setText('เตรียมพร้อม...');
-        this.messageText.setVisible(true);
+        // Dim buttons during countdown
+        this.highlightButtons(false);
 
-        // Countdown then start
-        this.time.delayedCall(1000, () => {
-            this.messageText.setText('ไป!');
+        // 3-2-1-GO countdown
+        const countdownNumbers = ['3', '2', '1', 'ไป!'];
+        let step = 0;
 
-            this.time.delayedCall(500, () => {
-                this.messageText.setVisible(false);
-                this.gameStarted = true;
-                this.startTime = Date.now();
-                // approachTimeMs is time-based so it's consistent on all screen sizes
-                // Use at least 1.2 seconds or the configured decision time
-                this.approachTimeMs = Math.max(2500, this.currentLevelConfig.decisionTimeMs);
+        const showCountdownStep = () => {
+            const text = countdownNumbers[step];
+            const isGo = step === 3;
 
-                // Find first upcoming intersection
-                this.findNextIntersection();
+            this.messageText.setText(text);
+            this.messageText.setStyle({
+                fontFamily: 'Sarabun, sans-serif',
+                fontSize: isGo ? '64px' : '80px',
+                color: isGo ? '#58CC02' : '#FFFFFF',
+                stroke: '#2B2115',
+                strokeThickness: 8,
+                fontStyle: 'bold',
+                shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 6, stroke: true, fill: true },
+                padding: { x: 20, y: 20 }
+            });
+            this.messageText.setVisible(true);
+            this.messageText.setScale(1.5);
+            this.messageText.setAlpha(1);
 
-                // Start moving continuously
-                this.startContinuousMovement();
-
-                // Setup path fade if enabled
-                if (this.currentLevelConfig.pathFadeEnabled) {
-                    this.setupPathFade();
-                }
-
-                // Setup road closures FIRST (before brake stops, so they get priority
-                // on the limited non-intersection segments)
-                if (this.currentLevelConfig.roadClosureEnabled) {
-                    this.setupRoadClosures();
-                }
-
-                // Setup brake stops if enabled (avoids road closure segments)
-                if (this.currentLevelConfig.brakeStopEnabled) {
-                    this.setupBrakeStops();
-                }
-
-                // Setup control swap if enabled
-                if (this.currentLevelConfig.swapControls) {
-                    this.setupControlSwap();
+            // Scale-down + fade animation
+            this.tweens.add({
+                targets: this.messageText,
+                scale: 1,
+                alpha: isGo ? 1 : 0.3,
+                duration: isGo ? 400 : 800,
+                ease: 'Cubic.easeOut',
+                onComplete: () => {
+                    step++;
+                    if (step < countdownNumbers.length) {
+                        showCountdownStep();
+                    } else {
+                        // Countdown complete — start the game
+                        this.time.delayedCall(300, () => {
+                            this.messageText.setVisible(false);
+                            this.messageText.setAlpha(1);
+                            this.messageText.setScale(1);
+                            this.launchGameAfterCountdown();
+                        });
+                    }
                 }
             });
-        });
+        };
+
+        showCountdownStep();
+    }
+
+    private launchGameAfterCountdown() {
+        this.gameStarted = true;
+        this.startTime = Date.now();
+        this.approachTimeMs = Math.max(2500, this.currentLevelConfig.decisionTimeMs);
+
+        // Find first upcoming intersection
+        this.findNextIntersection();
+
+        // Setup path fade if enabled
+        if (this.currentLevelConfig.pathFadeEnabled) {
+            this.setupPathFade();
+        }
+
+        // Setup road closures FIRST (before brake stops, so they get priority)
+        if (this.currentLevelConfig.roadClosureEnabled) {
+            this.setupRoadClosures();
+        }
+
+        // Setup brake stops if enabled (avoids road closure segments)
+        if (this.currentLevelConfig.brakeStopEnabled) {
+            this.setupBrakeStops();
+        }
+
+        // Setup control swap if enabled (segment-based)
+        if (this.currentLevelConfig.swapControls) {
+            this.setupControlSwap();
+        }
+
+        // Place all trap markers on the map so the player can see them
+        this.placeTrapMarkers();
+
+        // Start moving continuously
+        this.highlightButtons(true);
+        this.startContinuousMovement();
     }
 
     private findNextIntersection() {
@@ -1245,17 +1475,31 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const config = this.currentLevelConfig;
         if (!config.brakeStopEnabled || config.brakeStopCount <= 0) return;
 
-        // Get non-intersection segments for brake stops, also avoiding road closure segments
+        // Get non-intersection segments, avoiding road closure AND swap segments
+        // Also ensure minimum spacing of 4 segments between any traps
+        const allTrapSegments = [...this.roadClosureSegments];
+        if (this.swapControlSegment >= 0) allTrapSegments.push(this.swapControlSegment);
+
         const validSegments: number[] = [];
-        for (let i = 1; i < this.path.length - 1; i++) {
-            if (!this.path[i].isIntersection && !this.roadClosureSegments.includes(i)) {
-                validSegments.push(i);
-            }
+        for (let i = 2; i < this.path.length - 2; i++) {
+            if (this.path[i].isIntersection) continue;
+            if (this.roadClosureSegments.includes(i)) continue;
+            // Ensure spacing from other traps
+            const tooClose = allTrapSegments.some(s => Math.abs(s - i) < 4);
+            if (tooClose) continue;
+            validSegments.push(i);
         }
 
-        // Randomly select segments for brake stops
-        const shuffled = validSegments.sort(() => Math.random() - 0.5);
-        this.brakeStopSegments = shuffled.slice(0, Math.min(config.brakeStopCount, shuffled.length));
+        // Pick with spacing between brake stops themselves
+        const shuffled = Phaser.Utils.Array.Shuffle([...validSegments]);
+        this.brakeStopSegments = [];
+        for (const idx of shuffled) {
+            if (this.brakeStopSegments.length >= config.brakeStopCount) break;
+            const tooCloseToOther = this.brakeStopSegments.some(s => Math.abs(s - idx) < 4);
+            if (!tooCloseToOther) {
+                this.brakeStopSegments.push(idx);
+            }
+        }
         this.brakeStopsRemaining = this.brakeStopSegments.length;
     }
 
@@ -1279,8 +1523,21 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.isApproachingIntersection = false;
         }
 
-        // Create elegant stop sign visual ahead of the car
-        this.createStopSign();
+        // Pulse the existing stop sign marker to draw attention
+        const markerIdx = this.brakeStopSegments.indexOf(this.currentPathIndex);
+        if (markerIdx >= 0 && markerIdx < this.stopSignMarkers.length) {
+            const marker = this.stopSignMarkers[markerIdx];
+            this.tweens.killTweensOf(marker);
+            marker.setDepth(150);
+            this.tweens.add({
+                targets: marker,
+                scale: { from: 1.0, to: 1.4 },
+                duration: 200,
+                yoyo: true,
+                repeat: 2,
+                ease: 'Sine.easeInOut'
+            });
+        }
 
         // Show STOP message
         this.messageText.setText('หยุด!');
@@ -1290,9 +1547,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Highlight forward button
         this.highlightForwardButton(true);
 
-        // Play brake sound (Horn) - Removed per user feedback (sounded like swoosh/unpolished)
-        // this.playSound('car-horn');
-
         // Trigger smoke effect
         this.triggerSmokeEffect(this.car.x, this.car.y);
 
@@ -1301,7 +1555,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.currentLevelConfig.brakeStopTimeMs,
             () => {
                 if (this.isBrakeStopped) {
-                    // Player didn't press Forward in time
                     this.handleBrakeTimeout();
                 }
             }
@@ -1405,12 +1658,17 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isBrakeStopped = false;
         this.messageText.setVisible(false);
         this.highlightForwardButton(false);
-        this.removeStopSign();
         this.handleTimeout();
     }
 
     private handleForwardPress() {
         if (!this.isBrakeStopped || this.isPaused) return;
+
+        // If this is a swap brake, route to swap resume instead
+        if (this.isSwapBrake) {
+            this.resumeAfterSwapBrake();
+            return;
+        }
 
         // Player pressed Forward - continue driving!
         if (this.brakeStopTimer) {
@@ -1424,8 +1682,20 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Remove this segment from brake stops
         this.brakeStopSegments = this.brakeStopSegments.filter(s => s !== this.currentPathIndex);
 
-        // Remove stop sign with animation
-        this.removeStopSign();
+        // Fade out the corresponding stop sign marker
+        const markerIdx = this.stopSignMarkers.findIndex(m => !m.scene);
+        // Just fade all remaining markers for this segment
+        this.stopSignMarkers.forEach(m => {
+            if (m.scene && Math.abs(m.x - this.car.x) < this.cellSize && Math.abs(m.y - this.car.y) < this.cellSize) {
+                this.tweens.add({
+                    targets: m,
+                    scale: 0,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => m.destroy()
+                });
+            }
+        });
 
         // Visual feedback
         this.messageText.setText('ไปต่อ!');
@@ -1462,12 +1732,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
 
 
-        // Pick closure segments with spacing (at least 3 segments apart)
+        // Pick closure segments with spacing (at least 5 segments apart)
         const shuffled = Phaser.Utils.Array.Shuffle([...validIndices]);
         for (const idx of shuffled) {
             if (this.roadClosureSegments.length >= closureCount) break;
-            // Ensure spacing from already-selected closure segments
-            const tooClose = this.roadClosureSegments.some(s => Math.abs(s - idx) < 3);
+            const tooClose = this.roadClosureSegments.some(s => Math.abs(s - idx) < 5);
             if (!tooClose) {
                 this.roadClosureSegments.push(idx);
             }
@@ -1494,16 +1763,27 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Play brake sound
         this.playSound('brake');
 
-        // Show barricade on the NEXT segment (the blocked road ahead)
-        const nextIdx = this.currentPathIndex + 1;
-        if (nextIdx < this.path.length) {
-            const nextSeg = this.path[nextIdx];
-            const barricadePos = this.gridToWorld(nextSeg.x, nextSeg.y);
-            this.createBarricade(barricadePos.x, barricadePos.y);
-        }
+        // The barricade marker is already visible on the map — pulse it to draw attention
+        this.barricadeMarkers.forEach(m => {
+            if (m.scene) {
+                const dx = Math.abs(m.x - this.car.x);
+                const dy = Math.abs(m.y - this.car.y);
+                if (dx < this.cellSize * 1.5 && dy < this.cellSize * 1.5) {
+                    this.tweens.killTweensOf(m);
+                    m.setDepth(155);
+                    this.tweens.add({
+                        targets: m,
+                        scale: { from: 1.0, to: 1.3 },
+                        duration: 200,
+                        yoyo: true,
+                        repeat: 2
+                    });
+                }
+            }
+        });
 
         // Show message
-        this.messageText.setText('🚧 ทางปิด!');
+        this.messageText.setText('ทางปิด!');
         this.messageText.setColor('#FF6B35');
         this.messageText.setVisible(true);
         this.showFeedback('✗', 0xFF6B35);
@@ -1694,6 +1974,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.currentPathIndex = 0;
         this.isRoadClosed = false;
 
+        // Sync car to current path start position
+        const startSeg = this.path[0];
+        const startPos = this.gridToWorld(startSeg.x, startSeg.y);
+        this.car.setPosition(startPos.x, startPos.y);
+        this.carGridX = startSeg.x;
+        this.carGridY = startSeg.y;
+        this.carHeading = startSeg.direction;
+        this.updateCarRotation();
+
         // Reset navigation for new path
         this.upcomingIntersectionIndex = -1;
         this.queuedDirection = null;
@@ -1718,6 +2007,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Redraw path
         this.drawPath();
+
+        // Refresh trap markers for the new path
+        this.placeTrapMarkers();
 
         // Show reroute message
         this.messageText.setText('ไปทางใหม่!');
@@ -1747,6 +2039,16 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Generate fresh path
         this.path = [];
         this.generatePath(this.carGridX, this.carGridY, this.carHeading);
+
+        // Sync car position to path start
+        const startSeg = this.path[0];
+        const startPos = this.gridToWorld(startSeg.x, startSeg.y);
+        this.car.setPosition(startPos.x, startPos.y);
+        this.carGridX = startSeg.x;
+        this.carGridY = startSeg.y;
+        this.carHeading = startSeg.direction;
+        this.updateCarRotation();
+
         this.drawPath();
 
         // Setup mechanics for new path (road closures first, then brake stops)
@@ -1765,6 +2067,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.setupBrakeStops();
         }
 
+        // Refresh trap markers for the new path
+        this.placeTrapMarkers();
+
         // Show reroute message
         this.messageText.setText('ไปทางใหม่!');
         this.messageText.setColor('#4285F4');
@@ -1777,6 +2082,208 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.isMoving = true;
             this.moveToNextSegment();
         });
+    }
+
+    // ==========================================
+    // Trap Marker System — Pre-visible markers
+    // ==========================================
+
+    private placeTrapMarkers() {
+        this.clearTrapMarkers();
+
+        // Place stop sign markers on brake stop segments (offset to side of road)
+        for (const segIdx of this.brakeStopSegments) {
+            if (segIdx < 0 || segIdx >= this.path.length) continue;
+            const seg = this.path[segIdx];
+            const pos = this.gridToWorld(seg.x, seg.y);
+            // Offset perpendicular to road direction (to the right side of travel)
+            const offset = this.cellSize * 0.35;
+            let offX = 0, offY = 0;
+            switch (seg.direction) {
+                case 'N': offX = offset; break;   // Right side when heading north
+                case 'S': offX = -offset; break;  // Right side when heading south
+                case 'E': offY = offset; break;   // Right side when heading east
+                case 'W': offY = -offset; break;  // Right side when heading west
+            }
+            const marker = this.createStopSignMarker(pos.x + offX, pos.y + offY);
+            this.stopSignMarkers.push(marker);
+        }
+
+        // Place barricade markers on road closure segments
+        // Barricade sits on the NEXT segment (the blocked cell ahead)
+        for (const segIdx of this.roadClosureSegments) {
+            const nextIdx = segIdx + 1;
+            if (nextIdx < 0 || nextIdx >= this.path.length) continue;
+            const seg = this.path[nextIdx];
+            const pos = this.gridToWorld(seg.x, seg.y);
+            const marker = this.createBarricadeMarker(pos.x, pos.y);
+            this.barricadeMarkers.push(marker);
+        }
+
+        // Place swap marker
+        if (this.swapControlSegment >= 0 && this.swapControlSegment < this.path.length) {
+            const seg = this.path[this.swapControlSegment];
+            const pos = this.gridToWorld(seg.x, seg.y);
+            this.swapMarker = this.createBumpMarker(pos.x, pos.y);
+        }
+    }
+
+    private clearTrapMarkers() {
+        this.stopSignMarkers.forEach(m => m.destroy());
+        this.stopSignMarkers = [];
+        this.barricadeMarkers.forEach(m => m.destroy());
+        this.barricadeMarkers = [];
+        if (this.swapMarker) {
+            this.swapMarker.destroy();
+            this.swapMarker = null;
+        }
+    }
+
+    private createStopSignMarker(x: number, y: number): Phaser.GameObjects.Container {
+        const container = this.add.container(x, y);
+        container.setDepth(15);  // Above path line
+        const r = this.cellSize * 0.32;
+
+        const gfx = this.add.graphics();
+
+        // Pole / leg (below the octagon)
+        const poleW = r * 0.15;
+        const poleH = r * 1.0;
+        gfx.fillStyle(0x666666, 1);
+        gfx.fillRect(-poleW / 2, r * 0.5, poleW, poleH);
+        gfx.lineStyle(1, 0x444444, 1);
+        gfx.strokeRect(-poleW / 2, r * 0.5, poleW, poleH);
+
+        // Octagonal stop sign
+        gfx.fillStyle(0xCC0000, 0.9);
+        gfx.lineStyle(2.5, 0xFFFFFF, 0.95);
+        const pts: { x: number; y: number }[] = [];
+        for (let i = 0; i < 8; i++) {
+            const a = (Math.PI / 8) + (i * Math.PI / 4);
+            pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+        }
+        gfx.beginPath();
+        gfx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < 8; i++) gfx.lineTo(pts[i].x, pts[i].y);
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.strokePath();
+
+        const text = this.add.text(0, 0, 'หยุด', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: `${r * 0.65}px`,
+            color: '#FFFFFF',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        container.add([gfx, text]);
+
+        // Subtle idle pulse
+        this.tweens.add({
+            targets: container,
+            scale: { from: 0.9, to: 1.05 },
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
+    }
+
+    private createBarricadeMarker(x: number, y: number): Phaser.GameObjects.Container {
+        const container = this.add.container(x, y);
+        container.setDepth(15);
+        const sz = this.cellSize * 0.85;
+
+        // Use barricade sprite if loaded
+        if (this.textures.exists('barricade')) {
+            const img = this.add.image(0, 0, 'barricade');
+            const scale = sz / img.width;
+            img.setScale(scale);
+            img.setAlpha(0.9);
+            container.add([img]);
+        } else {
+            // Fallback: orange/white striped horizontal bar
+            const gfx = this.add.graphics();
+            const barW = sz;
+            const barH = sz * 0.3;
+            gfx.fillStyle(0xFF6B35, 0.9);
+            gfx.fillRect(-barW / 2, -barH / 2, barW, barH);
+            // White stripes (vertical across the horizontal bar)
+            gfx.fillStyle(0xFFFFFF, 0.9);
+            const stripeW = barW * 0.1;
+            for (let i = 0; i < 4; i++) {
+                gfx.fillRect(-barW / 2 + i * barW * 0.28, -barH / 2, stripeW, barH);
+            }
+            // Outline
+            gfx.lineStyle(2, 0xCC4400, 1);
+            gfx.strokeRect(-barW / 2, -barH / 2, barW, barH);
+            container.add([gfx]);
+        }
+
+        // Subtle idle sway
+        this.tweens.add({
+            targets: container,
+            angle: { from: -3, to: 3 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
+    }
+
+    private createBumpMarker(x: number, y: number): Phaser.GameObjects.Container {
+        // Programmer art: yellow diamond warning sign with a car bump icon
+        const container = this.add.container(x, y);
+        container.setDepth(15);
+        const r = this.cellSize * 0.45;
+
+        const gfx = this.add.graphics();
+
+        // Yellow diamond background
+        gfx.fillStyle(0xFFCC00, 0.9);
+        gfx.lineStyle(2, 0x000000, 0.8);
+        gfx.beginPath();
+        gfx.moveTo(0, -r);          // Top
+        gfx.lineTo(r, 0);           // Right
+        gfx.lineTo(0, r);           // Bottom
+        gfx.lineTo(-r, 0);          // Left
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.strokePath();
+
+        // Car bump icon: a small car silhouette with bump lines
+        // Car body (rectangle)
+        gfx.fillStyle(0x333333, 1);
+        gfx.fillRect(-r * 0.3, -r * 0.15, r * 0.6, r * 0.3);
+        // Car roof
+        gfx.fillRect(-r * 0.15, -r * 0.35, r * 0.3, r * 0.2);
+        // Bump lines (zigzag below car)
+        gfx.lineStyle(2, 0x333333, 1);
+        gfx.beginPath();
+        gfx.moveTo(-r * 0.2, r * 0.25);
+        gfx.lineTo(-r * 0.1, r * 0.4);
+        gfx.lineTo(0, r * 0.25);
+        gfx.lineTo(r * 0.1, r * 0.4);
+        gfx.lineTo(r * 0.2, r * 0.25);
+        gfx.strokePath();
+
+        container.add([gfx]);
+
+        // Subtle bounce animation
+        this.tweens.add({
+            targets: container,
+            y: y - 3,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
     }
 
     // ==========================================
@@ -1822,8 +2329,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         this.updateCarRotation();
 
-        this.updateCarRotation();
-
         // Check road closure - if found, we drive TO it, then trigger the closure event
         if (this.checkRoadClosure()) {
             this.isApproachingRoadClosure = true;
@@ -1832,6 +2337,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Check if this segment has a brake stop
         this.checkBrakeStop();
         if (this.isBrakeStopped) return;
+
+        // Check if this segment triggers control swap
+        if (this.swapControlSegment >= 0 && this.currentPathIndex === this.swapControlSegment) {
+            this.swapControlSegment = -1;  // Consume the event
+            this.triggerControlSwap();
+            // Don't return — let movement continue, the pause will be handled by isPaused check
+        }
+
         this.isMoving = true;
     }
 
@@ -2088,6 +2601,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.roadClosureContainer = null;
         }
 
+        // Clear trap markers
+        this.clearTrapMarkers();
+        this.swapControlSegment = -1;
+
         // Reset path fade
         this.isPathVisible = true;
         if (this.pathFadeTimer) {
@@ -2111,7 +2628,28 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Generate new path from current car position
         this.path = [];
         this.generatePath(continueX, continueY, continueHeading);
+
+        // Enforce minimum path length — if path is too short, regenerate
+        let retries = 0;
+        while (this.path.length < 5 && retries < 3) {
+            this.path = [];
+            this.generatePath(continueX, continueY, continueHeading);
+            retries++;
+        }
+
         this.drawPath();
+
+        // Setup traps for the new path
+        if (this.currentLevelConfig.roadClosureEnabled) {
+            this.setupRoadClosures();
+        }
+        if (this.currentLevelConfig.brakeStopEnabled) {
+            this.setupBrakeStops();
+        }
+        if (this.currentLevelConfig.swapControls) {
+            this.setupControlSwap();
+        }
+        this.placeTrapMarkers();
 
         // Position car (should already be there, but ensure alignment)
         const pos = this.gridToWorld(this.carGridX, this.carGridY);

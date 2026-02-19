@@ -73,10 +73,22 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private approachTimeMs = 3000; // Very generous for tutorial
 
     // Brake stop mechanic
+    // Road closure / obstacle reroute state
+    private roadClosureSegments: number[] = [];
+    private barricadeMarkers: Phaser.GameObjects.Container[] = [];
+
+    // Control swap state
+    private swapControlSegment: number = -1;
+    private swapMarker: Phaser.GameObjects.Container | null = null;
+    private controlsSwapped = false;
+
+    // Brake stop mechanic
     private isBrakeStopped = false;
+    private isSwapBrake = false;
     private brakeStopTimer: Phaser.Time.TimerEvent | null = null;
     private brakeStopSegments: number[] = [];
     private stopSignContainer: Phaser.GameObjects.Container | null = null;
+    private stopSignMarkers: Phaser.GameObjects.Container[] = [];
 
     // Tutorial-specific
     private correctTurnsInPractice = 0;
@@ -89,6 +101,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     preload() {
         this.load.image('tuktuk-body', '/assets/game-15-taxidriver/tuktuk_asset.png');
+        this.load.image('barricade', '/assets/game-15-taxidriver/barricade.png');
         this.load.audio('engine-idle', '/assets/sounds/taxidriver/Engine_Idle.mp3');
         this.load.audio('correct-turn', '/assets/sounds/taxidriver/Turn_Swooosh.mp3');
         this.load.audio('wrong-turn', '/assets/sounds/global/error.mp3');
@@ -439,7 +452,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         bg.on('pointerdown', () => {
             if (this.gameOver) return;
 
-            // Handle brake stop
+            // Handle brake stop or swap brake
             if (this.isBrakeStopped && direction === 'forward') {
                 bg.setFillStyle(0x4285F4);
                 text.setColor('#FFFFFF');
@@ -447,7 +460,13 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                     targets: container, scale: 0.9, duration: 50, yoyo: true,
                     onComplete: () => { bg.setFillStyle(0xF5F5F5); text.setColor('#555555'); }
                 });
-                this.handleForwardPress();
+
+                // If this is a swap brake, handle differently
+                if (this.isSwapBrake) {
+                    this.resumeAfterSwapBrake();
+                } else {
+                    this.handleForwardPress();
+                }
                 return;
             }
 
@@ -684,6 +703,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
             // Force a brake stop at segment 2
             this.brakeStopSegments = [2];
+            this.placeTrapMarkers(); // Place visuals
             this.setButtonsEnabled(true);
 
             this.time.delayedCall(1500, () => {
@@ -699,33 +719,98 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.gameStarted = false;
         this.isMoving = false;
         this.targetPosition = null;
+
+        this.showInstruction('ระวังสิ่งกีดขวาง! 🚧\nหากเจอทางตัน รถจะหาทางใหม่เอง'); // "Beware obstacles! If blocked, car reroutes."
+
+        this.time.delayedCall(4000, () => {
+            this.resetCar(2, 6, 'N');
+            this.generateTutorialPath([
+                { x: 2, y: 6, dir: 'N', turn: false },
+                { x: 2, y: 5, dir: 'N', turn: false },
+                { x: 2, y: 4, dir: 'N', turn: false }, // Barricade here
+            ]);
+            this.drawPath();
+
+            this.roadClosureSegments = [2];
+            this.placeTrapMarkers();
+            this.setButtonsEnabled(true);
+
+            this.time.delayedCall(1500, () => {
+                this.gameStarted = true;
+                this.findNextIntersection();
+                this.startContinuousMovement();
+            });
+        });
+    }
+
+    private startPhase6() {
+        this.currentPhase = 6;
+        this.gameStarted = false;
+        this.isMoving = false;
+        this.targetPosition = null;
+        this.controlsSwapped = false; // Ensure reset
+
+        this.showInstruction('ด่านปราบเซียน: ปุ่มสลับทิศ! 🔀\nปุ่มซ้าย/ขวา จะสลับที่กัน'); // "Expert level: Swap buttons! Left/Right will swap."
+
+        this.time.delayedCall(4000, () => {
+            // Path: Straight -> Swap -> Turn Right (but buttons are swapped!)
+            this.resetCar(3, 6, 'N');
+            this.generateTutorialPath([
+                { x: 3, y: 6, dir: 'N', turn: false },
+                { x: 3, y: 5, dir: 'N', turn: false }, // Swap here
+                { x: 3, y: 4, dir: 'N', turn: true, turnDir: 'right' }, // Turn right (using left button?)
+                { x: 4, y: 4, dir: 'E', turn: false },
+            ]);
+            this.drawPath();
+
+            this.swapControlSegment = 1;
+            this.placeTrapMarkers();
+            this.setButtonsEnabled(true);
+
+            this.time.delayedCall(1500, () => {
+                this.gameStarted = true;
+                this.findNextIntersection();
+                this.startContinuousMovement();
+            });
+        });
+    }
+
+    private startPhase7() {
+        this.currentPhase = 7;
+        this.gameStarted = false;
+        this.isMoving = false;
+        this.targetPosition = null;
         this.correctTurnsInPractice = 0;
         this.totalTurnsInPractice = 0;
         this.practiceHintShown = false;
 
-        this.showInstruction('เยี่ยม! 🚀\nลองฝึกขับอีกรอบ\nเลี้ยวตามเส้นทาง + หยุดเบรก');
+        // Reset controls just in case
+        if (this.controlsSwapped) {
+            this.resumeAfterSwapBrake(); // Hack to animate back? Or just resetUI() in resetCar handled it.
+        }
 
-        this.time.delayedCall(3000, () => {
-            // Practice run: 3 turns + 1 brake stop
-            this.resetCar(3, 6, 'N');
+        this.showInstruction('บททดสอบสุดท้าย! 🎓\nเลี้ยว + เบรก + สลับปุ่ม\nคุณทำได้!');
+
+        this.time.delayedCall(4000, () => {
+            // Practice run: Turn Left -> Brake -> Turn Right -> Swap -> Turn Left
+            this.resetCar(4, 6, 'N');
             this.generateTutorialPath([
-                { x: 3, y: 6, dir: 'N', turn: false },
-                { x: 3, y: 5, dir: 'N', turn: false },
-                { x: 3, y: 4, dir: 'N', turn: true, turnDir: 'left' },
-                { x: 2, y: 4, dir: 'W', turn: false },
-                { x: 1, y: 4, dir: 'W', turn: true, turnDir: 'right' },
-                { x: 1, y: 3, dir: 'N', turn: false },
-                { x: 1, y: 2, dir: 'N', turn: true, turnDir: 'right' },
-                { x: 2, y: 2, dir: 'E', turn: false },
-                { x: 3, y: 2, dir: 'E', turn: false },
+                { x: 4, y: 6, dir: 'N', turn: false },
+                { x: 4, y: 5, dir: 'N', turn: true, turnDir: 'left' },
+                { x: 3, y: 5, dir: 'W', turn: false }, // Brake here
+                { x: 2, y: 5, dir: 'W', turn: true, turnDir: 'right' },
+                { x: 2, y: 4, dir: 'N', turn: false }, // Swap here
+                { x: 2, y: 3, dir: 'N', turn: true, turnDir: 'left' },
+                { x: 1, y: 3, dir: 'W', turn: false },
             ]);
             this.drawPath();
 
-            // Add a brake stop at a non-intersection segment
-            this.brakeStopSegments = [5];
+            this.brakeStopSegments = [2];
+            this.swapControlSegment = 4;
+            this.placeTrapMarkers();
             this.setButtonsEnabled(true);
 
-            this.showInstruction('พร้อมแล้ว... ไปเลย! 🛺');
+            this.showInstruction('พร้อมแล้ว... ลุยเลย! 🛺💨');
 
             this.time.delayedCall(2000, () => {
                 this.hideInstruction();
@@ -758,6 +843,152 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     // CAR MOVEMENT (Simplified from GameScene)
     // ========================================================================
 
+    private createStopSignMarker(x: number, y: number): Phaser.GameObjects.Container {
+        const container = this.add.container(x, y);
+        container.setDepth(15);  // Above path line
+        const r = this.cellSize * 0.32;
+
+        const gfx = this.add.graphics();
+
+        // Pole / leg (below the octagon)
+        const poleW = r * 0.15;
+        const poleH = r * 1.0;
+        gfx.fillStyle(0x666666, 1);
+        gfx.fillRect(-poleW / 2, r * 0.5, poleW, poleH);
+        gfx.lineStyle(1, 0x444444, 1);
+        gfx.strokeRect(-poleW / 2, r * 0.5, poleW, poleH);
+
+        // Octagonal stop sign
+        gfx.fillStyle(0xCC0000, 0.9);
+        gfx.lineStyle(2.5, 0xFFFFFF, 0.95);
+        const pts: { x: number; y: number }[] = [];
+        for (let i = 0; i < 8; i++) {
+            const a = (Math.PI / 8) + (i * Math.PI / 4);
+            pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+        }
+        gfx.beginPath();
+        gfx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < 8; i++) gfx.lineTo(pts[i].x, pts[i].y);
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.strokePath();
+
+        const text = this.add.text(0, 0, 'หยุด', {
+            fontFamily: 'Sarabun, sans-serif',
+            fontSize: `${r * 0.65}px`,
+            color: '#FFFFFF',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        container.add([gfx, text]);
+
+        // Subtle idle pulse
+        this.tweens.add({
+            targets: container,
+            scale: { from: 0.9, to: 1.05 },
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
+    }
+
+    private createBarricadeMarker(x: number, y: number): Phaser.GameObjects.Container {
+        const container = this.add.container(x, y);
+        container.setDepth(15);
+        const sz = this.cellSize * 0.85;
+
+        // Use barricade sprite if loaded
+        if (this.textures.exists('barricade')) {
+            const sprite = this.add.sprite(0, 0, 'barricade');
+            const scale = sz / sprite.width;
+            sprite.setScale(scale);
+            container.add(sprite);
+        } else {
+            // Fallback: orange/white striped horizontal bar
+            const gfx = this.add.graphics();
+            const barW = sz;
+            const barH = sz * 0.3;
+            gfx.fillStyle(0xFF6B35, 0.9);
+            gfx.fillRect(-barW / 2, -barH / 2, barW, barH);
+            // White stripes (vertical across the horizontal bar)
+            gfx.fillStyle(0xFFFFFF, 0.9);
+            const stripeW = barW * 0.1;
+            for (let i = 0; i < 4; i++) {
+                gfx.fillRect(-barW / 2 + i * barW * 0.28, -barH / 2, stripeW, barH);
+            }
+            // Outline
+            gfx.lineStyle(2, 0xCC4400, 1);
+            gfx.strokeRect(-barW / 2, -barH / 2, barW, barH);
+            container.add([gfx]);
+        }
+
+        // Subtle idle sway
+        this.tweens.add({
+            targets: container,
+            angle: { from: -3, to: 3 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
+    }
+
+    private createBumpMarker(x: number, y: number): Phaser.GameObjects.Container {
+        // Programmer art: yellow diamond warning sign with a car bump icon
+        const container = this.add.container(x, y);
+        container.setDepth(15);
+        const r = this.cellSize * 0.45;
+
+        const gfx = this.add.graphics();
+
+        // Yellow diamond background
+        gfx.fillStyle(0xFFCC00, 0.9);
+        gfx.lineStyle(2, 0x000000, 0.8);
+        gfx.beginPath();
+        gfx.moveTo(0, -r);          // Top
+        gfx.lineTo(r, 0);           // Right
+        gfx.lineTo(0, r);           // Bottom
+        gfx.lineTo(-r, 0);          // Left
+        gfx.closePath();
+        gfx.fillPath();
+        gfx.strokePath();
+
+        // Car bump icon: a small car silhouette with bump lines
+        // Car body (rectangle)
+        gfx.fillStyle(0x333333, 1);
+        gfx.fillRect(-r * 0.3, -r * 0.15, r * 0.6, r * 0.3);
+        // Car roof
+        gfx.fillRect(-r * 0.15, -r * 0.35, r * 0.3, r * 0.2);
+        // Bump lines (zigzag below car)
+        gfx.lineStyle(2, 0x333333, 1);
+        gfx.beginPath();
+        gfx.moveTo(-r * 0.2, r * 0.25);
+        gfx.lineTo(-r * 0.1, r * 0.4);
+        gfx.lineTo(0, r * 0.25);
+        gfx.lineTo(r * 0.1, r * 0.4);
+        gfx.lineTo(r * 0.2, r * 0.25);
+        gfx.strokePath();
+
+        container.add([gfx]);
+
+        // Subtle bounce animation
+        this.tweens.add({
+            targets: container,
+            y: y - 3,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        return container;
+    }
+
     private resetCar(gridX: number, gridY: number, heading: Heading) {
         this.carGridX = gridX;
         this.carGridY = gridY;
@@ -769,16 +1000,143 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.isApproachingIntersection = false;
         this.upcomingIntersectionIndex = -1;
         this.isBrakeStopped = false;
+        this.isSwapBrake = false;
         this.brakeStopSegments = [];
+        this.roadClosureSegments = [];
+        this.swapControlSegment = -1;
+        this.controlsSwapped = false;
+
+        // Reset UI buttons to normal position
+        this.resetUI();
 
         const pos = this.gridToWorld(gridX, gridY);
         this.car.setPosition(pos.x, pos.y);
         this.updateCarRotation();
 
-        // Hide alert indicator
+        // Clear markers
+        this.clearTrapMarkers();
+
+        // Hide updated alert indicator
         this.alertIndicator.setVisible(false);
         this.tweens.killTweensOf(this.alertIndicator);
         this.alertIndicator.setScale(1);
+    }
+
+    private clearTrapMarkers() {
+        this.stopSignMarkers.forEach(m => m.destroy());
+        this.stopSignMarkers = [];
+        this.barricadeMarkers.forEach(m => m.destroy());
+        this.barricadeMarkers = [];
+        if (this.swapMarker) {
+            this.swapMarker.destroy();
+            this.swapMarker = null;
+        }
+    }
+
+    private placeTrapMarkers() {
+        this.clearTrapMarkers();
+
+        // Stop signs
+        for (const segIdx of this.brakeStopSegments) {
+            if (segIdx < 0 || segIdx >= this.path.length) continue;
+            const seg = this.path[segIdx];
+            const pos = this.gridToWorld(seg.x, seg.y);
+
+            const offset = this.cellSize * 0.35;
+            let offX = 0, offY = 0;
+            switch (seg.direction) {
+                case 'N': offX = offset; break;
+                case 'S': offX = -offset; break;
+                case 'E': offY = offset; break;
+                case 'W': offY = -offset; break;
+            }
+            const marker = this.createStopSignMarker(pos.x + offX, pos.y + offY);
+            this.stopSignMarkers.push(marker);
+        }
+
+        // Barricades
+        for (const segIdx of this.roadClosureSegments) {
+            // Barricade is on the NEXT segment, logic handled similarly to GameScene or simplified
+            // In tutorial, we usually mark the specific segment that IS blocked.
+            // Let's assume roadClosureSegments contains the index of the CLOSED segment directly.
+            if (segIdx < 0 || segIdx >= this.path.length) continue;
+            const seg = this.path[segIdx];
+            const pos = this.gridToWorld(seg.x, seg.y);
+            const marker = this.createBarricadeMarker(pos.x, pos.y);
+            this.barricadeMarkers.push(marker);
+        }
+
+        // Swap marker
+        if (this.swapControlSegment >= 0 && this.swapControlSegment < this.path.length) {
+            const seg = this.path[this.swapControlSegment];
+            const pos = this.gridToWorld(seg.x, seg.y);
+            this.swapMarker = this.createBumpMarker(pos.x, pos.y);
+        }
+    }
+
+    private resetUI() {
+        // Reset button positions if swapped
+        // Assuming default positions based on createUI
+        const { width } = this.scale;
+        const buttonSize = Math.min(80, width * 0.2);
+        const spacing = Math.min(30, width * 0.05);
+        // We need to re-calculate Y or store it. Let's just swap X values back if we tracked them.
+        // Easier: destroy and re-create UI or just swap X coordinates back based on `controlsSwapped` state?
+        // Actually, just swapping the X positions of left/right buttons is enough.
+
+        // Ensure Left is left, Right is right
+        if (this.leftButton.x > this.rightButton.x) {
+            // Swap back
+            const tempX = this.leftButton.x;
+            this.leftButton.x = this.rightButton.x;
+            this.rightButton.x = tempX;
+        }
+    }
+
+    private triggerControlSwap() {
+        // Pause movement
+        this.isBrakeStopped = true;
+        this.isSwapBrake = true;
+        this.isMoving = false;
+
+        this.playSound('wrong-turn'); // Alert sound
+        this.showInstruction('ระวัง! ปุ่มสลับตำแหน่ง 🔀\nกด START ยืนยัน');
+
+        // Immediate visual swap
+        this.playSound('correct-turn'); // Swoosh sound
+
+        const leftX = this.leftButton.x;
+        const rightX = this.rightButton.x;
+
+        this.tweens.add({
+            targets: this.leftButton,
+            x: rightX,
+            duration: 500,
+            ease: 'Back.easeInOut'
+        });
+
+        this.tweens.add({
+            targets: this.rightButton,
+            x: leftX,
+            duration: 500,
+            ease: 'Back.easeInOut',
+            onComplete: () => {
+                this.controlsSwapped = !this.controlsSwapped;
+                this.highlightForwardButton(true);
+            }
+        });
+    }
+
+    private resumeAfterSwapBrake() {
+        this.isBrakeStopped = false;
+        this.isSwapBrake = false;
+        this.hideInstruction();
+        this.highlightForwardButton(false);
+
+        // Resume movement
+        this.time.delayedCall(500, () => {
+            this.moveToNextSegment();
+        });
     }
 
     private findNextIntersection() {
@@ -814,9 +1172,9 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.carHeading = nextSeg.direction;
         this.updateCarRotation();
 
-        // Check brake stop
-        this.checkBrakeStop();
-        if (this.isBrakeStopped) return;
+        // Check for traps (Brake Stop, Road Closure, Swap)
+        if (this.checkTraps()) return;
+
         this.isMoving = true;
     }
 
@@ -1003,14 +1361,15 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                     this.startPhase3();
                 });
                 return;
-            } else if (this.currentPhase === 5) {
+                return;
+            } else if (this.currentPhase === 7) { // Phase 7 is now the final practice
                 // Practice: retry from beginning
                 this.isMoving = false;
                 this.targetPosition = null;
                 this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
                 this.time.delayedCall(2000, () => {
                     this.gameStarted = false;
-                    this.startPhase5();
+                    this.startPhase7();
                 });
                 return;
             }
@@ -1018,15 +1377,89 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     }
 
     // ========================================================================
-    // BRAKE STOP (Simplified)
+    // TRAPS & EVENTS
     // ========================================================================
 
-    private checkBrakeStop() {
-        if (this.isBrakeStopped) return;
-        if (this.brakeStopSegments.length === 0) return;
-        if (!this.brakeStopSegments.includes(this.currentPathIndex)) return;
+    private checkTraps(): boolean {
+        if (this.isBrakeStopped) return true;
 
-        this.triggerBrakeStop();
+        // 1. Check Road Closure
+        if (this.roadClosureSegments && this.roadClosureSegments.includes(this.currentPathIndex)) {
+            this.triggerRoadClosure();
+            return true;
+        }
+
+        // 2. Check Brake Stop
+        if (this.brakeStopSegments && this.brakeStopSegments.includes(this.currentPathIndex)) {
+            this.triggerBrakeStop();
+            return true;
+        }
+
+        // 3. Check Control Swap
+        if (this.swapControlSegment !== undefined && this.currentPathIndex === this.swapControlSegment) {
+            this.triggerControlSwap();
+            return true;
+        }
+
+        return false;
+    }
+
+    private triggerRoadClosure() {
+        this.isMoving = false;
+        this.targetPosition = null;
+        this.playSound('wrong-turn');
+
+        this.showInstruction('ทางตัน! 🚧\nกำลังค้นหาเส้นทางใหม่...'); // "Road Closed! Rerouting..."
+
+        // Clear the closure so we don't trigger it again on the new path
+        this.roadClosureSegments = [];
+
+        this.time.delayedCall(2000, () => {
+            // Generate new path from current physical position (previous segment)
+            // We need to know where we visually are.
+            // currentPathIndex points to the barricade segment.
+            // visual position is at currentPathIndex - 1.
+            let startX = this.carGridX;
+            let startY = this.carGridY;
+            let startDir = this.carHeading;
+
+            // If we have a valid previous segment, start from there to avoid "flying"
+            if (this.currentPathIndex > 0 && this.path[this.currentPathIndex - 1]) {
+                const prev = this.path[this.currentPathIndex - 1];
+                startX = prev.x;
+                startY = prev.y;
+                startDir = prev.direction as Heading;
+
+                // Also reset visual position to match exactly just in case
+                const pos = this.gridToWorld(startX, startY);
+                this.car.setPosition(pos.x, pos.y);
+                this.carGridX = startX;
+                this.carGridY = startY;
+            }
+
+            // Hardcoded reroute for Phase 5
+            if (this.currentPhase === 5) {
+                this.path = []; // Clear old path
+                this.generateTutorialPath([
+                    { x: startX, y: startY, dir: startDir, turn: false }, // Start from current visual pos
+                    { x: startX, y: startY - 1, dir: 'N', turn: true, turnDir: 'right' },
+                    { x: startX + 1, y: startY - 1, dir: 'E', turn: false },
+                    { x: startX + 2, y: startY - 1, dir: 'E', turn: false }
+                ]);
+                this.currentPathIndex = 0;
+                this.drawPath();
+                this.placeTrapMarkers(); // Refresh markers (should be empty now)
+
+                this.showInstruction('พบเส้นทางใหม่! 🔄');
+                this.playSound('correct-turn');
+
+                this.time.delayedCall(1500, () => {
+                    this.hideInstruction();
+                    this.findNextIntersection();
+                    this.startContinuousMovement();
+                });
+            }
+        });
     }
 
     private triggerBrakeStop() {
@@ -1044,7 +1477,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         }
 
         // Create stop sign
-        this.createStopSign();
+        // this.createStopSign(); // Remove redundant animation as marker exists
 
         // Show message
         this.showInstruction('รถหยุด! กดปุ่ม "START" เพื่อขับต่อ');
@@ -1207,34 +1640,27 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     // ========================================================================
 
     private handlePracticeVictory() {
-        this.gameStarted = false;
         this.isMoving = false;
+        this.targetPosition = null;
+        this.playSound('level-pass');
 
         if (this.currentPhase === 4) {
-            // Brake stop phase completion - car reached end of path
-            // This means they passed through but startPhase5 is handled in handleForwardPress
-            return;
-        }
-
-        if (this.currentPhase === 5) {
-            // Practice complete!
+            // Brake stop phase completion
+            this.time.delayedCall(1000, () => this.startPhase5());
+        } else if (this.currentPhase === 5) {
+            // Road closure phase completion
+            this.time.delayedCall(1000, () => this.startPhase6());
+        } else if (this.currentPhase === 6) {
+            // Control swap phase completion
+            this.time.delayedCall(1000, () => this.startPhase7());
+        } else if (this.currentPhase === 7) {
+            // Final practice complete!
             this.showInstruction('ยอดเยี่ยม! 🎊\nคุณพร้อมสำหรับของจริงแล้ว!');
-            this.playSound('level-pass');
             this.triggerConfetti(this.car.x, this.car.y);
 
             this.time.delayedCall(3000, () => {
                 this.completeTutorial();
             });
-            return;
-        }
-
-        // Phase 3: guided turn - car finished path segment
-        // This means the turn was successful and traversal completed
-        if (this.currentPhase === 3) {
-            this.gameStarted = false;
-            this.isMoving = false;
-            this.targetPosition = null;
-            this.startPhase4();
         }
     }
 
@@ -1242,14 +1668,13 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         // Stop sounds
         this.sound.stopAll();
 
-        const onTutorialComplete = this.registry.get('onTutorialComplete');
-        if (onTutorialComplete) {
-            onTutorialComplete();
-        } else {
-            // Fallback
-            this.scene.start('TaxiDriverGameScene');
-        }
+        // Mark tutorial as complete in registry
+        this.registry.set('taxidriver_tutorial_complete', true);
+
+        // Start the main game
+        this.scene.start('TaxiDriverGameScene', { level: 1 });
     }
+
 
     // ========================================================================
     // HELPERS
