@@ -441,7 +441,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             const y = row * cellH + gap / 2;
             const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
             const stall = this.add.sprite(leftCx, y, `stall_img_${color}`);
-            stall.setAngle(90); // rotate landscape → portrait
+            stall.setAngle(-90); // rotate to face river
             stall.displayWidth = stallDisplayH; // swapped because rotated
             stall.displayHeight = stallDisplayW;
             stall.setDepth(5);
@@ -454,7 +454,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             const y = row * cellH + gap / 2;
             const color = stallColors[Phaser.Math.Between(0, stallColors.length - 1)];
             const stall = this.add.sprite(rightCx, y, `stall_img_${color}`);
-            stall.setAngle(-90); // mirror rotation for right side
+            stall.setAngle(90); // mirror rotation for right side
             stall.displayWidth = stallDisplayH;
             stall.displayHeight = stallDisplayW;
             stall.setDepth(5);
@@ -1391,7 +1391,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         if (collectionRatio < 0.3) return 'เก็บของให้มากขึ้น!';
         if (accuracy < 0.7) return 'ดูกฎให้ดี แล้วเก็บของให้ถูกชนิด!';
         if (this.totalCollisions > 3) return 'หลบสิ่งกีดขวางให้มากขึ้น!';
-        return 'เร็วขึ้นอีกนิดแล้วจะได้ 3 ดาว!';
+        return 'เก็บของให้ครบและหลบสิ่งกีดขวางให้ดี!';
     }
 
     // ==================== RESIZE HANDLER ====================
