@@ -36,7 +36,6 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-15-taxidriver': TaxiDriverGameConfig,
   'game-14-wordrecognize': WordRecognizeGameConfig,
   'game-16-doorguardian': DoorGuardianGameConfig,
-  'game-17-floatingmarket': FloatingMarketGameConfig,
   'game-18-runforyourlife': RunForYourLifeGameConfig,
 };
 

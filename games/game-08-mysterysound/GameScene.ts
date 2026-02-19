@@ -149,7 +149,8 @@ export class MysterySoundScene extends Phaser.Scene {
     private createTitleCard() {
         const { width } = this.scale;
 
-        this.titleContainer = this.add.container(width / 2, 120);
+        const titleY = 80; // Optimized for small screens
+        this.titleContainer = this.add.container(width / 2, titleY);
 
         const titleBg = this.add.graphics();
         titleBg.fillStyle(0xffffff, 0.95);
@@ -186,7 +187,8 @@ export class MysterySoundScene extends Phaser.Scene {
         const { width } = this.scale;
         const totalQuestions = this.currentLevelConfig.questions.length;
 
-        this.questionIndicator = this.add.text(width / 2, 165, `ข้อ ${this.currentQuestionIndex + 1}/${totalQuestions}`, {
+        const questionY = 135; // Moved up to save space
+        this.questionIndicator = this.add.text(width / 2, questionY, `ข้อ ${this.currentQuestionIndex + 1}/${totalQuestions}`, {
             fontSize: '18px',
             fontFamily: 'Sarabun, sans-serif',
             color: '#ffffff',
@@ -208,7 +210,8 @@ export class MysterySoundScene extends Phaser.Scene {
     private createSpeakerIcon() {
         const { width, height } = this.scale;
         const centerX = width / 2;
-        const centerY = height * 0.30;
+        // Dynamic positioning with minimum safe distance from top elements
+        const centerY = Math.max(height * 0.28, 230);
 
         this.speakerContainer = this.add.container(centerX, centerY);
 
@@ -314,7 +317,11 @@ export class MysterySoundScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         if (this.requiredSelections > 1) {
-            this.selectionHint = this.add.text(width / 2, height * 0.42, `เลือก ${this.requiredSelections} ตัว`, {
+            const speakerY = this.speakerContainer ? this.speakerContainer.y : height * 0.3;
+            // Ensure hint is below speaker
+            const hintY = Math.max(height * 0.42, speakerY + 100);
+
+            this.selectionHint = this.add.text(width / 2, hintY, `เลือก ${this.requiredSelections} ตัว`, {
                 fontSize: '16px',
                 fontFamily: 'Sarabun, sans-serif',
                 color: '#fef3c7',
@@ -395,7 +402,16 @@ export class MysterySoundScene extends Phaser.Scene {
 
         const gridWidth = buttonSize * 2 + gapX;
         const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
-        const startY = height * 0.48;
+
+        // Calculate startY relative to previous elements or minimum height
+        let referenceY = height * 0.48;
+        if (this.selectionHint && this.selectionHint.active) {
+            referenceY = Math.max(referenceY, this.selectionHint.y + 50);
+        } else if (this.speakerContainer) {
+            referenceY = Math.max(referenceY, this.speakerContainer.y + 110);
+        }
+
+        const startY = referenceY;
 
         options.forEach((opt: MysterySoundOption, index: number) => {
             const col = index % 2;
@@ -950,20 +966,25 @@ export class MysterySoundScene extends Phaser.Scene {
     private handleResize(gameSize: Phaser.Structs.Size) {
         const { width, height } = gameSize;
 
+        const titleY = 80;
+        const questionY = 135;
+        const speakerY = Math.max(height * 0.28, 230);
+        let hintY = Math.max(height * 0.42, speakerY + 100);
+
         if (this.titleContainer) {
-            this.titleContainer.setPosition(width / 2, 120);
+            this.titleContainer.setPosition(width / 2, titleY);
         }
 
         if (this.questionIndicator) {
-            this.questionIndicator.setPosition(width / 2, 165);
+            this.questionIndicator.setPosition(width / 2, questionY);
         }
 
         if (this.speakerContainer) {
-            this.speakerContainer.setPosition(width / 2, height * 0.30);
+            this.speakerContainer.setPosition(width / 2, speakerY);
         }
 
         if (this.selectionHint) {
-            this.selectionHint.setPosition(width / 2, height * 0.42);
+            this.selectionHint.setPosition(width / 2, hintY);
         }
 
         if (this.confirmButton) {
@@ -979,7 +1000,15 @@ export class MysterySoundScene extends Phaser.Scene {
 
             const gridWidth = buttonSize * 2 + gapX;
             const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
-            const startY = height * 0.48;
+
+            // Recalculate startY based on new positions
+            let referenceY = height * 0.48;
+            if (this.selectionHint && this.selectionHint.active) {
+                referenceY = Math.max(referenceY, hintY + 50);
+            } else {
+                referenceY = Math.max(referenceY, speakerY + 110);
+            }
+            const startY = referenceY;
 
             this.optionButtons.forEach((button, index) => {
                 const col = index % 2;
