@@ -52,7 +52,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
   const handleLevelClick = (level: GameLevel) => {
     if (level.unlocked) {
       // If clicking level 1 and hasn't played before, go to tutorial (level 0)
-      if (level.level === 1 && hasPlayedBefore === false && gameId !== 'game-17-floatingmarket') {
+      if (level.level === 1 && hasPlayedBefore === false) {
         router.push(`/play/${gameId}?level=0&from=levels`);
         return;
       }
@@ -192,11 +192,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
       {/* Tutorial Button */}
       <div className="fixed bottom-25 right-4 z-50 flex flex-col items-center gap-1 group">
         <Link
-          href={
-            gameId === 'game-17-floatingmarket'
-              ? `/play/${gameId}?level=${[...levels].reverse().find(l => l.unlocked)?.level || 1}&from=levels`
-              : `/play/${gameId}?level=0&tutorial_mode=review&from=levels`
-          }
+          href={`/play/${gameId}?level=0&tutorial_mode=review&from=levels`}
           className="bg-white hover:bg-gray-50 text-brown-primary border-4 border-brown-primary rounded-full w-14 h-14 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
         >
           <span className="text-2xl font-bold">?</span>

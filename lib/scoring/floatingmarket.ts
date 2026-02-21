@@ -34,11 +34,11 @@ export function calculateFloatingMarketStats(data: FloatingMarketGameStats): Cli
 
     // === STAT_SPEED: Processing Speed ===
     let stat_speed: number | null = null;
-    if (data.reactionTimes.length > 0) {
+    if (data.reactionTimes && data.reactionTimes.length > 0) {
         const avgReaction = data.reactionTimes.reduce((a, b) => a + b, 0) / data.reactionTimes.length;
         const standardTimeMs = 3000;
         const rawSpeed = ((standardTimeMs - avgReaction) / standardTimeMs) * 100;
-        const hesitationPenalty = data.hesitationCount * 5;
+        const hesitationPenalty = (data.hesitationCount || 0) * 5;
         stat_speed = clamp((rawSpeed - hesitationPenalty) * difficultyMultiplier);
     }
 
