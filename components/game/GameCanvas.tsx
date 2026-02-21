@@ -119,6 +119,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-16-doorguardian') {
           const { DoorGuardianTutorialScene } = await import('@/games/game-16-doorguardian/TutorialScene');
           config.scene = DoorGuardianTutorialScene;
+        } else if (gameId === 'game-17-floatingmarket') {
+          const { FloatingMarketTutorialScene } = await import('@/games/game-17-floatingmarket/TutorialScene');
+          config.scene = FloatingMarketTutorialScene;
         }
       }
 
@@ -306,8 +309,8 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-white pointer-events-auto w-[90%] max-w-md rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border-8 border-[#58CC02]">
               {/* Header Image Area */}
-              <div className="w-full h-48 bg-[#e5e5e5] flex items-center justify-center relative overflow-hidden">
-                {introData.imageKey ? (
+              {introData.imageKey ? (
+                <div className="w-full h-48 bg-[#e5e5e5] flex items-center justify-center relative overflow-hidden">
                   <img
                     src={introData.imageKey.startsWith('http') || introData.imageKey.startsWith('/') ? introData.imageKey : `/games/game-05-wormtrain/${introData.imageKey}.webp`}
                     alt={introData.title}
@@ -317,15 +320,19 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
-                ) : (
-                  <div className="text-6xl">💡</div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
-                  <h2 className="text-3xl font-black text-white drop-shadow-md">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
+                    <h2 className="text-3xl font-black text-white drop-shadow-md">
+                      {introData.title}
+                    </h2>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-8 px-8 flex justify-center w-full">
+                  <h2 className="text-3xl font-black text-[#58CC02] drop-shadow-sm text-center">
                     {introData.title}
                   </h2>
                 </div>
-              </div>
+              )}
 
               <div className="p-8 flex flex-col items-center text-center">
                 <p className="text-gray-600 text-lg font-bold mb-8 leading-relaxed whitespace-pre-line">

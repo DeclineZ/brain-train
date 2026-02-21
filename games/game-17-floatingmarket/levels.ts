@@ -19,11 +19,11 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         riverWidthRatio: 0.78,
         obstacleFrequency: 5.0,
         itemSpawnRate: 2.5,
-        itemPoolCategories: ['lotus', 'rock'],
+        itemPoolCategories: ['lotus'], // Removed redundant standalone rock item
         rule: {
-            instructionThai: 'เก็บดอกบัว! หลีกเลี่ยงหิน!',
+            instructionThai: 'เก็บดอกบัว! หลีกเลี่ยงสิ่งกีดขวาง!',
             collectFilter: ['lotus'],
-            avoidFilter: ['rock'],
+            avoidFilter: ['rock'], // Technically obsolete but leaving in case
         },
         memoryCapacity: 0,
         coinFrequency: 0,
