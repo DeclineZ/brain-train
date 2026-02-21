@@ -176,7 +176,11 @@ export default function GamePage({ params }: PageProps) {
                             setActiveLevel(0);
                         }
                     } else if (gameId === 'game-17-floatingmarket') {
-                        setActiveLevel(1);
+                        if (data && data.current_played) {
+                            setActiveLevel(1);
+                        } else {
+                            setActiveLevel(0);
+                        }
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
                         // if (
@@ -595,6 +599,14 @@ export default function GamePage({ params }: PageProps) {
                     {
                         (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
+                    {/* Game 17 (Floating Market) with river theme styling */}
+                    {
+                        gameId === 'game-17-floatingmarket' && (
+                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-cyan-100 text-cyan-800 border-cyan-400 transition-all duration-300 animate-in slide-in-from-top-4">
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>
                         )

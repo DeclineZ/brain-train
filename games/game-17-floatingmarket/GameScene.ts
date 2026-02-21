@@ -97,85 +97,85 @@ export class FloatingMarketScene extends Phaser.Scene {
     private riverWidth = 0;
 
     // Boat
-    private boat!: Phaser.GameObjects.Container;
-    private boatBody!: Phaser.Physics.Arcade.Body;
-    private boatWidth = 40;
-    private currentSpeedX = 0;
-    private maxSpeedX = 350;
-    private accelX = 800;
-    private dragX = 0.92;
+    protected boat!: Phaser.GameObjects.Container;
+    protected boatBody!: Phaser.Physics.Arcade.Body;
+    protected boatWidth = 40;
+    protected currentSpeedX = 0;
+    protected maxSpeedX = 350;
+    protected accelX = 800;
+    protected dragX = 0.92;
 
     // Input
-    private useTilt = false;
-    private tiltGamma = 0;
-    private touchLeft = false;
-    private touchRight = false;
-    private leftZone!: Phaser.GameObjects.Rectangle;
-    private rightZone!: Phaser.GameObjects.Rectangle;
+    protected useTilt = false;
+    protected tiltGamma = 0;
+    protected touchLeft = false;
+    protected touchRight = false;
+    protected leftZone!: Phaser.GameObjects.Rectangle;
+    protected rightZone!: Phaser.GameObjects.Rectangle;
 
     // Scrolling
-    private scrollSpeed = 0;
-    private scrollY = 0;
-    private riverBgTiles: Phaser.GameObjects.TileSprite[] = [];
-    private dockBgTiles: Phaser.GameObjects.TileSprite[] = [];
-    private marketStallsLeft: Phaser.GameObjects.Sprite[] = [];
-    private marketStallsRight: Phaser.GameObjects.Sprite[] = [];
+    protected scrollSpeed = 0;
+    protected scrollY = 0;
+    protected riverBgTiles: Phaser.GameObjects.TileSprite[] = [];
+    protected dockBgTiles: Phaser.GameObjects.TileSprite[] = [];
+    protected marketStallsLeft: Phaser.GameObjects.Sprite[] = [];
+    protected marketStallsRight: Phaser.GameObjects.Sprite[] = [];
 
     // Obstacles
-    private obstacles: ObstacleObj[] = [];
-    private obstacleTimer = 0;
-    private obstacleGroup!: Phaser.Physics.Arcade.Group;
+    protected obstacles: ObstacleObj[] = [];
+    protected obstacleTimer = 0;
+    protected obstacleGroup!: Phaser.Physics.Arcade.Group;
 
     // Coins
-    private coins: CoinObj[] = [];
-    private coinTimer = 0;
-    private coinGroup!: Phaser.Physics.Arcade.Group;
+    protected coins: CoinObj[] = [];
+    protected coinTimer = 0;
+    protected coinGroup!: Phaser.Physics.Arcade.Group;
 
     // Floating items (Memory game core)
-    private floatingItems: FloatingItem[] = [];
-    private itemTimer = 0;
-    private itemGroup!: Phaser.Physics.Arcade.Group;
-    private availableItems: MarketItem[] = [];
-    private itemSpawnQueue: MarketItem[] = [];
-    private totalItemsSpawned = 0;
+    protected floatingItems: FloatingItem[] = [];
+    protected itemTimer = 0;
+    protected itemGroup!: Phaser.Physics.Arcade.Group;
+    protected availableItems: MarketItem[] = [];
+    protected itemSpawnQueue: MarketItem[] = [];
+    protected totalItemsSpawned = 0;
 
     // Mode B: Hidden Basket
-    private basketItems: Set<string> = new Set();
-    private basketCount = 0;
-    private basketResetCount = 0;
+    protected basketItems: Set<string> = new Set();
+    protected basketCount = 0;
+    protected basketResetCount = 0;
 
     // Active rule (can change in hybrid mode)
-    private activeRule!: LevelRule;
-    private activeMode!: GameMode;
-    private hybridSwitched = false;
+    protected activeRule!: LevelRule;
+    protected activeMode!: GameMode;
+    protected hybridSwitched = false;
 
     // UI elements
-    private ruleBanner!: Phaser.GameObjects.Text;
-    private ruleBannerBg!: Phaser.GameObjects.Rectangle;
-    private sackIcon!: Phaser.GameObjects.Sprite;
-    private sackCountText!: Phaser.GameObjects.Text;
-    private progressBar!: Phaser.GameObjects.Graphics;
-    private coinCountText!: Phaser.GameObjects.Text;
-    private fogOverlay?: Phaser.GameObjects.Rectangle;
+    protected ruleBanner!: Phaser.GameObjects.Text;
+    protected ruleBannerBg!: Phaser.GameObjects.Rectangle;
+    protected sackIcon!: Phaser.GameObjects.Sprite;
+    protected sackCountText!: Phaser.GameObjects.Text;
+    protected progressBar!: Phaser.GameObjects.Graphics;
+    protected coinCountText!: Phaser.GameObjects.Text;
+    protected fogOverlay?: Phaser.GameObjects.Rectangle;
 
     // Stats
-    private reactionTimes: number[] = [];
-    private hesitationCount = 0;
-    private totalCollisions = 0;
-    private correctCollections = 0;
-    private incorrectCollections = 0;
-    private missedItems = 0;
-    private duplicatePickups = 0;
-    private bonusCoins = 0;
+    protected reactionTimes: number[] = [];
+    protected hesitationCount = 0;
+    protected totalCollisions = 0;
+    protected correctCollections = 0;
+    protected incorrectCollections = 0;
+    protected missedItems = 0;
+    protected duplicatePickups = 0;
+    protected bonusCoins = 0;
 
     // State
-    private gameStartTime = 0;
-    private gameOver = false;
-    private distanceTraveled = 0;
-    private totalDistanceNeeded = 0;
-    private collisionCooldown = 0;
-    private alertShown = false;
-    private gameStarted = false; // Add gameStarted flag
+    protected gameStartTime = 0;
+    protected gameOver = false;
+    protected distanceTraveled = 0;
+    protected totalDistanceNeeded = 0;
+    protected collisionCooldown = 0;
+    protected alertShown = false;
+    protected gameStarted = false; // Add gameStarted flag
 
     // Water effects
     private waterParticleTimer = 0;
@@ -313,7 +313,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.showTapToStart(width, height);
     }
 
-    private showTapToStart(width: number, height: number) {
+    protected showTapToStart(width: number, height: number) {
         const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
         overlay.setDepth(200);
         overlay.setInteractive();
@@ -338,7 +338,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         });
     }
 
-    private startGame() {
+    public startGame() {
         this.gameStarted = true;
         this.gameStartTime = Date.now();
         const { width, height } = this.scale;
@@ -527,11 +527,10 @@ export class FloatingMarketScene extends Phaser.Scene {
         const width = this.scale.width;
         const height = this.scale.height;
 
-        this.progressBar = this.add.graphics();
-        this.progressBar.setDepth(100);
+        // Progress bar removed to use React level pill instead
 
         // Rule banner — large & prominent so older players cannot miss it
-        const bannerY = 75;
+        const bannerY = 150;
         this.ruleBannerBg = this.add.rectangle(width / 2, bannerY, width * 0.96, 56, 0x1A1A2E, 0.9);
         this.ruleBannerBg.setStrokeStyle(2, 0xFFD700, 0.8);
         this.ruleBannerBg.setDepth(99);
@@ -808,8 +807,11 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     moveBoat(dt: number) {
         let targetDirection = 0;
-        if (this.useTilt && Math.abs(this.tiltGamma) > 3) {
-            targetDirection = Phaser.Math.Clamp(this.tiltGamma / 25, -1, 1);
+        if (this.useTilt && Math.abs(this.tiltGamma) > 5) {
+            // Increased divisor to 45 so max speed requires more tilt
+            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / 45, -1, 1);
+            // Non-linear curve to make small tilts less sensitive
+            targetDirection = Math.sign(normalizedTilt) * Math.pow(Math.abs(normalizedTilt), 1.5);
         }
         if (this.touchLeft) targetDirection = -1;
         if (this.touchRight) targetDirection = 1;
@@ -1339,31 +1341,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     // ==================== PROGRESS & UI ====================
 
     drawProgress() {
-        const { width } = this.scale;
-        this.progressBar.clear();
-        const barW = width * 0.3;
-        const barH = 8;
-        const barX = (width - barW) / 2;
-        const barY = 15;
-
-        let progress: number;
-        if (this.levelConfig.itemCount > 0) {
-            // Level ends when all items spawned+gone AND distance >= 50%
-            // Weight: 70% items, 30% distance (items are the main objective)
-            const itemProgress = this.totalItemsSpawned / this.levelConfig.itemCount;
-            const itemsGoneProgress = this.floatingItems.length === 0 && this.totalItemsSpawned >= this.levelConfig.itemCount ? 1 : itemProgress;
-            const distProgress = Math.min(1, this.distanceTraveled / (this.totalDistanceNeeded * 0.5));
-            progress = Math.min(1, itemsGoneProgress * 0.7 + distProgress * 0.3);
-        } else {
-            progress = Math.min(1, this.distanceTraveled / this.totalDistanceNeeded);
-        }
-
-        this.progressBar.fillStyle(0x000000, 0.3);
-        this.progressBar.fillRoundedRect(barX, barY, barW, barH, 4);
-        this.progressBar.fillStyle(0x2ECC71, 1);
-        this.progressBar.fillRoundedRect(barX, barY, barW * progress, barH, 4);
-        this.progressBar.lineStyle(1, 0xFFFFFF, 0.5);
-        this.progressBar.strokeRoundedRect(barX, barY, barW, barH, 4);
+        // Obsolete: Progress bar removed in favor of React Level UI badge.
     }
 
     // ==================== END GAME ====================

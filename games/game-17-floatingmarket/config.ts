@@ -1,4 +1,5 @@
 import { FloatingMarketScene } from './GameScene';
+import { FloatingMarketTutorialScene } from './TutorialScene';
 
 export const FloatingMarketGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -17,5 +18,5 @@ export const FloatingMarketGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [FloatingMarketScene]
+    scene: [FloatingMarketScene, FloatingMarketTutorialScene]
 };
