@@ -45,3 +45,9 @@ Notes (2026-02-23, tutorial pass):
 - Increased panel sizes and minimum collision-guard heights to preserve legibility under constrained viewports.
 - Updated warning text minimum size floor to maintain readability (`mini>=14`, `full>=16`).
 - Validation: `npx tsc --noEmit --pretty false` passed.
+Notes (2026-02-23, game-11 popup + star hint):
+- Added `game-11-pipe-patch` scoring branch in `hooks/useGameSession.ts` using `calculatePipePatchStats` so result stats are computed instead of all-null fallback.
+- Added dynamic Thai `starHint` generation in `games/game-11-pipe-patch/GameScene.ts` and included it in solved-level `onGameOver` payload when stars < 3.
+- Hint priority: (1) placement/rejection mistakes, (2) slow solve time, (3) high undo/reset, (4) generic optimization hint.
+- Did NOT add start-intro popup flow (`SHOW_INTRO`) per latest requirement.
+- Validation: `npx tsc --noEmit --pretty false` passed.

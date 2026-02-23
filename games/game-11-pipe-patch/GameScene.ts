@@ -701,6 +701,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const current = this.perLevel[this.perLevel.length - 1] ?? this.levelMetrics;
     const stars = current.solveTimeMs <= current.parTimeMs ? 3 : current.solveTimeMs <= current.hardTimeMs ? 2 : 1;
+    const starHint = stars < 3 ? this.getStarHint(current, stars) : null;
     const levelScore = Math.max(
       1,
       Math.round(current.requiredPieceCount * 12 - current.rejectedDropCount * 2 - current.incorrectPlacementCount)
@@ -724,9 +725,32 @@ export class PipePatchGameScene extends Phaser.Scene {
         userTimeMs: current.activeTimeMs,
         score: levelScore,
         stars,
+        starHint,
         success: true,
       });
     }
+  }
+
+  private getStarHint(current: PipePatchPerLevelMetrics, stars: number): string | null {
+    const mistakeCount = current.rejectedDropCount + current.incorrectPlacementCount + current.repeatedErrorCount;
+    const highMistakeThreshold = Math.max(2, Math.ceil(current.requiredPieceCount * 0.8));
+
+    if (mistakeCount >= highMistakeThreshold) {
+      return 'ลดการวางผิดช่องและการปล่อยชิ้นส่วนผิดตำแหน่ง แล้วจะได้ดาวเพิ่มง่ายขึ้น';
+    }
+
+    if (current.solveTimeMs > current.parTimeMs) {
+      if (stars <= 1 || current.solveTimeMs > current.hardTimeMs) {
+        return 'ลองวางชิ้นส่วนหลักให้ต่อเนื่องเร็วขึ้น เพื่อเก็บเวลาและเพิ่มดาว';
+      }
+      return 'อีกนิดเดียว! ถ้าต่อท่อให้เร็วขึ้นอีกหน่อยจะได้ 3 ดาว';
+    }
+
+    if (current.undoCount + current.resetCount > 0) {
+      return 'วางแผนเส้นทางก่อนลากท่อ จะช่วยลดการย้อนและเพิ่มโอกาสได้ดาวสูง';
+    }
+
+    return 'ลองเชื่อมเส้นทางให้ลื่นไหลและลดจังหวะลังเล เพื่อทำดาวให้สูงขึ้น';
   }
 
   private evaluateBoardState(): EvalResult {

@@ -10,6 +10,7 @@ import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
 import { calculateTaxiDriverStats } from '@/lib/scoring/taxidriver';
 import { calculateFloatingMarketStats, type FloatingMarketGameStats } from '@/lib/scoring/floatingmarket';
 import { calculateCashierStats } from '@/lib/scoring/cashier';
+import { calculatePipePatchStats, type PipePatchGameStats } from '@/lib/scoring/pipepatch';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
 import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, GridHunterGameStats, TaxiDriverGameStats } from '@/types';
 import type { CashierGameStats } from '@/games/game-19-cashier/types';
@@ -74,6 +75,8 @@ export const useGameSession = () => {
       clinicalStats = calculateMinerStats(rawData as MinerGameStats);
     } else if (gameId === 'game-17-floatingmarket') {
       clinicalStats = calculateFloatingMarketStats(rawData as FloatingMarketGameStats);
+    } else if (gameId === 'game-11-pipe-patch') {
+      clinicalStats = calculatePipePatchStats(rawData as PipePatchGameStats);
     } else if (gameId === 'game-19-cashier') {
       clinicalStats = calculateCashierStats(rawData as CashierGameStats);
     }
