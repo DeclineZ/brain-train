@@ -10,8 +10,10 @@ import { calculatePowerPumpStats } from '@/lib/scoring/powerPump';
 import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
 import { calculateTaxiDriverStats } from '@/lib/scoring/taxidriver';
 import { calculateFloatingMarketStats, type FloatingMarketGameStats } from '@/lib/scoring/floatingmarket';
+import { calculateCashierStats } from '@/lib/scoring/cashier';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
 import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, PowerPumpGameStats, GridHunterGameStats, TaxiDriverGameStats } from '@/types';
+import type { CashierGameStats } from '@/games/game-19-cashier/types';
 import { calculateMinerStats } from '@/lib/scoring/miner';
 import type { MinerGameStats } from '@/lib/scoring/miner';
 
@@ -75,6 +77,8 @@ export const useGameSession = () => {
       clinicalStats = calculateMinerStats(rawData as MinerGameStats);
     } else if (gameId === 'game-17-floatingmarket') {
       clinicalStats = calculateFloatingMarketStats(rawData as FloatingMarketGameStats);
+    } else if (gameId === 'game-19-cashier') {
+      clinicalStats = calculateCashierStats(rawData as CashierGameStats);
     }
     // Add 'else if' for other games here later...
 
