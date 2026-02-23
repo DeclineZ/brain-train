@@ -15,6 +15,7 @@ const gameLevelModules = {
   'game-09-tube-sort': () => import('@/games/game-09-tube-sort/levels'),
   'game-15-taxidriver': () => import('@/games/game-15-taxidriver/levels'),
   'game-10-miner': () => import('@/games/game-10-miner/levels'),
+  'game-11-pipe-patch': () => import('@/games/game-11-pipe-patch/levels'),
   'game-16-doorguardian': () => import('@/games/game-16-doorguardian/levels'),
   'game-17-floatingmarket': () => import('@/games/game-17-floatingmarket/levels'),
   'game-20-boxcounting': () => import('@/games/game-20-boxcounting/levels'),
@@ -79,6 +80,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).MINER_LEVELS;
+    } else if (gameId === 'game-11-pipe-patch' && 'PIPE_PATCH_LEVELS_BY_ID' in levelModule) {
+      levelConfigs = (levelModule as any).PIPE_PATCH_LEVELS_BY_ID;
     } else if (gameId === 'game-16-doorguardian' && 'DOORGUARDIAN_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
@@ -167,6 +170,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return (levelModule as any).TAXIDRIVER_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
       return (levelModule as any).MINER_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-11-pipe-patch' && 'PIPE_PATCH_LEVELS_BY_ID' in levelModule) {
+      return (levelModule as any).PIPE_PATCH_LEVELS_BY_ID[levelNumber] || null;
     } else if (gameId === 'game-16-doorguardian' && 'DOORGUARDIAN_LEVELS' in levelModule) {
       return (levelModule as any).DOORGUARDIAN_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
@@ -261,6 +266,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = (levelModule as any).TAXIDRIVER_LEVELS;
     } else if (gameId === 'game-10-miner' && 'MINER_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).MINER_LEVELS;
+    } else if (gameId === 'game-11-pipe-patch' && 'PIPE_PATCH_LEVELS_BY_ID' in levelModule) {
+      levelConfigs = (levelModule as any).PIPE_PATCH_LEVELS_BY_ID;
     } else if (gameId === 'game-16-doorguardian' && 'DOORGUARDIAN_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
