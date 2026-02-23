@@ -1,1801 +1,715 @@
 import * as Phaser from 'phaser';
-import { PIPE_PATCH_LEVELS, getPipePatchLevel } from './levels';
-import {
-  DIR,
-  DIR_VECTORS,
-  NAME_TO_DIR,
-  OPPOSITE_DIR,
-  PIECE_DEFINITIONS,
-  type ConnectionMask,
-  type Coord,
-  type PipePatchGameStats,
-  type PipePatchPerLevelMetrics,
-  type PipePatchTelemetryEvent,
-  type PipePatchLevelConfig,
-  type PipePatchEndpointGroup,
-  type RuntimePlacedPiece,
-  type PipePieceType,
-  type RequiredPlacement,
-  type ColorId,
-  COLOR_HEX,
-  COLOR_NAMES,
-} from './types';
+import { getPipePatchLevel } from './levels';
+import { type Coord, type PipePatchLevelConfig, type PipePieceType } from './types';
+import { PipePatchGameScene } from './GameScene';
 
-type SceneState = 'boot' | 'tutorial_intro' | 'tutorial_step' | 'playing' | 'paused' | 'tutorial_complete' | 'session_complete';
-type CellKind = 'empty' | 'blocked' | 'source' | 'target' | 'fixed' | 'locked' | 'gate';
-
-interface CellVisual {
-  x: number;
-  y: number;
-  rect: Phaser.GameObjects.Rectangle;
-  border: Phaser.GameObjects.Rectangle;
-  overlay?: Phaser.GameObjects.GameObject;
-}
-
-interface PieceVisual {
-  pieceId: string;
-  pieceType: PipePieceType;
-  container: Phaser.GameObjects.Container;
-  isFromTray: boolean;
-  homeX: number;
-  homeY: number;
-  currentCellKey?: string;
-  colorId?: ColorId;
-  axisColorX?: ColorId;
-  axisColorY?: ColorId;
-}
+type TutorialAnchor = 'board' | 'tray' | 'source' | 'target' | 'status';
+type TutorialAction = 'info' | 'place';
 
 interface TutorialStep {
   id: string;
   title: string;
   description: string;
-  highlightCells?: Coord[];
-  highlightPieces?: PipePieceType[];
-  expectedAction?: 'place_piece' | 'connect_source' | 'connect_target' | 'solve_level';
+  anchor: TutorialAnchor;
+  action: TutorialAction;
   targetCell?: Coord;
-  targetPiece?: PipePieceType;
-  successMessage?: string;
-  nextStepId?: string;
+  targetPieceType?: PipePieceType;
 }
 
-interface EvalResult {
-  requiredCellsFilled: number;
-  correctPlacements: number;
-  incorrectPlacements: number;
-  distanceToSolution: number;
-  isBeneficialAction: boolean;
-  isSolved: boolean;
-  isConnected: boolean;
-  openEndsCount: number;
-  leakCount: number;
-  colorResults: Array<{
-    colorId: ColorId;
-    isConnected: boolean;
-    openEndsCount: number;
-    leakCount: number;
-    requiredCellsFilled: number;
-    correctPlacements: number;
-    incorrectPlacements: number;
-  }>;
+interface BoardLayout {
+  boardSizePx: number;
+  cellSize: number;
+  boardOrigin: { x: number; y: number };
+  trayRect: Phaser.Geom.Rectangle;
 }
+
+interface PanelLayout {
+  mode: 'full' | 'mini';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  bodyWrapWidth: number;
+  titleFontSize: number;
+  bodyFontSize: number;
+  progressFontSize: number;
+  dimAlpha: number;
+}
+
+type CircleFocus = { x: number; y: number; radius: number; centerX: number; centerY: number };
+type RectFocus = { x: number; y: number; w: number; h: number; centerX: number; centerY: number };
+type FocusTarget = CircleFocus | RectFocus;
+
+const TUTORIAL_LEVEL_ID = 8;
 
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'intro',
-    title: 'Welcome to Pipe Patch!',
-    description: 'Connect the blue source to the blue target by placing pipes. Drag pieces from the tray below onto the board.',
-    highlightCells: [{ x: 0, y: 0 }, { x: 4, y: 4 }],
-    highlightPieces: ['straight_h', 'elbow_ur'],
-    nextStepId: 'place_first',
+    title: 'ภารกิจด่านสอน',
+    description: 'เราจะพาเล่นทีละขั้น: ต่อท่อจาก OUT (ซ้าย) ไป IN (ขวา) ให้สำเร็จ',
+    anchor: 'board',
+    action: 'info',
   },
   {
-    id: 'place_first',
-    title: 'Place Your First Pipe',
-    description: 'Drag the straight pipe from the tray and place it next to the source (blue circle).',
-    highlightPieces: ['straight_h'],
-    expectedAction: 'place_piece',
+    id: 'place-1',
+    title: 'ขั้นที่ 1',
+    description: 'ลากท่อตรงแนวนอน ไปวางที่ช่องที่ไฮไลต์ถัดจาก OUT',
+    anchor: 'source',
+    action: 'place',
     targetCell: { x: 1, y: 0 },
-    targetPiece: 'straight_h',
-    successMessage: 'Great! You placed your first pipe.',
-    nextStepId: 'connect_source',
+    targetPieceType: 'straight_h',
   },
   {
-    id: 'connect_source',
-    title: 'Connect to the Source',
-    description: 'Now place an elbow pipe to turn the flow toward the target.',
-    highlightPieces: ['elbow_ur'],
-    expectedAction: 'connect_source',
+    id: 'place-2',
+    title: 'ขั้นที่ 2',
+    description: 'ดีมาก ต่อท่อตรงแนวนอนอีกชิ้นในช่องไฮไลต์ถัดไป',
+    anchor: 'board',
+    action: 'place',
     targetCell: { x: 2, y: 0 },
-    targetPiece: 'elbow_ur',
-    successMessage: 'Excellent! The flow is now turning.',
-    nextStepId: 'complete_path',
+    targetPieceType: 'straight_h',
   },
   {
-    id: 'complete_path',
-    title: 'Complete the Path',
-    description: 'Place the remaining pipes to connect to the target. Watch the flow indicator to see if you\'re connected.',
-    expectedAction: 'solve_level',
-    successMessage: 'Perfect! You\'ve completed your first level.',
-    nextStepId: 'multi_color_intro',
+    id: 'place-3',
+    title: 'ขั้นที่ 3',
+    description: 'วางท่อตรงแนวนอนชิ้นสุดท้ายให้ถึง IN',
+    anchor: 'target',
+    action: 'place',
+    targetCell: { x: 3, y: 0 },
+    targetPieceType: 'straight_h',
   },
-  {
-    id: 'multi_color_intro',
-    title: 'Multi-Color Challenge',
-    description: 'Now you\'ll see multiple colors. Each color must connect its own source to its own target without mixing.',
-    highlightCells: [
-      { x: 0, y: 0 }, { x: 4, y: 0 }, // Red
-      { x: 0, y: 4 }, { x: 4, y: 4 }  // Green
-    ],
-    nextStepId: 'color_separation',
-  },
-  {
-    id: 'color_separation',
-    title: 'Keep Colors Separate',
-    description: 'Use crossover pipes (X) when paths need to cross. Regular pipes will mix colors and cause leaks.',
-    highlightPieces: ['crossover'],
-    expectedAction: 'place_piece',
-    targetCell: { x: 2, y: 2 },
-    targetPiece: 'crossover',
-    successMessage: 'Smart move! The crossover keeps colors separate.',
-    nextStepId: 'complete_multi',
-  },
-  {
-    id: 'complete_multi',
-    title: 'Complete Multi-Color Level',
-    description: 'Finish this level by connecting both red and green paths without mixing colors.',
-    expectedAction: 'solve_level',
-    successMessage: 'Congratulations! You\'ve mastered multi-color pipe patching.',
-  }
 ];
 
-const SESSION_DURATION_MS = 90_000;
-const COLORS = {
-  bg: 0x173d3e,
-  boardOuter: 0x4a2a15,
-  boardInner: 0x2b160d,
-  cell: 0x3a1d10,
-  cellAlt: 0x5b321b,
-  cellStroke: 0x1e1009,
-  trayPanel: 0x183638,
-  traySlot: 0x294b4d,
-  traySlotStroke: 0x10282a,
-  trayCard: 0x28464a,
-  pipe: 0xb5bec8,
-  pipeShadow: 0x4b5563,
-  water: 0x38bdf8,
-  success: 0x22c55e,
-  error: 0xef4444,
-  locked: 0x0284c7,
-  gate: 0xca8a04,
-  tutorialHighlight: 0xf59e0b,
-  tutorialDim: 0x000000,
+const UI_COLORS = {
+  dim: 0x030712,
+  accent: 0x22d3ee,
+  accentSoft: 0x67e8f9,
+  panel: 0xdff7ff,
+  panelStroke: 0x2b6f8a,
+  textTitle: '#0b2b36',
+  textBody: '#133a49',
+  textSubtle: '#24586d',
+  button: 0x06b6d4,
+  buttonHover: 0x0891b2,
+  warning: '#9f1239',
+  success: '#166534',
 };
 
-const DIRS = [DIR.UP, DIR.RIGHT, DIR.DOWN, DIR.LEFT];
+export class PipePatchTutorialScene extends PipePatchGameScene {
+  private tutorialIndex = 0;
+  private tutorialOpen = true;
+  private lastAdvanceAtMs = 0;
+  private activeGuideTweens: Phaser.Tweens.Tween[] = [];
+  private activeGuideGraphics: Phaser.GameObjects.GameObject[] = [];
 
-export class PipePatchTutorialScene extends Phaser.Scene {
-  private sceneState: SceneState = 'boot';
-  private reduceMotion = false;
-
-  private levelIndex = 1;
-  private level!: PipePatchLevelConfig;
-  private boardSizePx = 320;
-  private cellSize = 52;
-  private boardOrigin = { x: 40, y: 130 };
-  private trayY = 540;
-  private trayBounds!: Phaser.Geom.Rectangle;
-  private trayCountTexts = new Map<PipePieceType, Phaser.GameObjects.Text>();
-  private trayTypeVisuals = new Map<PipePieceType, PieceVisual>();
-  private trayInventory = new Map<PipePieceType, number>();
-  private placedIdSeq = 0;
-  private activeRequiredPlacements: RequiredPlacement[] = [];
-
-  private cellVisuals = new Map<string, CellVisual>();
-  private placed = new Map<string, RuntimePlacedPiece>();
-  private placedVisuals = new Map<string, PieceVisual>();
-  private trayVisuals = new Map<string, PieceVisual>();
-  private undoStack: Array<{ placed: Map<string, RuntimePlacedPiece>; inventory: Array<[PipePieceType, number]> }> = [];
-
-  private timerText!: Phaser.GameObjects.Text;
-  private timerDial!: Phaser.GameObjects.Graphics;
-  private timerDialText!: Phaser.GameObjects.Text;
-  private statusText!: Phaser.GameObjects.Text;
-  private uiPersistent = new Set<Phaser.GameObjects.GameObject>();
-  private sessionMsRemaining = SESSION_DURATION_MS;
-  private levelStartedAt = 0;
-  private pausedAt = 0;
-  private pausedAccumulatedMs = 0;
-
-  private sessionStartedAt = 0;
-  private telemetry: PipePatchTelemetryEvent[] = [];
-  private perLevel: PipePatchPerLevelMetrics[] = [];
-  private levelMetrics!: PipePatchPerLevelMetrics;
-  private prevDistance = Number.MAX_SAFE_INTEGER;
-  private firstActionAt = 0;
-  private cellHadWrongAttempt = new Set<string>();
-  private repeatedErrorMap = new Map<string, number>();
-
-  // Tutorial-specific properties
-  private currentTutorialStepIndex = 0;
-  private currentTutorialStep: TutorialStep | null = null;
-  private tutorialOverlay!: Phaser.GameObjects.Graphics;
-  private tutorialText!: Phaser.GameObjects.Text;
-  private tutorialTitle!: Phaser.GameObjects.Text;
-  private tutorialProgress!: Phaser.GameObjects.Text;
-  private tutorialButtons: Phaser.GameObjects.Container[] = [];
-  private ghostGuides: Phaser.GameObjects.Graphics[] = [];
-
-  private getCellKey(c: Coord) {
-    return `${c.x},${c.y}`;
-  }
-
-  private isLockedCell(x: number, y: number) {
-    return this.level.lockedPlaceholders.some((l) => l.position.x === x && l.position.y === y);
-  }
-
-  private buildTrayInventory() {
-    const lockedSet = new Set(this.level.lockedPlaceholders.map((l) => this.getCellKey(l.position)));
-    this.activeRequiredPlacements = this.level.requiredPlacements.filter((r) => !lockedSet.has(this.getCellKey(r.position)));
-
-    const inv = new Map<PipePieceType, number>();
-    this.activeRequiredPlacements.forEach((r) => {
-      inv.set(r.pieceType, (inv.get(r.pieceType) ?? 0) + 1);
-    });
-    this.level.trayPieces.forEach((p) => {
-      inv.set(p.pieceType, (inv.get(p.pieceType) ?? 0) + 1);
-    });
-    this.trayInventory = inv;
-  }
+  private tutorialDimmer?: Phaser.GameObjects.Graphics;
+  private tutorialFocus?: Phaser.GameObjects.Graphics;
+  private tutorialArrow?: Phaser.GameObjects.Graphics;
+  private tutorialPanel?: Phaser.GameObjects.Container;
+  private panelShadow?: Phaser.GameObjects.Rectangle;
+  private panelBg?: Phaser.GameObjects.Rectangle;
+  private tutorialTitle?: Phaser.GameObjects.Text;
+  private tutorialDescription?: Phaser.GameObjects.Text;
+  private tutorialProgress?: Phaser.GameObjects.Text;
+  private warningText?: Phaser.GameObjects.Text;
 
   constructor() {
-    super({ key: 'PipePatchTutorialScene' });
-  }
-
-  init(data: { level?: number; reduceMotion?: boolean; skipTutorial?: boolean }) {
-    const regLevel = this.registry.get('level');
-    this.levelIndex = data.level || regLevel || 1;
-    this.reduceMotion = data.reduceMotion ?? false;
-    this.sessionMsRemaining = SESSION_DURATION_MS;
-    this.perLevel = [];
-    this.telemetry = [];
-    this.sessionStartedAt = Date.now();
-    this.logEvent('session_start', { sessionDurationMs: SESSION_DURATION_MS });
+    super();
+    this.sys.settings.key = 'PipePatchTutorialScene';
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.createUiChrome();
-    this.createTutorialUI();
-    this.startTutorial();
+    super.create();
+
+    // Force a deterministic tutorial map for strict step-by-step onboarding.
+    (this as any).startLevel?.(TUTORIAL_LEVEL_ID);
+
+    this.buildTutorialUi();
+    this.renderTutorialStep();
+
+    this.input.on('pointerup', this.handlePlayerAction, this);
+    this.scale.on('resize', this.handleResize, this);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointerup', this.handlePlayerAction, this);
+      this.scale.off('resize', this.handleResize, this);
+    });
   }
 
-  update(_: number, delta: number) {
-    if (this.sceneState !== 'playing' && this.sceneState !== 'tutorial_step') return;
-    this.sessionMsRemaining = Math.max(0, this.sessionMsRemaining - delta);
-    const remainingSec = Math.ceil(this.sessionMsRemaining / 1000);
-    const pct = (this.sessionMsRemaining / SESSION_DURATION_MS) * 100;
-    this.drawTimerDial(pct, remainingSec);
+  private handleResize() {
+    if (!this.tutorialOpen) return;
+    this.renderTutorialStep();
+  }
 
-    if (this.sessionMsRemaining <= 0) {
-      this.finishCurrentLevel('timeout_skip');
-      this.completeSession();
+  private buildTutorialUi() {
+    this.tutorialDimmer = this.add.graphics().setDepth(3800);
+    this.tutorialFocus = this.add.graphics().setDepth(3801);
+    this.tutorialArrow = this.add.graphics().setDepth(3802);
+
+    this.tutorialPanel = this.add.container(0, 0).setDepth(3900);
+    this.panelShadow = this.add.rectangle(4, 4, 420, 208, 0x000000, 0.2).setOrigin(0.5);
+    this.panelBg = this.add.rectangle(0, 0, 420, 208, UI_COLORS.panel, 0.98)
+      .setOrigin(0.5)
+      .setStrokeStyle(2, UI_COLORS.panelStroke, 0.95);
+
+    this.tutorialTitle = this.add.text(0, -56, '', {
+      fontFamily: 'Noto Sans Thai, sans-serif',
+      fontSize: '28px',
+      color: UI_COLORS.textTitle,
+      fontStyle: '700',
+      align: 'center',
+      wordWrap: { width: 360 },
+    }).setOrigin(0.5, 0);
+
+    this.tutorialDescription = this.add.text(0, -14, '', {
+      fontFamily: 'Noto Sans Thai, sans-serif',
+      fontSize: '22px',
+      color: UI_COLORS.textBody,
+      align: 'center',
+      wordWrap: { width: 360 },
+      lineSpacing: 3,
+    }).setOrigin(0.5, 0);
+
+    this.tutorialProgress = this.add.text(0, 70, '', {
+      fontFamily: 'Noto Sans Thai, sans-serif',
+      fontSize: '18px',
+      color: UI_COLORS.textSubtle,
+      fontStyle: '700',
+    }).setOrigin(0.5, 0.5);
+
+    this.warningText = this.add.text(0, 98, '', {
+      fontFamily: 'Noto Sans Thai, sans-serif',
+      fontSize: '17px',
+      color: UI_COLORS.warning,
+      fontStyle: '700',
+    }).setOrigin(0.5, 0.5);
+
+    this.tutorialPanel.add([
+      this.panelShadow,
+      this.panelBg,
+      this.tutorialTitle,
+      this.tutorialDescription,
+      this.tutorialProgress,
+      this.warningText,
+    ]);
+  }
+
+  private handlePlayerAction() {
+    if (!this.tutorialOpen) return;
+    if (Date.now() - this.lastAdvanceAtMs < 180) return;
+
+    const step = TUTORIAL_STEPS[this.tutorialIndex];
+    if (!step) return;
+
+    if (step.action === 'info') {
+      this.tutorialIndex += 1;
+      this.lastAdvanceAtMs = Date.now();
+      if (this.tutorialIndex >= TUTORIAL_STEPS.length) {
+        this.closeTutorial();
+        return;
+      }
+      this.renderTutorialStep();
       return;
+    }
+
+    const sanitized = this.sanitizePlacementsForCurrentStep();
+    if (sanitized > 0) {
+      this.showWarning('ต้องวางตามช่องที่ไฮไลต์ทีละขั้น');
+      return;
+    }
+
+    if (this.isCurrentPlacementSatisfied()) {
+      this.showWarning('ถูกต้อง ไปขั้นถัดไป', true);
+      this.tutorialIndex += 1;
+      this.lastAdvanceAtMs = Date.now();
+      if (this.tutorialIndex >= TUTORIAL_STEPS.length) {
+        this.closeTutorial();
+        return;
+      }
+      this.renderTutorialStep();
     }
   }
 
-  private createUiChrome() {
-    const topBar = this.add.rectangle(this.scale.width / 2, 28, this.scale.width - 10, 44, 0x0f2e2f, 0.9)
-      .setOrigin(0.5, 0.5)
-      .setStrokeStyle(2, 0x3f6363, 0.8);
-
-    const titleText = this.add.text(this.scale.width / 2, 28, 'PIPE PATCH TUTORIAL', {
-      fontSize: '16px',
-      color: '#d1fae5',
-      fontStyle: '700',
-      letterSpacing: 2,
-    }).setOrigin(0.5);
-
-    const timerX = this.scale.width - 44;
-    this.timerDial = this.add.graphics();
-    this.timerDialText = this.add.text(timerX, 29, '90', { fontSize: '15px', color: '#f5f5f5', fontStyle: '700' }).setOrigin(0.5);
-    this.timerText = this.add.text(timerX - 22, 20, 'TIME', { fontSize: '11px', color: '#93c5c5' });
-    this.statusText = this.add.text(18, 18, '', { fontSize: '15px', color: '#86efac' }).setOrigin(0, 0);
-    this.drawTimerDial(100, 90);
-
-    [topBar, titleText, this.timerDial, this.timerDialText, this.timerText, this.statusText].forEach((g) => this.uiPersistent.add(g));
+  private closeTutorial() {
+    this.tutorialOpen = false;
+    this.tutorialDimmer?.setVisible(false);
+    this.tutorialFocus?.setVisible(false);
+    this.tutorialArrow?.setVisible(false);
+    this.tutorialPanel?.setVisible(false);
+    this.clearStepGuides();
+    this.restoreTrayInteractivity();
   }
 
-  private createTutorialUI() {
-    // Tutorial overlay background
-    this.tutorialOverlay = this.add.graphics();
-    this.tutorialOverlay.fillStyle(0x000000, 0.6);
-    this.tutorialOverlay.fillRect(0, 0, this.scale.width, this.scale.height);
-    this.tutorialOverlay.setDepth(100);
+  private renderTutorialStep() {
+    if (!this.tutorialOpen) return;
 
-    // Tutorial text container
-    const container = this.add.container(this.scale.width / 2, this.scale.height / 2);
-    container.setDepth(101);
+    const step = TUTORIAL_STEPS[this.tutorialIndex];
+    if (
+      !step ||
+      !this.tutorialDimmer ||
+      !this.tutorialFocus ||
+      !this.tutorialArrow ||
+      !this.tutorialPanel ||
+      !this.panelShadow ||
+      !this.panelBg ||
+      !this.tutorialTitle ||
+      !this.tutorialDescription ||
+      !this.tutorialProgress ||
+      !this.warningText
+    ) {
+      return;
+    }
 
-    // Title
-    this.tutorialTitle = this.add.text(0, -120, '', {
-      fontSize: '24px',
-      color: '#ffffff',
-      fontStyle: '700',
-      align: 'center',
-      wordWrap: { width: 400 }
-    }).setOrigin(0.5);
+    const level = this.getCurrentLevel();
+    const layout = this.computeBoardLayout(level);
+    const focus = this.getStepFocus(step, layout, level);
+    const panel = this.getBottomPanelRect({ width: this.scale.width, height: this.scale.height }, layout.trayRect, step);
 
-    // Description
-    this.tutorialText = this.add.text(0, -60, '', {
-      fontSize: '16px',
-      color: '#e5e7eb',
-      align: 'center',
-      wordWrap: { width: 400 }
-    }).setOrigin(0.5);
+    this.tutorialPanel.setPosition(panel.x, panel.y);
+    this.panelShadow.setSize(panel.width, panel.height);
+    this.panelBg.setSize(panel.width, panel.height);
 
-    // Progress indicator
-    this.tutorialProgress = this.add.text(0, -20, '', {
-      fontSize: '14px',
-      color: '#93c5c5',
-      fontStyle: '700'
-    }).setOrigin(0.5);
+    const isMini = panel.mode === 'mini';
+    this.tutorialTitle
+      .setFontSize(`${panel.titleFontSize}px`)
+      .setWordWrapWidth(panel.bodyWrapWidth)
+      .setPosition(0, isMini ? -panel.height * 0.46 : -panel.height * 0.44);
 
-    // Buttons container
-    const buttonContainer = this.add.container(0, 40);
+    this.tutorialDescription
+      .setVisible(!isMini)
+      .setFontSize(`${panel.bodyFontSize}px`)
+      .setWordWrapWidth(panel.bodyWrapWidth)
+      .setPosition(0, -panel.height * 0.23);
 
-    // Next button
-    const nextBtn = this.createButton('Next', 80, 40, () => {
-      this.nextTutorialStep();
-    });
-    
-    // Skip Tutorial button
-    const skipBtn = this.createButton('Skip Tutorial', 120, 40, () => {
-      this.skipTutorial();
-    });
+    this.tutorialProgress
+      .setFontSize(`${panel.progressFontSize}px`)
+      .setPosition(0, isMini ? -panel.height * 0.05 : panel.height * 0.20);
 
-    buttonContainer.add(nextBtn);
-    buttonContainer.add(skipBtn);
-    nextBtn.x = -70;
-    skipBtn.x = 70;
+    this.warningText
+      .setPosition(0, isMini ? panel.height * 0.10 : panel.height * 0.34)
+      .setFontSize(`${Math.max(isMini ? 14 : 16, panel.progressFontSize - 1)}px`);
 
-    container.add(this.tutorialTitle);
-    container.add(this.tutorialText);
-    container.add(this.tutorialProgress);
-    container.add(buttonContainer);
+    this.tutorialTitle.setText(step.title);
+    this.tutorialDescription.setText(step.description);
+    this.tutorialProgress.setText(`ขั้นตอน ${this.tutorialIndex + 1}/${TUTORIAL_STEPS.length}`);
 
-    this.uiPersistent.add(this.tutorialOverlay);
-    this.uiPersistent.add(this.tutorialTitle);
-    this.uiPersistent.add(this.tutorialText);
-    this.uiPersistent.add(this.tutorialProgress);
-  }
-
-  private createButton(text: string, width: number, height: number, onClick: () => void): Phaser.GameObjects.Container {
-    const container = this.add.container(0, 0);
-    
-    const bg = this.add.rectangle(0, 0, width, height, 0x22c55e, 0.9)
-      .setStrokeStyle(2, 0x166534, 1);
-    
-    const label = this.add.text(0, 0, text, {
-      fontSize: '14px',
-      color: '#ffffff',
-      fontStyle: '700'
-    }).setOrigin(0.5);
-
-    container.add(bg);
-    container.add(label);
-    container.setSize(width, height);
-    container.setInteractive({ useHandCursor: true });
-    container.on('pointerdown', onClick);
-    container.on('pointerover', () => bg.setFillStyle(0x16a34a, 0.95));
-    container.on('pointerout', () => bg.setFillStyle(0x22c55e, 0.9));
-
-    return container;
-  }
-
-  private startTutorial() {
-    this.currentTutorialStepIndex = 0;
-    this.currentTutorialStep = TUTORIAL_STEPS[this.currentTutorialStepIndex];
-    this.sceneState = 'tutorial_intro';
-    this.showTutorialStep();
-  }
-
-  private showTutorialStep() {
-    if (!this.currentTutorialStep) return;
-
-    // Update tutorial text
-    this.tutorialTitle.setText(this.currentTutorialStep.title);
-    this.tutorialText.setText(this.currentTutorialStep.description);
-    this.tutorialProgress.setText(`Step ${this.currentTutorialStepIndex + 1} of ${TUTORIAL_STEPS.length}`);
-
-    // Show/hide overlay based on step
-    if (this.currentTutorialStep.id === 'intro' || this.currentTutorialStep.id === 'multi_color_intro') {
-      this.tutorialOverlay.setVisible(true);
-      this.tutorialOverlay.setAlpha(0.8);
+    if (step.action === 'place' && step.targetPieceType) {
+      this.applyPieceRestriction(step.targetPieceType);
+      this.warningText.setText(this.getMiniStepHint(step));
+      this.warningText.setColor(UI_COLORS.textBody);
     } else {
-      this.tutorialOverlay.setVisible(false);
+      this.restoreTrayInteractivity();
+      this.warningText.setText('แตะหน้าจอเพื่อไปขั้นถัดไป');
+      this.warningText.setColor(UI_COLORS.textSubtle);
     }
 
-    // Highlight cells and pieces
-    this.clearHighlights();
-    this.highlightTutorialElements();
-
-    // Start level if needed
-    if (this.currentTutorialStep.id === 'place_first' || this.currentTutorialStep.id === 'connect_source' || 
-        this.currentTutorialStep.id === 'complete_path' || this.currentTutorialStep.id === 'color_separation' ||
-        this.currentTutorialStep.id === 'complete_multi') {
-      this.startLevel(this.levelIndex);
-      this.sceneState = 'tutorial_step';
-    }
-  }
-
-  private highlightTutorialElements() {
-    if (!this.currentTutorialStep) return;
-
-    // Highlight cells
-    if (this.currentTutorialStep.highlightCells) {
-      this.currentTutorialStep.highlightCells.forEach(cell => {
-        const key = `${cell.x},${cell.y}`;
-        const cv = this.cellVisuals.get(key);
-        if (cv) {
-          cv.rect.setStrokeStyle(4, COLORS.tutorialHighlight, 1);
-          cv.rect.setFillStyle(0x3a1d10, 0.5); // Dim the cell
-        }
-      });
+    const noDimForStep = step.action === 'place';
+    this.tutorialDimmer.clear();
+    if (!noDimForStep) {
+      this.tutorialDimmer.fillStyle(UI_COLORS.dim, panel.dimAlpha);
+      this.tutorialDimmer.fillRect(0, 0, this.scale.width, this.scale.height);
     }
 
-    // Highlight pieces in tray
-    if (this.currentTutorialStep.highlightPieces) {
-      this.currentTutorialStep.highlightPieces.forEach(pieceType => {
-        const pv = this.trayTypeVisuals.get(pieceType);
-        if (pv) {
-          pv.container.setScale(1.2);
-          // Apply tint to the pipe art inside the container
-          const art = pv.container.getAt(3); // The pipe art is at index 3
-          const tintable = art as { setTint?: (color: number) => void };
-          tintable.setTint?.(COLORS.tutorialHighlight);
-        }
-      });
+    this.tutorialFocus.clear();
+    this.tutorialFocus.lineStyle(4, UI_COLORS.accent, 0.95);
+    if ('radius' in focus) {
+      this.tutorialFocus.strokeCircle(focus.x, focus.y, focus.radius);
+      this.tutorialFocus.lineStyle(1, UI_COLORS.accentSoft, 0.65);
+      this.tutorialFocus.strokeCircle(focus.x, focus.y, focus.radius + 8);
+    } else {
+      this.tutorialFocus.strokeRoundedRect(focus.x, focus.y, focus.w, focus.h, 14);
+      this.tutorialFocus.lineStyle(1, UI_COLORS.accentSoft, 0.65);
+      this.tutorialFocus.strokeRoundedRect(focus.x - 6, focus.y - 6, focus.w + 12, focus.h + 12, 16);
     }
 
-    // Show ghost guides if available
-    if (this.level.tutorialCues?.showGhostGuides && this.currentTutorialStep.targetCell && this.currentTutorialStep.targetPiece) {
-      this.showGhostGuide(this.currentTutorialStep.targetCell, this.currentTutorialStep.targetPiece);
-    }
+    this.renderStepGuides(step, layout);
+    this.drawArrowFromBottomPanel(panel, focus);
   }
 
-  private clearHighlights() {
-    // Clear cell highlights
-    this.cellVisuals.forEach(cv => {
-      cv.rect.setStrokeStyle(1, COLORS.cellStroke, 0.95);
-      cv.rect.setFillStyle(cv.rect.fillColor, 0.92);
-    });
+  private drawArrowFromBottomPanel(panel: PanelLayout, focus: FocusTarget) {
+    if (!this.tutorialArrow) return;
 
-    // Clear piece highlights
-    this.trayTypeVisuals.forEach(pv => {
-      pv.container.setScale(1);
-      // Clear tint from the pipe art inside the container
-      const art = pv.container.getAt(3);
-      const tintable = art as { clearTint?: () => void };
-      tintable.clearTint?.();
-    });
+    const fromX = panel.x;
+    const fromY = panel.y - panel.height * 0.5 + (panel.mode === 'mini' ? 4 : 6);
+    const toX = focus.centerX;
+    const toY = 'radius' in focus ? focus.y + Math.min(-8, -focus.radius * 0.55) : focus.y - 8;
 
-    // Clear ghost guides
-    this.ghostGuides.forEach(g => g.destroy());
-    this.ghostGuides = [];
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const ux = dx / len;
+    const uy = dy / len;
+
+    const startDistance = panel.mode === 'mini' ? 16 : 24;
+    const startX = fromX + ux * startDistance;
+    const startY = fromY + uy * startDistance;
+    const endX = toX - ux * 12;
+    const endY = toY - uy * 12;
+
+    this.tutorialArrow.clear();
+    this.tutorialArrow.lineStyle(6, UI_COLORS.accent, 0.95);
+    this.tutorialArrow.beginPath();
+    this.tutorialArrow.moveTo(startX, startY);
+    this.tutorialArrow.lineTo(endX, endY);
+    this.tutorialArrow.strokePath();
+
+    const perpX = -uy;
+    const perpY = ux;
+    const headLen = 16;
+    const headWidth = 9;
+
+    this.tutorialArrow.fillStyle(UI_COLORS.accentSoft, 1);
+    this.tutorialArrow.beginPath();
+    this.tutorialArrow.moveTo(endX, endY);
+    this.tutorialArrow.lineTo(endX - ux * headLen + perpX * headWidth, endY - uy * headLen + perpY * headWidth);
+    this.tutorialArrow.lineTo(endX - ux * headLen - perpX * headWidth, endY - uy * headLen - perpY * headWidth);
+    this.tutorialArrow.closePath();
+    this.tutorialArrow.fillPath();
   }
 
-  private showGhostGuide(cell: Coord, pieceType: PipePieceType) {
-    const x = this.boardOrigin.x + cell.x * this.cellSize + this.cellSize / 2;
-    const y = this.boardOrigin.y + cell.y * this.cellSize + this.cellSize / 2;
-
-    const ghost = this.add.graphics();
-    ghost.lineStyle(2, COLORS.tutorialHighlight, 0.6);
-    ghost.fillStyle(COLORS.tutorialHighlight, 0.1);
-    
-    // Draw ghost pipe
-    const size = this.cellSize * 0.8;
-    const half = size * 0.5;
-    const t = Math.max(6, Math.floor(size * 0.2));
-    const m = PIECE_DEFINITIONS[pieceType].mask;
-
-    const drawArm = (dir: number) => {
-      if (dir === DIR.UP) {
-        ghost.fillRect(-t / 2, -half, t, half + t * 0.2);
-      }
-      if (dir === DIR.RIGHT) {
-        ghost.fillRect(0, -t / 2, half + t * 0.2, t);
-      }
-      if (dir === DIR.DOWN) {
-        ghost.fillRect(-t / 2, 0, t, half + t * 0.2);
-      }
-      if (dir === DIR.LEFT) {
-        ghost.fillRect(-half, -t / 2, half + t * 0.2, t);
-      }
-    };
-
-    if (m & DIR.UP) drawArm(DIR.UP);
-    if (m & DIR.RIGHT) drawArm(DIR.RIGHT);
-    if (m & DIR.DOWN) drawArm(DIR.DOWN);
-    if (m & DIR.LEFT) drawArm(DIR.LEFT);
-
-    ghost.fillCircle(0, 0, Math.max(4, t * 0.56));
-    ghost.setPosition(x, y);
-    ghost.setDepth(50);
-
-    this.ghostGuides.push(ghost);
+  private showWarning(message: string, success = false) {
+    if (!this.warningText) return;
+    this.warningText.setText(message).setColor(success ? UI_COLORS.success : UI_COLORS.warning);
   }
 
-  private nextTutorialStep() {
-    this.currentTutorialStepIndex++;
-    if (this.currentTutorialStepIndex >= TUTORIAL_STEPS.length) {
-      this.completeTutorial();
-      return;
-    }
-    
-    this.currentTutorialStep = TUTORIAL_STEPS[this.currentTutorialStepIndex];
-    this.showTutorialStep();
+  private getCurrentLevel() {
+    return getPipePatchLevel(TUTORIAL_LEVEL_ID);
   }
 
-  private skipTutorial() {
-    this.tutorialOverlay.setVisible(false);
-    this.sceneState = 'playing';
-    this.startLevel(this.levelIndex);
-  }
+  private computeBoardLayout(level: PipePatchLevelConfig): BoardLayout {
+    const inv = new Map<PipePieceType, number>();
+    const lockedSet = new Set(level.lockedPlaceholders.map((l) => `${l.position.x},${l.position.y}`));
 
-  private completeTutorial() {
-    this.tutorialOverlay.setVisible(false);
-    this.sceneState = 'session_complete';
-    
-    const summary: PipePatchGameStats = {
-      sessionDurationMs: Date.now() - this.sessionStartedAt,
-      levelsAttempted: 1,
-      levelsSolved: 1,
-      levelTimeoutSkips: 0,
-      perLevelMetrics: [this.levelMetrics],
-      telemetryEvents: this.telemetry,
-    };
+    level.requiredPlacements
+      .filter((r) => !lockedSet.has(`${r.position.x},${r.position.y}`))
+      .forEach((r) => inv.set(r.pieceType, (inv.get(r.pieceType) ?? 0) + 1));
 
-    const onGameOver = this.registry.get('onGameOver');
-    if (onGameOver) {
-      onGameOver({
-        ...summary,
-        level: this.level.id,
-        current_played: this.level.id,
-        userTimeMs: summary.sessionDurationMs,
-        score: 100,
-        stars: 3,
-        success: true,
-        tutorialCompleted: true,
-      });
-    }
-  }
+    level.trayPieces.forEach((p) => inv.set(p.pieceType, (inv.get(p.pieceType) ?? 0) + 1));
 
-  private drawTimerDial(pct: number, remainingSec: number) {
-    const x = this.scale.width - 44;
-    const y = 29;
-    const radius = 15;
-    const thickness = 5;
-    const warning = pct <= 25;
-
-    this.timerDial.clear();
-    this.timerDial.lineStyle(thickness, 0x0b1416, 0.8);
-    this.timerDial.strokeCircle(x, y, radius);
-
-    if (pct > 0) {
-      this.timerDial.lineStyle(thickness, warning ? COLORS.error : COLORS.success, 0.95);
-      this.timerDial.beginPath();
-      this.timerDial.arc(x, y, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * pct) / 100, false);
-      this.timerDial.strokePath();
-    }
-
-    this.timerDialText.setText(`${Math.max(0, remainingSec)}`);
-    this.timerDialText.setColor(warning ? '#fecaca' : '#e2e8f0');
-  }
-
-  private startLevel(levelIndex: number) {
-    this.clearLevelVisuals();
-    this.level = getPipePatchLevel(levelIndex);
-    this.logEvent('level_start', { levelId: this.level.id });
-
-    this.levelMetrics = {
-      levelId: this.level.id,
-      difficultyWeight: this.level.difficultyWeight,
-      parTimeMs: this.level.parTimeMs,
-      hardTimeMs: this.level.hardTimeMs,
-      requiredPieceCount: this.level.requiredPieceCount,
-      decoyPieceCount: this.level.decoyPieceCount,
-      optimalPlacements: this.level.requiredPieceCount,
-      solveTimeMs: 0,
-      activeTimeMs: 0,
-      firstActionLatencyMs: 0,
-      totalDragAttempts: 0,
-      validPlacementsCount: 0,
-      correctPlacementsOnFirstTryCount: 0,
-      incorrectPlacementCount: 0,
-      rejectedDropCount: 0,
-      repeatedErrorCount: 0,
-      beneficialActionCount: 0,
-      nonBeneficialActionCount: 0,
-      undoCount: 0,
-      resetCount: 0,
-      hintUsedCount: 0,
-      obstacleRejectCount: 0,
-      lockedSlotMismatchCount: 0,
-      completionStatus: 'timeout_skip',
-    };
-
-    this.levelStartedAt = Date.now();
-    this.pausedAccumulatedMs = 0;
-    this.firstActionAt = 0;
-    this.prevDistance = this.level.requiredPieceCount;
-    this.cellHadWrongAttempt.clear();
-    this.repeatedErrorMap.clear();
-    this.undoStack = [];
-    this.placed.clear();
-    this.placedIdSeq = 0;
-    this.buildTrayInventory();
-    this.levelMetrics.requiredPieceCount = this.activeRequiredPlacements.length;
-    this.levelMetrics.optimalPlacements = this.activeRequiredPlacements.length;
-    this.prevDistance = this.activeRequiredPlacements.length;
-
-    this.drawBoard();
-    this.drawTray();
-  }
-
-  private drawBoard() {
-    const size = this.level.gridSize;
     const width = this.scale.width;
     const height = this.scale.height;
-    this.boardSizePx = Math.min(500, width - 30);
-    this.cellSize = Math.floor(this.boardSizePx / size);
-    this.boardSizePx = this.cellSize * size;
-    this.boardOrigin.x = Math.floor((width - this.boardSizePx) / 2);
-    const topUiY = 58;
-    const bottomMargin = 12;
-    const types = [...this.trayInventory.keys()];
-    const { gap, size: trayCellSize, cols } = this.getTrayLayout();
-    const rowCount = Math.max(1, Math.ceil(types.length / cols));
-    const panelH = Math.max(140, Math.min(250, rowCount * (trayCellSize + gap) + 62));
-    const minBoardY = topUiY;
-    const maxBoardY = Math.max(minBoardY, height - panelH - this.boardSizePx - 20 - bottomMargin);
-    const centeredBoardY = Math.floor((height - this.boardSizePx) / 2);
-    this.boardOrigin.y = Math.max(minBoardY, Math.min(maxBoardY, centeredBoardY));
+    let boardSizePx = Math.min(500, width - 30);
+    const cellSize = Math.floor(boardSizePx / level.gridSize);
+    boardSizePx = cellSize * level.gridSize;
 
-    const boardCx = this.boardOrigin.x + this.boardSizePx / 2;
-    const boardCy = this.boardOrigin.y + this.boardSizePx / 2;
-
-    this.add.rectangle(boardCx, boardCy + 4, this.boardSizePx + 26, this.boardSizePx + 26, 0x000000, 0.28);
-    this.add.rectangle(boardCx, boardCy, this.boardSizePx + 24, this.boardSizePx + 24, COLORS.boardOuter).setStrokeStyle(4, 0x8b5e34, 0.9);
-    this.add.rectangle(boardCx, boardCy, this.boardSizePx + 10, this.boardSizePx + 10, COLORS.boardInner).setStrokeStyle(2, 0x1f110a, 0.8);
-
-    const blockedSet = new Set(this.level.blockedCells.map((c) => `${c.x},${c.y}`));
-    const endpointGroups = this.level.endpointGroups;
-    const inputMap = new Map(endpointGroups.map((g) => [`${g.input.position.x},${g.input.position.y}`, g]));
-    const outputMap = new Map(
-      endpointGroups.flatMap((g) => g.outputs.map((o) => [`${o.position.x},${o.position.y}`, { endpoint: o, group: g }] as const))
-    );
-    const fixedMap = new Map(this.level.fixedPipes.map((f) => [`${f.position.x},${f.position.y}`, f.pieceType]));
-    const lockedMap = new Map(this.level.lockedPlaceholders.map((l) => [`${l.position.x},${l.position.y}`, l]));
-    const gateMap = new Map(this.level.oneWayGates.map((g) => [`${g.position.x},${g.position.y}`, g]));
-
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const key = `${x},${y}`;
-        const px = this.boardOrigin.x + x * this.cellSize;
-        const py = this.boardOrigin.y + y * this.cellSize;
-        const isAltCell = ((x + y) % 2) === 0;
-        const rect = this.add.rectangle(px + this.cellSize / 2, py + this.cellSize / 2, this.cellSize - 3, this.cellSize - 3, isAltCell ? COLORS.cell : COLORS.cellAlt, 0.92);
-        const border = this.add.rectangle(px + this.cellSize / 2, py + this.cellSize / 2, this.cellSize - 3, this.cellSize - 3, 0x000000, 0).setStrokeStyle(1, COLORS.cellStroke, 0.95);
-        const cv: CellVisual = { x, y, rect, border };
-        this.cellVisuals.set(key, cv);
-
-        if (blockedSet.has(key)) {
-          rect.setFillStyle(0x31211a, 1);
-          border.setStrokeStyle(2, 0x64748b);
-          cv.overlay = this.add.text(rect.x, rect.y, '▨', { fontSize: `${Math.floor(this.cellSize * 0.48)}px`, color: '#94a3b8' }).setOrigin(0.5);
-          continue;
-        }
-        if (inputMap.has(key)) {
-          const group = inputMap.get(key)!;
-          const color = COLOR_HEX[group.colorId as ColorId];
-          rect.setFillStyle(this.darkenColor(color, 40), 0.95);
-          this.drawEndpointPipe(rect.x, rect.y, OPPOSITE_DIR[group.input.mask], color, 'OUT');
-          continue;
-        }
-        if (outputMap.has(key as `${number},${number}`)) {
-          const out = outputMap.get(key as `${number},${number}`)!;
-          const color = COLOR_HEX[out.group.colorId as ColorId];
-          rect.setFillStyle(this.darkenColor(color, 40), 0.95);
-          this.drawEndpointPipe(rect.x, rect.y, out.endpoint.mask, color, 'IN');
-          continue;
-        }
-        if (gateMap.has(key)) {
-          rect.setFillStyle(0x4a3013, 0.95);
-          const gate = gateMap.get(key)!;
-          cv.overlay = this.add.text(rect.x, rect.y, this.arrowForGate(gate.entry, gate.exit), { fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#facc15' }).setOrigin(0.5);
-          border.setStrokeStyle(2, COLORS.gate);
-          continue;
-        }
-        if (lockedMap.has(key)) {
-          rect.setFillStyle(0x0b3342, 0.95);
-          border.setStrokeStyle(2, COLORS.locked);
-          cv.overlay = this.add.text(rect.x, rect.y, '◍', { fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#0369a1' }).setOrigin(0.5);
-          continue;
-        }
-        if (fixedMap.has(key)) {
-          rect.setFillStyle(0x2c3742, 0.95);
-          const pType = fixedMap.get(key)!;
-          this.createPipeVisual(pType, rect.x, rect.y, this.cellSize * 0.9, false, 0x9ca3af);
-          continue;
-        }
-      }
-    }
-  }
-
-  private drawTray() {
-    this.trayTypeVisuals.forEach((v) => v.container.destroy());
-    this.trayTypeVisuals.clear();
-    this.trayCountTexts.forEach((t) => t.destroy());
-    this.trayCountTexts.clear();
-
-    const top = this.boardOrigin.y + this.boardSizePx + 20;
-    const types = [...this.trayInventory.keys()];
-    const { gap, size, cols } = this.getTrayLayout();
-    const rowCount = Math.max(1, Math.ceil(types.length / cols));
-    const panelH = Math.max(140, Math.min(250, rowCount * (size + gap) + 62));
-
-    this.trayY = Math.min(this.scale.height - panelH / 2 - 8, top + panelH / 2);
-    this.add.rectangle(this.scale.width / 2, this.trayY + 3, this.scale.width - 12, panelH, 0x000000, 0.35);
-    this.add.rectangle(this.scale.width / 2, this.trayY, this.scale.width - 12, panelH, COLORS.trayPanel, 0.95)
-      .setStrokeStyle(2, 0x406061, 0.9);
-    this.trayBounds = new Phaser.Geom.Rectangle(6, this.trayY - panelH / 2, this.scale.width - 12, panelH);
-
-    const totalW = cols * size + (cols - 1) * gap;
-    const startX = (this.scale.width - totalW) / 2 + size / 2;
-    const startY = this.trayY - ((rowCount - 1) * (size + gap)) / 2 + 12;
-
-    types.forEach((pieceType, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const px = startX + col * (size + gap);
-      const py = startY + row * (size + gap);
-
-      const pv = this.spawnPieceVisual(`tray-${pieceType}`, pieceType, px, py, true, size);
-      this.trayTypeVisuals.set(pieceType, pv);
-
-      const count = this.add.text(px, py - size * 0.62, '00', {
-        fontSize: '18px',
-        fontStyle: '700',
-        color: '#f8fafc',
-        backgroundColor: '#00000088',
-        padding: { left: 4, right: 4, top: 1, bottom: 1 },
-      }).setOrigin(0.5);
-      this.trayCountTexts.set(pieceType, count);
-    });
-
-    this.updateTrayCounts();
-  }
-
-  private getTrayLayout() {
     const gap = 12;
-    const size = Math.max(56, Math.min(78, Math.floor((this.scale.width - 24) / 6.4)));
-    const cols = Math.max(4, Math.floor((this.scale.width - 20) / (size + gap)));
-    return { gap, size, cols };
-  }
+    const trayCellSize = Math.max(56, Math.min(78, Math.floor((width - 24) / 6.4)));
+    const cols = Math.max(4, Math.floor((width - 20) / (trayCellSize + gap)));
+    const rowCount = Math.max(1, Math.ceil(inv.size / cols));
+    const panelH = Math.max(140, Math.min(250, rowCount * (trayCellSize + gap) + 62));
 
-  private spawnPieceVisual(pieceId: string, pieceType: PipePieceType, x: number, y: number, isFromTray: boolean, size: number) {
-    const container = this.add.container(x, y);
-    const bgShadow = this.add.rectangle(1, 2, size, size, 0x000000, 0.26).setStrokeStyle(0);
-    const bg = this.add.rectangle(0, 0, size, size, COLORS.trayCard, 0.9).setStrokeStyle(1, COLORS.traySlotStroke, 0.9);
-    const slotGlow = this.add.rectangle(0, 0, size - 6, size - 6, COLORS.traySlot, 0.3).setStrokeStyle(1, 0x5f8f91, 0.6);
-    container.add(bgShadow);
-    container.add(bg);
-    container.add(slotGlow);
-    
-    const art = this.createPipeVisual(pieceType, 0, 0, size * 0.88, true, COLORS.pipe);
-    container.add(art);
-    container.setSize(size, size);
-    container.setInteractive({ draggable: true, useHandCursor: true });
+    const minBoardY = 58;
+    const bottomMargin = 12;
+    const maxBoardY = Math.max(minBoardY, height - panelH - boardSizePx - 20 - bottomMargin);
+    const centeredBoardY = Math.floor((height - boardSizePx) / 2);
 
-    const data: PieceVisual = { pieceId, pieceType, container, isFromTray, homeX: x, homeY: y };
-    this.input.setDraggable(container);
-
-    container.on('dragstart', () => {
-      if (this.sceneState !== 'playing' && this.sceneState !== 'tutorial_step') return;
-      if (!this.firstActionAt) this.firstActionAt = Date.now();
-      this.levelMetrics.totalDragAttempts += 1;
-      if (!data.currentCellKey) {
-        this.logEvent('tray_piece_selected', { pieceId, pieceType });
-      }
-      this.logEvent('drag_start', { pieceId, from: data.currentCellKey ? 'board' : 'tray' });
-      container.setScale(1.06);
-    });
-
-    container.on('drag', (_: unknown, dragX: number, dragY: number) => {
-      container.setPosition(dragX, dragY);
-    });
-
-    container.on('dragend', (_: unknown, _dragX: number, _dragY: number) => {
-      container.setScale(1);
-      const dropTarget = this.handleDrop(data);
-      this.logEvent('drag_end', { pieceId, dropTarget });
-      
-      // Check tutorial progress
-      if (this.sceneState === 'tutorial_step' && this.currentTutorialStep) {
-        this.checkTutorialProgress(data);
-      }
-    });
-
-    return data;
-  }
-
-  private checkTutorialProgress(piece: PieceVisual) {
-    if (!this.currentTutorialStep) return;
-
-    const cell = this.getCellFromWorld(piece.container.x, piece.container.y);
-    if (!cell) return;
-
-    // Check if this matches the expected action
-    if (this.currentTutorialStep.expectedAction === 'place_piece') {
-      if (this.currentTutorialStep.targetCell && this.currentTutorialStep.targetPiece) {
-        if (cell.x === this.currentTutorialStep.targetCell.x && cell.y === this.currentTutorialStep.targetCell.y &&
-            piece.pieceType === this.currentTutorialStep.targetPiece) {
-          this.showSuccessMessage(this.currentTutorialStep.successMessage || 'Good job!');
-          this.nextTutorialStep();
-        }
-      }
-    }
-  }
-
-  private showSuccessMessage(message: string) {
-    const successText = this.add.text(this.scale.width / 2, this.scale.height - 50, message, {
-      fontSize: '18px',
-      color: '#22c55e',
-      fontStyle: '700'
-    }).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: successText,
-      alpha: 0,
-      y: successText.y - 20,
-      duration: 2000,
-      onComplete: () => successText.destroy()
-    });
-  }
-
-  private handleDrop(piece: PieceVisual): 'cell' | 'tray' | 'invalid' {
-    if (this.sceneState !== 'playing' && this.sceneState !== 'tutorial_step') return 'invalid';
-    const cell = this.getCellFromWorld(piece.container.x, piece.container.y);
-
-    if (!cell) {
-      if (!piece.isFromTray && this.trayBounds.contains(piece.container.x, piece.container.y)) {
-        this.removePlacedPiece(piece);
-        return 'tray';
-      }
-      this.rejectPiece(piece, undefined, 'invalid_target');
-      return 'invalid';
-    }
-
-    const key = `${cell.x},${cell.y}`;
-    if (piece.isFromTray && !piece.currentCellKey) {
-      const available = this.trayInventory.get(piece.pieceType) ?? 0;
-      if (available <= 0) {
-        this.rejectPiece(piece, key, 'out_of_stock');
-        return 'invalid';
-      }
-    }
-
-    const rejection = this.validateDrop(piece, cell);
-    if (rejection) {
-      this.rejectPiece(piece, key, rejection);
-      return 'invalid';
-    }
-
-    this.pushUndoSnapshot();
-    const existing = this.placed.get(key);
-    if (existing) {
-      const existingVisual = this.placedVisuals.get(existing.pieceId);
-      if (existingVisual) {
-        this.returnPieceToTray(existingVisual);
-      }
-      this.logEvent('piece_swapped', { incomingPieceId: piece.pieceId, outgoingPieceId: existing.pieceId, cellId: key });
-    }
-
-    let activePiece = piece;
-    if (piece.isFromTray && !piece.currentCellKey) {
-      const placedId = `placed-${piece.pieceType}-${this.placedIdSeq++}`;
-      activePiece = this.spawnPieceVisual(placedId, piece.pieceType, this.cellCenterX(cell.x), this.cellCenterY(cell.y), false, Math.floor(this.cellSize * 0.94));
-      this.trayInventory.set(piece.pieceType, Math.max(0, (this.trayInventory.get(piece.pieceType) ?? 0) - 1));
-      piece.container.setPosition(piece.homeX, piece.homeY);
-    } else {
-      activePiece.container.setPosition(this.cellCenterX(cell.x), this.cellCenterY(cell.y));
-    }
-
-    activePiece.currentCellKey = key;
-    activePiece.isFromTray = false;
-    this.placed.set(key, { pieceId: activePiece.pieceId, pieceType: activePiece.pieceType, fromTray: true, placedAtMs: Date.now() });
-    this.placedVisuals.set(activePiece.pieceId, activePiece);
-    this.updateTrayCounts();
-
-    const req = this.activeRequiredPlacements.find((r) => r.position.x === cell.x && r.position.y === cell.y);
-    const isCorrectCell = !!req && req.pieceType === activePiece.pieceType;
-    if (isCorrectCell && !this.cellHadWrongAttempt.has(key)) {
-      this.levelMetrics.correctPlacementsOnFirstTryCount += 1;
-    }
-    if (!isCorrectCell) this.levelMetrics.incorrectPlacementCount += 1;
-    this.levelMetrics.validPlacementsCount += 1;
-
-    this.logEvent('piece_placed', { pieceId: activePiece.pieceId, cellId: key, isCorrectCell, isRequiredCell: !!req });
-    this.updateAllPieceColors();
-    this.runBoardEval();
-    return 'cell';
-  }
-
-  private validateDrop(piece: PieceVisual, cell: Coord): string | null {
-    const key = `${cell.x},${cell.y}`;
-    const blocked = this.level.blockedCells.some((c) => c.x === cell.x && c.y === cell.y);
-    if (blocked) {
-      this.logEvent('obstacle_interaction_attempt', { obstacleType: 'wall', pieceId: piece.pieceId, cellId: key, result: 'rejected' });
-      this.levelMetrics.obstacleRejectCount += 1;
-      return 'blocked';
-    }
-    if (this.isEndpointCell(cell.x, cell.y)) return 'invalid_target';
-    if (this.level.fixedPipes.some((f) => f.position.x === cell.x && f.position.y === cell.y)) return 'occupied';
-    if (this.level.oneWayGates.some((g) => g.position.x === cell.x && g.position.y === cell.y)) {
-      this.logEvent('obstacle_interaction_attempt', { obstacleType: 'one_way_gate', pieceId: piece.pieceId, cellId: key, result: 'rejected' });
-      this.levelMetrics.obstacleRejectCount += 1;
-      return 'invalid_target';
-    }
-
-    if (this.isLockedCell(cell.x, cell.y)) {
-      this.logEvent('obstacle_interaction_attempt', { obstacleType: 'locked_placeholder', pieceId: piece.pieceId, cellId: key, result: 'rejected' });
-      return 'locked_blocked';
-    }
-    return null;
-  }
-
-  private rejectPiece(piece: PieceVisual, cellId: string | undefined, reason: string) {
-    this.levelMetrics.rejectedDropCount += 1;
-    if (cellId) {
-      const repKey = `${piece.pieceId}:${cellId}`;
-      const prev = this.repeatedErrorMap.get(repKey) ?? 0;
-      if (Date.now() - prev < 2000) this.levelMetrics.repeatedErrorCount += 1;
-      this.repeatedErrorMap.set(repKey, Date.now());
-      this.cellHadWrongAttempt.add(cellId);
-    }
-    this.logEvent('piece_rejected', { pieceId: piece.pieceId, attemptCellId: cellId, reason });
-    if (!this.reduceMotion) this.tweens.add({ targets: piece.container, x: piece.container.x + 8, duration: 50, yoyo: true, repeat: 2 });
-    piece.container.setPosition(piece.homeX, piece.homeY);
-  }
-
-  private removePlacedPiece(piece: PieceVisual) {
-    if (!piece.currentCellKey) return;
-    this.pushUndoSnapshot();
-    const cellKey = piece.currentCellKey;
-    this.placed.delete(cellKey);
-    this.returnPieceToTray(piece);
-    this.levelMetrics.validPlacementsCount = Math.max(0, this.levelMetrics.validPlacementsCount - 1);
-    this.logEvent('piece_removed', { pieceId: piece.pieceId, cellId: cellKey });
-    this.updateAllPieceColors();
-    this.runBoardEval();
-  }
-
-  private returnPieceToTray(piece: PieceVisual) {
-    if (!piece.isFromTray) {
-      this.trayInventory.set(piece.pieceType, (this.trayInventory.get(piece.pieceType) ?? 0) + 1);
-    }
-    piece.isFromTray = true;
-    piece.currentCellKey = undefined;
-    piece.container.destroy();
-    this.placedVisuals.delete(piece.pieceId);
-    this.updateTrayCounts();
-  }
-
-  private runBoardEval() {
-    const evalResult = this.evaluateBoardState();
-    if (evalResult.isBeneficialAction) this.levelMetrics.beneficialActionCount += 1;
-    else this.levelMetrics.nonBeneficialActionCount += 1;
-    this.prevDistance = evalResult.distanceToSolution;
-
-    this.logEvent('board_state_eval', {
-      requiredCellsFilled: evalResult.requiredCellsFilled,
-      correctPlacements: evalResult.correctPlacements,
-      incorrectPlacements: evalResult.incorrectPlacements,
-      distanceToSolution: evalResult.distanceToSolution,
-      isBeneficialAction: evalResult.isBeneficialAction,
-    });
-    
-    evalResult.colorResults.forEach(colorResult => {
-      this.logEvent('color_path_check', {
-        colorId: colorResult.colorId,
-        isConnected: colorResult.isConnected,
-        openEndsCount: colorResult.openEndsCount,
-        leakCount: colorResult.leakCount,
-        requiredCellsFilled: colorResult.requiredCellsFilled,
-        correctPlacements: colorResult.correctPlacements,
-        incorrectPlacements: colorResult.incorrectPlacements,
-      });
-    });
-
-    if (evalResult.isSolved) {
-      this.levelMetrics.completionStatus = 'solved';
-      this.levelMetrics.solveTimeMs = Date.now() - this.levelStartedAt - this.pausedAccumulatedMs;
-      this.logEvent('level_complete', { levelId: this.level.id, solveTimeMs: this.levelMetrics.solveTimeMs });
-      
-      if (this.sceneState === 'tutorial_step') {
-        this.handleTutorialLevelComplete();
-      } else {
-        this.playSuccessFlow(() => {
-          this.finishCurrentLevel('solved');
-          this.emitLevelSolvedGameOver();
-        });
-      }
-    }
-  }
-
-  private handleTutorialLevelComplete() {
-    if (!this.currentTutorialStep) return;
-
-    if (this.currentTutorialStep.expectedAction === 'solve_level') {
-      this.showSuccessMessage(this.currentTutorialStep.successMessage || 'Excellent work!');
-      this.nextTutorialStep();
-    }
-  }
-
-  private emitLevelSolvedGameOver() {
-    this.sceneState = 'session_complete';
-
-    const current = this.perLevel[this.perLevel.length - 1] ?? this.levelMetrics;
-    const stars = current.solveTimeMs <= current.parTimeMs ? 3 : current.solveTimeMs <= current.hardTimeMs ? 2 : 1;
-    const levelScore = Math.max(
-      1,
-      Math.round(current.requiredPieceCount * 12 - current.rejectedDropCount * 2 - current.incorrectPlacementCount)
-    );
-
-    const summary: PipePatchGameStats = {
-      sessionDurationMs: current.activeTimeMs,
-      levelsAttempted: 1,
-      levelsSolved: 1,
-      levelTimeoutSkips: 0,
-      perLevelMetrics: [current],
-      telemetryEvents: this.telemetry,
+    const boardOrigin = {
+      x: Math.floor((width - boardSizePx) / 2),
+      y: Math.max(minBoardY, Math.min(maxBoardY, centeredBoardY)),
     };
 
-    const onGameOver = this.registry.get('onGameOver');
-    if (onGameOver) {
-      onGameOver({
-        ...summary,
-        level: this.level.id,
-        current_played: this.level.id,
-        userTimeMs: current.activeTimeMs,
-        score: levelScore,
-        stars,
-        success: true,
-      });
-    }
-  }
+    const top = boardOrigin.y + boardSizePx + 20;
+    const trayY = Math.min(height - panelH / 2 - 8, top + panelH / 2);
 
-  private evaluateBoardState(): EvalResult {
-    let requiredCellsFilled = 0;
-    let correctPlacements = 0;
-    let incorrectPlacements = 0;
-
-    this.activeRequiredPlacements.forEach((r) => {
-      const key = `${r.position.x},${r.position.y}`;
-      const placed = this.placed.get(key);
-      if (!placed) return;
-      requiredCellsFilled += 1;
-      if (placed.pieceType === r.pieceType) correctPlacements += 1;
-      else incorrectPlacements += 1;
-    });
-
-    const extraWrong = [...this.placed.entries()].filter(([k]) => !this.activeRequiredPlacements.some((r) => `${r.position.x},${r.position.y}` === k)).length;
-    incorrectPlacements += extraWrong;
-    const targetCount = this.activeRequiredPlacements.length;
-    const distance = (targetCount - correctPlacements) + extraWrong;
-    const path = this.checkMultiColorConnectivity();
-    const solved = correctPlacements === targetCount && path.isConnected && path.openEndsCount === 0 && path.leakCount === 0;
-    
     return {
-      requiredCellsFilled,
-      correctPlacements,
-      incorrectPlacements,
-      distanceToSolution: Math.max(0, distance),
-      isBeneficialAction: distance < this.prevDistance,
-      isSolved: solved,
-      isConnected: path.isConnected,
-      openEndsCount: path.openEndsCount,
-      leakCount: path.leakCount,
-      colorResults: path.colorResults,
+      boardSizePx,
+      cellSize,
+      boardOrigin,
+      trayRect: new Phaser.Geom.Rectangle(6, trayY - panelH / 2, width - 12, panelH),
     };
   }
 
-  private checkMultiColorConnectivity() {
-    const endpointGroups = this.level.endpointGroups;
-    const blockedSet = new Set(this.level.blockedCells.map((b) => `${b.x},${b.y}`));
-    const gateMap = new Map(this.level.oneWayGates.map((g) => [`${g.position.x},${g.position.y}`, g]));
+  private getBottomPanelRect(
+    viewport: { width: number; height: number },
+    trayRect: Phaser.Geom.Rectangle,
+    step: TutorialStep
+  ): PanelLayout {
+    const isCompact = viewport.width < 400 || viewport.height < 650;
+    const isMedium = !isCompact && (viewport.width < 520 || viewport.height < 760);
+    const isMini = step.action === 'place';
+    const mode: 'full' | 'mini' = isMini ? 'mini' : 'full';
 
-    let leakCount = 0;
-    let openEndsCount = 0;
-    let groupsConnected = 0;
-    const colorResults: Array<{
-      colorId: ColorId;
-      isConnected: boolean;
-      openEndsCount: number;
-      leakCount: number;
-      requiredCellsFilled: number;
-      correctPlacements: number;
-      incorrectPlacements: number;
-    }> = [];
+    let width = isMini ? Math.min(460, viewport.width - 14) : Math.min(460, viewport.width - 20);
+    let height = isMini ? (isCompact ? 100 : 112) : isCompact ? 196 : isMedium ? 214 : 236;
+    const bottomPadding = isCompact ? 28 : 20;
 
-    for (const group of endpointGroups) {
-      const requiredOutputs = new Set(group.outputs.map((o) => `${o.position.x},${o.position.y}`));
-      const reachedOutputs = new Set<string>();
-      const visited = new Set<string>();
-      const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-      visited.add(this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined));
+    let titleFontSize = isMini ? (isCompact ? 19 : 20) : isCompact ? 22 : isMedium ? 25 : 28;
+    let bodyFontSize = isMini ? 18 : isCompact ? 18 : isMedium ? 20 : 22;
+    let progressFontSize = isMini ? (isCompact ? 16 : 17) : isCompact ? 16 : 18;
 
-      let colorLeakCount = 0;
-      let colorOpenEndsCount = 0;
-      const colorRequiredCellsFilled = 0;
-      const colorCorrectPlacements = 0;
-      const colorIncorrectPlacements = 0;
+    const panelBottom = viewport.height - bottomPadding;
+    let panelTop = panelBottom - height;
 
-      while (queue.length) {
-        const c = queue.shift()!;
-        const mask = this.getColorMaskAt(c.x, c.y);
-        if (mask === 0) continue;
-        const pieceType = this.getPieceTypeAt(c.x, c.y);
-        const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
-        for (const dir of dirs) {
-          const v = DIR_VECTORS[dir];
-          const nx = c.x + v.x;
-          const ny = c.y + v.y;
-          if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) {
-            colorLeakCount += 1;
-            continue;
-          }
-          const neighborKey = `${nx},${ny}`;
-          if (blockedSet.has(neighborKey)) {
-            colorLeakCount += 1;
-            continue;
-          }
-          if (this.isLockedCell(nx, ny)) {
-            colorLeakCount += 1;
-            continue;
-          }
-
-          const nMask = this.getColorMaskAt(nx, ny);
-          const opp = OPPOSITE_DIR[dir];
-          if ((nMask & opp) === 0) {
-            const isUnreachedTargetOfGroup = requiredOutputs.has(neighborKey) && !reachedOutputs.has(neighborKey);
-            if (!isUnreachedTargetOfGroup) colorOpenEndsCount += 1;
-            continue;
-          }
-
-          const gate = gateMap.get(neighborKey);
-          if (gate) {
-            const entry = NAME_TO_DIR[gate.entry];
-            if (opp !== entry) {
-              this.logEvent('one_way_gate_path_fail', { gateId: gate.id, attemptedFlowDirection: dir, colorId: group.colorId });
-              return { isConnected: false, openEndsCount: colorOpenEndsCount + 1, leakCount: colorLeakCount, colorResults };
-            }
-          }
-
-          if (requiredOutputs.has(neighborKey)) reachedOutputs.add(neighborKey);
-          const neighborType = this.getPieceTypeAt(nx, ny);
-          const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
-          if (!visited.has(stateKey)) {
-            visited.add(stateKey);
-            queue.push({ x: nx, y: ny, incomingDir: opp });
-          }
-        }
-      }
-
-      const isGroupConnected = reachedOutputs.size === requiredOutputs.size && requiredOutputs.size > 0;
-      if (isGroupConnected) {
-        groupsConnected += 1;
-      }
-
-      colorResults.push({
-        colorId: group.colorId as ColorId,
-        isConnected: isGroupConnected,
-        openEndsCount: colorOpenEndsCount,
-        leakCount: colorLeakCount,
-        requiredCellsFilled: colorRequiredCellsFilled,
-        correctPlacements: colorCorrectPlacements,
-        incorrectPlacements: colorIncorrectPlacements,
-      });
-
-      openEndsCount += colorOpenEndsCount;
-      leakCount += colorLeakCount;
+    // Collision guard with tray while keeping panel anchored at bottom.
+    const overlap = trayRect.bottom - panelTop;
+    if (overlap > 0) {
+      const shrink = Math.min(isMini ? 24 : 40, overlap + 8);
+      height = Math.max(isMini ? 88 : 170, height - shrink);
+      titleFontSize = Math.max(isMini ? 13 : 16, titleFontSize - 1);
+      bodyFontSize = Math.max(isMini ? 12 : 13, bodyFontSize - (isMini ? 0 : 2));
+      progressFontSize = Math.max(11, progressFontSize - 1);
+      width = Math.min(width, viewport.width - 14);
+      panelTop = panelBottom - height;
     }
 
-    return { 
-      isConnected: groupsConnected === endpointGroups.length && endpointGroups.length > 0, 
-      openEndsCount, 
-      leakCount, 
-      colorResults 
+    const remainingOverlap = trayRect.bottom - panelTop;
+    const dimAlpha = remainingOverlap > 20 ? 0.67 : 0.56;
+
+    return {
+      mode,
+      x: viewport.width / 2,
+      y: panelTop + height / 2,
+      width,
+      height,
+      bodyWrapWidth: Math.max(240, width - 34),
+      titleFontSize,
+      bodyFontSize,
+      progressFontSize,
+      dimAlpha,
     };
   }
 
-  private playSuccessFlow(onDone: () => void) {
-    this.sceneState = 'playing';
-    if (this.reduceMotion) {
-      this.statusText.setText('Flow complete ✔');
-      this.time.delayedCall(250, onDone);
-      return;
-    }
-
-    const dots: Phaser.GameObjects.Arc[] = [];
-    this.level.endpointGroups.forEach(group => {
-      const path = this.findPathForColor(group);
-      path.forEach((p, i) => {
-        const color = COLOR_HEX[group.colorId as ColorId];
-        const dot = this.add.circle(this.cellCenterX(p.x), this.cellCenterY(p.y), Math.max(4, this.cellSize * 0.12), color, 0.2);
-        dot.setAlpha(0.05);
-        dots.push(dot);
-        this.tweens.add({ targets: dot, alpha: 1, duration: 90, delay: i * 70, yoyo: false });
-      });
-    });
-    this.time.delayedCall(this.level.endpointGroups.length * 100 + 200, () => {
-      dots.forEach((d) => d.destroy());
-      this.statusText.setText('Solved ✔');
-      onDone();
-    });
+  private getMiniStepHint(step: TutorialStep) {
+    if (!step.targetCell || !step.targetPieceType) return 'วางท่อตามช่องที่ไฮไลต์';
+    return `วาง ${this.getPieceTypeLabel(step.targetPieceType)} ที่ช่อง (${step.targetCell.x + 1},${step.targetCell.y + 1})`;
   }
 
-  private findPathForColor(group: PipePatchEndpointGroup): Coord[] {
-    const path: Coord[] = [];
-    const visited = new Set<string>();
-    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-    visited.add(this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined));
-
-    while (queue.length) {
-      const c = queue.shift()!;
-      path.push(c);
-      const mask = this.getColorMaskAt(c.x, c.y);
-      if (mask === 0) continue;
-      const pieceType = this.getPieceTypeAt(c.x, c.y);
-      const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
-      for (const dir of dirs) {
-        const v = DIR_VECTORS[dir];
-        const nx = c.x + v.x;
-        const ny = c.y + v.y;
-        if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-        
-        const nMask = this.getColorMaskAt(nx, ny);
-        const opp = OPPOSITE_DIR[dir];
-        if ((nMask & opp) === 0) continue;
-
-        const neighborType = this.getPieceTypeAt(nx, ny);
-        const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
-        if (!visited.has(stateKey)) {
-          visited.add(stateKey);
-          queue.push({ x: nx, y: ny, incomingDir: opp });
-        }
-      }
-    }
-
-    return path;
-  }
-
-  private finishCurrentLevel(status: 'solved' | 'timeout_skip') {
-    this.levelMetrics.completionStatus = status;
-    this.levelMetrics.activeTimeMs = Date.now() - this.levelStartedAt - this.pausedAccumulatedMs;
-    if (!this.levelMetrics.solveTimeMs) this.levelMetrics.solveTimeMs = this.levelMetrics.activeTimeMs;
-    this.levelMetrics.firstActionLatencyMs = this.firstActionAt ? this.firstActionAt - this.levelStartedAt : this.levelMetrics.activeTimeMs;
-    this.perLevel.push({ ...this.levelMetrics });
-  }
-
-  private advanceLevel() {
-    if (this.sessionMsRemaining <= 0) return this.completeSession();
-    const next = this.levelIndex + 1;
-    this.levelIndex = next > PIPE_PATCH_LEVELS.length ? 1 : next;
-    this.startLevel(this.levelIndex);
-  }
-
-  private completeSession() {
-    this.sceneState = 'session_complete';
-    const summary: PipePatchGameStats = {
-      sessionDurationMs: SESSION_DURATION_MS - this.sessionMsRemaining,
-      levelsAttempted: this.perLevel.length,
-      levelsSolved: this.perLevel.filter((p) => p.completionStatus === 'solved').length,
-      levelTimeoutSkips: this.perLevel.filter((p) => p.completionStatus === 'timeout_skip').length,
-      perLevelMetrics: this.perLevel,
-      telemetryEvents: this.telemetry,
+  private getPieceTypeLabel(pieceType: PipePieceType) {
+    const labels: Record<PipePieceType, string> = {
+      straight_h: 'ท่อตรงแนวนอน',
+      straight_v: 'ท่อตรงแนวตั้ง',
+      elbow_ur: 'ข้องอขึ้น-ขวา',
+      elbow_rd: 'ข้องอขวา-ลง',
+      elbow_dl: 'ข้องอลง-ซ้าย',
+      elbow_lu: 'ข้องอซ้าย-ขึ้น',
+      tee_urd: 'ท่อสามทาง',
+      tee_rdl: 'ท่อสามทาง',
+      tee_dlu: 'ท่อสามทาง',
+      tee_lur: 'ท่อสามทาง',
+      cross: 'ท่อสี่แยก',
+      crossover: 'ท่อสะพานข้าม',
     };
-    this.logEvent('session_end', { levelsAttempted: summary.levelsAttempted, levelsSolved: summary.levelsSolved });
-
-    const onGameOver = this.registry.get('onGameOver');
-    if (onGameOver) {
-      onGameOver({
-        ...summary,
-        score: summary.levelsSolved,
-        stars: 0,
-        success: true,
-      });
-    }
+    return labels[pieceType] ?? pieceType;
   }
 
-  private pushUndoSnapshot() {
-    this.undoStack.push({ placed: new Map(this.placed), inventory: [...this.trayInventory.entries()] });
-    if (this.undoStack.length > 20) this.undoStack.shift();
+  private renderStepGuides(step: TutorialStep, layout: BoardLayout) {
+    this.clearStepGuides();
+    if (step.action !== 'place' || !step.targetCell || !step.targetPieceType) return;
+    this.highlightTrayPieceWithEase(step.targetPieceType);
+    this.highlightTargetCellWithEase(step.targetCell, layout);
+    this.drawGhostDragHint(step.targetCell, step.targetPieceType, layout);
   }
 
-  private undoAction() {
-    const prev = this.undoStack.pop();
-    this.levelMetrics.undoCount += 1;
-    this.logEvent('undo_pressed', { levelId: this.level.id });
-    if (!prev) return;
-    this.placed.clear();
-    prev.placed.forEach((v, k) => this.placed.set(k, v));
-    this.trayInventory = new Map(prev.inventory);
+  private highlightTrayPieceWithEase(targetPieceType: PipePieceType) {
+    const trayTypeVisuals = (this as any).trayTypeVisuals as Map<PipePieceType, { container: Phaser.GameObjects.Container }>;
+    if (!trayTypeVisuals) return;
+    const target = trayTypeVisuals.get(targetPieceType)?.container;
+    if (!target) return;
 
-    this.placedVisuals.forEach((v) => v.container.destroy());
-    this.placedVisuals.clear();
-    this.placed.forEach((rp, key) => {
-      const [x, y] = key.split(',').map(Number);
-      const pv = this.spawnPieceVisual(rp.pieceId, rp.pieceType, this.cellCenterX(x), this.cellCenterY(y), false, Math.floor(this.cellSize * 0.94));
-      pv.currentCellKey = key;
-      pv.isFromTray = false;
-      this.placedVisuals.set(rp.pieceId, pv);
+    const tween = this.tweens.add({
+      targets: target,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      alpha: 0.88,
+      duration: 560,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
     });
-
-    this.updateAllPieceColors();
-    this.updateTrayCounts();
-    this.runBoardEval();
+    this.activeGuideTweens.push(tween);
   }
 
-  private resetLevel() {
-    this.levelMetrics.resetCount += 1;
-    this.logEvent('reset_level_pressed', { levelId: this.level.id });
-    this.startLevel(this.level.id);
+  private highlightTargetCellWithEase(targetCell: Coord, layout: BoardLayout) {
+    const cx = layout.boardOrigin.x + targetCell.x * layout.cellSize + layout.cellSize / 2;
+    const cy = layout.boardOrigin.y + targetCell.y * layout.cellSize + layout.cellSize / 2;
+    const ring = this.add.circle(cx, cy, Math.max(20, layout.cellSize * 0.34), UI_COLORS.accent, 0)
+      .setStrokeStyle(4, UI_COLORS.accentSoft, 0.9)
+      .setDepth(3850);
+    this.activeGuideGraphics.push(ring);
+
+    const tween = this.tweens.add({
+      targets: ring,
+      scale: 1.18,
+      alpha: 0.55,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    this.activeGuideTweens.push(tween);
   }
 
-  private clearLevelVisuals() {
-    this.children.list
-      .filter((g) => !this.uiPersistent.has(g))
-      .forEach((g) => {
-        if ((g as Phaser.GameObjects.GameObject).destroy) g.destroy();
-      });
-    this.cellVisuals.clear();
-    this.trayVisuals.forEach((v) => v.container.destroy());
-    this.trayTypeVisuals.forEach((v) => v.container.destroy());
-    this.trayVisuals.clear();
-    this.trayTypeVisuals.clear();
-    this.placedVisuals.clear();
-    this.trayCountTexts.clear();
+  private drawGhostDragHint(targetCell: Coord, targetPieceType: PipePieceType, layout: BoardLayout) {
+    const trayTypeVisuals = (this as any).trayTypeVisuals as Map<PipePieceType, { container: Phaser.GameObjects.Container }>;
+    const trayCenter = trayTypeVisuals?.get(targetPieceType)?.container;
+    if (!trayCenter) return;
+
+    const fromX = trayCenter.x;
+    const fromY = trayCenter.y - 10;
+    const toX = layout.boardOrigin.x + targetCell.x * layout.cellSize + layout.cellSize / 2;
+    const toY = layout.boardOrigin.y + targetCell.y * layout.cellSize + layout.cellSize / 2;
+
+    const path = this.add.graphics().setDepth(3840);
+    path.lineStyle(3, UI_COLORS.accentSoft, 0.7);
+    path.beginPath();
+    path.moveTo(fromX, fromY);
+    path.lineTo(toX, toY);
+    path.strokePath();
+    this.activeGuideGraphics.push(path);
+
+    const hintDot = this.add.circle(fromX, fromY, 6, UI_COLORS.accent, 0.9).setDepth(3842);
+    this.activeGuideGraphics.push(hintDot);
+
+    const tween = this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 1100,
+      repeat: -1,
+      ease: 'Quad.easeInOut',
+      onUpdate: (tw) => {
+        const t = tw.getValue() ?? 0;
+        const x = Phaser.Math.Linear(fromX, toX, t);
+        const y = Phaser.Math.Linear(fromY, toY, t);
+        hintDot.setPosition(x, y);
+      },
+    });
+    this.activeGuideTweens.push(tween);
   }
 
-  private getCellFromWorld(x: number, y: number): Coord | null {
-    if (x < this.boardOrigin.x || y < this.boardOrigin.y) return null;
-    const gx = Math.floor((x - this.boardOrigin.x) / this.cellSize);
-    const gy = Math.floor((y - this.boardOrigin.y) / this.cellSize);
-    if (gx < 0 || gy < 0 || gx >= this.level.gridSize || gy >= this.level.gridSize) return null;
-    return { x: gx, y: gy };
+  private clearStepGuides() {
+    this.activeGuideTweens.forEach((tw) => tw.stop());
+    this.activeGuideTweens = [];
+    this.activeGuideGraphics.forEach((g) => g.destroy());
+    this.activeGuideGraphics = [];
   }
 
-  private cellCenterX(x: number) {
-    return this.boardOrigin.x + x * this.cellSize + this.cellSize / 2;
-  }
-  private cellCenterY(y: number) {
-    return this.boardOrigin.y + y * this.cellSize + this.cellSize / 2;
-  }
-
-  private createPipeVisual(
-    pieceType: PipePieceType,
-    x: number,
-    y: number,
-    size: number,
-    local = true,
-    color?: number,
-    axisColorX?: number,
-    axisColorY?: number
-  ) {
-    const g = this.add.graphics();
-    const half = size * 0.5;
-    const t = Math.max(8, Math.floor(size * 0.3));
-    const pipeColor = color ?? COLORS.pipe;
-    const highlight = this.brightenColor(pipeColor, 42);
-    const cap = this.brightenColor(pipeColor, 20);
-    const lowLight = this.darkenColor(pipeColor, 22);
-    g.setPosition(x, y);
-    const m = PIECE_DEFINITIONS[pieceType].mask;
-
-    if (pieceType === 'crossover') {
-      const underT = Math.max(5, Math.floor(t * 0.86));
-      const overT = Math.max(6, Math.floor(t * 1.04));
-      const gap = Math.max(6, Math.floor(t * 0.9));
-
-      const overColor = axisColorX ?? pipeColor;
-      const underBase = axisColorY ?? pipeColor;
-      const underColor = this.darkenColor(underBase, 26);
-      const underHighlight = this.brightenColor(underColor, 26);
-      const underCap = this.brightenColor(underColor, 10);
-      const underLowLight = this.darkenColor(underColor, 18);
-      const overHighlight = this.brightenColor(overColor, 34);
-      const overCap = this.brightenColor(overColor, 14);
-      const overLowLight = this.darkenColor(overColor, 20);
-
-      const drawUnderVertical = () => {
-        const segLen = Math.max(2, half - gap);
-
-        g.fillStyle(COLORS.pipeShadow, 0.4).fillRoundedRect(-underT / 2 + 1, -half + 1, underT, segLen, 4);
-        g.fillStyle(underColor, 1).fillRoundedRect(-underT / 2, -half, underT, segLen, 4);
-        g.fillStyle(underLowLight, 0.45).fillRoundedRect(-underT / 2 + underT * 0.5, -half + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
-        g.fillStyle(underHighlight, 0.55).fillRoundedRect(-underT / 2 + 1, -half + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
-        g.fillStyle(underCap, 1).fillCircle(0, -half + 1, underT * 0.55);
-
-        g.fillStyle(COLORS.pipeShadow, 0.4).fillRoundedRect(-underT / 2 + 1, gap + 1, underT, segLen, 4);
-        g.fillStyle(underColor, 1).fillRoundedRect(-underT / 2, gap, underT, segLen, 4);
-        g.fillStyle(underLowLight, 0.45).fillRoundedRect(-underT / 2 + underT * 0.5, gap + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
-        g.fillStyle(underHighlight, 0.55).fillRoundedRect(-underT / 2 + 1, gap + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
-        g.fillStyle(underCap, 1).fillCircle(0, half - 1, underT * 0.55);
+  private getStepFocus(step: TutorialStep, layout: BoardLayout, level: PipePatchLevelConfig): FocusTarget {
+    if (step.targetCell) {
+      const centerX = layout.boardOrigin.x + step.targetCell.x * layout.cellSize + layout.cellSize / 2;
+      const centerY = layout.boardOrigin.y + step.targetCell.y * layout.cellSize + layout.cellSize / 2;
+      return {
+        x: centerX,
+        y: centerY,
+        radius: Math.max(28, Math.floor(layout.cellSize * 0.58)),
+        centerX,
+        centerY,
       };
+    }
 
-      const drawOverHorizontal = () => {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-half + 1, -overT / 2 + 2, size, overT, 5);
-        g.fillStyle(overColor, 1).fillRoundedRect(-half, -overT / 2, size, overT, 5);
-        g.fillStyle(overLowLight, 0.45).fillRoundedRect(-half + 2, overT * 0.06, Math.max(2, size - 4), Math.max(2, overT * 0.32), 3);
-        g.fillStyle(overHighlight, 0.65).fillRoundedRect(-half + 2, -overT / 2 + 1, Math.max(2, size - 4), Math.max(2, overT * 0.28), 3);
-        g.fillStyle(overCap, 1).fillCircle(-half + 1, 0, overT * 0.55);
-        g.fillStyle(overCap, 1).fillCircle(half - 1, 0, overT * 0.55);
+    if (step.anchor === 'board') {
+      const x = layout.boardOrigin.x - 8;
+      const y = layout.boardOrigin.y - 8;
+      const w = layout.boardSizePx + 16;
+      const h = layout.boardSizePx + 16;
+      return { x, y, w, h, centerX: x + w / 2, centerY: y + h / 2 };
+    }
 
-        g.lineStyle(Math.max(2, Math.floor(overT * 0.18)), 0x0b1220, 0.25);
-        g.strokeRoundedRect(-overT * 0.9, -overT * 0.58, overT * 1.8, overT * 1.16, 6);
+    if (step.anchor === 'tray') {
+      const x = layout.trayRect.x;
+      const y = layout.trayRect.y;
+      const w = layout.trayRect.width;
+      const h = Math.max(44, layout.trayRect.height - 70);
+      return { x, y, w, h, centerX: x + w / 2, centerY: y + h / 2 };
+    }
+
+    if (step.anchor === 'status') {
+      return {
+        x: 8,
+        y: 10,
+        w: 190,
+        h: 46,
+        centerX: 103,
+        centerY: 33,
       };
-
-      drawUnderVertical();
-      drawOverHorizontal();
-
-      const jointBase = axisColorX ?? axisColorY ?? pipeColor;
-      g.fillStyle(this.brightenColor(jointBase, 18), 0.95).fillCircle(0, 0, Math.max(4, overT * 0.42));
-      g.fillStyle(0x111827, 0.28).fillCircle(0, 0, Math.max(2, overT * 0.18));
-      return g;
     }
 
-    const drawArm = (dir: number) => {
-      if (dir === DIR.UP) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-t / 2 + 1, -half + 1, t, half + t * 0.2, 4);
-        g.fillStyle(pipeColor, 1).fillRoundedRect(-t / 2, -half, t, half + t * 0.2, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(-t / 2 + t * 0.5, -half + 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(-t / 2 + 1, -half + 2, Math.max(2, t * 0.32), half - 2, 2);
-        g.fillStyle(cap, 1).fillCircle(0, -half + 1, t * 0.55);
-        return;
-      }
-      if (dir === DIR.RIGHT) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(1, -t / 2 + 1, half + t * 0.2, t, 4);
-        g.fillStyle(pipeColor, 1).fillRoundedRect(0, -t / 2, half + t * 0.2, t, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(2, -t / 2 + 1, half - 2, Math.max(2, t * 0.32), 2);
-        g.fillStyle(cap, 1).fillCircle(half - 1, 0, t * 0.55);
-        return;
-      }
-      if (dir === DIR.DOWN) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-t / 2 + 1, 1, t, half + t * 0.2, 4);
-        g.fillStyle(pipeColor, 1).fillRoundedRect(-t / 2, 0, t, half + t * 0.2, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(-t / 2 + t * 0.5, 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(-t / 2 + 1, 1, Math.max(2, t * 0.32), half - 2, 2);
-        g.fillStyle(cap, 1).fillCircle(0, half - 1, t * 0.55);
-        return;
-      }
+    const firstGroup = level.endpointGroups[0];
+    const cell = step.anchor === 'source' ? firstGroup?.input.position : firstGroup?.outputs[0]?.position;
+    const coord: Coord = cell ?? { x: 0, y: 0 };
+    const centerX = layout.boardOrigin.x + coord.x * layout.cellSize + layout.cellSize / 2;
+    const centerY = layout.boardOrigin.y + coord.y * layout.cellSize + layout.cellSize / 2;
 
-      g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-half + 1, -t / 2 + 1, half + t * 0.2, t, 4);
-      g.fillStyle(pipeColor, 1).fillRoundedRect(-half, -t / 2, half + t * 0.2, t, 4);
-      g.fillStyle(lowLight, 0.45).fillRoundedRect(-half + 1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
-      g.fillStyle(highlight, 0.65).fillRoundedRect(-half + 1, -t / 2 + 1, Math.max(2, t * 0.32), half - 2, 2);
-      g.fillStyle(cap, 1).fillCircle(-half + 1, 0, t * 0.55);
+    return {
+      x: centerX,
+      y: centerY,
+      radius: Math.max(28, Math.floor(layout.cellSize * 0.58)),
+      centerX,
+      centerY,
     };
-
-    if (m & DIR.UP) drawArm(DIR.UP);
-    if (m & DIR.RIGHT) drawArm(DIR.RIGHT);
-    if (m & DIR.DOWN) drawArm(DIR.DOWN);
-    if (m & DIR.LEFT) drawArm(DIR.LEFT);
-
-    // Add a subtle glow effect to the center connection
-    g.fillStyle(this.brightenColor(pipeColor, 18), 1).fillCircle(0, 0, Math.max(5, t * 0.62));
-    g.fillStyle(lowLight, 0.45).fillCircle(0, 0, Math.max(3, t * 0.34));
-    g.fillStyle(0x111827, 0.35).fillCircle(0, 0, Math.max(2, t * 0.2));
-    
-    // Add a small highlight dot for better visual appeal
-    g.fillStyle(this.brightenColor(pipeColor, 56), 0.8).fillCircle(-Math.max(1, t * 0.08), -Math.max(1, t * 0.08), Math.max(1, t * 0.16));
-    
-    return g;
   }
 
-  private getPipeColor(pieceType: PipePieceType) {
-    if (pieceType.startsWith('tee')) return 0xbcc4cf;
-    if (pieceType === 'cross') return 0xd0d6de;
-    if (pieceType === 'crossover') return COLORS.pipe;
-    return COLORS.pipe;
+  private isCurrentPlacementSatisfied() {
+    const step = TUTORIAL_STEPS[this.tutorialIndex];
+    if (!step || step.action !== 'place' || !step.targetCell || !step.targetPieceType) return false;
+
+    const placed = (this as any).placed as Map<string, { pieceType: PipePieceType }>;
+    if (!placed) return false;
+
+    const key = `${step.targetCell.x},${step.targetCell.y}`;
+    return placed.get(key)?.pieceType === step.targetPieceType;
   }
 
-  private drawEndpointPipe(cx: number, cy: number, mask: number, color: number, badgeText?: 'IN' | 'OUT') {
-    const g = this.add.graphics();
-    const half = this.cellSize * 0.36;
-    const t = Math.max(7, Math.floor(this.cellSize * 0.22));
-    g.setPosition(cx, cy);
-    const drawArm = (dir: number) => {
-      const v = DIR_VECTORS[dir as keyof typeof DIR_VECTORS];
-      const ex = v.x * half;
-      const ey = v.y * half;
-      g.lineStyle(t + 4, 0x111827, 0.35);
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.strokePath();
-      g.lineStyle(t, color, 1);
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.strokePath();
-      g.fillStyle(this.brightenColor(color, 20), 1).fillCircle(ex, ey, t * 0.4);
-    };
+  private sanitizePlacementsForCurrentStep() {
+    const placed = (this as any).placed as Map<string, { pieceId: string; pieceType: PipePieceType }>;
+    const placedVisuals = (this as any).placedVisuals as Map<string, { container: Phaser.GameObjects.Container; pieceType: PipePieceType }>;
+    const trayInventory = (this as any).trayInventory as Map<PipePieceType, number>;
 
-    if (mask & DIR.UP) drawArm(DIR.UP);
-    if (mask & DIR.RIGHT) drawArm(DIR.RIGHT);
-    if (mask & DIR.DOWN) drawArm(DIR.DOWN);
-    if (mask & DIR.LEFT) drawArm(DIR.LEFT);
+    if (!placed || !placedVisuals || !trayInventory) return 0;
 
-    g.fillStyle(this.brightenColor(color, 24), 1).fillCircle(0, 0, Math.max(5, t * 0.55));
-    g.fillStyle(0x0f172a, 0.45).fillCircle(0, 0, Math.max(2, t * 0.22));
-
-    this.uiPersistent.delete(g as unknown as Phaser.GameObjects.GameObject);
-
-    if (badgeText) {
-      const badge = this.add.text(cx, cy + this.cellSize * 0.29, badgeText, {
-        fontSize: `${Math.max(9, Math.floor(this.cellSize * 0.16))}px`,
-        color: '#e2e8f0',
-        fontStyle: '700',
-      }).setOrigin(0.5);
-      this.uiPersistent.delete(badge as unknown as Phaser.GameObjects.GameObject);
+    const allowed = new Map<string, PipePieceType>();
+    for (let i = 0; i <= this.tutorialIndex; i += 1) {
+      const s = TUTORIAL_STEPS[i];
+      if (s.action === 'place' && s.targetCell && s.targetPieceType) {
+        allowed.set(`${s.targetCell.x},${s.targetCell.y}`, s.targetPieceType);
+      }
     }
-  }
 
-  private updateTrayCounts() {
-    this.trayCountTexts.forEach((text, type) => {
-      const n = this.trayInventory.get(type) ?? 0;
-      text.setText(`${n.toString().padStart(2, '0')}`);
-      text.setColor(n > 0 ? '#f8fafc' : '#64748b');
-    });
-  }
-
-  private brightenColor(color: number, amount: number) {
-    const r = Math.min(255, ((color >> 16) & 0xff) + amount);
-    const g = Math.min(255, ((color >> 8) & 0xff) + amount);
-    const b = Math.min(255, (color & 0xff) + amount);
-    return (r << 16) | (g << 8) | b;
-  }
-
-  private darkenColor(color: number, amount: number) {
-    const r = Math.max(0, ((color >> 16) & 0xff) - amount);
-    const g = Math.max(0, ((color >> 8) & 0xff) - amount);
-    const b = Math.max(0, (color & 0xff) - amount);
-    return (r << 16) | (g << 8) | b;
-  }
-
-  private getEndpointColor(colorId: string) {
-    const byId: Record<string, number> = {
-      blue: 0x3b82f6,
-      red: 0xef4444,
-      green: 0x22c55e,
-      yellow: 0xeab308,
-      purple: 0xa855f7,
-    };
-    if (byId[colorId]) return byId[colorId];
-    const fallback = [0x22c55e, 0xef4444, 0x3b82f6, 0xeab308, 0xa855f7];
-    const hash = [...colorId].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    return fallback[hash % fallback.length];
-  }
-
-  private getTargetColor(targetIndex: number) {
-    const palette = [0x22c55e, 0xef4444, 0x3b82f6, 0xeab308, 0xa855f7];
-    if (targetIndex < 0) return palette[0];
-    return palette[targetIndex % palette.length];
-  }
-
-  private isEndpointCell(x: number, y: number): boolean {
-    const key = `${x},${y}`;
-    return this.level.endpointGroups.some((g) => {
-      const inKey = `${g.input.position.x},${g.input.position.y}`;
-      if (inKey === key) return true;
-      return g.outputs.some((o) => `${o.position.x},${o.position.y}` === key);
-    });
-  }
-
-  private getPieceTypeAt(cx: number, cy: number): PipePieceType | undefined {
-    const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
-    if (fixed) return fixed.pieceType;
-    const placed = this.placed.get(`${cx},${cy}`);
-    return placed?.pieceType;
-  }
-
-  private getTraversalStateKey(cx: number, cy: number, pieceType: PipePieceType | undefined, incomingDir?: number) {
-    if (pieceType !== 'crossover') return `${cx},${cy}`;
-    if (incomingDir === DIR.LEFT || incomingDir === DIR.RIGHT) return `${cx},${cy},x`;
-    if (incomingDir === DIR.UP || incomingDir === DIR.DOWN) return `${cx},${cy},y`;
-    return `${cx},${cy},*`;
-  }
-
-  private getFlowDirections(mask: ConnectionMask, incomingDir?: number, pieceType?: PipePieceType): number[] {
-    const allowed = DIRS.filter((dir) => (mask & dir) !== 0);
-    if (pieceType !== 'crossover' || !incomingDir) return allowed;
-    const straightOut = OPPOSITE_DIR[incomingDir];
-    return (mask & straightOut) !== 0 ? [straightOut] : [];
-  }
-
-  private computeConnectedPieceColors(): Map<string, ColorId> {
-    const colorByCell = new Map<string, ColorId>();
-    const endpointGroups = this.level.endpointGroups;
-
-    for (const group of endpointGroups) {
-      const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-      const visited = new Set<string>([
-        this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined),
-      ]);
-      while (queue.length > 0) {
-        const c = queue.shift()!;
-        const cMask = this.getColorMaskAt(c.x, c.y);
-        if (cMask === 0) continue;
-        const pieceType = this.getPieceTypeAt(c.x, c.y);
-        const dirs = this.getFlowDirections(cMask, c.incomingDir, pieceType);
-        for (const dir of dirs) {
-          const v = DIR_VECTORS[dir];
-          const nx = c.x + v.x;
-          const ny = c.y + v.y;
-          if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-          if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
-          if (this.isLockedCell(nx, ny)) continue;
-          const nMask = this.getColorMaskAt(nx, ny);
-          const opp = OPPOSITE_DIR[dir];
-          if ((nMask & opp) === 0) continue;
-          const neighborCellKey = `${nx},${ny}`;
-          if (this.placed.has(neighborCellKey)) {
-            const neighborType = this.getPieceTypeAt(nx, ny);
-            if (neighborType !== 'crossover' && !colorByCell.has(neighborCellKey)) {
-              colorByCell.set(neighborCellKey, group.colorId as ColorId);
-            }
-          }
-          const neighborType = this.getPieceTypeAt(nx, ny);
-          const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
-          if (!visited.has(stateKey)) {
-            visited.add(stateKey);
-            queue.push({ x: nx, y: ny, incomingDir: opp });
-          }
+    let removed = 0;
+    [...placed.entries()].forEach(([cellKey, entry]) => {
+      const expectedType = allowed.get(cellKey);
+      if (!expectedType || expectedType !== entry.pieceType) {
+        const visual = placedVisuals.get(entry.pieceId);
+        if (visual) {
+          visual.container.destroy();
+          placedVisuals.delete(entry.pieceId);
         }
+        placed.delete(cellKey);
+        trayInventory.set(entry.pieceType, (trayInventory.get(entry.pieceType) ?? 0) + 1);
+        removed += 1;
       }
+    });
+
+    if (removed > 0) {
+      (this as any).updateTrayCounts?.();
+      (this as any).updateAllPieceColors?.();
     }
 
-    return colorByCell;
+    return removed;
   }
 
-  private getColorMaskAt(cx: number, cy: number): ConnectionMask {
-    const endpointGroups = this.level.endpointGroups;
-    const input = endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy)?.input;
-    if (input) return OPPOSITE_DIR[input.mask];
-    const output = endpointGroups.flatMap((g) => g.outputs).find((o) => o.position.x === cx && o.position.y === cy);
-    if (output) return output.mask;
-    const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
-    if (fixed) return PIECE_DEFINITIONS[fixed.pieceType].mask;
-    const placed = this.placed.get(`${cx},${cy}`);
-    if (placed) return PIECE_DEFINITIONS[placed.pieceType].mask;
-    return 0;
-  }
+  private applyPieceRestriction(targetPieceType: PipePieceType) {
+    const trayTypeVisuals = (this as any).trayTypeVisuals as Map<PipePieceType, { container: Phaser.GameObjects.Container }>;
+    if (!trayTypeVisuals) return;
 
-  private getSourceColorAt(cx: number, cy: number): ColorId | undefined {
-    const group = this.level.endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy);
-    return group?.colorId as ColorId | undefined;
-  }
-
-  private findConnectedColorForDirection(x: number, y: number, dir: number): ColorId | undefined {
-    const centerMask = this.getColorMaskAt(x, y);
-    if ((centerMask & dir) === 0) return undefined;
-    const v = DIR_VECTORS[dir];
-    const sx = x + v.x;
-    const sy = y + v.y;
-    if (sx < 0 || sy < 0 || sx >= this.level.gridSize || sy >= this.level.gridSize) return undefined;
-    if (this.level.blockedCells.some((b) => b.x === sx && b.y === sy)) return undefined;
-    if (this.isLockedCell(sx, sy)) return undefined;
-
-    const startMask = this.getColorMaskAt(sx, sy);
-    const opp = OPPOSITE_DIR[dir];
-    if ((startMask & opp) === 0) return undefined;
-
-    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ x: sx, y: sy, incomingDir: opp }];
-    const visited = new Set<string>([
-      this.getTraversalStateKey(sx, sy, this.getPieceTypeAt(sx, sy), opp),
-    ]);
-    const foundColors = new Set<ColorId>();
-
-    while (queue.length > 0) {
-      const c = queue.shift()!;
-      const sourceColor = this.getSourceColorAt(c.x, c.y);
-      if (sourceColor) {
-        foundColors.add(sourceColor);
-        if (foundColors.size > 1) return undefined;
-      }
-
-      const mask = this.getColorMaskAt(c.x, c.y);
-      if (mask === 0) continue;
-      const pieceType = this.getPieceTypeAt(c.x, c.y);
-      const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
-      for (const d of dirs) {
-        const dv = DIR_VECTORS[d];
-        const nx = c.x + dv.x;
-        const ny = c.y + dv.y;
-        if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-        if (nx === x && ny === y) continue;
-        if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
-        if (this.isLockedCell(nx, ny)) continue;
-        const nMask = this.getColorMaskAt(nx, ny);
-        if ((nMask & OPPOSITE_DIR[d]) === 0) continue;
-        const nextType = this.getPieceTypeAt(nx, ny);
-        const stateKey = this.getTraversalStateKey(nx, ny, nextType, OPPOSITE_DIR[d]);
-        if (visited.has(stateKey)) continue;
-        visited.add(stateKey);
-        queue.push({ x: nx, y: ny, incomingDir: OPPOSITE_DIR[d] });
-      }
-    }
-
-    if (foundColors.size === 1) return [...foundColors][0];
-    return undefined;
-  }
-
-  private resolveCrossoverAxisColors(x: number, y: number): { axisX?: ColorId; axisY?: ColorId } {
-    const left = this.findConnectedColorForDirection(x, y, DIR.LEFT);
-    const right = this.findConnectedColorForDirection(x, y, DIR.RIGHT);
-    const up = this.findConnectedColorForDirection(x, y, DIR.UP);
-    const down = this.findConnectedColorForDirection(x, y, DIR.DOWN);
-
-    const axisX = left && right && left !== right ? undefined : (left ?? right);
-    const axisY = up && down && up !== down ? undefined : (up ?? down);
-    return { axisX, axisY };
-  }
-
-  private updateAllPieceColors() {
-    const colorByCell = this.computeConnectedPieceColors();
-    this.placed.forEach((piece, key) => {
-      const rawColorId = colorByCell.get(key);
-      const isCrossover = piece.pieceType === 'crossover';
-      const colorId = isCrossover ? undefined : rawColorId;
-      piece.colorId = colorId;
-      const visual = this.placedVisuals.get(piece.pieceId);
-      if (!visual) return;
-      visual.colorId = colorId;
-      const toRemove = visual.container.list.filter((c) => c instanceof Phaser.GameObjects.Graphics);
-      toRemove.forEach((c) => c.destroy());
-      let axisXColor: number | undefined;
-      let axisYColor: number | undefined;
-      if (isCrossover) {
-        const [x, y] = key.split(',').map(Number);
-        const axis = this.resolveCrossoverAxisColors(x, y);
-        visual.axisColorX = axis.axisX;
-        visual.axisColorY = axis.axisY;
-        axisXColor = axis.axisX ? COLOR_HEX[axis.axisX] : undefined;
-        axisYColor = axis.axisY ? COLOR_HEX[axis.axisY] : undefined;
+    trayTypeVisuals.forEach((value, type) => {
+      const allow = type === targetPieceType;
+      value.container.setAlpha(allow ? 1 : 0.42);
+      if (allow) {
+        value.container.setInteractive({ draggable: true, useHandCursor: true });
+        this.input.setDraggable(value.container);
       } else {
-        visual.axisColorX = undefined;
-        visual.axisColorY = undefined;
+        value.container.disableInteractive();
       }
-      const pipeColor = isCrossover ? COLORS.pipe : (colorId ? COLOR_HEX[colorId] : COLORS.pipe);
-      const art = this.createPipeVisual(
-        piece.pieceType,
-        0,
-        0,
-        Math.floor(this.cellSize * 0.94) * 0.88,
-        true,
-        pipeColor,
-        axisXColor,
-        axisYColor
-      );
-      visual.container.add(art);
     });
   }
 
-  private arrowForGate(entry: string, exit: string) {
-    if (entry === 'left' && exit === 'right') return '→';
-    if (entry === 'right' && exit === 'left') return '←';
-    if (entry === 'up' && exit === 'down') return '↓';
-    if (entry === 'down' && exit === 'up') return '↑';
-    return '↦';
-  }
+  private restoreTrayInteractivity() {
+    const trayTypeVisuals = (this as any).trayTypeVisuals as Map<PipePieceType, { container: Phaser.GameObjects.Container }>;
+    if (!trayTypeVisuals) return;
 
-  private logEvent(type: string, payload?: Record<string, unknown>) {
-    this.telemetry.push({ type, atMs: Date.now() - this.sessionStartedAt, payload });
+    trayTypeVisuals.forEach((value) => {
+      value.container.setAlpha(1);
+      value.container.setInteractive({ draggable: true, useHandCursor: true });
+      this.input.setDraggable(value.container);
+    });
   }
 }
