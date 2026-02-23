@@ -24,6 +24,7 @@ import { Home, ArrowLeft, Coins } from "lucide-react";
 // Import Level Configs for visual tier lookup
 import { MATCHING_LEVELS } from "@/games/game-01-cardmatch/levels";
 import { FLOATING_BALL_MATH_LEVELS } from "@/games/game-04-floating-ball-math/levels";
+import { CASHIER_LEVELS } from "@/games/game-19-cashier/levels";
 
 // Helper for Tier Visuals
 // Helper for Tier Visuals
@@ -90,7 +91,8 @@ export default function GamePage({ params }: PageProps) {
                     : gameId === 'game-15-taxidriver' ? 35
                         : gameId === 'game-10-miner' ? 30
                             : gameId === 'game-17-floatingmarket' ? 30
-                                : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+                                : gameId === 'game-19-cashier' ? 30
+                                    : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -180,6 +182,13 @@ export default function GamePage({ params }: PageProps) {
                             setActiveLevel(1);
                         } else {
                             setActiveLevel(0);
+                        }
+                    } else if (gameId === 'game-19-cashier') {
+                        if (data && data.current_played) {
+                            setActiveLevel(nextLevel);
+                        } else {
+                            // We don't have a tutorial scene yet for 19, so start at 1
+                            setActiveLevel(1);
                         }
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
@@ -514,6 +523,8 @@ export default function GamePage({ params }: PageProps) {
         currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
     } else if (gameId === 'game-04-floating-ball-math') {
         currentTier = FLOATING_BALL_MATH_LEVELS[activeLevel]?.difficultyTier;
+    } else if (gameId === 'game-19-cashier') {
+        currentTier = CASHIER_LEVELS[activeLevel]?.difficultyTier;
     } else if (gameId === 'game-07-pinkcup') {
         // Pinkcup uses simple difficulty tiers based on level ranges
         if (activeLevel <= 5) currentTier = 'easy';
@@ -607,6 +618,14 @@ export default function GamePage({ params }: PageProps) {
                     {
                         gameId === 'game-17-floatingmarket' && (
                             <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-cyan-100 text-cyan-800 border-cyan-400 transition-all duration-300 animate-in slide-in-from-top-4">
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
+                    {/* Game 19 (Cashier) with supermarket theme styling based on tier */}
+                    {
+                        gameId === 'game-19-cashier' && (
+                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>
                         )
