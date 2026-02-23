@@ -92,6 +92,7 @@ export default function GamePage({ params }: PageProps) {
                         : gameId === 'game-10-miner' ? 30
                             : gameId === 'game-17-floatingmarket' ? 30
                                 : gameId === 'game-19-cashier' ? 30
+                                : gameId === 'game-20-boxcounting' ? 40
                                     : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
@@ -626,6 +627,10 @@ export default function GamePage({ params }: PageProps) {
                     {
                         gameId === 'game-19-cashier' && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                    {/* Game 20 (Box Counting) with orange theme styling */}
+                    {
+                        gameId === 'game-20-boxcounting' && (
+                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-orange-100 text-orange-800 border-orange-400 transition-all duration-300 animate-in slide-in-from-top-4">
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>
                         )
