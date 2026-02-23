@@ -18,6 +18,7 @@ const gameLevelModules = {
   'game-10-miner': () => import('@/games/game-10-miner/levels'),
   'game-16-doorguardian': () => import('@/games/game-16-doorguardian/levels'),
   'game-17-floatingmarket': () => import('@/games/game-17-floatingmarket/levels'),
+  'game-20-boxcounting': () => import('@/games/game-20-boxcounting/levels'),
 } as const;
 
 type GameId = keyof typeof gameLevelModules;
@@ -85,6 +86,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_MARKET_LEVELS;
+    } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).BOXCOUNTING_LEVELS;
     } else {
       // Fallback: try to find any exported levels object
       const possibleNames = ['LEVELS', 'GAME_LEVELS', 'MEMORY_LEVELS', 'MATCHING_LEVELS', 'BILLIARDS_LEVELS', 'FLOATING_BALL_MATH_LEVELS', 'DREAMDIRECT_LEVELS', 'TUBE_SORT_LEVELS', 'MINER_LEVELS'];
@@ -173,6 +176,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return (levelModule as any).DOORGUARDIAN_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       return (levelModule as any).FLOATING_MARKET_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
+      return (levelModule as any).BOXCOUNTING_LEVELS[levelNumber] || null;
     }
 
     return null;
@@ -267,6 +272,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_MARKET_LEVELS;
+    } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).BOXCOUNTING_LEVELS;
     }
 
     // Count only positive level numbers (skip tutorial level 0)
