@@ -92,6 +92,14 @@ const DIRS = [DIR.UP, DIR.RIGHT, DIR.DOWN, DIR.LEFT];
 export class PipePatchGameScene extends Phaser.Scene {
   private sceneState: SceneState = 'boot';
   private reduceMotion = false;
+  private bgMusic?: Phaser.Sound.BaseSound;
+  private lastLeakSfxAt = 0;
+  private readonly soundKeys = {
+    bgLoop: 'pipe-patch-bg-loop',
+    leak: 'pipe-patch-error',
+    pumpOn: 'pipe-patch-place',
+    rotate: 'pipe-patch-rotate',
+  };
 
   private levelIndex = 1;
   private level!: PipePatchLevelConfig;
@@ -162,6 +170,13 @@ export class PipePatchGameScene extends Phaser.Scene {
     super({ key: 'PipePatchGameScene' });
   }
 
+  preload() {
+    this.load.audio(this.soundKeys.bgLoop, '/assets/sounds/pipe-patch/bg-music.mp3');
+    this.load.audio(this.soundKeys.leak, '/assets/sounds/global/error.mp3');
+    this.load.audio(this.soundKeys.pumpOn, '/assets/sounds/pipe-patch/place.mp3');
+    this.load.audio(this.soundKeys.rotate, '/assets/sounds/pipe-patch/rotate.mp3');
+  }
+
   init(data: { level?: number; reduceMotion?: boolean; skipTutorial?: boolean }) {
     const regLevel = this.registry.get('level');
     this.levelIndex = data.level || regLevel || 1;
@@ -175,9 +190,12 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    this.setupAudio();
     this.createUiChrome();
     this.startLevel(this.levelIndex);
     this.sceneState = 'playing';
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanupAudio, this);
+    this.events.once(Phaser.Scenes.Events.DESTROY, this.cleanupAudio, this);
   }
 
   update(_: number, delta: number) {
@@ -233,6 +251,39 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     this.timerDialText.setText(`${Math.max(0, remainingSec)}`);
     this.timerDialText.setColor(warning ? '#fecaca' : '#e2e8f0');
+  }
+
+  private setupAudio() {
+    this.sound.stopAll();
+    try {
+      this.bgMusic = this.sound.add(this.soundKeys.bgLoop, { volume: 0.4, loop: true });
+      this.bgMusic.play();
+    } catch (error) {
+      console.warn('Failed to play bg music', error);
+    }
+  }
+
+  private playSfx(key: string, config?: Phaser.Types.Sound.SoundConfig) {
+    try {
+      this.sound.play(key, config);
+    } catch (error) {
+      console.warn(`Failed to play sound: ${key}`, error);
+    }
+  }
+
+  private maybePlayLeakSfx() {
+    const now = Date.now();
+    if (now - this.lastLeakSfxAt < 250) return;
+    this.lastLeakSfxAt = now;
+    this.playSfx(this.soundKeys.leak, { volume: 0.55 });
+  }
+
+  private cleanupAudio() {
+    if (this.bgMusic?.isPlaying) {
+      this.bgMusic.stop();
+    }
+    this.bgMusic?.destroy();
+    this.bgMusic = undefined;
   }
 
   private startLevel(levelIndex: number) {
@@ -446,6 +497,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     container.on('dragstart', () => {
       if (this.sceneState !== 'playing') return;
+      this.playSfx(this.soundKeys.rotate, { volume: 0.35 });
       if (!this.firstActionAt) this.firstActionAt = Date.now();
       this.levelMetrics.totalDragAttempts += 1;
       if (!data.currentCellKey) {
@@ -521,6 +573,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.placed.set(key, { pieceId: activePiece.pieceId, pieceType: activePiece.pieceType, fromTray: true, placedAtMs: Date.now() });
     this.placedVisuals.set(activePiece.pieceId, activePiece);
     this.updateTrayCounts();
+    this.playSfx(this.soundKeys.pumpOn, { volume: 0.42 });
 
     const req = this.activeRequiredPlacements.find((r) => r.position.x === cell.x && r.position.y === cell.y);
     const isCorrectCell = !!req && req.pieceType === activePiece.pieceType;
@@ -569,6 +622,7 @@ export class PipePatchGameScene extends Phaser.Scene {
       this.cellHadWrongAttempt.add(cellId);
     }
     this.logEvent('piece_rejected', { pieceId: piece.pieceId, attemptCellId: cellId, reason });
+    this.maybePlayLeakSfx();
     if (!this.reduceMotion) this.tweens.add({ targets: piece.container, x: piece.container.x + 8, duration: 50, yoyo: true, repeat: 2 });
     piece.container.setPosition(piece.homeX, piece.homeY);
   }
@@ -609,6 +663,10 @@ export class PipePatchGameScene extends Phaser.Scene {
       distanceToSolution: evalResult.distanceToSolution,
       isBeneficialAction: evalResult.isBeneficialAction,
     });
+
+    if (evalResult.leakCount > 0) {
+      this.maybePlayLeakSfx();
+    }
     
     evalResult.colorResults.forEach(colorResult => {
       this.logEvent('color_path_check', {
@@ -639,6 +697,7 @@ export class PipePatchGameScene extends Phaser.Scene {
    */
   private emitLevelSolvedGameOver() {
     this.sceneState = 'session_complete';
+    this.cleanupAudio();
 
     const current = this.perLevel[this.perLevel.length - 1] ?? this.levelMetrics;
     const stars = current.solveTimeMs <= current.parTimeMs ? 3 : current.solveTimeMs <= current.hardTimeMs ? 2 : 1;
@@ -817,6 +876,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private playSuccessFlow(onDone: () => void) {
     this.sceneState = 'level_complete';
+    this.playSfx(this.soundKeys.pumpOn, { volume: 0.72 });
     if (this.reduceMotion) {
       this.statusText.setText('Flow complete ✔');
       this.time.delayedCall(250, onDone);
@@ -893,6 +953,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private completeSession(reason: 'timeout' | 'normal_end' = 'normal_end') {
     this.sceneState = 'session_complete';
+    this.cleanupAudio();
     const summary: PipePatchGameStats = {
       sessionDurationMs: SESSION_DURATION_MS - this.sessionMsRemaining,
       levelsAttempted: this.perLevel.length,
