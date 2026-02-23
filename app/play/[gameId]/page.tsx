@@ -87,10 +87,18 @@ export default function GamePage({ params }: PageProps) {
         : gameId === 'game-05-wormtrain' ? 15
             : gameId === 'game-06-dreamdirect' ? 40
                 : gameId === 'game-08-mysterysound' ? 20
+                    : gameId === 'game-11-pipe-patch' ? 30
                     : gameId === 'game-15-taxidriver' ? 35
                         : gameId === 'game-10-miner' ? 30
                             : gameId === 'game-17-floatingmarket' ? 30
                                 : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+    const parsedParamLevel = paramLevel !== null ? Number(paramLevel) : null;
+    const hasValidParamLevel =
+        parsedParamLevel !== null &&
+        Number.isFinite(parsedParamLevel) &&
+        Number.isInteger(parsedParamLevel) &&
+        parsedParamLevel >= 0 &&
+        parsedParamLevel <= maxLevel;
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
@@ -98,9 +106,14 @@ export default function GamePage({ params }: PageProps) {
 
     // 1. Fetch persistent level on mount
     useEffect(() => {
-        // If param is present, set it immediately so UI doesn't flicker
-        if (paramLevel) {
-            setActiveLevel(Number(paramLevel));
+        // If level query is invalid (NaN/out-of-range), normalize URL immediately.
+        if (paramLevel !== null && !hasValidParamLevel) {
+            router.replace(`/play/${gameId}`);
+        }
+
+        // If param is valid, set it immediately so UI doesn't flicker
+        if (hasValidParamLevel) {
+            setActiveLevel(parsedParamLevel as number);
             // If it's not tutorial, we can stop loading.
             // If it IS tutorial, we still might want to fetch resumeLevel in background.
             setIsLoadingLevel(false);
@@ -155,8 +168,8 @@ export default function GamePage({ params }: PageProps) {
 
                 setResumeLevel(nextLevel);
 
-                // Only override activeLevel if no param was provided
-                if (!paramLevel) {
+                // Only override activeLevel if there is no valid query level
+                if (!hasValidParamLevel) {
                     if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
                         setActiveLevel(nextLevel);
                     } else if (gameId === 'game-14-wordrecognize') {
@@ -251,7 +264,7 @@ export default function GamePage({ params }: PageProps) {
             }
         }
         fetchLevel();
-    }, [gameId, paramLevel]);
+    }, [gameId, paramLevel, hasValidParamLevel, parsedParamLevel, router]);
 
     // Clear popups when level changes
     useEffect(() => {
@@ -524,10 +537,15 @@ export default function GamePage({ params }: PageProps) {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
-    } else if (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') {
+    } else if (gameId === 'game-10-miner') {
         if (activeLevel <= 10) currentTier = 'easy';
         else if (activeLevel <= 20) currentTier = 'normal';
         else currentTier = 'hard';
+    } else if (gameId === 'game-11-pipe-patch') {
+        if (activeLevel <= 10) currentTier = 'easy';
+        else if (activeLevel <= 20) currentTier = 'normal';
+        else if (activeLevel <= 30) currentTier = 'hard';
+        else currentTier = 'nightmare';
     }
 
     const { color: tierColor } = getDifficultyVisuals(currentTier);
@@ -595,9 +613,17 @@ export default function GamePage({ params }: PageProps) {
                             </div>
                         )
                     }
-                    {/* Game 11 (Power Pump) Game 10 (Miner) with tier-based styling */}
+                    {/* Game 10 (Miner) with tier-based styling */}
                     {
-                        (gameId === 'game-11-power-pump' || gameId === 'game-10-miner') && (
+                        (gameId === 'game-10-miner') && (
+                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
+                                <span className="text-3xl">LEVEL {activeLevel}</span>
+                            </div>
+                        )
+                    }
+                    {/* Game 11 (Pipe Patch) with tier-based styling */}
+                    {
+                        gameId === 'game-11-pipe-patch' && (
                             <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
                                 <span className="text-3xl">LEVEL {activeLevel}</span>
                             </div>

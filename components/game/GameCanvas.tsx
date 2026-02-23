@@ -122,6 +122,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-17-floatingmarket') {
           const { FloatingMarketTutorialScene } = await import('@/games/game-17-floatingmarket/TutorialScene');
           config.scene = FloatingMarketTutorialScene;
+        } else if (gameId === 'game-11-pipe-patch') {
+          const { PipePatchTutorialScene } = await import('@/games/game-11-pipe-patch/TutorialScene');
+          config.scene = PipePatchTutorialScene;
         }
       }
 
