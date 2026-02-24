@@ -17,26 +17,10 @@ const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
 import StarIcon from "@/components/game/StarIcon";
 import ConfettiEffect from "@/components/game/ConfettiEffect";
 import TimeoutPopup from "@/components/game/TimeoutPopup";
+import PlayLevelBadge from "@/components/game/PlayLevelBadge";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Home, ArrowLeft, Coins } from "lucide-react";
-
-// Import Level Configs for visual tier lookup
-import { MATCHING_LEVELS } from "@/games/game-01-cardmatch/levels";
-import { FLOATING_BALL_MATH_LEVELS } from "@/games/game-04-floating-ball-math/levels";
-import { CASHIER_LEVELS } from "@/games/game-19-cashier/levels";
-
-// Helper for Tier Visuals
-// Helper for Tier Visuals
-const getDifficultyVisuals = (tier?: string) => {
-    switch (tier) {
-        case 'easy': return { color: 'bg-green-100 text-green-700 border-green-300' };
-        case 'normal': return { color: 'bg-blue-100 text-blue-700 border-blue-300' };
-        case 'hard': return { color: 'bg-orange-100 text-orange-700 border-orange-300' };
-        case 'nightmare': return { color: 'bg-purple-900 text-purple-100 border-purple-500 shadow-purple-500/50' };
-        default: return { color: 'bg-gray-100 text-gray-700 border-gray-300' };
-    }
-};
+import { Home, Coins } from "lucide-react";
 
 interface PageProps {
     params: Promise<{ gameId: string }>;
@@ -517,33 +501,6 @@ export default function GamePage({ params }: PageProps) {
             </div>
         );
 
-    // Get current level tier logic
-    // Safe lookup for Card Match, Floating Ball Math, and Pink Cup games
-    let currentTier: string | undefined;
-    if (gameId === 'game-01-cardmatch') {
-        currentTier = MATCHING_LEVELS[activeLevel]?.difficultyTier;
-    } else if (gameId === 'game-04-floating-ball-math') {
-        currentTier = FLOATING_BALL_MATH_LEVELS[activeLevel]?.difficultyTier;
-    } else if (gameId === 'game-19-cashier') {
-        currentTier = CASHIER_LEVELS[activeLevel]?.difficultyTier;
-    } else if (gameId === 'game-07-pinkcup') {
-        // Pinkcup uses simple difficulty tiers based on level ranges
-        if (activeLevel <= 5) currentTier = 'easy';
-        else if (activeLevel <= 10) currentTier = 'normal';
-        else if (activeLevel <= 15) currentTier = 'hard';
-        else currentTier = 'nightmare';
-    } else if (gameId === 'game-09-tube-sort') {
-        if (activeLevel <= 10) currentTier = 'easy';
-        else if (activeLevel <= 20) currentTier = 'normal';
-        else currentTier = 'hard';
-    } else if (gameId === 'game-10-miner') {
-        if (activeLevel <= 10) currentTier = 'easy';
-        else if (activeLevel <= 20) currentTier = 'normal';
-        else currentTier = 'hard';
-    }
-
-    const { color: tierColor } = getDifficultyVisuals(currentTier);
-
     return (
         <div className="w-full h-screen relative bg-game-bg overflow-hidden">
             {/* Header with Back Button */}
@@ -556,91 +513,7 @@ export default function GamePage({ params }: PageProps) {
                 </button>
             </div>
 
-            {/* Level & Difficulty Badge (Top Center) - Unified rendering for all games */}
-            {!isLoadingLevel && activeLevel > 0 && (
-                <>
-                    {/* Game 01 and 04 with tier colors */}
-                    {(gameId === 'game-01-cardmatch' || gameId === 'game-04-floating-ball-math') && (
-                        <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                            <span className="text-3xl">LEVEL {activeLevel}</span>
-                        </div>
-                    )}
-                    {/* Game 05 and 08 with fixed amber styling */}
-                    {(gameId === 'game-05-wormtrain' || gameId === 'game-08-mysterysound') && (
-                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-amber-100 text-amber-700 border-amber-300 transition-all duration-300 animate-in slide-in-from-top-4">
-                            <span className="text-3xl">LEVEL {activeLevel}</span>
-                        </div>
-                    )}
-                    {/* Game 13 (Box Pattern) - Blue/Teal styling */}
-                    {(gameId === 'game-13-boxpattern') && (
-                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-teal-100 text-teal-700 border-teal-300 transition-all duration-300 animate-in slide-in-from-top-4 whitespace-nowrap">
-                            <span className="text-2xl">Box Pattern</span>
-                        </div>
-                    )}
-                    {/* Game 14 (Word Recognize) - Purple styling */}
-                    {(gameId === 'game-14-wordrecognize') && (
-                        <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-purple-100 text-purple-700 border-purple-300 transition-all duration-300 animate-in slide-in-from-top-4 whitespace-nowrap">
-                            <span className="text-2xl">จดจำคำ</span>
-                        </div>
-                    )}
-                    {/* Game 07 (Pinkcup) with tier-based styling */}
-                    {
-                        gameId === 'game-07-pinkcup' && (
-                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 09 (Tube Sort) with tier-based styling */}
-                    {
-                        gameId === 'game-09-tube-sort' && (
-                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 15 (Taxi Driver) with yellow taxi theme */}
-                    {
-                        gameId === 'game-15-taxidriver' && (
-                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-yellow-100 text-yellow-800 border-yellow-400 transition-all duration-300 animate-in slide-in-from-top-4">
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 10 (Miner) with tier-based styling */}
-                    {
-                        (gameId === 'game-10-miner') && (
-                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 17 (Floating Market) with river theme styling */}
-                    {
-                        gameId === 'game-17-floatingmarket' && (
-                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-cyan-100 text-cyan-800 border-cyan-400 transition-all duration-300 animate-in slide-in-from-top-4">
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 19 (Cashier) with supermarket theme styling based on tier */}
-                    {
-                        gameId === 'game-19-cashier' && (
-                            <div key={`badge-${gameId}`} className={`absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 ${tierColor} transition-all duration-300 animate-in slide-in-from-top-4`}>
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                    {/* Game 20 (Box Counting) with orange theme styling */}
-                    {
-                        gameId === 'game-20-boxcounting' && (
-                            <div key={`badge-${gameId}`} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 bg-orange-100 text-orange-800 border-orange-400 transition-all duration-300 animate-in slide-in-from-top-4">
-                                <span className="text-3xl">LEVEL {activeLevel}</span>
-                            </div>
-                        )
-                    }
-                </>
-            )}
+            <PlayLevelBadge gameId={gameId} activeLevel={activeLevel} isLoadingLevel={isLoadingLevel} />
 
             {/* The Game */}
             {/* The Game - Force remount on level change */}

@@ -46,14 +46,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'intro',
     title: 'ภารกิจด่านสอน',
-    description: 'เราจะพาเล่นทีละขั้น: ต่อท่อจาก OUT (ซ้าย) ไป IN (ขวา) ให้สำเร็จ',
+    description: 'เราจะพาเล่นทีละขั้น: ต่อท่อจากจุดเริ่ม (ซ้าย) ไปจุดปลาย (ขวา) ให้สำเร็จ',
     anchor: 'board',
     action: 'info',
   },
   {
     id: 'place-1',
     title: 'ขั้นที่ 1',
-    description: 'ลากท่อตรงแนวนอน ไปวางที่ช่องที่ไฮไลต์ถัดจาก OUT',
+    description: 'ลากท่อตรงแนวนอน ไปวางที่ช่องที่ไฮไลต์ถัดจากจุดเริ่ม',
     anchor: 'source',
     action: 'place',
     targetCell: { x: 1, y: 0 },
@@ -71,7 +71,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'place-3',
     title: 'ขั้นที่ 3',
-    description: 'วางท่อตรงแนวนอนชิ้นสุดท้ายให้ถึง IN',
+    description: 'วางท่อตรงแนวนอนชิ้นสุดท้ายให้ถึงจุดปลาย',
     anchor: 'target',
     action: 'place',
     targetCell: { x: 3, y: 0 },

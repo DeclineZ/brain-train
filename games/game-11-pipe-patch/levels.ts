@@ -132,6 +132,8 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const { base: symbol, dir } = parseEndpointToken(grid[y][x]);
+      const isGenericSource = symbol === 'S' || symbol === 's';
+      const isGenericTarget = symbol === 'T' || symbol === 't';
       const coord: Coord = { x, y };
 
       if (symbol === '#') {
@@ -139,7 +141,7 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
         continue;
       }
 
-      if (symbol === 'S') {
+      if (isGenericSource) {
         const outDir = dir ?? getSourceDirection(x, y, size);
         sources.set('blue', {
           position: coord,
@@ -151,7 +153,7 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
         continue;
       }
 
-      if (symbol === 'T') {
+      if (isGenericTarget) {
         if (!targets.has('blue')) {
           targets.set('blue', []);
         }
@@ -207,9 +209,11 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
   const layout = Array.from({ length: size }, (_, y) =>
     Array.from({ length: size }, (_, x) => {
       const { base: symbol } = parseEndpointToken(grid[y][x]);
+      const isGenericSource = symbol === 'S' || symbol === 's';
+      const isGenericTarget = symbol === 'T' || symbol === 't';
       if (symbol === '#') return '#';
-      if (symbol === 'S') return 'S';
-      if (symbol === 'T') return 'T';
+      if (isGenericSource) return 'S';
+      if (isGenericTarget) return 'T';
       if (['R', 'G', 'B', 'Y', 'P'].includes(symbol)) return 'S';
       if (['r', 'g', 'b', 'y', 'p'].includes(symbol)) return 'T';
       return '.';
@@ -682,7 +686,7 @@ const level18: SimpleLevelConfig = {
     '^G  .  .  .  <g',
   ],
   trayPieces: [
-    { code: 'H', count: 9 },
+    { code: 'H', count: 10 },
     { code: 'V', count: 9 },
     { code: 'UR', count: 5 },
     { code: 'RD', count: 5 },
@@ -705,7 +709,7 @@ const level19: SimpleLevelConfig = {
     '^G  .  .  .  <r',
   ],
   trayPieces: [
-    { code: 'H', count: 9 },
+    { code: 'H', count: 10 },
     { code: 'V', count: 9 },
     { code: 'TU', count: 1 },
     { code: 'TR', count: 1 },
@@ -715,7 +719,7 @@ const level19: SimpleLevelConfig = {
     { code: 'RD', count: 5 },
     { code: 'DL', count: 5 },
     { code: 'LU', count: 5 },
-    { code: 'XO', count: 1 },
+    { code: 'XO', count: 2 },
   ],
   parTimeMs: 24000,
   hardTimeMs: 35500,
@@ -727,7 +731,7 @@ const level20: SimpleLevelConfig = {
   gridSize: 5,
   grid: [
     'vR  .  .  .  <r',
-    '.   .  #  .   .',
+    '.   .  #  .  <g',
     'B>  .  .  .  <b',
     '.   .  #  .   .',
     '^G  .  .  .  <g',
@@ -783,10 +787,10 @@ const level22: SimpleLevelConfig = {
   gridSize: 5,
   grid: [
     'vR  .  .  .  <r',
-    '.   #  .  .   .',
-    'B>  .  #  .  bv',
-    '.   .  .  #   .',
-    '^G  .  .  .  <g',
+    '.   .  #  .   .',
+    'B>  .  #  #  bv',
+    '.   .  .  .   .',
+    'G>  .  .  .  <g',
   ],
   trayPieces: [
     { code: 'H', count: 10 },
@@ -811,9 +815,9 @@ const level23: SimpleLevelConfig = {
   gridSize: 5,
   grid: [
     'R>  .  .  .  <r',
-    '.   .  #  .   .',
+    '.   .  .  #   #',
     'B>  .  .  .  <b',
-    '.   #  .  .   .',
+    '.   .  .  .   .',
     '^G  .  .  .  <g',
   ],
   trayPieces: [
@@ -839,7 +843,7 @@ const level24: SimpleLevelConfig = {
   gridSize: 5,
   grid: [
     'vR  .  .  .  <b',
-    '.   .  #  .   .',
+    '.   .  .  .   .',
     'B>  .  .  .  <r',
     '.   .  #  .   .',
     '^G  .  .  .  <g',
@@ -906,9 +910,9 @@ const level26: SimpleLevelConfig = {
     '^r  #  ^b  #  ^r ^y',
   ],
   trayPieces: [
-    { code: 'H', count: 12 },
+    { code: 'H', count: 14 },
     { code: 'V', count: 16 },
-    { code: 'XO', count: 2 },
+    { code: 'XO', count: 3 },
     { code: 'TU', count: 2 },
     { code: 'TR', count: 2 },
     { code: 'TD', count: 2 },
@@ -929,15 +933,15 @@ const level27: SimpleLevelConfig = {
   grid: [
     'vR  #  vB  #  .  vY',
     '.   #  .   #  #  .',
-    '.   >g  .   .  <G  .',
-    '.   #  .   #  .  .',
+    '.   .  .   .  <G  .',
+    '.   .  .   #  .  .',
     '.   .  .   .  .  .',
-    '^r  #  ^b  #  ^r ^y',
+    '^r  ^g  ^b  #  ^r ^y',
   ],
   trayPieces: [
-    { code: 'H', count: 13 },
-    { code: 'V', count: 16 },
-    { code: 'XO', count: 2 },
+    { code: 'H', count: 10 },
+    { code: 'V', count: 8 },
+    { code: 'XO', count: 4 },
     { code: 'TU', count: 2 },
     { code: 'TR', count: 2 },
     { code: 'TD', count: 2 },
@@ -958,15 +962,15 @@ const level28: SimpleLevelConfig = {
   grid: [
     'vR  #  vB  #  .  vY',
     '.   #  .   #  .  .',
-    '.   >g  .   .  <G  .',
-    '.   #  .   #  #  .',
+    '.   >g  .   .  .  <G',
+    '.   #  .   .  .  .',
     '.   .  .   .  .  .',
     '^r  #  ^b  #  ^r ^y',
   ],
   trayPieces: [
-    { code: 'H', count: 13 },
-    { code: 'V', count: 16 },
-    { code: 'XO', count: 2 },
+    { code: 'H', count: 9 },
+    { code: 'V', count: 9 },
+    { code: 'XO', count: 5 },
     { code: 'TU', count: 2 },
     { code: 'TR', count: 2 },
     { code: 'TD', count: 2 },
@@ -983,59 +987,61 @@ const level28: SimpleLevelConfig = {
 
 const level29: SimpleLevelConfig = {
   id: 29,
-  gridSize: 6,
+  gridSize: 7,
   grid: [
-    'vR  #  vB  #  .  vY',
-    '.   #  .   #  .  .',
-    '.   >g  .   .  <G  .',
-    '.   #  .   #  .  .',
-    '.   .  .   .  .  .',
-    '^r  #  ^b  #  ^r ^y',
+    'vR  .  vB  .  vG  .  vY',
+    '.   #  .   .  .  .   .',
+    '.   .  .   .  .  .   .',
+    '.   .  .   #  .  .   .',
+    '.   .  .   .  .  .   .',
+    '.   .  .   .  .  .   .',
+    '^g  .  ^y  .  ^r  .  ^b',
   ],
   trayPieces: [
-    { code: 'H', count: 14 },
-    { code: 'V', count: 17 },
-    { code: 'XO', count: 3 },
+    { code: 'H', count: 16 },
+    { code: 'V', count: 19 },
+    { code: 'XO', count: 5 },
     { code: 'TU', count: 2 },
     { code: 'TR', count: 2 },
     { code: 'TD', count: 2 },
     { code: 'TL', count: 2 },
-    { code: 'UR', count: 7 },
-    { code: 'RD', count: 7 },
-    { code: 'DL', count: 7 },
-    { code: 'LU', count: 7 },
+    { code: 'UR', count: 8 },
+    { code: 'RD', count: 8 },
+    { code: 'DL', count: 8 },
+    { code: 'LU', count: 8 },
   ],
-  parTimeMs: 35000,
-  hardTimeMs: 47500,
+  parTimeMs: 37000,
+  hardTimeMs: 50000,
   difficultyWeight: 6.6,
 };
 
 const level30: SimpleLevelConfig = {
   id: 30,
-  gridSize: 6,
+  gridSize: 7,
   grid: [
-    'vR  #  vB  #  .  vY',
-    '.   #  .   #  #  .',
-    '.   >g  .   .  <G  .',
-    '.   #  .   #  .  .',
-    '.   .  .   .  .  .',
-    '^r  #  ^b  #  ^r ^y',
+    'vR  .  vB  .  vG  .  vY',
+    '.   #  .   .  .  .   .',
+    '.   .  .   .  .  .   .',
+    '.   .  #   .  .  .   .',
+    '.   .  .   .  .  #   .',
+    '.   .  .   .  .  .   .',
+    '^g  .  ^y  .  ^r  .  ^b',
   ],
   trayPieces: [
-    { code: 'H', count: 14 },
-    { code: 'V', count: 17 },
-    { code: 'XO', count: 3 },
+    { code: 'H', count: 16 },
+    { code: 'V', count: 20 },
+    { code: 'XO', count: 4 },
     { code: 'TU', count: 2 },
     { code: 'TR', count: 2 },
     { code: 'TD', count: 2 },
     { code: 'TL', count: 2 },
-    { code: 'UR', count: 7 },
-    { code: 'RD', count: 7 },
-    { code: 'DL', count: 7 },
-    { code: 'LU', count: 7 },
+    { code: 'UR', count: 8 },
+    { code: 'RD', count: 8 },
+    { code: 'DL', count: 8 },
+    { code: 'LU', count: 8 },
   ],
-  parTimeMs: 36000,
-  hardTimeMs: 49000,
+  parTimeMs: 38000,
+  hardTimeMs: 51500,
   difficultyWeight: 6.8,
 };
 

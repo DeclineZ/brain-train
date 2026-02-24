@@ -78,8 +78,8 @@ const COLORS = {
   traySlot: 0x294b4d,
   traySlotStroke: 0x10282a,
   trayCard: 0x28464a,
-  pipe: 0xb5bec8,
-  pipeShadow: 0x4b5563,
+  pipe: 0xd6dee9,
+  pipeShadow: 0x0f172a,
   water: 0x38bdf8,
   success: 0x22c55e,
   error: 0xef4444,
@@ -111,10 +111,15 @@ export class PipePatchGameScene extends Phaser.Scene {
   private trayCountTexts = new Map<PipePieceType, Phaser.GameObjects.Text>();
   private trayTypeVisuals = new Map<PipePieceType, PieceVisual>();
   private trayInventory = new Map<PipePieceType, number>();
+  private trayUiObjects: Phaser.GameObjects.GameObject[] = [];
+  private trayPage = 0;
   private placedIdSeq = 0;
   private activeRequiredPlacements: RequiredPlacement[] = [];
 
   private cellVisuals = new Map<string, CellVisual>();
+  private endpointVisuals = new Map<string, Phaser.GameObjects.Graphics>();
+  private endpointWallVisuals = new Map<string, Phaser.GameObjects.Graphics>();
+  private fixedVisuals = new Map<string, Phaser.GameObjects.Graphics>();
   private placed = new Map<string, RuntimePlacedPiece>();
   private placedVisuals = new Map<string, PieceVisual>();
   private trayVisuals = new Map<string, PieceVisual>();
@@ -327,6 +332,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.undoStack = [];
     this.placed.clear();
     this.placedIdSeq = 0;
+    this.trayPage = 0;
     this.buildTrayInventory();
     this.levelMetrics.requiredPieceCount = this.activeRequiredPlacements.length;
     this.levelMetrics.optimalPlacements = this.activeRequiredPlacements.length;
@@ -341,19 +347,28 @@ export class PipePatchGameScene extends Phaser.Scene {
     const size = this.level.gridSize;
     const width = this.scale.width;
     const height = this.scale.height;
-    this.boardSizePx = Math.min(500, width - 30);
+    const gridPaddingX = 24;
+    const gridPaddingTop = 10;
+    const gridPaddingBottom = 10;
+    this.boardSizePx = Math.min(500, width - gridPaddingX * 2);
     this.cellSize = Math.floor(this.boardSizePx / size);
     this.boardSizePx = this.cellSize * size;
     this.boardOrigin.x = Math.floor((width - this.boardSizePx) / 2);
-    const topUiY = 58;
-    const bottomMargin = 12;
+    // Lift the board a bit higher so gameplay area matches other games' composition.
+    const topUiY = 20 + gridPaddingTop;
+    const bottomMargin = 12 + gridPaddingBottom;
     const types = [...this.trayInventory.keys()];
-    const { gap, size: trayCellSize, cols } = this.getTrayLayout();
-    const rowCount = Math.max(1, Math.ceil(types.length / cols));
-    const panelH = Math.max(140, Math.min(250, rowCount * (trayCellSize + gap) + 62));
+    const trayLayout = this.getTrayLayout(types.length);
+    const panelH = this.getTrayPanelHeight(
+      trayLayout.visibleRows,
+      trayLayout.size,
+      trayLayout.gap,
+      trayLayout.totalPages > 1
+    );
     const minBoardY = topUiY;
     const maxBoardY = Math.max(minBoardY, height - panelH - this.boardSizePx - 20 - bottomMargin);
-    const centeredBoardY = Math.floor((height - this.boardSizePx) / 2);
+    // Bias toward a slightly higher board anchor (while still clamped by tray space).
+    const centeredBoardY = Math.floor((height - this.boardSizePx) / 2) - 36;
     this.boardOrigin.y = Math.max(minBoardY, Math.min(maxBoardY, centeredBoardY));
 
     const boardCx = this.boardOrigin.x + this.boardSizePx / 2;
@@ -369,6 +384,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     const outputMap = new Map(
       endpointGroups.flatMap((g) => g.outputs.map((o) => [`${o.position.x},${o.position.y}`, { endpoint: o, group: g }] as const))
     );
+    const endpointHighlightMap = this.getEndpointConnectionHighlightMap();
     const fixedMap = new Map(this.level.fixedPipes.map((f) => [`${f.position.x},${f.position.y}`, f.pieceType]));
     const lockedMap = new Map(this.level.lockedPlaceholders.map((l) => [`${l.position.x},${l.position.y}`, l]));
     const gateMap = new Map(this.level.oneWayGates.map((g) => [`${g.position.x},${g.position.y}`, g]));
@@ -391,17 +407,19 @@ export class PipePatchGameScene extends Phaser.Scene {
           continue;
         }
         if (inputMap.has(key)) {
-          const group = inputMap.get(key)!;
-          const color = COLOR_HEX[group.colorId as ColorId];
-          rect.setFillStyle(this.darkenColor(color, 40), 0.95);
-          this.drawEndpointPipe(rect.x, rect.y, OPPOSITE_DIR[group.input.mask], color, 'OUT');
+          if (this.isBoardEdgeCoord(x, y)) {
+            const group = inputMap.get(key)!;
+            const color = COLOR_HEX[group.colorId as ColorId];
+            border.setStrokeStyle(2, this.brightenColor(color, 18), 0.85);
+          }
           continue;
         }
         if (outputMap.has(key as `${number},${number}`)) {
-          const out = outputMap.get(key as `${number},${number}`)!;
-          const color = COLOR_HEX[out.group.colorId as ColorId];
-          rect.setFillStyle(this.darkenColor(color, 40), 0.95);
-          this.drawEndpointPipe(rect.x, rect.y, out.endpoint.mask, color, 'IN');
+          if (this.isBoardEdgeCoord(x, y)) {
+            const out = outputMap.get(key as `${number},${number}`)!;
+            const color = COLOR_HEX[out.group.colorId as ColorId];
+            border.setStrokeStyle(2, this.brightenColor(color, 18), 0.85);
+          }
           continue;
         }
         if (gateMap.has(key)) {
@@ -419,12 +437,222 @@ export class PipePatchGameScene extends Phaser.Scene {
         }
         if (fixedMap.has(key)) {
           rect.setFillStyle(0x2c3742, 0.95);
-          const pType = fixedMap.get(key)!;
-          this.createPipeVisual(pType, rect.x, rect.y, this.cellSize * 0.9, false, 0x9ca3af);
           continue;
         }
       }
     }
+
+    this.applyEndpointConnectionHighlights(endpointHighlightMap);
+    this.refreshFixedPipeVisuals();
+    this.refreshEndpointVisuals();
+  }
+
+  private getEndpointConnectionHighlightMap() {
+    const highlights = new Map<string, number>();
+    const addHighlight = (x: number, y: number, mask: ConnectionMask, color: number) => {
+      // Keep edge endpoints on the original style.
+      // Connection tile highlighting is only for interior endpoints.
+      if (this.isBoardEdgeCoord(x, y)) return;
+      for (const dir of DIRS) {
+        if ((mask & dir) === 0) continue;
+        const dv = DIR_VECTORS[dir];
+        const tx = x + dv.x;
+        const ty = y + dv.y;
+        if (tx < 0 || ty < 0 || tx >= this.level.gridSize || ty >= this.level.gridSize) continue;
+        const key = `${tx},${ty}`;
+        if (this.level.blockedCells.some((c) => c.x === tx && c.y === ty)) continue;
+        if (this.level.fixedPipes.some((f) => f.position.x === tx && f.position.y === ty)) continue;
+        if (this.level.oneWayGates.some((g) => g.position.x === tx && g.position.y === ty)) continue;
+        if (this.isLockedCell(tx, ty)) continue;
+
+        const existing = highlights.get(key);
+        if (existing === undefined || existing === color) {
+          highlights.set(key, color);
+        } else {
+          highlights.set(key, 0xe2e8f0);
+        }
+      }
+    };
+
+    this.level.endpointGroups.forEach((group) => {
+      const color = COLOR_HEX[group.colorId as ColorId];
+      const inMask = this.resolveEndpointFlowMask(group.input.position.x, group.input.position.y, OPPOSITE_DIR[group.input.mask]);
+      addHighlight(group.input.position.x, group.input.position.y, inMask, color);
+      group.outputs.forEach((out) => {
+        const outMask = this.resolveEndpointFlowMask(out.position.x, out.position.y, out.mask);
+        addHighlight(out.position.x, out.position.y, outMask, color);
+      });
+    });
+    return highlights;
+  }
+
+  private applyEndpointConnectionHighlights(highlights: Map<string, number>) {
+    highlights.forEach((color, key) => {
+      const cv = this.cellVisuals.get(key);
+      if (!cv) return;
+      cv.border.setStrokeStyle(2, this.brightenColor(color, 16), 0.92);
+    });
+  }
+
+  private getConnectedMaskForCell(x: number, y: number, mask: number) {
+    let connectedMask = 0;
+    for (const dir of DIRS) {
+      if ((mask & dir) === 0) continue;
+      const v = DIR_VECTORS[dir];
+      const nx = x + v.x;
+      const ny = y + v.y;
+      if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
+      if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
+      if (this.isLockedCell(nx, ny)) continue;
+
+      const neighborMask = this.getColorMaskAt(nx, ny);
+      if ((neighborMask & OPPOSITE_DIR[dir]) !== 0) {
+        connectedMask |= dir;
+      }
+    }
+    return connectedMask;
+  }
+
+  private refreshFixedPipeVisuals(colorByCell?: Map<string, ColorId | undefined>) {
+    this.fixedVisuals.forEach((g) => g.destroy());
+    this.fixedVisuals.clear();
+
+    this.level.fixedPipes.forEach((fixed) => {
+      const key = `${fixed.position.x},${fixed.position.y}`;
+      const cell = this.cellVisuals.get(key);
+      if (!cell) return;
+
+      const mask = PIECE_DEFINITIONS[fixed.pieceType].mask;
+      const hideCapMask = this.getConnectedMaskForCell(fixed.position.x, fixed.position.y, mask);
+      const isCrossover = fixed.pieceType === 'crossover';
+      let axisXColor: number | undefined;
+      let axisYColor: number | undefined;
+      if (isCrossover) {
+        const axis = this.resolveCrossoverAxisColors(fixed.position.x, fixed.position.y);
+        axisXColor = axis.axisX ? COLOR_HEX[axis.axisX] : undefined;
+        axisYColor = axis.axisY ? COLOR_HEX[axis.axisY] : undefined;
+      }
+      const fixedColor = isCrossover ? COLORS.pipe : (colorByCell?.get(key) ? COLOR_HEX[colorByCell.get(key)!] : COLORS.pipe);
+      const art = this.createPipeVisual(
+        fixed.pieceType,
+        cell.rect.x,
+        cell.rect.y,
+        this.cellSize * 0.96,
+        false,
+        fixedColor,
+        axisXColor,
+        axisYColor,
+        hideCapMask
+      );
+      this.fixedVisuals.set(key, art);
+    });
+  }
+
+  private refreshEndpointVisuals() {
+    this.endpointVisuals.forEach((g) => g.destroy());
+    this.endpointVisuals.clear();
+    this.endpointWallVisuals.forEach((g) => g.destroy());
+    this.endpointWallVisuals.clear();
+
+    const endpointGroups = this.level.endpointGroups;
+    endpointGroups.forEach((group) => {
+      const inputPos = group.input.position;
+      const inputKey = `${inputPos.x},${inputPos.y}`;
+      const inputCell = this.cellVisuals.get(inputKey);
+      if (inputCell) {
+        const color = COLOR_HEX[group.colorId as ColorId];
+        const mask = this.resolveEndpointFlowMask(inputPos.x, inputPos.y, OPPOSITE_DIR[group.input.mask]);
+        const facingDir = this.resolveEndpointFacingDir(inputPos.x, inputPos.y, mask);
+        const isEdge = this.isBoardEdgeCoord(inputPos.x, inputPos.y);
+        if (!isEdge) {
+          const wall = this.drawInteriorEndpointWall(inputCell.rect.x, inputCell.rect.y, facingDir);
+          this.endpointWallVisuals.set(inputKey, wall);
+        }
+        const drawPos = this.resolveEndpointRenderPosition(
+          inputCell.rect.x,
+          inputCell.rect.y,
+          facingDir,
+          isEdge
+        );
+        const hideMouthMask = this.getConnectedMaskForCell(inputPos.x, inputPos.y, mask);
+        const g = this.drawEndpointPipe(drawPos.x, drawPos.y, mask, color, hideMouthMask);
+        this.endpointVisuals.set(inputKey, g);
+      }
+
+      group.outputs.forEach((out) => {
+        const outKey = `${out.position.x},${out.position.y}`;
+        const outCell = this.cellVisuals.get(outKey);
+        if (!outCell) return;
+        const mask = this.resolveEndpointFlowMask(out.position.x, out.position.y, out.mask);
+        const outputColor = COLOR_HEX[group.colorId as ColorId];
+        const facingDir = this.resolveEndpointFacingDir(out.position.x, out.position.y, mask);
+        const isEdge = this.isBoardEdgeCoord(out.position.x, out.position.y);
+        if (!isEdge) {
+          const wall = this.drawInteriorEndpointWall(outCell.rect.x, outCell.rect.y, facingDir);
+          this.endpointWallVisuals.set(outKey, wall);
+        }
+        const drawPos = this.resolveEndpointRenderPosition(
+          outCell.rect.x,
+          outCell.rect.y,
+          facingDir,
+          isEdge
+        );
+        const hideMouthMask = this.getConnectedMaskForCell(out.position.x, out.position.y, mask);
+        const g = this.drawEndpointPipe(drawPos.x, drawPos.y, mask, outputColor, hideMouthMask);
+        this.endpointVisuals.set(outKey, g);
+      });
+    });
+  }
+
+  private drawInteriorEndpointWall(cx: number, cy: number, facingDir: number) {
+    const g = this.add.graphics();
+    const dv = DIR_VECTORS[facingDir];
+    const bx = cx + dv.x * (this.cellSize * 0.5);
+    const by = cy + dv.y * (this.cellSize * 0.5);
+    const wallThickness = Math.max(5, Math.floor(this.cellSize * 0.12));
+    const wallLength = Math.max(14, Math.floor(this.cellSize * 0.72));
+
+    const stoneBase = 0x5b6470;
+    const stoneDark = 0x3f4752;
+    const stoneLight = 0x9aa4b2;
+
+    g.fillStyle(stoneBase, 0.96);
+    g.lineStyle(1, stoneLight, 0.55);
+
+    if (facingDir === DIR.LEFT || facingDir === DIR.RIGHT) {
+      g.fillRoundedRect(bx - wallThickness / 2, by - wallLength / 2, wallThickness, wallLength, 2);
+      g.strokeRoundedRect(bx - wallThickness / 2, by - wallLength / 2, wallThickness, wallLength, 2);
+      g.fillStyle(stoneDark, 0.65).fillRoundedRect(
+        bx - wallThickness / 2 + 1,
+        by - wallLength / 2 + 2,
+        Math.max(2, wallThickness - 2),
+        Math.max(4, wallLength - 4),
+        1
+      );
+      g.fillStyle(stoneLight, 0.35).fillRect(
+        bx - wallThickness * 0.25,
+        by - wallLength * 0.35,
+        Math.max(1, wallThickness * 0.2),
+        Math.max(2, wallLength * 0.16)
+      );
+    } else {
+      g.fillRoundedRect(bx - wallLength / 2, by - wallThickness / 2, wallLength, wallThickness, 2);
+      g.strokeRoundedRect(bx - wallLength / 2, by - wallThickness / 2, wallLength, wallThickness, 2);
+      g.fillStyle(stoneDark, 0.65).fillRoundedRect(
+        bx - wallLength / 2 + 2,
+        by - wallThickness / 2 + 1,
+        Math.max(4, wallLength - 4),
+        Math.max(2, wallThickness - 2),
+        1
+      );
+      g.fillStyle(stoneLight, 0.35).fillRect(
+        bx - wallLength * 0.35,
+        by - wallThickness * 0.25,
+        Math.max(2, wallLength * 0.16),
+        Math.max(1, wallThickness * 0.2)
+      );
+    }
+    return g;
   }
 
   private drawTray() {
@@ -432,24 +660,34 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.trayTypeVisuals.clear();
     this.trayCountTexts.forEach((t) => t.destroy());
     this.trayCountTexts.clear();
+    this.trayUiObjects.forEach((obj) => obj.destroy());
+    this.trayUiObjects = [];
 
     const top = this.boardOrigin.y + this.boardSizePx + 20;
     const types = [...this.trayInventory.keys()];
-    const { gap, size, cols } = this.getTrayLayout();
-    const rowCount = Math.max(1, Math.ceil(types.length / cols));
-    const panelH = Math.max(140, Math.min(250, rowCount * (size + gap) + 62));
+    const layout = this.getTrayLayout(types.length);
+    const { gap, size, cols, visibleRows, visibleSlots, totalPages } = layout;
+    const panelH = this.getTrayPanelHeight(visibleRows, size, gap, totalPages > 1);
+
+    this.trayPage = Phaser.Math.Clamp(this.trayPage, 0, Math.max(0, totalPages - 1));
+    const pageStart = this.trayPage * visibleSlots;
+    const visibleTypes = types.slice(pageStart, pageStart + visibleSlots);
 
     this.trayY = Math.min(this.scale.height - panelH / 2 - 8, top + panelH / 2);
-    this.add.rectangle(this.scale.width / 2, this.trayY + 3, this.scale.width - 12, panelH, 0x000000, 0.35);
-    this.add.rectangle(this.scale.width / 2, this.trayY, this.scale.width - 12, panelH, COLORS.trayPanel, 0.95)
+    const shadowPanel = this.add.rectangle(this.scale.width / 2, this.trayY + 3, this.scale.width - 12, panelH, 0x000000, 0.35);
+    const panel = this.add
+      .rectangle(this.scale.width / 2, this.trayY, this.scale.width - 12, panelH, COLORS.trayPanel, 0.95)
       .setStrokeStyle(2, 0x406061, 0.9);
+    this.trayUiObjects.push(shadowPanel, panel);
     this.trayBounds = new Phaser.Geom.Rectangle(6, this.trayY - panelH / 2, this.scale.width - 12, panelH);
 
-    const totalW = cols * size + (cols - 1) * gap;
+    const pagerHeight = totalPages > 1 ? 30 : 0;
+    const gridAreaHeight = visibleRows * size + Math.max(0, visibleRows - 1) * gap;
+    const totalW = cols * size + Math.max(0, cols - 1) * gap;
     const startX = (this.scale.width - totalW) / 2 + size / 2;
-    const startY = this.trayY - ((rowCount - 1) * (size + gap)) / 2 + 12;
+    const startY = this.trayY - (gridAreaHeight + pagerHeight) / 2 + size / 2 + 10;
 
-    types.forEach((pieceType, i) => {
+    visibleTypes.forEach((pieceType, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const px = startX + col * (size + gap);
@@ -458,24 +696,92 @@ export class PipePatchGameScene extends Phaser.Scene {
       const pv = this.spawnPieceVisual(`tray-${pieceType}`, pieceType, px, py, true, size);
       this.trayTypeVisuals.set(pieceType, pv);
 
-      const count = this.add.text(px, py - size * 0.62, '00', {
-        fontSize: '18px',
-        fontStyle: '700',
-        color: '#f8fafc',
-        backgroundColor: '#00000088',
-        padding: { left: 4, right: 4, top: 1, bottom: 1 },
-      }).setOrigin(0.5);
+      const count = this.add
+        .text(px, py - size * 0.62, '00', {
+          fontSize: '18px',
+          fontStyle: '700',
+          color: '#f8fafc',
+          backgroundColor: '#00000088',
+          padding: { left: 4, right: 4, top: 1, bottom: 1 },
+        })
+        .setOrigin(0.5);
       this.trayCountTexts.set(pieceType, count);
     });
+
+    if (totalPages > 1) {
+      this.createTrayPagerControls(panelH, totalPages);
+    }
 
     this.updateTrayCounts();
   }
 
-  private getTrayLayout() {
+  private getTrayLayout(typeCount = this.trayInventory.size) {
     const gap = 12;
     const size = Math.max(56, Math.min(78, Math.floor((this.scale.width - 24) / 6.4)));
-    const cols = Math.max(4, Math.floor((this.scale.width - 20) / (size + gap)));
-    return { gap, size, cols };
+    const cols = Math.max(3, Math.floor((this.scale.width - 24) / (size + gap)));
+    const totalRows = Math.max(1, Math.ceil(typeCount / cols));
+    const usePagination = typeCount > 12 || totalRows > 3;
+    const visibleRows = usePagination ? Math.min(3, totalRows) : totalRows;
+    const visibleSlots = cols * visibleRows;
+    const totalPages = usePagination ? Math.max(1, Math.ceil(typeCount / visibleSlots)) : 1;
+    return { gap, size, cols, visibleRows, visibleSlots, totalPages };
+  }
+
+  private getTrayPanelHeight(visibleRows: number, size: number, gap: number, hasPager: boolean) {
+    const gridHeight = visibleRows * size + Math.max(0, visibleRows - 1) * gap;
+    const pagerHeight = hasPager ? 30 : 0;
+    return Math.max(140, Math.min(360, gridHeight + 62 + pagerHeight));
+  }
+
+  private createTrayPagerControls(panelH: number, totalPages: number) {
+    const navY = this.trayY + panelH / 2 - 18;
+    const label = this.add
+      .text(this.scale.width / 2, navY, `${this.trayPage + 1}/${totalPages}`, {
+        fontSize: '16px',
+        fontStyle: '700',
+        color: '#e2e8f0',
+      })
+      .setOrigin(0.5);
+    this.trayUiObjects.push(label);
+
+    this.createTrayNavButton(
+      this.scale.width / 2 - 56,
+      navY,
+      '‹',
+      this.trayPage > 0,
+      () => {
+        this.trayPage -= 1;
+        this.drawTray();
+      }
+    );
+    this.createTrayNavButton(
+      this.scale.width / 2 + 56,
+      navY,
+      '›',
+      this.trayPage < totalPages - 1,
+      () => {
+        this.trayPage += 1;
+        this.drawTray();
+      }
+    );
+  }
+
+  private createTrayNavButton(x: number, y: number, label: string, enabled: boolean, onClick: () => void) {
+    const bg = this.add
+      .rectangle(x, y, 32, 26, enabled ? 0x0f2f31 : 0x243638, 0.95)
+      .setStrokeStyle(1, enabled ? 0x9dd7db : 0x4f6a6d, 0.9);
+    const text = this.add
+      .text(x, y - 1, label, {
+        fontSize: '18px',
+        fontStyle: '700',
+        color: enabled ? '#f8fafc' : '#7b8a8c',
+      })
+      .setOrigin(0.5);
+    if (enabled) {
+      bg.setInteractive({ useHandCursor: true });
+      bg.on('pointerdown', onClick);
+    }
+    this.trayUiObjects.push(bg, text);
   }
 
   private spawnPieceVisual(pieceId: string, pieceType: PipePieceType, x: number, y: number, isFromTray: boolean, size: number) {
@@ -549,8 +855,9 @@ export class PipePatchGameScene extends Phaser.Scene {
     }
 
     this.pushUndoSnapshot();
+    const previousCellKey = piece.currentCellKey;
     const existing = this.placed.get(key);
-    if (existing) {
+    if (existing && existing.pieceId !== piece.pieceId) {
       const existingVisual = this.placedVisuals.get(existing.pieceId);
       if (existingVisual) {
         this.returnPieceToTray(existingVisual);
@@ -561,11 +868,16 @@ export class PipePatchGameScene extends Phaser.Scene {
     let activePiece = piece;
     if (piece.isFromTray && !piece.currentCellKey) {
       const placedId = `placed-${piece.pieceType}-${this.placedIdSeq++}`;
-      activePiece = this.spawnPieceVisual(placedId, piece.pieceType, this.cellCenterX(cell.x), this.cellCenterY(cell.y), false, Math.floor(this.cellSize * 0.94));
+      activePiece = this.spawnPieceVisual(placedId, piece.pieceType, this.cellCenterX(cell.x), this.cellCenterY(cell.y), false, Math.floor(this.cellSize * 0.98));
       this.trayInventory.set(piece.pieceType, Math.max(0, (this.trayInventory.get(piece.pieceType) ?? 0) - 1));
       piece.container.setPosition(piece.homeX, piece.homeY);
     } else {
       activePiece.container.setPosition(this.cellCenterX(cell.x), this.cellCenterY(cell.y));
+    }
+
+    // If a placed piece is moved to another cell, clear its old occupancy first.
+    if (previousCellKey && previousCellKey !== key) {
+      this.placed.delete(previousCellKey);
     }
 
     activePiece.currentCellKey = key;
@@ -597,7 +909,6 @@ export class PipePatchGameScene extends Phaser.Scene {
       this.levelMetrics.obstacleRejectCount += 1;
       return 'blocked';
     }
-    if (this.isEndpointCell(cell.x, cell.y)) return 'invalid_target';
     if (this.level.fixedPipes.some((f) => f.position.x === cell.x && f.position.y === cell.y)) return 'occupied';
     if (this.level.oneWayGates.some((g) => g.position.x === cell.x && g.position.y === cell.y)) {
       this.logEvent('obstacle_interaction_attempt', { obstacleType: 'one_way_gate', pieceId: piece.pieceId, cellId: key, result: 'rejected' });
@@ -1017,7 +1328,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.placedVisuals.clear();
     this.placed.forEach((rp, key) => {
       const [x, y] = key.split(',').map(Number);
-      const pv = this.spawnPieceVisual(rp.pieceId, rp.pieceType, this.cellCenterX(x), this.cellCenterY(y), false, Math.floor(this.cellSize * 0.94));
+      const pv = this.spawnPieceVisual(rp.pieceId, rp.pieceType, this.cellCenterX(x), this.cellCenterY(y), false, Math.floor(this.cellSize * 0.98));
       pv.currentCellKey = key;
       pv.isFromTray = false;
       this.placedVisuals.set(rp.pieceId, pv);
@@ -1045,6 +1356,11 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.trayTypeVisuals.forEach((v) => v.container.destroy());
     this.trayVisuals.clear();
     this.trayTypeVisuals.clear();
+    this.trayUiObjects.forEach((obj) => obj.destroy());
+    this.trayUiObjects = [];
+    this.fixedVisuals.clear();
+    this.endpointWallVisuals.clear();
+    this.endpointVisuals.clear();
     this.placedVisuals.clear();
     this.trayCountTexts.clear();
   }
@@ -1072,15 +1388,16 @@ export class PipePatchGameScene extends Phaser.Scene {
     local = true,
     color?: number,
     axisColorX?: number,
-    axisColorY?: number
+    axisColorY?: number,
+    hideCapMask = 0
   ) {
     const g = this.add.graphics();
     const half = size * 0.5;
-    const t = Math.max(8, Math.floor(size * 0.3));
+    const t = Math.max(9, Math.floor(size * 0.34));
     const pipeColor = color ?? COLORS.pipe;
-    const highlight = this.brightenColor(pipeColor, 42);
-    const cap = this.brightenColor(pipeColor, 20);
-    const lowLight = this.darkenColor(pipeColor, 22);
+    const highlight = this.brightenColor(pipeColor, 68);
+    const cap = this.brightenColor(pipeColor, 34);
+    const lowLight = this.darkenColor(pipeColor, 42);
     g.setPosition(x, y);
     const m = PIECE_DEFINITIONS[pieceType].mask;
 
@@ -1092,40 +1409,48 @@ export class PipePatchGameScene extends Phaser.Scene {
       const overColor = axisColorX ?? pipeColor;
       const underBase = axisColorY ?? pipeColor;
       const underColor = this.darkenColor(underBase, 26);
-      const underHighlight = this.brightenColor(underColor, 26);
-      const underCap = this.brightenColor(underColor, 10);
-      const underLowLight = this.darkenColor(underColor, 18);
-      const overHighlight = this.brightenColor(overColor, 34);
-      const overCap = this.brightenColor(overColor, 14);
-      const overLowLight = this.darkenColor(overColor, 20);
+      const underHighlight = this.brightenColor(underColor, 40);
+      const underCap = this.brightenColor(underColor, 22);
+      const underLowLight = this.darkenColor(underColor, 30);
+      const overHighlight = this.brightenColor(overColor, 52);
+      const overCap = this.brightenColor(overColor, 24);
+      const overLowLight = this.darkenColor(overColor, 34);
 
       // Underpass (vertical) — broken at center for over/under illusion
       const drawUnderVertical = () => {
         const segLen = Math.max(2, half - gap);
 
         // Up segment
-        g.fillStyle(COLORS.pipeShadow, 0.4).fillRoundedRect(-underT / 2 + 1, -half + 1, underT, segLen, 4);
+        g.fillStyle(COLORS.pipeShadow, 0.58).fillRoundedRect(-underT / 2 + 1, -half + 1, underT, segLen, 4);
         g.fillStyle(underColor, 1).fillRoundedRect(-underT / 2, -half, underT, segLen, 4);
-        g.fillStyle(underLowLight, 0.45).fillRoundedRect(-underT / 2 + underT * 0.5, -half + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
-        g.fillStyle(underHighlight, 0.55).fillRoundedRect(-underT / 2 + 1, -half + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
-        g.fillStyle(underCap, 1).fillCircle(0, -half + 1, underT * 0.55);
+        g.fillStyle(underLowLight, 0.62).fillRoundedRect(-underT / 2 + underT * 0.5, -half + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
+        g.fillStyle(underHighlight, 0.82).fillRoundedRect(-underT / 2 + 1, -half + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
+        if ((hideCapMask & DIR.UP) === 0) {
+          g.fillStyle(underCap, 1).fillCircle(0, -half + 1, underT * 0.55);
+        }
 
         // Down segment
-        g.fillStyle(COLORS.pipeShadow, 0.4).fillRoundedRect(-underT / 2 + 1, gap + 1, underT, segLen, 4);
+        g.fillStyle(COLORS.pipeShadow, 0.58).fillRoundedRect(-underT / 2 + 1, gap + 1, underT, segLen, 4);
         g.fillStyle(underColor, 1).fillRoundedRect(-underT / 2, gap, underT, segLen, 4);
-        g.fillStyle(underLowLight, 0.45).fillRoundedRect(-underT / 2 + underT * 0.5, gap + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
-        g.fillStyle(underHighlight, 0.55).fillRoundedRect(-underT / 2 + 1, gap + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
-        g.fillStyle(underCap, 1).fillCircle(0, half - 1, underT * 0.55);
+        g.fillStyle(underLowLight, 0.62).fillRoundedRect(-underT / 2 + underT * 0.5, gap + 1, Math.max(2, underT * 0.42), Math.max(2, segLen - 2), 2);
+        g.fillStyle(underHighlight, 0.82).fillRoundedRect(-underT / 2 + 1, gap + 2, Math.max(2, underT * 0.3), Math.max(2, segLen - 4), 2);
+        if ((hideCapMask & DIR.DOWN) === 0) {
+          g.fillStyle(underCap, 1).fillCircle(0, half - 1, underT * 0.55);
+        }
       };
 
       // Overpass (horizontal) — continuous across center
       const drawOverHorizontal = () => {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-half + 1, -overT / 2 + 2, size, overT, 5);
+        g.fillStyle(COLORS.pipeShadow, 0.62).fillRoundedRect(-half + 1, -overT / 2 + 2, size, overT, 5);
         g.fillStyle(overColor, 1).fillRoundedRect(-half, -overT / 2, size, overT, 5);
-        g.fillStyle(overLowLight, 0.45).fillRoundedRect(-half + 2, overT * 0.06, Math.max(2, size - 4), Math.max(2, overT * 0.32), 3);
-        g.fillStyle(overHighlight, 0.65).fillRoundedRect(-half + 2, -overT / 2 + 1, Math.max(2, size - 4), Math.max(2, overT * 0.28), 3);
-        g.fillStyle(overCap, 1).fillCircle(-half + 1, 0, overT * 0.55);
-        g.fillStyle(overCap, 1).fillCircle(half - 1, 0, overT * 0.55);
+        g.fillStyle(overLowLight, 0.62).fillRoundedRect(-half + 2, overT * 0.06, Math.max(2, size - 4), Math.max(2, overT * 0.32), 3);
+        g.fillStyle(overHighlight, 0.84).fillRoundedRect(-half + 2, -overT / 2 + 1, Math.max(2, size - 4), Math.max(2, overT * 0.28), 3);
+        if ((hideCapMask & DIR.LEFT) === 0) {
+          g.fillStyle(overCap, 1).fillCircle(-half + 1, 0, overT * 0.55);
+        }
+        if ((hideCapMask & DIR.RIGHT) === 0) {
+          g.fillStyle(overCap, 1).fillCircle(half - 1, 0, overT * 0.55);
+        }
 
         // Bridge lip to make the overpass read clearly
         g.lineStyle(Math.max(2, Math.floor(overT * 0.18)), 0x0b1220, 0.25);
@@ -1137,42 +1462,50 @@ export class PipePatchGameScene extends Phaser.Scene {
 
       // Subtle center joint glow
       const jointBase = axisColorX ?? axisColorY ?? pipeColor;
-      g.fillStyle(this.brightenColor(jointBase, 18), 0.95).fillCircle(0, 0, Math.max(4, overT * 0.42));
-      g.fillStyle(0x111827, 0.28).fillCircle(0, 0, Math.max(2, overT * 0.18));
+      g.fillStyle(this.brightenColor(jointBase, 32), 0.98).fillCircle(0, 0, Math.max(4, overT * 0.42));
+      g.fillStyle(0x020617, 0.48).fillCircle(0, 0, Math.max(2, overT * 0.2));
       return g;
     }
 
     const drawArm = (dir: number) => {
       if (dir === DIR.UP) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-t / 2 + 1, -half + 1, t, half + t * 0.2, 4);
+        g.fillStyle(COLORS.pipeShadow, 0.6).fillRoundedRect(-t / 2 + 1, -half + 1, t, half + t * 0.2, 4);
         g.fillStyle(pipeColor, 1).fillRoundedRect(-t / 2, -half, t, half + t * 0.2, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(-t / 2 + t * 0.5, -half + 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(-t / 2 + 1, -half + 2, Math.max(2, t * 0.32), half - 2, 2);
-        g.fillStyle(cap, 1).fillCircle(0, -half + 1, t * 0.55);
+        g.fillStyle(lowLight, 0.62).fillRoundedRect(-t / 2 + t * 0.5, -half + 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
+        g.fillStyle(highlight, 0.86).fillRoundedRect(-t / 2 + 1, -half + 2, Math.max(2, t * 0.32), half - 2, 2);
+        if ((hideCapMask & DIR.UP) === 0) {
+          g.fillStyle(cap, 1).fillCircle(0, -half + 1, t * 0.55);
+        }
         return;
       }
       if (dir === DIR.RIGHT) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(1, -t / 2 + 1, half + t * 0.2, t, 4);
+        g.fillStyle(COLORS.pipeShadow, 0.6).fillRoundedRect(1, -t / 2 + 1, half + t * 0.2, t, 4);
         g.fillStyle(pipeColor, 1).fillRoundedRect(0, -t / 2, half + t * 0.2, t, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(2, -t / 2 + 1, half - 2, Math.max(2, t * 0.32), 2);
-        g.fillStyle(cap, 1).fillCircle(half - 1, 0, t * 0.55);
+        g.fillStyle(lowLight, 0.62).fillRoundedRect(1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
+        g.fillStyle(highlight, 0.86).fillRoundedRect(2, -t / 2 + 1, half - 2, Math.max(2, t * 0.32), 2);
+        if ((hideCapMask & DIR.RIGHT) === 0) {
+          g.fillStyle(cap, 1).fillCircle(half - 1, 0, t * 0.55);
+        }
         return;
       }
       if (dir === DIR.DOWN) {
-        g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-t / 2 + 1, 1, t, half + t * 0.2, 4);
+        g.fillStyle(COLORS.pipeShadow, 0.6).fillRoundedRect(-t / 2 + 1, 1, t, half + t * 0.2, 4);
         g.fillStyle(pipeColor, 1).fillRoundedRect(-t / 2, 0, t, half + t * 0.2, 4);
-        g.fillStyle(lowLight, 0.45).fillRoundedRect(-t / 2 + t * 0.5, 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
-        g.fillStyle(highlight, 0.65).fillRoundedRect(-t / 2 + 1, 1, Math.max(2, t * 0.32), half - 2, 2);
-        g.fillStyle(cap, 1).fillCircle(0, half - 1, t * 0.55);
+        g.fillStyle(lowLight, 0.62).fillRoundedRect(-t / 2 + t * 0.5, 1, Math.max(2, t * 0.42), Math.max(2, half - 1), 2);
+        g.fillStyle(highlight, 0.86).fillRoundedRect(-t / 2 + 1, 1, Math.max(2, t * 0.32), half - 2, 2);
+        if ((hideCapMask & DIR.DOWN) === 0) {
+          g.fillStyle(cap, 1).fillCircle(0, half - 1, t * 0.55);
+        }
         return;
       }
 
-      g.fillStyle(COLORS.pipeShadow, 0.45).fillRoundedRect(-half + 1, -t / 2 + 1, half + t * 0.2, t, 4);
+      g.fillStyle(COLORS.pipeShadow, 0.6).fillRoundedRect(-half + 1, -t / 2 + 1, half + t * 0.2, t, 4);
       g.fillStyle(pipeColor, 1).fillRoundedRect(-half, -t / 2, half + t * 0.2, t, 4);
-      g.fillStyle(lowLight, 0.45).fillRoundedRect(-half + 1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
-      g.fillStyle(highlight, 0.65).fillRoundedRect(-half + 1, -t / 2 + 1, Math.max(2, t * 0.32), half - 2, 2);
-      g.fillStyle(cap, 1).fillCircle(-half + 1, 0, t * 0.55);
+      g.fillStyle(lowLight, 0.62).fillRoundedRect(-half + 1, -t / 2 + t * 0.46, Math.max(2, half - 1), Math.max(2, t * 0.42), 2);
+      g.fillStyle(highlight, 0.86).fillRoundedRect(-half + 1, -t / 2 + 1, Math.max(2, t * 0.32), half - 2, 2);
+      if ((hideCapMask & DIR.LEFT) === 0) {
+        g.fillStyle(cap, 1).fillCircle(-half + 1, 0, t * 0.55);
+      }
     };
 
     if (m & DIR.UP) drawArm(DIR.UP);
@@ -1181,12 +1514,12 @@ export class PipePatchGameScene extends Phaser.Scene {
     if (m & DIR.LEFT) drawArm(DIR.LEFT);
 
     // Add a subtle glow effect to the center connection
-    g.fillStyle(this.brightenColor(pipeColor, 18), 1).fillCircle(0, 0, Math.max(5, t * 0.62));
-    g.fillStyle(lowLight, 0.45).fillCircle(0, 0, Math.max(3, t * 0.34));
-    g.fillStyle(0x111827, 0.35).fillCircle(0, 0, Math.max(2, t * 0.2));
+    g.fillStyle(this.brightenColor(pipeColor, 30), 1).fillCircle(0, 0, Math.max(5, t * 0.62));
+    g.fillStyle(lowLight, 0.62).fillCircle(0, 0, Math.max(3, t * 0.34));
+    g.fillStyle(0x020617, 0.5).fillCircle(0, 0, Math.max(2, t * 0.2));
     
     // Add a small highlight dot for better visual appeal
-    g.fillStyle(this.brightenColor(pipeColor, 56), 0.8).fillCircle(-Math.max(1, t * 0.08), -Math.max(1, t * 0.08), Math.max(1, t * 0.16));
+    g.fillStyle(this.brightenColor(pipeColor, 84), 0.9).fillCircle(-Math.max(1, t * 0.08), -Math.max(1, t * 0.08), Math.max(1, t * 0.16));
     
     return g;
   }
@@ -1198,20 +1531,67 @@ export class PipePatchGameScene extends Phaser.Scene {
     return COLORS.pipe;
   }
 
-  private drawEndpointPipe(cx: number, cy: number, mask: number, color: number, badgeText?: 'IN' | 'OUT') {
+  private drawEndpointPipe(cx: number, cy: number, mask: number, color: number, hideMouthMask = 0) {
     const g = this.add.graphics();
-    const half = this.cellSize * 0.36;
-    const t = Math.max(7, Math.floor(this.cellSize * 0.22));
+    const half = this.cellSize * 0.31;
+    const t = Math.max(9, Math.floor(this.cellSize * 0.25));
+    const highlight = this.brightenColor(color, 52);
+    const lowLight = this.darkenColor(color, 38);
+    const cap = this.brightenColor(color, 26);
+    const mouthOuter = Math.max(3, t * 0.26);
+    const mouthInner = Math.max(1.5, t * 0.14);
+    const collarOuter = Math.max(4, t * 0.76);
+    const collarInner = Math.max(2, t * 0.48);
     g.setPosition(cx, cy);
+    g.fillStyle(0x010409, 0.26).fillEllipse(0, Math.max(1, t * 0.1), half * 1.48, half * 1.12);
+
+    const drawPipeMouth = (mx: number, my: number) => {
+      // Make endpoint tips look hollow like real pipe openings.
+      g.fillStyle(this.darkenColor(color, 68), 0.98).fillCircle(mx, my, mouthOuter);
+      g.fillStyle(this.brightenColor(color, 16), 0.38).fillCircle(mx, my, Math.max(1, mouthOuter * 0.72));
+      g.fillStyle(0x000205, 0.94).fillCircle(mx, my, mouthInner);
+      g.fillStyle(this.brightenColor(color, 44), 0.34).fillCircle(
+        mx - mouthOuter * 0.25,
+        my - mouthOuter * 0.25,
+        Math.max(1, mouthOuter * 0.22)
+      );
+    };
+
     const drawArm = (dir: number) => {
-      const v = DIR_VECTORS[dir as keyof typeof DIR_VECTORS];
-      const ex = v.x * half;
-      const ey = v.y * half;
-      g.lineStyle(t + 4, 0x111827, 0.35);
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.strokePath();
-      g.lineStyle(t, color, 1);
-      g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.strokePath();
-      g.fillStyle(this.brightenColor(color, 20), 1).fillCircle(ex, ey, t * 0.4);
+      if (dir === DIR.UP) {
+        g.fillStyle(0x020617, 0.58).fillRoundedRect(-t / 2 + 1, -half + 2, t, half + t * 0.24, 4);
+        g.fillStyle(color, 1).fillRoundedRect(-t / 2, -half, t, half + t * 0.24, 4);
+        g.fillStyle(lowLight, 0.6).fillRoundedRect(-t / 2 + t * 0.52, -half + 1, Math.max(2, t * 0.4), Math.max(2, half - 1), 2);
+        g.fillStyle(highlight, 0.88).fillRoundedRect(-t / 2 + 1, -half + 2, Math.max(2, t * 0.3), Math.max(2, half - 2), 2);
+        g.fillStyle(cap, 1).fillCircle(0, -half + 1, t * 0.5);
+        if ((hideMouthMask & DIR.UP) === 0) drawPipeMouth(0, -half + 1);
+        return;
+      }
+      if (dir === DIR.RIGHT) {
+        g.fillStyle(0x020617, 0.58).fillRoundedRect(1, -t / 2 + 2, half + t * 0.24, t, 4);
+        g.fillStyle(color, 1).fillRoundedRect(0, -t / 2, half + t * 0.24, t, 4);
+        g.fillStyle(lowLight, 0.6).fillRoundedRect(1, -t / 2 + t * 0.48, Math.max(2, half - 1), Math.max(2, t * 0.4), 2);
+        g.fillStyle(highlight, 0.88).fillRoundedRect(2, -t / 2 + 1, Math.max(2, half - 2), Math.max(2, t * 0.3), 2);
+        g.fillStyle(cap, 1).fillCircle(half - 1, 0, t * 0.5);
+        if ((hideMouthMask & DIR.RIGHT) === 0) drawPipeMouth(half - 1, 0);
+        return;
+      }
+      if (dir === DIR.DOWN) {
+        g.fillStyle(0x020617, 0.58).fillRoundedRect(-t / 2 + 1, 2, t, half + t * 0.24, 4);
+        g.fillStyle(color, 1).fillRoundedRect(-t / 2, 0, t, half + t * 0.24, 4);
+        g.fillStyle(lowLight, 0.6).fillRoundedRect(-t / 2 + t * 0.52, 1, Math.max(2, t * 0.4), Math.max(2, half - 1), 2);
+        g.fillStyle(highlight, 0.88).fillRoundedRect(-t / 2 + 1, 1, Math.max(2, t * 0.3), Math.max(2, half - 2), 2);
+        g.fillStyle(cap, 1).fillCircle(0, half - 1, t * 0.5);
+        if ((hideMouthMask & DIR.DOWN) === 0) drawPipeMouth(0, half - 1);
+        return;
+      }
+
+      g.fillStyle(0x020617, 0.58).fillRoundedRect(-half + 1, -t / 2 + 2, half + t * 0.24, t, 4);
+      g.fillStyle(color, 1).fillRoundedRect(-half, -t / 2, half + t * 0.24, t, 4);
+      g.fillStyle(lowLight, 0.6).fillRoundedRect(-half + 1, -t / 2 + t * 0.48, Math.max(2, half - 1), Math.max(2, t * 0.4), 2);
+      g.fillStyle(highlight, 0.88).fillRoundedRect(-half + 1, -t / 2 + 1, Math.max(2, t * 0.3), Math.max(2, half - 2), 2);
+      g.fillStyle(cap, 1).fillCircle(-half + 1, 0, t * 0.5);
+      if ((hideMouthMask & DIR.LEFT) === 0) drawPipeMouth(-half + 1, 0);
     };
 
     if (mask & DIR.UP) drawArm(DIR.UP);
@@ -1219,19 +1599,15 @@ export class PipePatchGameScene extends Phaser.Scene {
     if (mask & DIR.DOWN) drawArm(DIR.DOWN);
     if (mask & DIR.LEFT) drawArm(DIR.LEFT);
 
-    g.fillStyle(this.brightenColor(color, 24), 1).fillCircle(0, 0, Math.max(5, t * 0.55));
-    g.fillStyle(0x0f172a, 0.45).fillCircle(0, 0, Math.max(2, t * 0.22));
+    // Add a collar/flange and deeper core so endpoint reads as a realistic socket.
+    g.fillStyle(this.darkenColor(color, 44), 0.95).fillCircle(0, 0, collarOuter);
+    g.fillStyle(this.brightenColor(color, 12), 0.86).fillCircle(0, 0, collarInner);
+    g.fillStyle(this.brightenColor(color, 34), 0.95).fillCircle(0, 0, Math.max(4, t * 0.44));
+    g.fillStyle(0x010409, 0.62).fillCircle(0, 0, Math.max(2, t * 0.22));
+    g.fillStyle(this.brightenColor(color, 54), 0.28).fillCircle(-Math.max(1, t * 0.08), -Math.max(1, t * 0.1), Math.max(1, t * 0.14));
 
     this.uiPersistent.delete(g as unknown as Phaser.GameObjects.GameObject);
-
-    if (badgeText) {
-      const badge = this.add.text(cx, cy + this.cellSize * 0.29, badgeText, {
-        fontSize: `${Math.max(9, Math.floor(this.cellSize * 0.16))}px`,
-        color: '#e2e8f0',
-        fontStyle: '700',
-      }).setOrigin(0.5);
-      this.uiPersistent.delete(badge as unknown as Phaser.GameObjects.GameObject);
-    }
+    return g;
   }
 
   private updateTrayCounts() {
@@ -1276,15 +1652,6 @@ export class PipePatchGameScene extends Phaser.Scene {
     return palette[targetIndex % palette.length];
   }
 
-  private isEndpointCell(x: number, y: number): boolean {
-    const key = `${x},${y}`;
-    return this.level.endpointGroups.some((g) => {
-      const inKey = `${g.input.position.x},${g.input.position.y}`;
-      if (inKey === key) return true;
-      return g.outputs.some((o) => `${o.position.x},${o.position.y}` === key);
-    });
-  }
-
   private getPieceTypeAt(cx: number, cy: number): PipePieceType | undefined {
     const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
     if (fixed) return fixed.pieceType;
@@ -1306,22 +1673,36 @@ export class PipePatchGameScene extends Phaser.Scene {
     return (mask & straightOut) !== 0 ? [straightOut] : [];
   }
 
-  private computeConnectedPieceColors(): Map<string, ColorId> {
-    const colorByCell = new Map<string, ColorId>();
+  private computeConnectedPieceColors(): Map<string, ColorId | undefined> {
+    const connectedColorsByCell = new Map<string, Set<ColorId>>();
     const endpointGroups = this.level.endpointGroups;
 
+    const addColorToCell = (cellKey: string, colorId: ColorId) => {
+      const set = connectedColorsByCell.get(cellKey) ?? new Set<ColorId>();
+      set.add(colorId);
+      connectedColorsByCell.set(cellKey, set);
+    };
+
     for (const group of endpointGroups) {
-      const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-      const visited = new Set<string>([
-        this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined),
-      ]);
+      const groupColor = group.colorId as ColorId;
+      // Color can flow from both source(input) and outputs(targets),
+      // but only through properly connected masks.
+      const startPoints = [group.input.position, ...group.outputs.map((o) => o.position)];
+      const queue: Array<{ x: number; y: number; incomingDir?: number }> = startPoints.map((p) => ({ ...p }));
+      const visited = new Set<string>(
+        startPoints.map((p) => this.getTraversalStateKey(p.x, p.y, this.getPieceTypeAt(p.x, p.y), undefined))
+      );
 
       while (queue.length > 0) {
         const c = queue.shift()!;
+        const pieceTypeAtCell = this.getPieceTypeAt(c.x, c.y);
+        if (pieceTypeAtCell && pieceTypeAtCell !== 'crossover') {
+          addColorToCell(`${c.x},${c.y}`, groupColor);
+        }
+
         const cMask = this.getColorMaskAt(c.x, c.y);
         if (cMask === 0) continue;
-        const pieceType = this.getPieceTypeAt(c.x, c.y);
-        const dirs = this.getFlowDirections(cMask, c.incomingDir, pieceType);
+        const dirs = this.getFlowDirections(cMask, c.incomingDir, pieceTypeAtCell);
 
         for (const dir of dirs) {
           const v = DIR_VECTORS[dir];
@@ -1333,13 +1714,6 @@ export class PipePatchGameScene extends Phaser.Scene {
           const nMask = this.getColorMaskAt(nx, ny);
           const opp = OPPOSITE_DIR[dir];
           if ((nMask & opp) === 0) continue;
-          const neighborCellKey = `${nx},${ny}`;
-          if (this.placed.has(neighborCellKey)) {
-            const neighborType = this.getPieceTypeAt(nx, ny);
-            if (neighborType !== 'crossover' && !colorByCell.has(neighborCellKey)) {
-              colorByCell.set(neighborCellKey, group.colorId as ColorId);
-            }
-          }
 
           const neighborType = this.getPieceTypeAt(nx, ny);
           const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
@@ -1350,25 +1724,110 @@ export class PipePatchGameScene extends Phaser.Scene {
         }
       }
     }
+
+    const colorByCell = new Map<string, ColorId | undefined>();
+    connectedColorsByCell.forEach((colors, cellKey) => {
+      if (colors.size === 1) {
+        colorByCell.set(cellKey, colors.values().next().value as ColorId);
+      } else {
+        colorByCell.set(cellKey, undefined);
+      }
+    });
     return colorByCell;
   }
 
   private getColorMaskAt(cx: number, cy: number): ConnectionMask {
+    const endpointMask = this.getEndpointMaskAt(cx, cy);
+    let finalMask = endpointMask;
+    const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
+    if (fixed) finalMask |= PIECE_DEFINITIONS[fixed.pieceType].mask;
+    const placed = this.placed.get(`${cx},${cy}`);
+    if (placed) finalMask |= PIECE_DEFINITIONS[placed.pieceType].mask;
+
+    // Endpoint overlay cells on board edges must not leak out of board bounds.
+    // Keep the endpoint board-facing side, but clip any outward edge direction
+    // introduced by an overlaid piece (e.g. straight_h on left-edge source).
+    if (endpointMask !== 0 && this.isBoardEdgeCoord(cx, cy)) {
+      finalMask &= this.getInBoardMaskForEdgeCell(cx, cy);
+    }
+
+    return finalMask;
+  }
+
+  private getEndpointMaskAt(cx: number, cy: number): ConnectionMask {
     const endpointGroups = this.level.endpointGroups;
     const input = endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy)?.input;
-    if (input) return OPPOSITE_DIR[input.mask];
+    if (input) return this.resolveEndpointFlowMask(cx, cy, OPPOSITE_DIR[input.mask]);
     const output = endpointGroups.flatMap((g) => g.outputs).find((o) => o.position.x === cx && o.position.y === cy);
-    if (output) return output.mask;
-    const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
-    if (fixed) return PIECE_DEFINITIONS[fixed.pieceType].mask;
-    const placed = this.placed.get(`${cx},${cy}`);
-    if (placed) return PIECE_DEFINITIONS[placed.pieceType].mask;
+    if (output) return this.resolveEndpointFlowMask(cx, cy, output.mask);
     return 0;
+  }
+
+  private resolveEndpointFlowMask(x: number, y: number, fallbackMask: number): ConnectionMask {
+    if (x === 0) return DIR.RIGHT;
+    if (x === this.level.gridSize - 1) return DIR.LEFT;
+    if (y === 0) return DIR.DOWN;
+    if (y === this.level.gridSize - 1) return DIR.UP;
+
+    // Interior endpoints must obey the direction encoded in level config.
+    return fallbackMask;
+  }
+
+  private resolveEndpointFacingDir(x: number, y: number, mask: number): number {
+    if (x === 0) return DIR.RIGHT;
+    if (x === this.level.gridSize - 1) return DIR.LEFT;
+    if (y === 0) return DIR.DOWN;
+    if (y === this.level.gridSize - 1) return DIR.UP;
+    return DIRS.find((dir) => (mask & dir) !== 0) ?? DIR.RIGHT;
+  }
+
+  private resolveEndpointRenderPosition(cx: number, cy: number, facingDir: number, isEdge: boolean) {
+    if (isEdge) {
+      const towardBoard = DIR_VECTORS[facingDir];
+      const wallOffset = this.cellSize * 0.8;
+      return {
+        x: cx - towardBoard.x * wallOffset,
+        y: cy - towardBoard.y * wallOffset,
+      };
+    }
+
+    const towardBoundary = DIR_VECTORS[facingDir];
+    const lineOffset = this.cellSize * 0.505;
+    return {
+      x: cx + towardBoundary.x * lineOffset,
+      y: cy + towardBoundary.y * lineOffset,
+    };
+  }
+
+  private isBoardEdgeCoord(x: number, y: number) {
+    return x === 0 || y === 0 || x === this.level.gridSize - 1 || y === this.level.gridSize - 1;
+  }
+
+  private getInBoardMaskForEdgeCell(x: number, y: number): ConnectionMask {
+    let mask: ConnectionMask = DIR.UP | DIR.RIGHT | DIR.DOWN | DIR.LEFT;
+    if (x === 0) mask &= ~DIR.LEFT;
+    if (x === this.level.gridSize - 1) mask &= ~DIR.RIGHT;
+    if (y === 0) mask &= ~DIR.UP;
+    if (y === this.level.gridSize - 1) mask &= ~DIR.DOWN;
+    return mask;
   }
 
   private getSourceColorAt(cx: number, cy: number): ColorId | undefined {
     const group = this.level.endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy);
     return group?.colorId as ColorId | undefined;
+  }
+
+  private getTargetColorAt(cx: number, cy: number): ColorId | undefined {
+    for (const group of this.level.endpointGroups) {
+      if (group.outputs.some((o) => o.position.x === cx && o.position.y === cy)) {
+        return group.colorId as ColorId;
+      }
+    }
+    return undefined;
+  }
+
+  private getEndpointColorAt(cx: number, cy: number): ColorId | undefined {
+    return this.getSourceColorAt(cx, cy) ?? this.getTargetColorAt(cx, cy);
   }
 
   private findConnectedColorForDirection(x: number, y: number, dir: number): ColorId | undefined {
@@ -1393,9 +1852,9 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     while (queue.length > 0) {
       const c = queue.shift()!;
-      const sourceColor = this.getSourceColorAt(c.x, c.y);
-      if (sourceColor) {
-        foundColors.add(sourceColor);
+      const endpointColor = this.getEndpointColorAt(c.x, c.y);
+      if (endpointColor) {
+        foundColors.add(endpointColor);
         if (foundColors.size > 1) return undefined;
       }
       const mask = this.getColorMaskAt(c.x, c.y);
@@ -1473,19 +1932,30 @@ export class PipePatchGameScene extends Phaser.Scene {
           visual.axisColorY = undefined;
         }
         const pipeColor = isCrossover ? COLORS.pipe : (colorId ? COLOR_HEX[colorId] : COLORS.pipe);
+        const [x, y] = key.split(',').map(Number);
+        const mask = PIECE_DEFINITIONS[piece.pieceType].mask;
+        const hideCapMask = this.getConnectedMaskForCell(x, y, mask);
         const art = this.createPipeVisual(
           piece.pieceType,
           0,
           0,
-          Math.floor(this.cellSize * 0.94) * 0.88,
+          Math.floor(this.cellSize * 0.98) * 0.88,
           true,
           pipeColor,
           axisXColor,
-          axisYColor
+          axisYColor,
+          hideCapMask
         );
         container.add(art);
       }
     });
+
+    // Keep fixed pipes visually continuous with neighbors as board changes.
+    this.refreshFixedPipeVisuals(colorByCell);
+
+    // Repaint endpoint mouths based on live connectivity:
+    // when a pipe is connected to an endpoint, hide that endpoint hole.
+    this.refreshEndpointVisuals();
   }
 
   private arrowForGate(entry: string, exit: string) {
