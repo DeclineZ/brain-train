@@ -53,6 +53,12 @@ export default function GamePage({ params }: PageProps) {
     const searchParams = useSearchParams();
     // We prioritize URL param, but if missing, we wait for DB fetch
     const paramLevel = searchParams.get("level");
+    const parsedParamLevel = paramLevel !== null ? Number(paramLevel) : null;
+    const hasValidParamLevel =
+        parsedParamLevel !== null &&
+        Number.isFinite(parsedParamLevel) &&
+        Number.isInteger(parsedParamLevel) &&
+        parsedParamLevel >= 0;
     const tutorialMode = searchParams.get("tutorial_mode");
     const fromSource = searchParams.get("from");
 
@@ -79,6 +85,11 @@ export default function GamePage({ params }: PageProps) {
                                     : gameId === 'game-20-boxcounting' ? 40
                                         : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
+    const safeParamLevel =
+        hasValidParamLevel && parsedParamLevel !== null
+            ? Math.min(parsedParamLevel, maxLevel)
+            : null;
+
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
     const [highScore, setHighScore] = useState<number>(0);
@@ -86,8 +97,8 @@ export default function GamePage({ params }: PageProps) {
     // 1. Fetch persistent level on mount
     useEffect(() => {
         // If param is present, set it immediately so UI doesn't flicker
-        if (paramLevel) {
-            setActiveLevel(Number(paramLevel));
+        if (safeParamLevel !== null) {
+            setActiveLevel(safeParamLevel);
             // If it's not tutorial, we can stop loading.
             // If it IS tutorial, we still might want to fetch resumeLevel in background.
             setIsLoadingLevel(false);
@@ -142,8 +153,8 @@ export default function GamePage({ params }: PageProps) {
 
                 setResumeLevel(nextLevel);
 
-                // Only override activeLevel if no param was provided
-                if (!paramLevel) {
+                // Only override activeLevel if no valid level param was provided
+                if (!hasValidParamLevel) {
                     if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
                         setActiveLevel(nextLevel);
                     } else if (gameId === 'game-14-wordrecognize') {
@@ -245,7 +256,7 @@ export default function GamePage({ params }: PageProps) {
             }
         }
         fetchLevel();
-    }, [gameId, paramLevel]);
+    }, [gameId, hasValidParamLevel, maxLevel, safeParamLevel]);
 
     // Clear popups when level changes
     useEffect(() => {
