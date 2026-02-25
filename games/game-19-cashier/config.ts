@@ -1,4 +1,5 @@
 import { CashierGameScene } from './GameScene';
+import { CashierTutorialScene } from './TutorialScene';
 
 export const CashierGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -17,5 +18,5 @@ export const CashierGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [CashierGameScene]
+    scene: [CashierGameScene, CashierTutorialScene]
 };

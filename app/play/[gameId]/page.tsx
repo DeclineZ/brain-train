@@ -183,8 +183,7 @@ export default function GamePage({ params }: PageProps) {
                         if (data && data.current_played) {
                             setActiveLevel(nextLevel);
                         } else {
-                            // We don't have a tutorial scene yet for 19, so start at 1
-                            setActiveLevel(1);
+                            setActiveLevel(0);
                         }
                     } else {
                         // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
