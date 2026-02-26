@@ -1,379 +1,453 @@
-// Box Counting Game — Level Configurations
-// 40 levels progressing from simple boxes to mixed shapes with multiple colors
+// Box Counting Game — Level Configurations (Redesigned)
+// 30 levels: L1-15 = 3D isometric, L16-30 = 2D orthographic views
+// Each level has 2 puzzles
 
-export type ShapeType = 'box' | 'triangle' | 'mixed';
-export type AskType = 'count_all' | 'count_shape' | 'count_color' | 'count_shape_color';
-
-export interface BoxCountingLevelConfig {
-    level: number;
-    name: string;
-    gridSize: number;          // 4, 5, 6, or 7
-    shapeTypes: ShapeType;     // what shapes can appear
-    minShapes: number;
-    maxShapes: number;
-    maxStack: number;          // max stacking height
-    colorCount: number;        // 1 = single color, 2+ = multi-color
-    askType: AskType;          // what the question asks
-    timeLimitSeconds: number;
-    description: string;
+export interface Block3D {
+    x: number;
+    y: number;
+    z: number;  // 0 = ground level
 }
 
-// Color palette for shapes
-export const SHAPE_COLORS = {
-    green: { name: 'สีเขียว', hex: 0x4CD964, top: 0x6EE788, left: 0x3CB850, right: 0x2D9A3E },
-    blue: { name: 'สีน้ำเงิน', hex: 0x5AC8FA, top: 0x7DD8FB, left: 0x42B4E8, right: 0x2EA0D6 },
-    orange: { name: 'สีส้ม', hex: 0xFF9500, top: 0xFFAD33, left: 0xE68500, right: 0xCC7600 },
-    pink: { name: 'สีชมพู', hex: 0xFF2D55, top: 0xFF5C7A, left: 0xE6264C, right: 0xCC2043 },
-    purple: { name: 'สีม่วง', hex: 0xAF52DE, top: 0xC278E8, left: 0x9B45C9, right: 0x8739B4 },
-    yellow: { name: 'สีเหลือง', hex: 0xFFCC00, top: 0xFFD633, left: 0xE6B800, right: 0xCCA300 },
-} as const;
+export interface Puzzle3D {
+    blocks: Block3D[];
+    answer: number;
+}
 
-export type ColorKey = keyof typeof SHAPE_COLORS;
+export interface Puzzle2D {
+    heightMap: number[][];
+    answer: number;
+}
 
-export const COLOR_KEYS: ColorKey[] = ['green', 'blue', 'orange', 'pink', 'purple', 'yellow'];
+export interface Level3DConfig {
+    level: number;
+    name: string;
+    mode: '3d';
+    gridSize: number;
+    puzzles: [Puzzle3D, Puzzle3D];
+    timeLimitSeconds: number;
+}
 
-// ============ 40 LEVELS ============
-// askType guide:
-//   count_all         = นับทั้งหมด
-//   count_color       = นับเฉพาะสีที่ถาม (ไม่สนรูปทรง)
-//   count_shape       = นับเฉพาะรูปทรงที่ถาม (ไม่สนสี) — ใช้กับ mixed + multi-color เพื่อหลอก
-//   count_shape_color = นับเฉพาะรูปทรง+สีที่ถาม (เช่น สี่เหลี่ยมสีม่วง)
+export interface Level2DConfig {
+    level: number;
+    name: string;
+    mode: '2d';
+    puzzles: [Puzzle2D, Puzzle2D];
+    timeLimitSeconds: number;
+}
+
+export type BoxCountingLevelConfig = Level3DConfig | Level2DConfig;
+
+// Color palette for 3D cubes — assigned by height layer
+export const CUBE_COLORS = [
+    { top: 0x6EE788, left: 0x3CB850, right: 0x2D9A3E },  // z=0 green
+    { top: 0xFF7DAA, left: 0xE8508A, right: 0xCC3D73 },  // z=1 pink/magenta
+    { top: 0xFFE066, left: 0xE6C84D, right: 0xCCAA33 },  // z=2 yellow
+    { top: 0x7DD8FB, left: 0x42B4E8, right: 0x2EA0D6 },  // z=3 blue
+    { top: 0xC278E8, left: 0x9B45C9, right: 0x8739B4 },  // z=4 purple
+];
+
+// Helper: generate rectangle layer blocks
+function rect(x0: number, y0: number, z: number, w: number, d: number): Block3D[] {
+    const b: Block3D[] = [];
+    for (let y = y0; y < y0 + d; y++)
+        for (let x = x0; x < x0 + w; x++)
+            b.push({ x, y, z });
+    return b;
+}
+
+// ============ 30 LEVELS ============
 
 export const BOXCOUNTING_LEVELS: Record<number, BoxCountingLevelConfig> = {
 
-    // ═══ Phase 1: Simple Boxes 4×4 (L1-5) ═══
+    // ═══ Phase 1: 3D Isometric (L1–15) ═══
+
     1: {
-        level: 1, name: 'เริ่มต้น',
-        gridSize: 4, shapeTypes: 'box',
-        minShapes: 2, maxShapes: 3, maxStack: 1,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 30,
-        description: 'นับกล่องง่ายๆ',
+        level: 1, name: 'เริ่มต้น', mode: '3d',
+        gridSize: 3, timeLimitSeconds: 30,
+        puzzles: [
+            { blocks: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }], answer: 3 },
+            { blocks: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }], answer: 2 },
+        ],
     },
     2: {
-        level: 2, name: 'อุ่นเครื่อง',
-        gridSize: 4, shapeTypes: 'box',
-        minShapes: 3, maxShapes: 4, maxStack: 1,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 30,
-        description: 'กล่องเพิ่มอีกนิด',
+        level: 2, name: 'สี่เหลี่ยม', mode: '3d',
+        gridSize: 3, timeLimitSeconds: 30,
+        puzzles: [
+            { blocks: [...rect(0, 0, 0, 2, 2)], answer: 4 },
+            { blocks: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: 0 }], answer: 5 },
+        ],
     },
     3: {
-        level: 3, name: 'เริ่มคุ้นเคย',
-        gridSize: 4, shapeTypes: 'box',
-        minShapes: 4, maxShapes: 5, maxStack: 1,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 28,
-        description: 'กล่องเริ่มเยอะขึ้น',
+        level: 3, name: 'ตัวแอล', mode: '3d',
+        gridSize: 3, timeLimitSeconds: 30,
+        puzzles: [
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+                    { x: 0, y: 1, z: 0 }, { x: 0, y: 2, z: 0 },
+                ], answer: 5
+            },
+            {
+                blocks: [
+                    { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: 0 },
+                ], answer: 4
+            },
+        ],
     },
     4: {
-        level: 4, name: 'ซ้อนกัน!',
-        gridSize: 4, shapeTypes: 'box',
-        minShapes: 4, maxShapes: 6, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 28,
-        description: 'กล่องเริ่มซ้อนกัน',
+        level: 4, name: 'ซ้อนกัน!', mode: '3d',
+        gridSize: 3, timeLimitSeconds: 28,
+        puzzles: [
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+                    { x: 1, y: 0, z: 1 },
+                ], answer: 4
+            },
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                ], answer: 5
+            },
+        ],
     },
     5: {
-        level: 5, name: 'สังเกตดีๆ',
-        gridSize: 4, shapeTypes: 'box',
-        minShapes: 5, maxShapes: 7, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 26,
-        description: 'นับทุกชิ้นนะ!',
+        level: 5, name: 'มองให้ดี', mode: '3d',
+        gridSize: 3, timeLimitSeconds: 28,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 2, 2),
+                    { x: 0, y: 0, z: 1 },
+                ], answer: 5
+            },
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+                    { x: 0, y: 1, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                ], answer: 6
+            },
+        ],
     },
-
-    // ═══ Phase 2: Box + bigger grid + stacking (L6-10) ═══
     6: {
-        level: 6, name: 'กว้างขึ้น',
-        gridSize: 5, shapeTypes: 'box',
-        minShapes: 5, maxShapes: 8, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 26,
-        description: 'กริดใหญ่ขึ้น!',
+        level: 6, name: 'กว้างขึ้น', mode: '3d',
+        gridSize: 4, timeLimitSeconds: 28,
+        puzzles: [
+            { blocks: [...rect(0, 0, 0, 3, 2)], answer: 6 },
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 3, y: 0, z: 0 },
+                    { x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: 0 },
+                ], answer: 7
+            },
+        ],
     },
     7: {
-        level: 7, name: 'มากขึ้นเรื่อยๆ',
-        gridSize: 5, shapeTypes: 'box',
-        minShapes: 6, maxShapes: 9, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 24,
-        description: 'กล่องเยอะขึ้นอีก',
+        level: 7, name: 'ตัวแอลซ้อน', mode: '3d',
+        gridSize: 4, timeLimitSeconds: 26,
+        puzzles: [
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+                    { x: 0, y: 1, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                    { x: 0, y: 1, z: 1 },
+                ], answer: 7
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                ], answer: 8
+            },
+        ],
     },
     8: {
-        level: 8, name: 'สูงขึ้น',
-        gridSize: 5, shapeTypes: 'box',
-        minShapes: 7, maxShapes: 10, maxStack: 3,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 24,
-        description: 'ซ้อน 3 ชั้นแล้ว!',
+        level: 8, name: 'บันได', mode: '3d',
+        gridSize: 4, timeLimitSeconds: 26,
+        puzzles: [
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 6
+            },
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 3, y: 0, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 7
+            },
+        ],
     },
     9: {
-        level: 9, name: 'สีสัน',
-        gridSize: 5, shapeTypes: 'box',
-        minShapes: 8, maxShapes: 11, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 22,
-        description: 'มี 2 สี! นับเฉพาะสีที่ถาม',
+        level: 9, name: 'ฐานกว้าง', mode: '3d',
+        gridSize: 4, timeLimitSeconds: 24,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 3),
+                    { x: 1, y: 1, z: 1 },
+                ], answer: 10
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    ...rect(0, 0, 1, 2, 2),
+                ], answer: 10
+            },
+        ],
     },
     10: {
-        level: 10, name: 'จำสีให้ดี',
-        gridSize: 5, shapeTypes: 'box',
-        minShapes: 9, maxShapes: 12, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 22,
-        description: 'จำแนกสีแล้วนับ',
+        level: 10, name: 'ปิรามิดเล็ก', mode: '3d',
+        gridSize: 4, timeLimitSeconds: 24,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 }, { x: 0, y: 1, z: 1 },
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 10
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 },
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 9
+            },
+        ],
     },
-
-    // ═══ Phase 3: Box on 6×6 (L11-15) ═══
     11: {
-        level: 11, name: 'กริดใหญ่',
-        gridSize: 6, shapeTypes: 'box',
-        minShapes: 8, maxShapes: 12, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 22,
-        description: 'กริด 6×6 แล้ว!',
+        level: 11, name: 'สองชั้น', mode: '3d',
+        gridSize: 5, timeLimitSeconds: 22,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 3),
+                    ...rect(0, 0, 1, 2, 2),
+                ], answer: 13
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 4, 2),
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 }, { x: 0, y: 1, z: 1 },
+                ], answer: 11
+            },
+        ],
     },
     12: {
-        level: 12, name: 'ท้าทาย',
-        gridSize: 6, shapeTypes: 'box',
-        minShapes: 10, maxShapes: 14, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 20,
-        description: 'กล่องเยอะมาก!',
+        level: 12, name: 'สามชั้น', mode: '3d',
+        gridSize: 5, timeLimitSeconds: 22,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    ...rect(0, 0, 1, 2, 2),
+                    { x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 },
+                ], answer: 12
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 2),
+                    ...rect(0, 0, 1, 2, 2),
+                    { x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 },
+                    { x: 0, y: 1, z: 2 }, { x: 1, y: 1, z: 2 },
+                ], answer: 14
+            },
+        ],
     },
     13: {
-        level: 13, name: 'สับสน',
-        gridSize: 6, shapeTypes: 'box',
-        minShapes: 10, maxShapes: 14, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 20,
-        description: 'สังเกตสีให้ดี',
+        level: 13, name: 'บันไดใหญ่', mode: '3d',
+        gridSize: 5, timeLimitSeconds: 20,
+        puzzles: [
+            {
+                blocks: [
+                    { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 3, y: 0, z: 0 },
+                    { x: 0, y: 1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 1, z: 0 },
+                    { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 1 }, { x: 2, y: 0, z: 1 },
+                    { x: 0, y: 1, z: 1 },
+                    { x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 },
+                    { x: 0, y: 0, z: 3 },
+                ], answer: 14
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 3),
+                    ...rect(0, 0, 1, 2, 2),
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 14
+            },
+        ],
     },
     14: {
-        level: 14, name: 'เต็มกริด',
-        gridSize: 6, shapeTypes: 'box',
-        minShapes: 12, maxShapes: 16, maxStack: 3,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 18,
-        description: 'เยอะจนเต็มกริด!',
+        level: 14, name: 'ตึกใหญ่', mode: '3d',
+        gridSize: 5, timeLimitSeconds: 20,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 4),
+                    ...rect(0, 0, 1, 2, 2),
+                    { x: 0, y: 0, z: 2 },
+                ], answer: 17
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 3, 3),
+                    ...rect(0, 0, 1, 2, 2),
+                    { x: 0, y: 0, z: 2 }, { x: 1, y: 0, z: 2 },
+                ], answer: 15
+            },
+        ],
     },
     15: {
-        level: 15, name: 'ตึกสูง',
-        gridSize: 6, shapeTypes: 'box',
-        minShapes: 12, maxShapes: 16, maxStack: 4,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 18,
-        description: 'ซ้อน 4 ชั้น!',
+        level: 15, name: 'ปิรามิด', mode: '3d',
+        gridSize: 5, timeLimitSeconds: 18,
+        puzzles: [
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 4, 4),   // 16
+                    ...rect(0, 0, 1, 3, 3),   // 9
+                    ...rect(0, 0, 2, 2, 2),   // 4
+                    { x: 0, y: 0, z: 3 },     // 1
+                ], answer: 30
+            },
+            {
+                blocks: [
+                    ...rect(0, 0, 0, 5, 3),   // 15
+                    ...rect(0, 0, 1, 4, 2),   // 8
+                    ...rect(0, 0, 2, 3, 1),   // 3
+                    { x: 0, y: 0, z: 3 }, { x: 1, y: 0, z: 3 },  // 2
+                ], answer: 28
+            },
+        ],
     },
 
-    // ═══ Phase 4: Triangles (L16-20) ═══
+    // ═══ Phase 2: 2D Orthographic Views (L16–30) ═══
+    // heightMap[row][col] = number of blocks stacked at that position
+
     16: {
-        level: 16, name: 'สามเหลี่ยม!',
-        gridSize: 5, shapeTypes: 'triangle',
-        minShapes: 3, maxShapes: 5, maxStack: 1,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 26,
-        description: 'รูปทรงใหม่! สามเหลี่ยม',
+        level: 16, name: 'มุมมองใหม่', mode: '2d',
+        timeLimitSeconds: 35,
+        puzzles: [
+            { heightMap: [[1, 1], [1, 0]], answer: 3 },
+            { heightMap: [[1, 1], [1, 1]], answer: 4 },
+        ],
     },
     17: {
-        level: 17, name: 'สามเหลี่ยมเพิ่ม',
-        gridSize: 5, shapeTypes: 'triangle',
-        minShapes: 4, maxShapes: 7, maxStack: 1,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 24,
-        description: 'สามเหลี่ยมเยอะขึ้น',
+        level: 17, name: 'เริ่มซ้อน', mode: '2d',
+        timeLimitSeconds: 35,
+        puzzles: [
+            { heightMap: [[2, 0], [1, 1]], answer: 4 },
+            { heightMap: [[1, 1], [2, 1]], answer: 5 },
+        ],
     },
     18: {
-        level: 18, name: 'ซ้อนสามเหลี่ยม',
-        gridSize: 5, shapeTypes: 'triangle',
-        minShapes: 5, maxShapes: 8, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 22,
-        description: 'สามเหลี่ยมซ้อนกัน!',
+        level: 18, name: 'นึกภาพ', mode: '2d',
+        timeLimitSeconds: 32,
+        puzzles: [
+            { heightMap: [[2, 1], [1, 1]], answer: 5 },
+            { heightMap: [[2, 0], [1, 1]], answer: 4 },
+        ],
     },
     19: {
-        level: 19, name: 'กว้างกว่าเดิม',
-        gridSize: 6, shapeTypes: 'triangle',
-        minShapes: 6, maxShapes: 10, maxStack: 2,
-        colorCount: 1, askType: 'count_all',
-        timeLimitSeconds: 22,
-        description: 'กริดใหญ่ + สามเหลี่ยม',
+        level: 19, name: 'กริด 3 ช่อง', mode: '2d',
+        timeLimitSeconds: 32,
+        puzzles: [
+            { heightMap: [[1, 1, 0], [0, 1, 1], [0, 0, 1]], answer: 5 },
+            { heightMap: [[1, 1, 1], [0, 1, 0], [0, 0, 0]], answer: 4 },
+        ],
     },
     20: {
-        level: 20, name: 'สามเหลี่ยมสี',
-        gridSize: 6, shapeTypes: 'triangle',
-        minShapes: 7, maxShapes: 11, maxStack: 2,
-        colorCount: 2, askType: 'count_color',
-        timeLimitSeconds: 20,
-        description: 'สามเหลี่ยม 2 สี!',
+        level: 20, name: 'ลึกขึ้น', mode: '2d',
+        timeLimitSeconds: 30,
+        puzzles: [
+            { heightMap: [[2, 1, 0], [1, 1, 0], [0, 1, 1]], answer: 7 },
+            { heightMap: [[1, 0, 1], [2, 1, 0], [0, 1, 0]], answer: 6 },
+        ],
     },
-
-    // ═══ Phase 5: Mixed shapes, count by shape (L21-25) ═══
     21: {
-        level: 21, name: 'ผสมกัน!',
-        gridSize: 5, shapeTypes: 'mixed',
-        minShapes: 4, maxShapes: 7, maxStack: 1,
-        colorCount: 1, askType: 'count_shape',
-        timeLimitSeconds: 24,
-        description: 'นับเฉพาะรูปทรงที่ถาม',
+        level: 21, name: 'กระจาย', mode: '2d',
+        timeLimitSeconds: 30,
+        puzzles: [
+            { heightMap: [[2, 1, 1], [1, 2, 0], [1, 0, 1]], answer: 9 },
+            { heightMap: [[1, 2, 1], [0, 1, 1], [1, 1, 0]], answer: 8 },
+        ],
     },
     22: {
-        level: 22, name: 'แยกแยะ',
-        gridSize: 5, shapeTypes: 'mixed',
-        minShapes: 5, maxShapes: 8, maxStack: 1,
-        colorCount: 1, askType: 'count_shape',
-        timeLimitSeconds: 22,
-        description: 'สังเกตรูปทรงให้ดี',
+        level: 22, name: 'สูงขึ้น', mode: '2d',
+        timeLimitSeconds: 28,
+        puzzles: [
+            { heightMap: [[3, 1, 0], [2, 1, 1], [1, 1, 1]], answer: 11 },
+            { heightMap: [[2, 0, 1], [1, 3, 0], [0, 1, 2]], answer: 10 },
+        ],
     },
     23: {
-        level: 23, name: 'ผสมกริดใหญ่',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 6, maxShapes: 10, maxStack: 2,
-        colorCount: 1, askType: 'count_shape',
-        timeLimitSeconds: 22,
-        description: 'กริด 6×6 ผสมรูปทรง',
+        level: 23, name: 'ซับซ้อน', mode: '2d',
+        timeLimitSeconds: 28,
+        puzzles: [
+            { heightMap: [[3, 2, 1], [2, 1, 0], [1, 2, 1]], answer: 13 },
+            { heightMap: [[1, 2, 0], [2, 3, 1], [0, 1, 2]], answer: 12 },
+        ],
     },
     24: {
-        level: 24, name: 'ซับซ้อน',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 7, maxShapes: 11, maxStack: 2,
-        colorCount: 1, askType: 'count_shape',
-        timeLimitSeconds: 20,
-        description: 'ซ้อน + ผสม',
+        level: 24, name: 'กริดกว้าง', mode: '2d',
+        timeLimitSeconds: 26,
+        puzzles: [
+            { heightMap: [[1, 1, 0, 0], [2, 1, 1, 0], [0, 1, 1, 0], [0, 0, 1, 1]], answer: 10 },
+            { heightMap: [[2, 1, 0, 0], [1, 1, 0, 0], [0, 1, 1, 1], [0, 0, 1, 2]], answer: 11 },
+        ],
     },
     25: {
-        level: 25, name: 'หลายสีผสม',
-        gridSize: 5, shapeTypes: 'mixed',
-        minShapes: 6, maxShapes: 9, maxStack: 1,
-        colorCount: 2, askType: 'count_shape',
-        timeLimitSeconds: 22,
-        description: 'ผสม 2 สี นับเฉพาะรูปทรง!',
+        level: 25, name: 'แนวทแยง', mode: '2d',
+        timeLimitSeconds: 26,
+        puzzles: [
+            { heightMap: [[2, 1, 0, 0], [1, 2, 1, 0], [0, 1, 1, 1], [0, 0, 1, 2]], answer: 13 },
+            { heightMap: [[1, 1, 1, 0], [0, 2, 1, 0], [0, 1, 2, 1], [0, 0, 0, 2]], answer: 12 },
+        ],
     },
-
-    // ═══ Phase 6: Mixed + multi-color count shape (L26-30) ═══
     26: {
-        level: 26, name: 'หลอกตา',
-        gridSize: 5, shapeTypes: 'mixed',
-        minShapes: 7, maxShapes: 10, maxStack: 2,
-        colorCount: 2, askType: 'count_shape',
-        timeLimitSeconds: 20,
-        description: 'หลายสี นับเฉพาะรูปทรง!',
+        level: 26, name: 'ท้าทาย', mode: '2d',
+        timeLimitSeconds: 24,
+        puzzles: [
+            { heightMap: [[3, 1, 0, 0], [2, 2, 1, 0], [0, 1, 2, 1], [0, 0, 1, 2]], answer: 16 },
+            { heightMap: [[2, 1, 1, 0], [1, 2, 1, 0], [0, 1, 2, 1], [0, 0, 1, 2]], answer: 15 },
+        ],
     },
     27: {
-        level: 27, name: 'เจาะจง!',
-        gridSize: 5, shapeTypes: 'mixed',
-        minShapes: 6, maxShapes: 9, maxStack: 2,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 22,
-        description: 'นับเฉพาะรูปทรง+สีที่ถาม!',
+        level: 27, name: 'ยากขึ้น', mode: '2d',
+        timeLimitSeconds: 24,
+        puzzles: [
+            { heightMap: [[3, 2, 1, 0], [2, 2, 1, 1], [1, 1, 2, 1], [0, 1, 1, 0]], answer: 19 },
+            { heightMap: [[2, 2, 0, 0], [2, 3, 1, 0], [0, 1, 2, 1], [0, 0, 1, 2]], answer: 17 },
+        ],
     },
     28: {
-        level: 28, name: 'สี่เหลี่ยมสีไหน',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 8, maxShapes: 12, maxStack: 2,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 20,
-        description: 'กริดใหญ่ + เจาะจงสี+ทรง',
+        level: 28, name: 'กริดยักษ์', mode: '2d',
+        timeLimitSeconds: 22,
+        puzzles: [
+            { heightMap: [[1, 1, 0, 0, 0], [1, 2, 1, 0, 0], [0, 1, 2, 1, 0], [0, 0, 1, 1, 1], [0, 0, 0, 1, 1]], answer: 15 },
+            { heightMap: [[2, 1, 0, 0, 0], [1, 1, 1, 0, 0], [0, 1, 1, 1, 0], [0, 0, 1, 1, 1], [0, 0, 0, 1, 1]], answer: 14 },
+        ],
     },
     29: {
-        level: 29, name: 'ท้าสมาธิ',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 8, maxShapes: 12, maxStack: 3,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 20,
-        description: 'ซ้อน 3 ชั้น + เจาะจง',
+        level: 29, name: 'ท้าสมาธิ', mode: '2d',
+        timeLimitSeconds: 22,
+        puzzles: [
+            { heightMap: [[2, 1, 0, 0, 0], [1, 3, 1, 0, 0], [0, 2, 2, 1, 0], [0, 0, 1, 2, 1], [0, 0, 0, 1, 2]], answer: 20 },
+            { heightMap: [[1, 1, 0, 0, 0], [2, 2, 1, 0, 0], [0, 2, 2, 1, 0], [0, 0, 1, 2, 1], [0, 0, 0, 1, 1]], answer: 18 },
+        ],
     },
     30: {
-        level: 30, name: 'กริดใหญ่เจาะจง',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 10, maxShapes: 14, maxStack: 3,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 18,
-        description: 'เยอะ + เจาะจง!',
-    },
-
-    // ═══ Phase 7: 7×7 mixed + multi-color (L31-35) ═══
-    31: {
-        level: 31, name: 'กริดยักษ์',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 8, maxShapes: 13, maxStack: 2,
-        colorCount: 2, askType: 'count_shape',
+        level: 30, name: 'ตำนาน', mode: '2d',
         timeLimitSeconds: 20,
-        description: 'กริด 7×7 นับรูปทรง!',
-    },
-    32: {
-        level: 32, name: 'ยักษ์เจาะจง',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 10, maxShapes: 15, maxStack: 3,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 18,
-        description: '7×7 เจาะจงสี+ทรง!',
-    },
-    33: {
-        level: 33, name: '3 สี!',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 10, maxShapes: 14, maxStack: 3,
-        colorCount: 3, askType: 'count_shape',
-        timeLimitSeconds: 18,
-        description: '3 สี! นับรูปทรง',
-    },
-    34: {
-        level: 34, name: '3 สีเจาะจง',
-        gridSize: 6, shapeTypes: 'mixed',
-        minShapes: 10, maxShapes: 14, maxStack: 3,
-        colorCount: 3, askType: 'count_shape_color',
-        timeLimitSeconds: 18,
-        description: '3 สี! เจาะจงสี+ทรง',
-    },
-    35: {
-        level: 35, name: 'ซ้อนสูง',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 10, maxShapes: 16, maxStack: 4,
-        colorCount: 2, askType: 'count_shape_color',
-        timeLimitSeconds: 16,
-        description: 'ซ้อน 4 ชั้น + เจาะจง!',
-    },
-
-    // ═══ Phase 8: Final challenge (L36-40) ═══
-    36: {
-        level: 36, name: 'ท้าทายสุด',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 12, maxShapes: 16, maxStack: 3,
-        colorCount: 3, askType: 'count_shape',
-        timeLimitSeconds: 16,
-        description: '7×7 + 3 สี นับรูปทรง!',
-    },
-    37: {
-        level: 37, name: 'มืออาชีพ',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 12, maxShapes: 18, maxStack: 3,
-        colorCount: 3, askType: 'count_shape_color',
-        timeLimitSeconds: 16,
-        description: '7×7 + 3 สี เจาะจง!',
-    },
-    38: {
-        level: 38, name: 'สุดยอด',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 14, maxShapes: 18, maxStack: 4,
-        colorCount: 3, askType: 'count_shape_color',
-        timeLimitSeconds: 14,
-        description: 'ซ้อน 4 + 3 สี เจาะจง!',
-    },
-    39: {
-        level: 39, name: 'แชมป์',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 14, maxShapes: 20, maxStack: 4,
-        colorCount: 3, askType: 'count_shape_color',
-        timeLimitSeconds: 14,
-        description: 'เต็มกริด! 3 สี เจาะจง!',
-    },
-    40: {
-        level: 40, name: 'ตำนาน',
-        gridSize: 7, shapeTypes: 'mixed',
-        minShapes: 16, maxShapes: 22, maxStack: 4,
-        colorCount: 3, askType: 'count_shape_color',
-        timeLimitSeconds: 12,
-        description: 'ด่านสุดท้าย! ท้าทายที่สุด!',
+        puzzles: [
+            { heightMap: [[4, 3, 1, 0, 0], [3, 2, 2, 1, 0], [1, 2, 2, 1, 0], [0, 1, 1, 1, 1], [0, 0, 0, 1, 0]], answer: 27 },
+            { heightMap: [[3, 2, 1, 0, 0], [2, 3, 2, 1, 0], [1, 2, 1, 0, 0], [0, 1, 1, 1, 1], [0, 0, 0, 1, 2]], answer: 25 },
+        ],
     },
 };
