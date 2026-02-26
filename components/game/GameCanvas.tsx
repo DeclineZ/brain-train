@@ -125,6 +125,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-11-pipe-patch') {
           const { PipePatchTutorialScene } = await import('@/games/game-11-pipe-patch/TutorialScene');
           config.scene = PipePatchTutorialScene;
+        } else if (gameId === 'game-21-parking-jam') {
+          const { ParkingJamTutorialScene } = await import('@/games/game-21-parking-jam/TutorialScene');
+          config.scene = ParkingJamTutorialScene;
         }
       }
 

@@ -186,6 +186,8 @@ function getDefaultLevelCount(gameId: string): number {
       return 30; // DeepHook Metrics has 30 levels
     case 'game-17-floatingmarket':
       return 30; // Floating Market has 30 levels
+    case 'game-21-parking-jam':
+      return 24; // Parking Jam has 24 levels
     default:
       return 12; // Default for other games
   }

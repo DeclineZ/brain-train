@@ -82,6 +82,7 @@ export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: 
     "game-15-taxidriver": "bg-yellow-100 text-yellow-800 border-yellow-400",
     "game-17-floatingmarket": "bg-cyan-100 text-cyan-800 border-cyan-400",
     "game-20-boxcounting": "bg-orange-100 text-orange-800 border-orange-400",
+    "game-21-parking-jam": "bg-sky-100 text-sky-800 border-sky-400",
   };
 
   const tierBasedGames = new Set([
