@@ -2,7 +2,7 @@
 
 // ==================== GAME MODES ====================
 
-export type GameMode = 'tutorial' | 'modeA' | 'modeB' | 'hybrid' | 'bonus';
+export type GameMode = 'tutorial' | 'modeA' | 'modeB' | 'hybrid' | 'bonus' | 'quantityMode';
 
 // ==================== ITEM SYSTEM ====================
 
@@ -32,6 +32,8 @@ export interface LevelRule {
     filterByItemId?: boolean;
     /** Negative rule: "collect NOT X" — collect everything EXCEPT avoidFilter */
     negativeRule?: boolean;
+    /** Quantity mode: absolute quantities of items to collect */
+    targetQuantities?: Record<string, number>;
 }
 
 // ==================== LEVEL CONFIG ====================

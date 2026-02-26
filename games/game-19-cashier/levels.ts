@@ -13,6 +13,9 @@ export interface CashierLevelConfig {
     // Phase 3 Settings
     deceptiveCurrency: boolean;  // Coins sized counterintuitively to value
     invertedVisuals: boolean;    // Extreme deception
+
+    // Time Pressure Settings
+    patienceDurationMs: number;
 }
 
 export const CASHIER_LEVELS: Record<number, CashierLevelConfig> = {};
@@ -29,12 +32,14 @@ for (let i = 1; i <= 30; i++) {
         paymentDisguised: false,
         deceptiveCurrency: false,
         invertedVisuals: false,
+        patienceDurationMs: 30000,
     };
 
     if (i <= 5) {
         // Tier 1: Onboarding
         config.difficultyTier = "easy";
         config.tallyItemsCount = 2 + Math.floor((i - 1) / 2); // 2-3 items
+        config.patienceDurationMs = 120000; // 2 minutes
     } else if (i <= 10) {
         // Tier 2: Selective Attention
         config.difficultyTier = "normal";
@@ -42,6 +47,7 @@ for (let i = 1; i <= 30; i++) {
         config.tallyDistractors = i >= 6 ? 1 : 0;
         if (i >= 8) config.tallyDistractors = 2;
         config.tallyLimitRule = i >= 10;
+        config.patienceDurationMs = 110000;
     } else if (i <= 15) {
         // Tier 3: Task Switching
         config.difficultyTier = "normal";
@@ -49,6 +55,7 @@ for (let i = 1; i <= 30; i++) {
         config.tallyDistractors = 1; // Keep it mild while introducing mixed
         config.paymentMixed = true;
         config.paymentDisguised = i >= 14;
+        config.patienceDurationMs = 100000;
     } else if (i <= 20) {
         // Tier 4: Inhibitory Control
         config.difficultyTier = "hard";
@@ -57,6 +64,7 @@ for (let i = 1; i <= 30; i++) {
         config.paymentMixed = false;
         config.deceptiveCurrency = true;
         config.invertedVisuals = i >= 19;
+        config.patienceDurationMs = 90000;
     } else if (i <= 25) {
         // Tier 5: Compound Friction
         config.difficultyTier = "hard";
@@ -66,6 +74,7 @@ for (let i = 1; i <= 30; i++) {
         config.paymentMixed = true;
         config.paymentDisguised = true;
         config.deceptiveCurrency = false; // Give a break before all-in
+        config.patienceDurationMs = 80000;
     } else {
         // Tier 6: The Master Checkout
         config.difficultyTier = "nightmare";
@@ -77,6 +86,7 @@ for (let i = 1; i <= 30; i++) {
         config.paymentDisguised = true;
         config.deceptiveCurrency = true;
         config.invertedVisuals = true;
+        config.patienceDurationMs = 70000;
     }
 
     CASHIER_LEVELS[i] = config;

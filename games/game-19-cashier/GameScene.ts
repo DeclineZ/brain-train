@@ -29,6 +29,18 @@ export class CashierGameScene extends Phaser.Scene {
     private score: number = 0;
     private stars: number = 3;
 
+    // Patience Meter Data
+    private maxPatience: number = 30000;
+    private currentPatience: number = 30000;
+    private isPatienceActive: boolean = false;
+    private patienceBarBg!: Phaser.GameObjects.Rectangle;
+    private patienceBarFill!: Phaser.GameObjects.Rectangle;
+    private currentBubbleStage: number = 0; // 0=none, 1=50%, 2=25%, 3=0%
+    private speechBubbleTimerEvent?: Phaser.Time.TimerEvent;
+    private peopleGroup!: Phaser.GameObjects.Group;
+    private firstPersonSprite: Phaser.GameObjects.Image | null = null;
+    private personCount: number = 0;
+
     // Phase 1 Data
     private validTotal: number = 0;
 
@@ -45,6 +57,7 @@ export class CashierGameScene extends Phaser.Scene {
     private stickyNoteGroup!: Phaser.GameObjects.Group;
     private numpadGroup!: Phaser.GameObjects.Group;
     private cashDrawerGroup!: Phaser.GameObjects.Group;
+    private phase1MonitorGroup!: Phaser.GameObjects.Group;
     private posMonitorText!: Phaser.GameObjects.Text;
     private inputDisplay!: Phaser.GameObjects.Text;
     private displayedInput: string = "";
@@ -71,6 +84,13 @@ export class CashierGameScene extends Phaser.Scene {
         this.visual_hesitation_time_ms = 0; this.score = 100; this.stars = 3;
         this.validTotal = 0; this.displayedInput = "";
         this.changeGivenSoFar = 0;
+
+        this.maxPatience = this.config.patienceDurationMs || 30000;
+        this.currentPatience = this.maxPatience;
+        this.isPatienceActive = false;
+        this.currentBubbleStage = 0;
+        this.personCount = 0;
+        this.firstPersonSprite = null;
     }
 
     preload() {
@@ -92,18 +112,38 @@ export class CashierGameScene extends Phaser.Scene {
         this.load.image('ui-pos-monitor', 'ui-pos-monitor.png');
         this.load.image('ui-customer-hand', 'ui-customer-hand.png');
         this.load.image('game-bg', 'game-bg.png');
+        this.load.image('person-silhouette', 'person.png');
+
+        // Sounds
+        this.load.setPath(''); // Reset path for global sounds
+        this.load.audio('sfx-bg-music', '/assets/sounds/cashier/bg-music.mp3');
+        this.load.audio('sfx-beep', '/assets/sounds/cashier/beep.mp3');
+        this.load.audio('sfx-register', '/assets/sounds/cashier/register.mp3');
+        this.load.audio('sfx-pop', '/assets/sounds/gridhunter/pop.mp3');
+        this.load.audio('sfx-pass', '/assets/sounds/global/level-pass.mp3');
+        this.load.audio('sfx-fail', '/assets/sounds/global/level-fail.mp3');
+        this.load.audio('sfx-error', '/assets/sounds/global/error.mp3');
     }
 
     create() {
-        // Hold reference to background to scale it later
-        this.bgImage = this.add.image(400, 600, 'game-bg').setDepth(-1);
+        // Hold reference to background to scale it later and place it furthest back
+        this.bgImage = this.add.image(400, 600, 'game-bg').setDepth(-3);
         this.bgImage.setTint(0xcccccc); // Darken slightly so foreground pops
         if (this.bgImage.postFX) this.bgImage.postFX.addBlur(2, 2, 1); // True blur if supported
 
         // Responsive handling (keep game centered within expanding canvas)
         this.scale.on('resize', this.resizeCallback, this);
+
+        // Start background music
+        const bgMusic = this.sound.add('sfx-bg-music', { loop: true, volume: 0.3 });
+        bgMusic.play();
+
         this.events.once('shutdown', () => {
             this.scale.off('resize', this.resizeCallback, this);
+            bgMusic.stop();
+        });
+        this.events.once('destroy', () => {
+            bgMusic.stop();
         });
 
         this.dynamicItemsGroup = this.add.group();
@@ -111,6 +151,8 @@ export class CashierGameScene extends Phaser.Scene {
         this.numpadGroup = this.add.group();
         this.cashDrawerGroup = this.add.group();
         this.feedbackGroup = this.add.group();
+        this.phase1MonitorGroup = this.add.group();
+        this.peopleGroup = this.add.group();
 
         this.createEnvironment();
         // Shift Numpad to the left (250 instead of 400) to make room for desk notes
@@ -120,6 +162,8 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Hide Drawer initially
         this.cashDrawerGroup.setVisible(false);
+
+        this.createPatienceMeter();
 
         this.resizeCallback(this.scale.gameSize);
         this.startPhase1();
@@ -142,9 +186,19 @@ export class CashierGameScene extends Phaser.Scene {
         }
     }
 
-    update() {
+    update(time: number, delta: number) {
         if (this.isBeltMoving && this.beltSprite) {
             this.beltSprite.tilePositionX -= 1.5;
+        }
+
+        if (this.isPatienceActive && this.state !== GameState.INIT && this.state !== GameState.GAME_OVER) {
+            this.currentPatience -= delta;
+            if (this.currentPatience <= 0) {
+                this.currentPatience = 0;
+                this.isPatienceActive = false; // Stop draining
+                this.triggerPatiencePenalty();
+            }
+            this.updatePatienceVisuals();
         }
     }
 
@@ -178,6 +232,157 @@ export class CashierGameScene extends Phaser.Scene {
             fontSize: '28px', color: '#053305', fontFamily: 'monospace', padding: { x: 5, y: 5 }, lineSpacing: 5,
             wordWrap: { width: 400 }
         }).setOrigin(0, 0).setDepth(1);
+    }
+
+    private createPatienceMeter() {
+        // Position relative to top right
+        const mx = 650;
+        const my = 50;
+
+        // Clean modern progress bar
+        const barFrame = this.add.rectangle(mx - 100, my, 220, 24, 0x000000, 0.4).setOrigin(0, 0.5).setDepth(200);
+        barFrame.setStrokeStyle(2, 0xffffff, 0.8);
+        this.patienceBarBg = barFrame;
+
+        // Inner track
+        this.add.rectangle(mx - 98, my, 216, 20, 0x000000, 0.6).setOrigin(0, 0.5).setDepth(200);
+
+        // Fill
+        this.patienceBarFill = this.add.rectangle(mx - 98, my, 216, 20, 0x22c55e).setOrigin(0, 0.5).setDepth(201);
+    }
+
+    private updatePatienceVisuals() {
+        if (!this.patienceBarFill) return;
+
+        const pct = Math.max(0, this.currentPatience / this.maxPatience);
+        this.patienceBarFill.width = 200 * pct;
+
+        if (pct > 0.5) this.patienceBarFill.setFillStyle(0x22c55e); // Green
+        else if (pct > 0.25) this.patienceBarFill.setFillStyle(0xeab308); // Yellow
+        else this.patienceBarFill.setFillStyle(0xef4444); // Red
+
+        this.updateQueueSilhouettes(pct);
+        this.checkSpeechBubbles(pct);
+    }
+
+    private updateQueueSilhouettes(pct: number) {
+        let targetPeople = 0;
+        if (pct <= 0.99) targetPeople = 1; // 1st person appears immediately upon level start
+        if (pct <= 0.5) targetPeople = 2; // 2nd person
+        if (pct <= 0.25) targetPeople = 3; // 3rd person
+        if (pct <= 0.0) targetPeople = 4; // 4th person
+
+        while (this.personCount < targetPeople) {
+            this.addPersonSilhouette();
+        }
+    }
+
+    private addPersonSilhouette() {
+        this.personCount++;
+        // Position alternately left and right, pushed outside the monitor frame
+        const positions = [
+            { x: 130, y: 380, scale: 3.5 }, // 1st: Far Left
+            { x: 670, y: 380, scale: 3.4 },  // 2nd: Far Right 
+            { x: 50, y: 350, scale: 3.2 }, // 3rd: Very Far Left
+            { x: 750, y: 350, scale: 3.1 }  // 4th: Very Far Right
+        ];
+
+        const pos = positions[(this.personCount - 1) % positions.length];
+
+        const person = this.add.image(pos.x, pos.y, 'person-silhouette').setDepth(-2);
+        person.setScale(pos.scale);
+        person.setAlpha(0);
+
+        if (this.personCount === 1) {
+            this.firstPersonSprite = person;
+        }
+
+        this.peopleGroup.add(person);
+
+        this.tweens.add({
+            targets: person,
+            alpha: 0.85,
+            y: pos.y - 15, // stepping forward subtly
+            duration: 800,
+            ease: 'Power2'
+        });
+    }
+
+    private checkSpeechBubbles(pct: number) {
+        if (pct <= 0.5 && pct > 0.25 && this.currentBubbleStage < 1) {
+            this.currentBubbleStage = 1;
+            this.showSpeechBubble("แถวเริ่มยาวแล้วนะจ๊ะ...");
+        } else if (pct <= 0.25 && pct > 0 && this.currentBubbleStage < 2) {
+            this.currentBubbleStage = 2;
+            this.showSpeechBubble("มีคนรอคิวอีกนิดหน่อยจ้า...");
+        }
+    }
+
+    private triggerPatiencePenalty() {
+        this.currentBubbleStage = 3;
+        this.showSpeechBubble("คิวเริ่มยาวมากแล้วจ้า...", true);
+
+        this.sound.play('sfx-fail', { volume: 0.6 });
+
+        this.score = Math.max(0, this.score - 20);
+        this.stars = Math.max(1, this.stars - 1);
+        this.operator_errors++; // Consider this an operator pressure error
+
+        this.tweens.add({
+            targets: this.patienceBarBg,
+            scaleX: 1.1, scaleY: 1.1,
+            yoyo: true, repeat: 3, duration: 150
+        });
+    }
+
+    private showSpeechBubble(text: string, isUrgent: boolean = false) {
+        if (this.speechBubbleTimerEvent) this.speechBubbleTimerEvent.remove();
+
+        const existingBubble = this.children.getByName('speech_bubble_group');
+        if (existingBubble) existingBubble.destroy();
+
+        // Place below the meter
+        const container = this.add.container(600, 140).setName('speech_bubble_group').setDepth(210);
+        container.setAlpha(0);
+
+        const bubbleBg = this.add.rectangle(0, 0, 320, 70, 0xffffff).setStrokeStyle(3, isUrgent ? 0xff0000 : 0x000000).setOrigin(0.5);
+
+        // Tail pointing upwards towards timer
+        const tailFill = this.add.triangle(30, -35, 0, 0, 20, 0, 10, -20, 0xffffff).setOrigin(0, 0);
+        const tailStroke = this.add.triangle(30, -35, 0, 0, 20, 0, 10, -20).setStrokeStyle(3, isUrgent ? 0xff0000 : 0x000000).setOrigin(0, 0);
+
+        const textObj = this.add.text(0, 0, text, { fontSize: '24px', color: isUrgent ? '#ff0000' : '#000000', align: 'center', wordWrap: { width: 300 } }).setOrigin(0.5);
+
+        // Render stroke tail first, then bubble, then fill tail over the bubble border
+        container.add([tailStroke, bubbleBg, tailFill, textObj]);
+
+        this.tweens.add({
+            targets: container,
+            alpha: 1,
+            y: 120, // pop down
+            duration: 300,
+            ease: 'Back.easeOut'
+        });
+
+        this.tweens.add({
+            targets: container,
+            y: 125,
+            yoyo: true,
+            repeat: -1,
+            duration: 1000,
+            ease: 'Sine.easeInOut'
+        });
+
+        this.speechBubbleTimerEvent = this.time.delayedCall(isUrgent ? 5000 : 3500, () => {
+            if (container) {
+                this.tweens.add({
+                    targets: container,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => container.destroy()
+                });
+            }
+        });
     }
 
     private createNumpad(sx: number, sy: number) {
@@ -222,6 +427,7 @@ export class CashierGameScene extends Phaser.Scene {
                 this.numpadGroup.add(btnText);
 
                 btnBg.on('pointerdown', () => {
+                    this.sound.play('sfx-beep', { volume: 0.8 });
                     this.handleNumpadInput(label);
                     btnBg.y += 2; btnText.y += 2; btnShadow.y -= 2; // Press effect
                     this.time.delayedCall(100, () => { btnBg.y -= 2; btnText.y -= 2; btnShadow.y += 2; });
@@ -279,6 +485,7 @@ export class CashierGameScene extends Phaser.Scene {
         this.cashDrawerGroup.add(submitText);
 
         submitBg.on('pointerdown', () => {
+            this.sound.play('sfx-beep', { volume: 0.8 });
             submitBg.setAlpha(0.7);
             this.time.delayedCall(100, () => submitBg.setAlpha(1));
             this.checkPhase3();
@@ -311,10 +518,10 @@ export class CashierGameScene extends Phaser.Scene {
         } else {
             // Natural variations
             if (denom.type === 'coin') {
-                if (denom.val === 1) sizeMult = 0.8;
-                if (denom.val === 2) sizeMult = 0.95;
-                if (denom.val === 5) sizeMult = 1.1;
-                if (denom.val === 10) sizeMult = 1.25;
+                if (denom.val === 1) sizeMult = 1.0;
+                if (denom.val === 2) sizeMult = 1.15;
+                if (denom.val === 5) sizeMult = 1.35;
+                if (denom.val === 10) sizeMult = 1.5;
             }
         }
 
@@ -341,12 +548,13 @@ export class CashierGameScene extends Phaser.Scene {
         this.cashDrawerGroup.add(lbl);
 
         // Ensure interactive area is large enough
-        const hw = denom.type === 'bill' ? 140 : 80;
-        const hh = denom.type === 'bill' ? 80 : 80;
+        const hw = denom.type === 'bill' ? 140 : 100;
+        const hh = denom.type === 'bill' ? 80 : 100;
         const hitArea = this.add.rectangle(bx, by, hw, hh, 0x000000, 0).setInteractive({ useHandCursor: true });
         this.cashDrawerGroup.add(hitArea);
 
         hitArea.on('pointerdown', () => {
+            this.sound.play('sfx-pop', { volume: 0.5 });
             this.dispenseChangeAnim(denom.key, sizeMult, visualTint, topObj, denom.type, denom.val);
         });
     }
@@ -364,8 +572,10 @@ export class CashierGameScene extends Phaser.Scene {
         if (this.changeGivenSoFar > this.changeTarget) {
             if (this.config.deceptiveCurrency) this.deceptive_errors++;
             else this.operator_errors++;
+
+            this.sound.play('sfx-error', { volume: 0.5 });
             this.score = Math.max(0, this.score - 5);
-            this.showFloatingFeedback("ทอนเกินยอด!", 0xff0000);
+            this.showSpeechBubble("ทอนเกินยอด!", true);
             this.cameras.main.shake(100, 0.01);
 
             // Clear belt stack and reset
@@ -416,11 +626,34 @@ export class CashierGameScene extends Phaser.Scene {
         });
     }
 
+    private getDenominationsForAmount(amount: number): { key: string, val: number, isCoin: boolean }[] {
+        let remaining = amount;
+        const result: { key: string, val: number, isCoin: boolean }[] = [];
+        const denoms = [
+            { v: 100, k: 'bill-100', c: false },
+            { v: 50, k: 'bill-50', c: false },
+            { v: 20, k: 'bill-20', c: false },
+            { v: 10, k: 'coin-10', c: true },
+            { v: 5, k: 'coin-5', c: true },
+            { v: 2, k: 'coin-2', c: true },
+            { v: 1, k: 'coin-1', c: true },
+        ];
+
+        for (const d of denoms) {
+            while (remaining >= d.v) {
+                result.push({ key: d.k, val: d.v, isCoin: d.c });
+                remaining -= d.v;
+            }
+        }
+        return result;
+    }
+
     private startPhase1() {
         this.state = GameState.PHASE1_TALLY;
         this.numpadGroup.setVisible(true);
         this.cashDrawerGroup.setVisible(false);
         this.isBeltMoving = true;
+        this.isPatienceActive = true;
 
         this.displayedInput = "";
         this.updateDisplay();
@@ -429,7 +662,15 @@ export class CashierGameScene extends Phaser.Scene {
         const availableItems = Phaser.Utils.Array.Shuffle([...SHOP_ITEMS]);
 
         this.validTotal = 0;
-        let p1MonitorText = ">> กรอกยอดที่ต้องชำระ <<\n\n";
+
+        // Setup initial text for P1
+        this.posMonitorText.setText(">> รวมยอดเงิน\nสินค้าบนสายพาน <<");
+        // We will start drawing items centered on the monitor when tapped
+        const monitorCenterY = 240; // Shifted UP slightly to fit inside the monitor bezels
+        const monitorCenterX = 400;
+
+        const promptText = this.add.text(monitorCenterX, monitorCenterY, "แตะสินค้า\nเพื่อดูราคา", { fontSize: '38px', color: '#053305', align: 'center', fontStyle: 'bold' }).setOrigin(0.5);
+        this.phase1MonitorGroup.add(promptText);
 
         let currentBeltX = Math.max(100, 400 - 250);
 
@@ -453,15 +694,12 @@ export class CashierGameScene extends Phaser.Scene {
             let itemVisualQty = 1;
 
             if (isDistractor && !isLimitTrick) {
-                // Keep it on the monitor to trick player, also add to desk note
-                p1MonitorText += `${item.name} x1 ... $${price}\n`;
+                // Add to desk note, do NOT draw it to monitor yet
                 voidItemsStr += `- ${item.name}\n`;
             } else if (isLimitTrick) {
                 itemVisualQty = 3;
-                p1MonitorText += `${item.name} x3 ... $${price * 3}\n`;
                 this.validTotal += (price * 2); // Rule applied behind the scenes
             } else {
-                p1MonitorText += `${item.name} x1 ... $${price}\n`;
                 this.validTotal += price;
             }
 
@@ -469,23 +707,45 @@ export class CashierGameScene extends Phaser.Scene {
             for (let j = 0; j < itemVisualQty; j++) {
                 const py = 560 + Phaser.Math.RND.between(-30, 30);
 
-                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(1.5);
+                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(1.8);
+                itemImg.setInteractive({
+                    useHandCursor: true,
+                    hitArea: new Phaser.Geom.Rectangle(40, -10, itemImg.width, itemImg.height + 20),
+                    hitAreaCallback: Phaser.Geom.Rectangle.Contains
+                });
 
                 // Add simple box shadow
-                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.5);
+                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.8);
 
                 this.dynamicItemsGroup.add(shadow);
                 this.dynamicItemsGroup.add(itemImg);
 
-                if (isDistractor && !isLimitTrick) {
-                    itemImg.setInteractive({ useHandCursor: true });
-                    itemImg.on('pointerdown', () => {
-                        this.distractor_clicks++;
-                        itemImg.setY(itemImg.y - 10);
-                        this.time.delayedCall(100, () => itemImg.setY(itemImg.y + 10));
-                        this.showFloatingFeedback("สินค้านี้ถูกยกเลิก!", 0xffa500);
+                // Tap-to-Reveal Mechanic Handle
+                itemImg.on('pointerdown', () => {
+                    this.sound.play('sfx-pop', { volume: 0.5 });
+                    // Visual Tap Feedback
+                    itemImg.setY(itemImg.y - 10);
+                    itemImg.setScale(1.7);
+                    this.time.delayedCall(100, () => {
+                        itemImg.setY(itemImg.y + 10);
+                        itemImg.setScale(1.5);
                     });
-                }
+
+                    // Clear previous item from monitor completely
+                    this.phase1MonitorGroup.clear(true, true);
+
+                    // Silently register the distractor tap, but visually treat it identically to a normal item
+                    // to force players to use their own memory of the sticky note rules
+                    if (isDistractor && !isLimitTrick) {
+                        this.distractor_clicks++;
+                    }
+
+                    // Dynamically render this item's price on the monitor (regardless of distractor status)
+                    const effectiveQty = isLimitTrick ? 3 : 1;
+                    const effectivePrice = isLimitTrick ? price * 3 : price;
+                    this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
+                });
+
                 currentBeltX += 60;
                 if (currentBeltX > 400 + 350) currentBeltX = 400 - 350; // Wrap around if too many
             }
@@ -498,8 +758,63 @@ export class CashierGameScene extends Phaser.Scene {
         if (deskNoteStr.length > 0) {
             this.createDeskStickyNote(deskNoteStr);
         }
+    }
 
-        this.posMonitorText.setText(p1MonitorText);
+    private drawPhase1MonitorRow(cx: number, cy: number, itemKey: string, qty: number, totalPrice: number) {
+        // Draw physical item icon centered above the cash
+        const iconY = cy - 10; // Shifted down so it doesn't overlap text
+        const icon = this.add.image(cx, iconY, itemKey).setOrigin(0.5).setScale(2.0); // Downscaled slightly from 2.5 to fit
+        this.phase1MonitorGroup.add(icon);
+
+        if (qty > 1) {
+            // Draw quantity text near the icon
+            const qtyText = this.add.text(cx + 60, iconY + 50, `x${qty}`, { fontSize: '36px', color: '#053305', fontFamily: 'monospace', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 4 }).setOrigin(0.5);
+            this.phase1MonitorGroup.add(qtyText);
+        }
+
+        // Draw physical cash representations for the price centered below
+        const cashBreakdown = this.getDenominationsForAmount(totalPrice);
+        const cashY = cy + 100; // Shifted down a bit from 70 to give space between icon and cash
+
+        let currentWidth = 0;
+        const spacing = 15;
+        const elements: any[] = [];
+
+        for (const denom of cashBreakdown) {
+            const dummyImg = this.add.image(0, 0, denom.key);
+            dummyImg.setScale(denom.isCoin ? 1.0 : 0.7);
+            const dw = dummyImg.displayWidth;
+            dummyImg.destroy();
+
+            elements.push({ denom, dw });
+            currentWidth += dw + spacing;
+        }
+        currentWidth -= spacing;
+
+        let startX = cx - (currentWidth / 2);
+
+        for (const el of elements) {
+            const elCenterX = startX + (el.dw / 2);
+            const denomImg = this.add.image(elCenterX, cashY, el.denom.key).setOrigin(0.5);
+            denomImg.setScale(el.denom.isCoin ? 1.0 : 0.7);
+
+            // Standard tints
+            if (!el.denom.isCoin) {
+                if (el.denom.val === 100) denomImg.setTint(0xff6666);
+                if (el.denom.val === 50) denomImg.setTint(0x6666ff);
+                if (el.denom.val === 20) denomImg.setTint(0x66ff66);
+            }
+
+            const fontColor = el.denom.isCoin ? '#000000' : '#ffffff';
+            const fontSize = el.denom.isCoin ? '26px' : '30px';
+            const strokeColor = el.denom.isCoin ? '#ffffff' : '#000000';
+            const lbl = this.add.text(elCenterX, cashY, `${el.denom.val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: 3 }).setOrigin(0.5);
+
+            this.phase1MonitorGroup.add(denomImg);
+            this.phase1MonitorGroup.add(lbl);
+
+            startX += el.dw + spacing;
+        }
     }
 
     private createDeskStickyNote(text: string) {
@@ -561,11 +876,14 @@ export class CashierGameScene extends Phaser.Scene {
             this.time.delayedCall(1200, () => {
                 this.dynamicItemsGroup.clear(true, true);
                 this.stickyNoteGroup.clear(true, true);
+                this.phase1MonitorGroup.clear(true, true); // Clean up the physical cash display
                 this.displayedInput = "";
                 this.updateDisplay();
+                this.sound.play('sfx-register', { volume: 0.7 });
                 this.startPhase2();
             });
         } else {
+            this.sound.play('sfx-error', { volume: 0.5 });
             this.correct_tallies = 0;
             this.score = Math.max(0, this.score - 20);
             this.stars = Math.max(1, this.stars - 1);
@@ -579,6 +897,9 @@ export class CashierGameScene extends Phaser.Scene {
 
     private startPhase2() {
         this.state = GameState.PHASE2_PAYMENT;
+
+        // Clean up Phase 1 visuals just in case
+        this.phase1MonitorGroup.clear(true, true);
 
         let p2MonitorText = ">> กรอกยอดสุทธิใหม่ <<\n\n";
         p2MonitorText += `ยอดรวมเดิม     : $${this.validTotal}\n`;
@@ -644,9 +965,11 @@ export class CashierGameScene extends Phaser.Scene {
             this.time.delayedCall(1200, () => {
                 this.dynamicItemsGroup.clear(true, true);
                 this.displayedInput = "";
+                this.sound.play('sfx-register', { volume: 0.7 });
                 this.startPhase3();
             });
         } else {
+            this.sound.play('sfx-error', { volume: 0.5 });
             this.operator_errors++;
             this.score = Math.max(0, this.score - 20);
             this.stars = Math.max(1, this.stars - 1);
@@ -713,9 +1036,10 @@ export class CashierGameScene extends Phaser.Scene {
 
     private checkPhase3() {
         if (this.changeGivenSoFar === this.changeTarget) {
-            this.showFloatingFeedback("เงินทอนถูกต้อง! ปิดกะ", 0x00ff00);
+            this.showFloatingFeedback("เงินทอนถูกต้อง!", 0x00ff00);
             this.time.delayedCall(1500, () => this.endGame());
         } else {
+            this.sound.play('sfx-error', { volume: 0.5 });
             this.showFloatingFeedback(`ทอนเงินผิด! ยอดรวมคือ $${this.changeTarget}`, 0xff0000);
             this.operator_errors++;
             this.score = Math.max(0, this.score - 10);
@@ -729,6 +1053,7 @@ export class CashierGameScene extends Phaser.Scene {
 
     private endGame() {
         this.state = GameState.GAME_OVER;
+        this.sound.play('sfx-pass', { volume: 0.6 });
         const rawData = {
             level: this.currentLevel,
             score: this.score,

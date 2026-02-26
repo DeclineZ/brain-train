@@ -43,7 +43,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.2,
         itemPoolCategories: ['fruit', 'rock'],
         rule: {
-            instructionThai: 'เก็บผลไม้! หลีกเลี่ยงหิน!',
+            instructionThai: 'เก็บเฉพาะผลไม้เท่านั้น!',
             collectFilter: ['fruit'],
             avoidFilter: ['rock'],
         },
@@ -65,7 +65,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.0,
         itemPoolCategories: ['dessert', 'fruit'],
         rule: {
-            instructionThai: 'เก็บขนม! หลีกเลี่ยงผลไม้!',
+            instructionThai: 'เก็บเฉพาะขนมเท่านั้น!',
             collectFilter: ['dessert'],
             avoidFilter: ['fruit'],
         },
@@ -87,7 +87,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.0,
         itemPoolCategories: ['vegetable', 'fish'],
         rule: {
-            instructionThai: 'เก็บผัก! หลีกเลี่ยงปลา!',
+            instructionThai: 'เก็บเฉพาะผักเท่านั้น!',
             collectFilter: ['vegetable'],
             avoidFilter: ['fish'],
         },
@@ -110,7 +110,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.0,
         itemPoolCategories: ['fruit', 'vegetable'],
         rule: {
-            instructionThai: 'เก็บของสีแดง! หลีกเลี่ยงของสีเขียว!',
+            instructionThai: 'เก็บเฉพาะของสีแดงเท่านั้น!',
             collectFilter: ['apple', 'shrimp', 'thongyod'],
             avoidFilter: ['guava', 'morningglory', 'greenmango', 'lime'],
             filterByItemId: true,
@@ -231,11 +231,128 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         noFailState: true,
     },
 
-    // ========== PHASE 2: THE AFTERNOON RUSH (Levels 11-20) ==========
+    // ========== PHASE 2: NEW QUANTITY MODE (Levels 11-15) ==========
 
-    // Level 11: Mode B — Memory Load: 3
+    // Level 11: Quantity Mode — 1 Target
     11: {
         level: 11,
+        mode: 'quantityMode',
+        boatSpeed: 80,
+        riverWidthRatio: 0.75,
+        obstacleFrequency: 3.5,
+        itemSpawnRate: 2.5,
+        itemPoolCategories: ['fruit'],
+        rule: {
+            instructionThai: 'เก็บแอปเปิล 3 ผล',
+            collectFilter: ['apple'],
+            filterByItemId: true,
+            targetQuantities: { 'apple': 3 }
+        },
+        memoryCapacity: 0,
+        coinFrequency: 4,
+        difficultyMultiplier: 0.9,
+        parTimeSeconds: 40,
+        timeLimitSeconds: 80,
+        itemCount: 10,
+    },
+
+    // Level 12: Quantity Mode — 2 Targets (Low count)
+    12: {
+        level: 12,
+        mode: 'quantityMode',
+        boatSpeed: 85,
+        riverWidthRatio: 0.74,
+        obstacleFrequency: 4.0,
+        itemSpawnRate: 2.2,
+        itemPoolCategories: ['fruit', 'dessert'],
+        rule: {
+            instructionThai: 'เก็บกล้วย 2 ผล และส้ม 2 ผล',
+            collectFilter: ['banana', 'orange'],
+            filterByItemId: true,
+            targetQuantities: { 'banana': 2, 'orange': 2 }
+        },
+        memoryCapacity: 0,
+        coinFrequency: 4,
+        difficultyMultiplier: 0.95,
+        parTimeSeconds: 40,
+        timeLimitSeconds: 80,
+        itemCount: 12,
+    },
+
+    // Level 13: Quantity Mode — 2 Targets (Different counts)
+    13: {
+        level: 13,
+        mode: 'quantityMode',
+        boatSpeed: 88,
+        riverWidthRatio: 0.73,
+        obstacleFrequency: 4.5,
+        itemSpawnRate: 2.0,
+        itemPoolCategories: ['fruit', 'vegetable'],
+        rule: {
+            instructionThai: 'เก็บมะม่วง 4 ผล และฟักทอง 1 ผล',
+            collectFilter: ['mango', 'pumpkin'],
+            filterByItemId: true,
+            targetQuantities: { 'mango': 4, 'pumpkin': 1 }
+        },
+        memoryCapacity: 0,
+        coinFrequency: 3,
+        difficultyMultiplier: 1.0,
+        parTimeSeconds: 45,
+        timeLimitSeconds: 85,
+        itemCount: 14,
+    },
+
+    // Level 14: Quantity Mode — 3 Targets
+    14: {
+        level: 14,
+        mode: 'quantityMode',
+        boatSpeed: 90,
+        riverWidthRatio: 0.72,
+        obstacleFrequency: 5.0,
+        itemSpawnRate: 1.8,
+        itemPoolCategories: ['fruit', 'dessert', 'fish'],
+        rule: {
+            instructionThai: 'เก็บปลา 1 ตัว สับปะรด 2 ผล และแตงโม 2 ผล',
+            collectFilter: ['fish', 'pineapple', 'watermelon'],
+            filterByItemId: true,
+            targetQuantities: { 'fish': 1, 'pineapple': 2, 'watermelon': 2 }
+        },
+        memoryCapacity: 0,
+        coinFrequency: 3,
+        difficultyMultiplier: 1.05,
+        parTimeSeconds: 50,
+        timeLimitSeconds: 90,
+        itemCount: 15,
+    },
+
+    // Level 15: Quantity Mode — High Count
+    15: {
+        level: 15,
+        mode: 'quantityMode',
+        boatSpeed: 95,
+        riverWidthRatio: 0.70,
+        obstacleFrequency: 5.5,
+        itemSpawnRate: 1.5,
+        itemPoolCategories: ['fruit', 'vegetable', 'drink'],
+        rule: {
+            instructionThai: 'เก็บมะพร้าว 5 ผล',
+            collectFilter: ['coconut'],
+            filterByItemId: true,
+            targetQuantities: { 'coconut': 5 }
+        },
+        memoryCapacity: 0,
+        coinFrequency: 2,
+        difficultyMultiplier: 1.1,
+        parTimeSeconds: 55,
+        timeLimitSeconds: 100,
+        itemCount: 16,
+    },
+
+    // ========== PHASE 3: THE AFTERNOON RUSH (Levels 16-25) ==========
+
+    // Level 16: Mode B — Memory Load: 3
+    16: {
+        level: 16,
         mode: 'modeB',
         boatSpeed: 85,
         riverWidthRatio: 0.72,
@@ -254,9 +371,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 12,
     },
 
-    // Level 12: Mode A — Round vs Long Fruits (visual discrimination)
-    12: {
-        level: 12,
+    // Level 17: Mode A — Round vs Long Fruits (visual discrimination)
+    17: {
+        level: 17,
         mode: 'modeA',
         boatSpeed: 90,
         riverWidthRatio: 0.70,
@@ -264,7 +381,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 1.8,
         itemPoolCategories: ['fruit'],
         rule: {
-            instructionThai: 'เก็บผลไม้กลม! หลีกเลี่ยงผลไม้ยาว!',
+            instructionThai: 'เก็บเฉพาะผลไม้กลมเท่านั้น!',
             collectFilter: ['apple', 'orange', 'coconut', 'watermelon'],
             avoidFilter: ['banana', 'mango', 'papaya'],
             filterByItemId: true,
@@ -277,9 +394,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 14,
     },
 
-    // Level 13: Mode B — 3 items, all similar (Green items)
-    13: {
-        level: 13,
+    // Level 18: Mode B — 3 items, all similar (Green items)
+    18: {
+        level: 18,
         mode: 'modeB',
         boatSpeed: 85,
         riverWidthRatio: 0.72,
@@ -300,9 +417,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         similarItems: true,
     },
 
-    // Level 14: Mode B — 3 items, Desserts (Golden items)
-    14: {
-        level: 14,
+    // Level 19: Mode B — 3 items, Desserts (Golden items)
+    19: {
+        level: 19,
         mode: 'modeB',
         boatSpeed: 88,
         riverWidthRatio: 0.70,
@@ -322,9 +439,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         similarItems: true,
     },
 
-    // Level 15: Mode A — Negative Rule: "Collect NOT Durian"
-    15: {
-        level: 15,
+    // Level 20: Mode A — Negative Rule: "Collect NOT Durian"
+    20: {
+        level: 20,
         mode: 'modeA',
         boatSpeed: 90,
         riverWidthRatio: 0.70,
@@ -346,9 +463,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 16,
     },
 
-    // Level 16: Mode B — Memory Load: 4
-    16: {
-        level: 16,
+    // Level 21: Mode B — Memory Load: 4
+    21: {
+        level: 21,
         mode: 'modeB',
         boatSpeed: 90,
         riverWidthRatio: 0.70,
@@ -367,9 +484,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 16,
     },
 
-    // Level 17: Mode B — The Reset (basket empties mid-level)
-    17: {
-        level: 17,
+    // Level 22: Mode B — The Reset (basket empties mid-level)
+    22: {
+        level: 22,
         mode: 'modeB',
         boatSpeed: 88,
         riverWidthRatio: 0.70,
@@ -389,9 +506,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         resetBasketAt: 3,
     },
 
-    // Level 18: Mode A — Moving Targets (items drift)
-    18: {
-        level: 18,
+    // Level 23: Mode A — Moving Targets (items drift)
+    23: {
+        level: 23,
         mode: 'modeA',
         boatSpeed: 95,
         riverWidthRatio: 0.68,
@@ -399,7 +516,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 1.8,
         itemPoolCategories: ['fruit', 'vegetable'],
         rule: {
-            instructionThai: 'เก็บผลไม้! หลีกเลี่ยงผัก!',
+            instructionThai: 'เก็บเฉพาะผลไม้เท่านั้น!',
             collectFilter: ['fruit'],
             avoidFilter: ['vegetable'],
         },
@@ -412,9 +529,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemDrift: true,
     },
 
-    // Level 19: Mode B — 4 items, with distractions
-    19: {
-        level: 19,
+    // Level 24: Mode B — 4 items, with distractions
+    24: {
+        level: 24,
         mode: 'modeB',
         boatSpeed: 90,
         riverWidthRatio: 0.68,
@@ -434,9 +551,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         distractions: true,
     },
 
-    // Level 20: Boss — Rapid Fire (fast item spawns, quick decisions)
-    20: {
-        level: 20,
+    // Level 25: Boss — Rapid Fire (fast item spawns, quick decisions)
+    25: {
+        level: 25,
         mode: 'modeA',
         boatSpeed: 110,
         riverWidthRatio: 0.65,
@@ -458,9 +575,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
 
     // ========== PHASE 3: THE EVENING FESTIVAL (Levels 21-30) ==========
 
-    // Level 21: Hybrid — Mode A → Mode B mid-level
-    21: {
-        level: 21,
+    // Level 26: Hybrid — Mode A → Mode B mid-level
+    26: {
+        level: 26,
         mode: 'hybrid',
         boatSpeed: 90,
         riverWidthRatio: 0.70,
@@ -468,7 +585,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.0,
         itemPoolCategories: ['fruit', 'dessert'],
         rule: {
-            instructionThai: 'เก็บผลไม้! หลีกเลี่ยงขนม!',
+            instructionThai: 'เก็บเฉพาะผลไม้เท่านั้น!',
             collectFilter: ['fruit'],
             avoidFilter: ['dessert'],
         },
@@ -485,9 +602,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         },
     },
 
-    // Level 22: Mode B — Memory Load: 5 (max capacity)
-    22: {
-        level: 22,
+    // Level 27: Mode B — Memory Load: 5 (max capacity)
+    27: {
+        level: 27,
         mode: 'modeB',
         boatSpeed: 88,
         riverWidthRatio: 0.70,
@@ -506,10 +623,10 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 20,
     },
 
-    // Level 23: Mode A — Sequence: collect in order (Noodle → Fish → Vegetable)
+    // Level 28: Mode A — Sequence: collect in order (Noodle → Fish → Vegetable)
     // Implemented as strict category order Mode A variant
-    23: {
-        level: 23,
+    28: {
+        level: 28,
         mode: 'modeA',
         boatSpeed: 85,
         riverWidthRatio: 0.70,
@@ -528,9 +645,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 18,
     },
 
-    // Level 24: Mode B — 5 items, all similar (green items)
-    24: {
-        level: 24,
+    // Level 29: Mode B — 5 items, all similar (green items)
+    29: {
+        level: 29,
         mode: 'modeB',
         boatSpeed: 90,
         riverWidthRatio: 0.68,
@@ -551,9 +668,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         similarItems: true,
     },
 
-    // Level 25: Hybrid — Stroop-like (text one color, collect the other)
-    25: {
-        level: 25,
+    // Level 30: Hybrid — Stroop-like (text one color, collect the other)
+    30: {
+        level: 30,
         mode: 'hybrid',
         boatSpeed: 92,
         riverWidthRatio: 0.68,
@@ -561,7 +678,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 1.8,
         itemPoolCategories: ['fruit', 'dessert', 'vegetable'],
         rule: {
-            instructionThai: 'เก็บผัก! หลีกเลี่ยงผลไม้!',
+            instructionThai: 'เก็บเฉพาะผักเท่านั้น!',
             collectFilter: ['vegetable'],
             avoidFilter: ['fruit'],
         },
@@ -578,9 +695,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         },
     },
 
-    // Level 26: Mode A — Price hunt: collect items < 50 Baht
-    26: {
-        level: 26,
+    // Level 31: Mode A — Price hunt: collect items < 50 Baht
+    31: {
+        level: 31,
         mode: 'modeA',
         boatSpeed: 95,
         riverWidthRatio: 0.66,
@@ -599,9 +716,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemCount: 16,
     },
 
-    // Level 27: Mode B — The Fake-Out (sack shakes but isn't full)
-    27: {
-        level: 27,
+    // Level 32: Mode B — The Fake-Out (sack shakes but isn't full)
+    32: {
+        level: 32,
         mode: 'modeB',
         boatSpeed: 92,
         riverWidthRatio: 0.66,
@@ -621,9 +738,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         distractions: true,
     },
 
-    // Level 28: Mode A — Low visibility (fog/rain)
-    28: {
-        level: 28,
+    // Level 33: Mode A — Low visibility (fog/rain)
+    33: {
+        level: 33,
         mode: 'modeA',
         boatSpeed: 85,
         riverWidthRatio: 0.66,
@@ -631,7 +748,7 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 2.0,
         itemPoolCategories: ['fruit', 'dessert', 'fish'],
         rule: {
-            instructionThai: '🌧️ ฝนตก! เก็บผลไม้! หลีกเลี่ยงปลา!',
+            instructionThai: '🌧️ ฝนตก! เก็บเฉพาะผลไม้เท่านั้น!',
             collectFilter: ['fruit'],
             avoidFilter: ['fish'],
         },
@@ -644,9 +761,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         lowVisibility: true,
     },
 
-    // Level 29: Mode B — Total Recall (5 items, high difficulty)
-    29: {
-        level: 29,
+    // Level 34: Mode B — Total Recall (5 items, high difficulty)
+    34: {
+        level: 34,
         mode: 'modeB',
         boatSpeed: 95,
         riverWidthRatio: 0.64,
@@ -666,9 +783,9 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         similarItems: true,
     },
 
-    // Level 30: Finale — The Festival (celebration, no fail state)
-    30: {
-        level: 30,
+    // Level 35: Finale — The Festival (celebration, no fail state)
+    35: {
+        level: 35,
         mode: 'bonus',
         boatSpeed: 120,
         riverWidthRatio: 0.60,
