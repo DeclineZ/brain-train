@@ -8,6 +8,7 @@ import { DreamDirectGameConfig } from './game-06-dreamdirect/config';
 import { MysterySoundGameConfig } from './game-08-mysterysound/config';
 import { PinkCupGameConfig } from './game-07-pinkcup/config';
 import { TubeSortGameConfig } from './game-09-tube-sort/config';
+import { PipePatchGameConfig } from './game-11-pipe-patch/config';
 import { GridHunterGameConfig } from './game-12-gridhunter/config';
 import { BoxPatternGameConfig } from './game-13-boxpattern/config';
 import { TaxiDriverGameConfig } from './game-15-taxidriver/config';
@@ -15,8 +16,9 @@ import { MinerGameConfig } from './game-10-miner/config';
 import { WordRecognizeGameConfig } from './game-14-wordrecognize/config';
 import { DoorGuardianGameConfig } from './game-16-doorguardian/config';
 import { FloatingMarketGameConfig } from './game-17-floatingmarket/config';
-import { PowerPumpGameConfig } from './game-11-power-pump/config';
 import { RunForYourLifeGameConfig } from './game-18-runforyourlife/config';
+import { CashierGameConfig } from './game-19-cashier/config';
+import { BoxCountingGameConfig } from './game-20-boxcounting/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-00-example': ExampleGameConfig,
@@ -30,7 +32,7 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-07-pinkcup': PinkCupGameConfig,
   'game-09-tube-sort': TubeSortGameConfig,
   'game-10-miner': MinerGameConfig,
-  'game-11-power-pump': PowerPumpGameConfig,
+  'game-11-pipe-patch': PipePatchGameConfig,
   'game-12-gridhunter': GridHunterGameConfig,
   'game-13-boxpattern': BoxPatternGameConfig,
   'game-15-taxidriver': TaxiDriverGameConfig,
@@ -38,5 +40,7 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-16-doorguardian': DoorGuardianGameConfig,
   'game-17-floatingmarket': FloatingMarketGameConfig,
   'game-18-runforyourlife': RunForYourLifeGameConfig,
+  'game-19-cashier': CashierGameConfig,
+  'game-20-boxcounting': BoxCountingGameConfig,
 };
 

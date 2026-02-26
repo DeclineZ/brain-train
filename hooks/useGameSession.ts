@@ -6,12 +6,14 @@ import { calculateFloatingBallMathStats } from '@/lib/scoring/floatingBallMath';
 import { calculateDreamDirectStats } from '@/lib/scoring/dreamdirect';
 import { calculatePinkCupStats } from '@/lib/scoring/pinkcup';
 import { calculateTubeSortStats } from '@/lib/scoring/tubeSort';
-import { calculatePowerPumpStats } from '@/lib/scoring/powerPump';
 import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
 import { calculateTaxiDriverStats } from '@/lib/scoring/taxidriver';
 import { calculateFloatingMarketStats, type FloatingMarketGameStats } from '@/lib/scoring/floatingmarket';
+import { calculateCashierStats } from '@/lib/scoring/cashier';
+import { calculatePipePatchStats, type PipePatchGameStats } from '@/lib/scoring/pipepatch';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
-import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, PowerPumpGameStats, GridHunterGameStats, TaxiDriverGameStats } from '@/types';
+import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, GridHunterGameStats, TaxiDriverGameStats } from '@/types';
+import type { CashierGameStats } from '@/games/game-19-cashier/types';
 import { calculateMinerStats } from '@/lib/scoring/miner';
 import type { MinerGameStats } from '@/lib/scoring/miner';
 
@@ -65,8 +67,6 @@ export const useGameSession = () => {
       clinicalStats = calculatePinkCupStats(rawData as PinkCupGameStats);
     } else if (gameId === 'game-09-tube-sort') {
       clinicalStats = calculateTubeSortStats(rawData as TubeSortGameStats);
-    } else if (gameId === 'game-11-power-pump') {
-      clinicalStats = calculatePowerPumpStats(rawData as PowerPumpGameStats);
     } else if (gameId === 'game-12-gridhunter') {
       clinicalStats = calculateGridHunterStats(rawData as GridHunterGameStats);
     } else if (gameId === 'game-15-taxidriver') {
@@ -75,6 +75,10 @@ export const useGameSession = () => {
       clinicalStats = calculateMinerStats(rawData as MinerGameStats);
     } else if (gameId === 'game-17-floatingmarket') {
       clinicalStats = calculateFloatingMarketStats(rawData as FloatingMarketGameStats);
+    } else if (gameId === 'game-11-pipe-patch') {
+      clinicalStats = calculatePipePatchStats(rawData as PipePatchGameStats);
+    } else if (gameId === 'game-19-cashier') {
+      clinicalStats = calculateCashierStats(rawData as CashierGameStats);
     }
     // Add 'else if' for other games here later...
 

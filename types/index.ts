@@ -298,33 +298,6 @@ export interface MinerGameStats {
   success?: boolean;
 }
 
-export interface PowerPumpGameStats {
-  levelId: number;
-  levelStartTimeMs: number;
-  levelEndTimeMs: number;
-  totalTimeMs: number;
-  targetTimeMs: number;
-  overtimeMs: number;
-  tapRotateCount: number;
-  uniqueTilesRotatedCount: number;
-  repeatedRotateSameTileCount: number;
-  undoCount: number;
-  resetCount: number;
-  hintUsedCount: number;
-  pumpOnTransitions: number;
-  pumpOnMs: number;
-  wasteMs: number;
-  firstPumpOnTimeMs: number | null;
-  targetsTotal: number;
-  targetsFilledMax: number;
-  targetsFilledAtPumpOn: number;
-  leakEventCount: number;
-  completionState: 'win' | 'in_progress' | 'abandon';
-  starsEarned: number;
-  parRotations: number;
-  parWasteMs: number;
-}
-
 // Daily streak types
 export interface CheckinStatus {
   checked_in_today: boolean;

@@ -122,6 +122,15 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-17-floatingmarket') {
           const { FloatingMarketTutorialScene } = await import('@/games/game-17-floatingmarket/TutorialScene');
           config.scene = FloatingMarketTutorialScene;
+        } else if (gameId === 'game-11-pipe-patch') {
+          const { PipePatchTutorialScene } = await import('@/games/game-11-pipe-patch/TutorialScene');
+          config.scene = PipePatchTutorialScene;
+        } else if (gameId === 'game-19-cashier') {
+          const { CashierTutorialScene } = await import('@/games/game-19-cashier/TutorialScene');
+          config.scene = CashierTutorialScene;
+        } else if (gameId === 'game-20-boxcounting') {
+          const { BoxCountingTutorialScene } = await import('@/games/game-20-boxcounting/TutorialScene');
+          config.scene = BoxCountingTutorialScene;
         }
       }
 

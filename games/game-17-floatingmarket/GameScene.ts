@@ -52,6 +52,15 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 function getItemsForLevel(config: FloatingMarketLevelConfig): MarketItem[] {
     const rule = config.rule;
+
+    // In quantityMode, we want a broad pool of items (target + decoys from categories)
+    if (config.mode === 'quantityMode') {
+        return ALL_ITEMS.filter(item =>
+            config.itemPoolCategories.includes(item.category) ||
+            (rule.collectFilter as string[]).includes(item.id)
+        );
+    }
+
     if (rule.filterByItemId) {
         const allIds = new Set<string>([
             ...(rule.collectFilter as string[]),
@@ -144,10 +153,21 @@ export class FloatingMarketScene extends Phaser.Scene {
     protected basketCount = 0;
     protected basketResetCount = 0;
 
+    // Mode: Quantity
+    protected targetQuantities: Record<string, number> = {};
+    protected collectedQuantities: Record<string, number> = {};
+    protected quantityUITexts: Record<string, Phaser.GameObjects.Text> = {};
+    protected quantityUIContainer?: Phaser.GameObjects.Container;
+
     // Active rule (can change in hybrid mode)
     protected activeRule!: LevelRule;
     protected activeMode!: GameMode;
     protected hybridSwitched = false;
+
+    // Health System
+    protected playerHealth = 3;
+    protected maxHealth = 3;
+    protected healthHearts: Phaser.GameObjects.Text[] = [];
 
     // UI elements
     protected ruleBanner!: Phaser.GameObjects.Text;
@@ -229,6 +249,14 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         this.activeRule = { ...this.levelConfig.rule };
         this.activeMode = this.levelConfig.mode === 'hybrid' ? 'modeA' : this.levelConfig.mode;
+
+        if (this.activeMode === 'quantityMode' && this.activeRule.targetQuantities) {
+            this.targetQuantities = { ...this.activeRule.targetQuantities };
+            this.collectedQuantities = {};
+            for (const key of Object.keys(this.targetQuantities)) {
+                this.collectedQuantities[key] = 0;
+            }
+        }
     }
 
     preload() {
@@ -239,6 +267,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.load.audio('correct', '/assets/sounds/cardmatch/match-success.mp3');
         this.load.audio('wrong', '/assets/sounds/cardmatch/match-fail.mp3');
         this.load.audio('level-pass', '/assets/sounds/global/level-pass.mp3');
+        this.load.audio('level-fail', '/assets/sounds/global/level-fail.mp3');
 
         // Hand-drawn item sprites (88x88px)
         // Map item_id -> filename (handles typos in filenames)
@@ -301,7 +330,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             this.fogOverlay.setDepth(15);
         }
 
-        this.scale.on('resize', () => this.handleResize());
+        this.scale.on('resize', (gameSize: Phaser.Structs.Size) => this.handleResize(gameSize));
 
         // Ambient river flow sound
         try {
@@ -332,6 +361,29 @@ export class FloatingMarketScene extends Phaser.Scene {
         });
 
         overlay.once('pointerdown', () => {
+            // iOS 13+ requires requesting permission explicitly on user interaction
+            if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+                const DeviceOrientationEventTyped = DeviceOrientationEvent as any;
+                if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
+                    DeviceOrientationEventTyped.requestPermission()
+                        .then((state: string) => {
+                            if (state === 'granted') {
+                                this.enableTilt();
+                            } else {
+                                this.enableTouchFallback(width, height);
+                            }
+                        })
+                        .catch(() => this.enableTouchFallback(width, height))
+                        .finally(() => {
+                            overlay.destroy();
+                            text.destroy();
+                            this.startGame();
+                        });
+                    return; // Return early, game starts after permission resolves
+                }
+            }
+
+            // For other devices, proceed immediately
             overlay.destroy();
             text.destroy();
             this.startGame();
@@ -356,7 +408,7 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         const count = this.levelConfig.itemCount;
         const mode = this.activeMode;
-        const queue: MarketItem[] = [];
+        let queue: MarketItem[] = [];
 
         if (mode === 'modeB' || (this.levelConfig.mode === 'hybrid')) {
             const cap = this.levelConfig.memoryCapacity || 3;
@@ -364,9 +416,66 @@ export class FloatingMarketScene extends Phaser.Scene {
             for (let i = 0; i < count; i++) {
                 queue.push(pickRandom(uniquePool));
             }
+        } else if (mode === 'quantityMode' && this.activeRule.targetQuantities) {
+            // Ensure we spawn at least exactly the required quantities of the target items
+            let remainingQuota = 0;
+            const targetIds = Object.keys(this.activeRule.targetQuantities);
+
+            for (const id of targetIds) {
+                const targetCount = this.activeRule.targetQuantities[id];
+                remainingQuota += targetCount;
+
+                const matchedItem = items.find(imp => imp.id === id);
+                if (matchedItem) {
+                    // Spawn EXACTLY the quota amount
+                    for (let i = 0; i < targetCount; i++) {
+                        queue.push(matchedItem);
+                    }
+                }
+            }
+
+            // For the rest of the spawn count, pick randomly, but include non-target decoy items
+            // with a 60% bias so players have to actively avoid them or risk filling up with garbage/over-collecting targets
+            const nonTargetItems = items.filter(imp => !targetIds.includes(imp.id));
+            const fillCount = Math.max(0, count - remainingQuota);
+
+            for (let i = 0; i < fillCount; i++) {
+                if (nonTargetItems.length > 0 && Math.random() < 0.9) {
+                    queue.push(pickRandom(nonTargetItems));
+                } else {
+                    queue.push(pickRandom(items)); // This means targets might still spawn occasionally!
+                }
+            }
+            queue = shuffleArray(queue);
+
         } else {
-            for (let i = 0; i < count; i++) {
-                queue.push(pickRandom(items));
+            const rule = this.activeRule;
+            if (rule.avoidFilter && rule.avoidFilter.length > 0 && !rule.negativeRule) {
+                const targetPool = items.filter(item =>
+                    rule.filterByItemId
+                        ? (rule.collectFilter as string[]).includes(item.id)
+                        : (rule.collectFilter as string[]).includes(item.category)
+                );
+                const avoidPool = items.filter(item => !targetPool.includes(item));
+
+                if (targetPool.length > 0 && avoidPool.length > 0) {
+                    const targetCount = Math.ceil(count * 0.6);
+                    for (let i = 0; i < targetCount; i++) {
+                        queue.push(pickRandom(targetPool));
+                    }
+                    for (let i = targetCount; i < count; i++) {
+                        queue.push(pickRandom(avoidPool));
+                    }
+                    queue = shuffleArray(queue);
+                } else {
+                    for (let i = 0; i < count; i++) {
+                        queue.push(pickRandom(items));
+                    }
+                }
+            } else {
+                for (let i = 0; i < count; i++) {
+                    queue.push(pickRandom(items));
+                }
             }
         }
         this.itemSpawnQueue = queue;
@@ -498,7 +607,7 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     createBoat(width: number, height: number) {
         const boatX = width / 2;
-        const boatY = height - 120;
+        const boatY = height - 160; // Moved up by 40px for breathing space
         this.boat = this.add.container(boatX, boatY);
         this.boat.setDepth(10);
 
@@ -559,6 +668,20 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.coinCountText.setOrigin(1, 0);
         this.coinCountText.setDepth(100);
 
+        // Health Bar UI (Bottom Center)
+        const healthY = height - 40;
+        const heartSpacing = 30;
+        const startX = (width / 2) - heartSpacing; // Center 3 hearts
+
+        for (let i = 0; i < this.maxHealth; i++) {
+            const heart = this.add.text(startX + (i * heartSpacing), healthY, '❤️', {
+                fontSize: '24px'
+            });
+            heart.setOrigin(0.5);
+            heart.setDepth(100);
+            this.healthHearts.push(heart);
+        }
+
         // Mode B: Basket/Sack UI — bottom-right to avoid React top-bar overlap
         if (this.levelConfig.mode === 'modeB' || this.levelConfig.mode === 'hybrid') {
             const sackX = width - 60;
@@ -575,6 +698,48 @@ export class FloatingMarketScene extends Phaser.Scene {
             this.sackCountText.setOrigin(0.5);
             this.sackCountText.setDepth(100);
         }
+
+        // Quantity Mode UI
+        if (this.levelConfig.mode === 'quantityMode' && this.activeRule.targetQuantities) {
+            // Build visual counters below the rule banner
+            this.quantityUIContainer = this.add.container(width / 2, bannerY + 65); // Moved down by an extra 20px
+            this.quantityUIContainer.setDepth(100);
+
+            const keys = Object.keys(this.targetQuantities);
+            const spacing = 80;
+            const startX = -((keys.length - 1) * spacing) / 2;
+
+            // Map common items to emojis (fallback to label if not found)
+            const emojiMap: Record<string, string> = {
+                apple: '🍎', banana: '🍌', coconut: '🥥', corn: '🌽',
+                mango: '🥭', orange: '🍊', papaya: '🍈', pumpkin: '🎃', watermelon: '🍉',
+                fish: '🐟', shrimp: '🍤', squid: '🦑', lotus: '🪷',
+                lime: '🍋', guava: '🍐'
+            };
+
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                const target = this.targetQuantities[key];
+                const emoji = emojiMap[key] || '📦';
+
+                const textObj = this.add.text(startX + (i * spacing), 0, `${emoji} 0/${target}`, {
+                    fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+                    color: '#FFFFFF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+                });
+                textObj.setOrigin(0.5);
+                this.quantityUITexts[key] = textObj;
+                this.quantityUIContainer.add(textObj);
+            }
+
+            // Add a subtle background pill for the quantities
+            const bgWidth = (keys.length * spacing) + 20;
+            const bgPill = this.add.rectangle(0, 0, bgWidth, 36, 0x1A1A2E, 0.7);
+            bgPill.setStrokeStyle(1.5, 0xFFD700, 0.5);
+            this.quantityUIContainer.addAt(bgPill, 0); // Put bg behind texts
+        }
+
+        // Zones
+        this.setupTouchZones(width, height);
     }
 
     // ==================== INPUT ====================
@@ -582,13 +747,10 @@ export class FloatingMarketScene extends Phaser.Scene {
     setupInput(width: number, height: number) {
         if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
             const DeviceOrientationEventTyped = DeviceOrientationEvent as any;
+
+            // Skip immediate setup for iOS 13+, as it requires user gesture in showTapToStart
             if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
-                DeviceOrientationEventTyped.requestPermission()
-                    .then((state: string) => {
-                        if (state === 'granted') this.enableTilt();
-                        else this.enableTouchFallback(width, height);
-                    })
-                    .catch(() => this.enableTouchFallback(width, height));
+                // Do nothing here, it's handled in showTapToStart
             } else {
                 let tiltTestReceived = false;
                 const testHandler = (e: DeviceOrientationEvent) => {
@@ -843,9 +1005,61 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     // ==================== SPAWNING ====================
 
+    getSafeSpawnX(padding: number): number {
+        const minX = this.riverLeft + padding;
+        const maxX = this.riverRight - padding;
+
+        // Settings for checking overlap
+        const recentYThreshold = 250; // Anything above this Y (near the top) is considered recently spawned
+        const minDistance = 90; // Minimum horizontal distance between objects
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+            const testX = Phaser.Math.Between(minX, maxX);
+            let isSafe = true;
+
+            // Check obstacles
+            for (const obs of this.obstacles) {
+                if (obs.sprite && obs.sprite.y < recentYThreshold) {
+                    if (Math.abs(obs.sprite.x - testX) < minDistance) {
+                        isSafe = false;
+                        break;
+                    }
+                }
+            }
+            if (!isSafe) continue;
+
+            // Check coins
+            for (const coin of this.coins) {
+                if (coin.sprite && coin.sprite.y < recentYThreshold) {
+                    if (Math.abs(coin.sprite.x - testX) < minDistance) {
+                        isSafe = false;
+                        break;
+                    }
+                }
+            }
+            if (!isSafe) continue;
+
+            // Check items
+            for (const item of this.floatingItems) {
+                if (item.sprite && item.sprite.y < recentYThreshold) {
+                    if (Math.abs(item.sprite.x - testX) < minDistance) {
+                        isSafe = false;
+                        break;
+                    }
+                }
+            }
+            if (isSafe) {
+                return testX;
+            }
+        }
+
+        // Fallback to random if we couldn't find a perfectly safe spot after 20 attempts
+        return Phaser.Math.Between(minX, maxX);
+    }
+
     spawnObstacle() {
         const padding = 30;
-        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
+        const x = this.getSafeSpawnX(padding);
         const obstacleTypes = ['rock', 'log', 'boat'];
         const type = pickRandom(obstacleTypes);
         const container = this.add.container(x, -50);
@@ -886,7 +1100,7 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     spawnCoin() {
         const padding = 40;
-        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
+        const x = this.getSafeSpawnX(padding);
         const container = this.add.container(x, -30);
         container.setDepth(6);
 
@@ -911,7 +1125,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.totalItemsSpawned++;
 
         const padding = 40;
-        const x = Phaser.Math.Between(this.riverLeft + padding, this.riverRight - padding);
+        const x = this.getSafeSpawnX(padding);
         const container = this.add.container(x, -50);
         container.setDepth(7);
 
@@ -1072,9 +1286,97 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         if (this.activeMode === 'modeB') {
             this.handleModeBCollection(fi, item);
+        } else if (this.activeMode === 'quantityMode') {
+            this.handleQuantityModeCollection(fi, item);
         } else {
             this.handleModeACollection(fi, item);
         }
+    }
+
+    private handleQuantityModeCollection(fi: FloatingItem, item: MarketItem) {
+        // Quantity mode checks against specific IDs
+        const key = item.id;
+
+        // Is it part of the request, and do we still need it?
+        if (this.targetQuantities[key] !== undefined) {
+            if (this.collectedQuantities[key] < this.targetQuantities[key]) {
+                // Good collection
+                this.collectedQuantities[key]++;
+                this.correctCollections++;
+                this.updateQuantityUI();
+                this.showCollectFeedback(fi.sprite.x, fi.sprite.y, true);
+                this.animateItemCollect(fi);
+
+                // Check if all quotas are met
+                let allMet = true;
+                for (const k of Object.keys(this.targetQuantities)) {
+                    if (this.collectedQuantities[k] < this.targetQuantities[k]) {
+                        allMet = false;
+                        break;
+                    }
+                }
+                if (allMet) {
+                    this.time.delayedCall(500, () => this.endGame(true));
+                }
+            } else {
+                // Over-collected!
+                this.incorrectCollections++;
+                this.showCollectFeedback(fi.sprite.x, fi.sprite.y, false);
+                this.cameras.main.shake(150, 0.008);
+                this.animateItemReject(fi);
+
+                // Show a brief 'full' warning
+                const warnText = this.add.text(fi.sprite.x, fi.sprite.y - 30, `ครบแล้ว!`, {
+                    fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+                    color: '#FF6B6B', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+                });
+                warnText.setOrigin(0.5);
+                warnText.setDepth(120);
+                this.tweens.add({
+                    targets: warnText, y: fi.sprite.y - 70, alpha: 0, duration: 1000,
+                    onComplete: () => warnText.destroy(),
+                });
+            }
+        } else {
+            // Collected a wrong item entirely
+            this.incorrectCollections++;
+            this.showCollectFeedback(fi.sprite.x, fi.sprite.y, false);
+            this.cameras.main.shake(150, 0.008);
+            this.animateItemReject(fi);
+        }
+    }
+
+    private updateQuantityUI() {
+        if (!this.quantityUIContainer) return;
+
+        const emojiMap: Record<string, string> = {
+            apple: '🍎', banana: '🍌', coconut: '🥥', corn: '🌽',
+            mango: '🥭', orange: '🍊', papaya: '🍈', pumpkin: '🎃', watermelon: '🍉',
+            fish: '🐟', shrimp: '🍤', squid: '🦑', lotus: '🪷',
+            lime: '🍋', guava: '🍐'
+        };
+
+        for (const key of Object.keys(this.targetQuantities)) {
+            const current = this.collectedQuantities[key];
+            const target = this.targetQuantities[key];
+            const textObj = this.quantityUITexts[key];
+
+            if (textObj) {
+                const emoji = emojiMap[key] || '📦';
+                textObj.setText(`${emoji} ${current}/${target}`);
+
+                // Highlight text green if quota met
+                if (current >= target) {
+                    textObj.setColor('#2ECC71');
+                }
+            }
+        }
+
+        // Bounce the whole container slightly
+        this.tweens.add({
+            targets: this.quantityUIContainer,
+            scaleX: 1.1, scaleY: 1.1, duration: 100, yoyo: true
+        });
     }
 
     private handleModeACollection(fi: FloatingItem, item: MarketItem) {
@@ -1235,6 +1537,18 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.updateBasketUI();
     }
 
+    updateHealthUI() {
+        for (let i = 0; i < this.maxHealth; i++) {
+            if (i < this.playerHealth) {
+                this.healthHearts[i].setText('❤️');
+                this.healthHearts[i].setAlpha(1);
+            } else {
+                this.healthHearts[i].setText('🖤');
+                this.healthHearts[i].setAlpha(0.7);
+            }
+        }
+    }
+
     // ==================== COLLISION HANDLERS ====================
 
     handleObstacleCollision(_boat: any, _obstacle: any) {
@@ -1242,11 +1556,19 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.collisionCooldown = 1.0;
         this.totalCollisions++;
         this.incorrectCollections++; // Crash counts as an accuracy penalty
+
+        this.playerHealth--;
+        this.updateHealthUI();
+
         this.cameras.main.shake(200, 0.01);
         this.boat.setAlpha(0.5);
         this.createSplash(this.boat.x, this.boat.y);
         this.time.delayedCall(300, () => { if (this.boat) this.boat.setAlpha(1); });
         try { this.sound.play('collision', { volume: 0.5 }); } catch (e) { /* ignore */ }
+
+        if (this.playerHealth <= 0) {
+            this.endGame(false);
+        }
     }
 
     handleBankCollision() {
@@ -1254,10 +1576,18 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.collisionCooldown = 0.5;
         this.totalCollisions++;
         this.incorrectCollections++; // Bank crash counts as an accuracy penalty
+
+        this.playerHealth--;
+        this.updateHealthUI();
+
         this.cameras.main.shake(100, 0.005);
         this.boat.setAlpha(0.7);
         this.createSplash(this.boat.x, this.boat.y);
         this.time.delayedCall(200, () => { if (this.boat) this.boat.setAlpha(1); });
+
+        if (this.playerHealth <= 0) {
+            this.endGame(false);
+        }
     }
 
     handleCoinCollect(_boat: any, coinSprite: any) {
@@ -1380,7 +1710,7 @@ export class FloatingMarketScene extends Phaser.Scene {
                 starHint: stars < 3 ? this.getStarHint() : null,
             });
             try {
-                this.sound.play(success ? 'level-pass' : 'collision', { volume: 0.6 });
+                this.sound.play(success ? 'level-pass' : 'level-fail', { volume: 0.6 });
             } catch (e) { /* ignore */ }
         }
     }
@@ -1401,6 +1731,23 @@ export class FloatingMarketScene extends Phaser.Scene {
             // Memory game: accuracy + collection ratio + no duplicates
             if (accuracy >= 0.9 && collectionRatio >= 0.5 && this.duplicatePickups === 0 && this.totalCollisions <= 1) return 3;
             if (accuracy >= 0.7 && collectionRatio >= 0.3 && this.duplicatePickups <= 1 && this.totalCollisions <= 3) return 2;
+            return 1;
+        }
+
+        if (mode === 'quantityMode') {
+            let metQuota = true;
+            if (this.activeRule.targetQuantities) {
+                for (const k of Object.keys(this.activeRule.targetQuantities)) {
+                    if (this.collectedQuantities[k] < this.activeRule.targetQuantities[k]) {
+                        metQuota = false;
+                        break;
+                    }
+                }
+            }
+            if (!metQuota) return 1; // Didn't finish the goals
+
+            if (accuracy >= 0.9 && this.totalCollisions <= 1) return 3;
+            if (accuracy >= 0.7 && this.totalCollisions <= 3) return 2;
             return 1;
         }
 
@@ -1430,8 +1777,8 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     // ==================== RESIZE HANDLER ====================
 
-    handleResize() {
-        const { width, height } = this.scale;
+    handleResize(gameSize: Phaser.Structs.Size) {
+        const { width, height } = gameSize;
         const maxRiverPx = 380;
         const rawRiverW = width * this.levelConfig.riverWidthRatio;
         this.riverWidth = Math.min(rawRiverW, maxRiverPx);
@@ -1441,7 +1788,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.boat.x = Phaser.Math.Clamp(this.boat.x,
             this.riverLeft + this.boatWidth / 2 + 5,
             this.riverRight - this.boatWidth / 2 - 5);
-        this.boat.y = height - 120;
+        this.boat.y = height - 160;
 
         this.ruleBannerBg.setPosition(width / 2, 75);
         this.ruleBanner.setPosition(width / 2, 75);
@@ -1453,6 +1800,21 @@ export class FloatingMarketScene extends Phaser.Scene {
         }
         if (this.sackCountText) {
             this.sackCountText.setPosition(width - 60, height - 90);
+        }
+
+        // Reposition Health Bar UI
+        if (this.healthHearts && this.healthHearts.length === 3) {
+            const healthY = height - 40;
+            const heartSpacing = 30;
+            const startX = (width / 2) - heartSpacing;
+            for (let i = 0; i < 3; i++) {
+                this.healthHearts[i].setPosition(startX + (i * heartSpacing), healthY);
+            }
+        }
+
+        // Reposition Quantity UI
+        if (this.quantityUIContainer) {
+            this.quantityUIContainer.setPosition(width / 2, 75 + 65);
         }
 
         if (this.leftZone) {
