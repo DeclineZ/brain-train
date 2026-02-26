@@ -18,6 +18,7 @@ const gameLevelModules = {
   'game-11-pipe-patch': () => import('@/games/game-11-pipe-patch/levels'),
   'game-16-doorguardian': () => import('@/games/game-16-doorguardian/levels'),
   'game-17-floatingmarket': () => import('@/games/game-17-floatingmarket/levels'),
+  'game-19-cashier': () => import('@/games/game-19-cashier/levels'),
   'game-20-boxcounting': () => import('@/games/game-20-boxcounting/levels'),
 } as const;
 
@@ -86,6 +87,8 @@ export async function getGameLevelsFromSource(gameId: string, userId?: string): 
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_MARKET_LEVELS;
+    } else if (gameId === 'game-19-cashier' && 'CASHIER_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).CASHIER_LEVELS;
     } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).BOXCOUNTING_LEVELS;
     } else {
@@ -176,6 +179,8 @@ export async function getLevelConfig(gameId: string, levelNumber: number) {
       return (levelModule as any).DOORGUARDIAN_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       return (levelModule as any).FLOATING_MARKET_LEVELS[levelNumber] || null;
+    } else if (gameId === 'game-19-cashier' && 'CASHIER_LEVELS' in levelModule) {
+      return (levelModule as any).CASHIER_LEVELS[levelNumber] || null;
     } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
       return (levelModule as any).BOXCOUNTING_LEVELS[levelNumber] || null;
     }
@@ -272,6 +277,8 @@ export async function getTotalLevelsForGame(gameId: string): Promise<number> {
       levelConfigs = (levelModule as any).DOORGUARDIAN_LEVELS;
     } else if (gameId === 'game-17-floatingmarket' && 'FLOATING_MARKET_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).FLOATING_MARKET_LEVELS;
+    } else if (gameId === 'game-19-cashier' && 'CASHIER_LEVELS' in levelModule) {
+      levelConfigs = (levelModule as any).CASHIER_LEVELS;
     } else if (gameId === 'game-20-boxcounting' && 'BOXCOUNTING_LEVELS' in levelModule) {
       levelConfigs = (levelModule as any).BOXCOUNTING_LEVELS;
     }
