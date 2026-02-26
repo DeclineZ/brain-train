@@ -5,6 +5,7 @@ import type {
   ParkingJamLevelConfig,
   ParkingJamRawLevelConfig,
 } from './types';
+import { generateParkingJamLateLevels } from './level-generation';
 
 const COLORS = [
   0xf97316,
@@ -58,7 +59,7 @@ const L = (
 const TWO_WAY_H: ParkingJamDirection[] = ['left', 'right'];
 const TWO_WAY_V: ParkingJamDirection[] = ['up', 'down'];
 
-export const PARKING_JAM_RAW_LEVELS: ParkingJamRawLevelConfig[] = [
+const PARKING_JAM_BASE_LEVELS: ParkingJamRawLevelConfig[] = [
   L(
     0,
     5,
@@ -301,366 +302,310 @@ export const PARKING_JAM_RAW_LEVELS: ParkingJamRawLevelConfig[] = [
   }),
 
   L(13, 6, [
-    car('A', 'h', 2, 2, 2, 0, TWO_WAY_H),
-    car('B', 'v', 2, 0, 1, 1, TWO_WAY_V),
-    car('C', 'v', 3, 1, 4, 2, TWO_WAY_V),
-    car('D', 'h', 2, 3, 1, 3, TWO_WAY_H),
-    car('E', 'h', 3, 5, 2, 4, TWO_WAY_H),
-    car('F', 'v', 2, 2, 0, 5, TWO_WAY_V),
-    car('G', 'h', 2, 0, 3, 6, TWO_WAY_H),
-    car('H', 'v', 2, 3, 5, 7, TWO_WAY_V),
-    car('I', 'h', 2, 4, 0, 8, TWO_WAY_H),
-    car('J', 'v', 2, 1, 2, 9, TWO_WAY_V),
+    car('A', 'h', 2, 2, 1, 0, ['left', 'right'], 'sedan'),
+    car('B', 'h', 3, 1, 2, 1, ['left', 'right'], 'suv'),
+    car('C', 'v', 2, 0, 0, 2, ['down'], 'taxi'),
+    car('D', 'v', 2, 2, 3, 3, ['down'], 'pickup'),
+    car('E', 'h', 2, 5, 0, 4, ['right'], 'van'),
+    car('F', 'h', 2, 4, 1, 5, ['left', 'right'], 'bus'),
+    car('G', 'v', 3, 1, 5, 6, ['down'], 'truck'),
+    car('H', 'h', 2, 0, 3, 7, ['left', 'right'], 'sedan'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'D',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
       { edge: 'left', index: 3 },
       { edge: 'left', index: 4 },
-      { edge: 'left', index: 5 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.6,
+    oneWayRatio: 0.5,
     dependencyDepth: 5,
     difficulty: 6,
   }),
 
   L(14, 6, [
-    car('X', 'h', 2, 3, 2, 0, TWO_WAY_H),
-    car('A', 'v', 3, 0, 3, 1, TWO_WAY_V),
-    car('B', 'v', 2, 1, 1, 2, TWO_WAY_V),
-    car('C', 'h', 2, 2, 0, 3, TWO_WAY_H),
-    car('D', 'h', 3, 5, 1, 4, TWO_WAY_H),
-    car('E', 'v', 2, 0, 5, 5, TWO_WAY_V),
-    car('F', 'h', 2, 4, 4, 6, TWO_WAY_H),
-    car('G', 'v', 2, 2, 5, 7, TWO_WAY_V),
-    car('H', 'h', 2, 0, 1, 8, TWO_WAY_H),
-    car('I', 'v', 2, 4, 0, 9, TWO_WAY_V),
+    car('A', 'v', 2, 3, 1, 0, ['up'], 'sedan'),
+    car('B', 'h', 3, 0, 2, 1, ['left'], 'suv'),
+    car('C', 'h', 2, 1, 3, 2, ['left', 'right'], 'taxi'),
+    car('D', 'h', 2, 1, 1, 3, ['left'], 'pickup'),
+    car('E', 'v', 2, 0, 5, 4, ['up', 'down'], 'van'),
+    car('F', 'h', 2, 5, 0, 5, ['left', 'right'], 'bus'),
+    car('G', 'v', 2, 3, 5, 6, ['down'], 'truck'),
+    car('H', 'h', 3, 2, 1, 7, ['left', 'right'], 'sedan'),
+    car('I', 'v', 2, 3, 3, 8, ['up', 'down'], 'suv'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'X',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 3 },
-      { edge: 'top', index: 4 },
-      { edge: 'top', index: 5 },
+      { edge: 'right', index: 3 },
+      { edge: 'bottom', index: 2 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.6,
+    oneWayRatio: 0.44,
     dependencyDepth: 5,
     difficulty: 6,
   }),
 
   L(15, 7, [
-    car('A', 'h', 2, 3, 2, 0, TWO_WAY_H),
-    car('B', 'v', 3, 0, 0, 1, TWO_WAY_V),
-    car('C', 'v', 2, 1, 3, 2, TWO_WAY_V),
-    car('D', 'h', 3, 5, 2, 3, TWO_WAY_H),
-    car('E', 'v', 2, 2, 6, 4, TWO_WAY_V),
-    car('F', 'h', 2, 0, 4, 5, TWO_WAY_H),
-    car('G', 'v', 2, 4, 1, 6, TWO_WAY_V),
-    car('H', 'h', 2, 6, 4, 7, TWO_WAY_H),
-    car('I', 'v', 3, 1, 5, 8, TWO_WAY_V),
-    car('J', 'h', 2, 2, 1, 9, TWO_WAY_H),
-    car('K', 'v', 2, 4, 6, 10, TWO_WAY_V),
+    car('A', 'v', 2, 3, 6, 0, ['down'], 'sedan'),
+    car('B', 'v', 2, 1, 4, 1, ['down'], 'suv'),
+    car('C', 'v', 3, 4, 3, 2, ['up'], 'taxi'),
+    car('D', 'v', 2, 0, 5, 3, ['up', 'down'], 'pickup'),
+    car('E', 'v', 2, 0, 0, 4, ['up', 'down'], 'van'),
+    car('F', 'v', 3, 2, 0, 5, ['down'], 'bus'),
+    car('G', 'v', 2, 4, 4, 6, ['down'], 'truck'),
+    car('H', 'v', 2, 1, 3, 7, ['up'], 'sedan'),
+    car('I', 'v', 2, 4, 2, 8, ['up', 'down'], 'suv'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'J',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'right', index: 1 },
-      { edge: 'right', index: 2 },
-      { edge: 'right', index: 5 },
+      { edge: 'bottom', index: 3 },
+      { edge: 'bottom', index: 1 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.65,
+    oneWayRatio: 0.67,
     dependencyDepth: 5,
     difficulty: 7,
   }),
 
   L(16, 7, [
-    car('A', 'h', 3, 3, 2, 0, TWO_WAY_H),
-    car('B', 'v', 2, 0, 1, 1, TWO_WAY_V),
-    car('C', 'v', 3, 1, 4, 2, TWO_WAY_V),
-    car('D', 'h', 2, 5, 0, 3, TWO_WAY_H),
-    car('E', 'v', 2, 2, 6, 4, TWO_WAY_V),
-    car('F', 'h', 2, 0, 3, 5, TWO_WAY_H),
-    car('G', 'v', 2, 4, 2, 6, TWO_WAY_V),
-    car('H', 'h', 3, 6, 3, 7, TWO_WAY_H),
-    car('I', 'v', 2, 1, 0, 8, TWO_WAY_V),
-    car('J', 'h', 2, 4, 5, 9, TWO_WAY_H),
-    car('K', 'v', 2, 3, 5, 10, TWO_WAY_V),
-    car('L', 'h', 2, 2, 2, 11, TWO_WAY_H),
+    car('A', 'h', 3, 4, 2, 0, ['left'], 'sedan'),
+    car('B', 'h', 2, 6, 3, 1, ['right'], 'suv'),
+    car('C', 'v', 3, 0, 5, 2, ['down'], 'taxi'),
+    car('D', 'v', 3, 0, 0, 3, ['down'], 'pickup'),
+    car('E', 'v', 3, 1, 6, 4, ['down'], 'van'),
+    car('F', 'h', 3, 3, 2, 5, ['left'], 'bus'),
+    car('G', 'h', 2, 5, 4, 6, ['right'], 'truck'),
+    car('H', 'h', 2, 5, 1, 7, ['left'], 'sedan'),
+    car('I', 'v', 2, 4, 6, 8, ['down'], 'suv'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'L',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'bottom', index: 0 },
-      { edge: 'bottom', index: 1 },
-      { edge: 'bottom', index: 5 },
+      { edge: 'top', index: 3 },
+      { edge: 'top', index: 5 },
+      { edge: 'right', index: 4 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.65,
+    oneWayRatio: 1,
     dependencyDepth: 5,
     difficulty: 7,
   }),
 
   L(17, 7, [
-    car('A', 'h', 2, 3, 3, 0, TWO_WAY_H),
-    car('B', 'v', 3, 0, 2, 1, TWO_WAY_V),
-    car('C', 'v', 2, 1, 5, 2, TWO_WAY_V),
-    car('D', 'h', 3, 5, 1, 3, TWO_WAY_H),
-    car('E', 'v', 2, 2, 0, 4, TWO_WAY_V),
-    car('F', 'h', 2, 0, 4, 5, TWO_WAY_H),
-    car('G', 'v', 3, 3, 6, 6, TWO_WAY_V),
-    car('H', 'h', 2, 6, 2, 7, TWO_WAY_H),
-    car('I', 'v', 2, 4, 4, 8, TWO_WAY_V),
-    car('J', 'h', 2, 3, 1, 9, TWO_WAY_H),
-    car('K', 'v', 2, 1, 1, 10, TWO_WAY_V),
-    car('L', 'h', 2, 4, 0, 11, TWO_WAY_H),
+    car('A', 'v', 3, 1, 4, 0, ['down'], 'sedan'),
+    car('B', 'h', 2, 0, 4, 1, ['left'], 'suv'),
+    car('C', 'h', 2, 0, 2, 2, ['left'], 'taxi'),
+    car('D', 'v', 2, 1, 0, 3, ['down'], 'pickup'),
+    car('E', 'v', 2, 4, 0, 4, ['down'], 'van'),
+    car('F', 'v', 3, 1, 5, 5, ['down'], 'bus'),
+    car('G', 'h', 3, 6, 1, 6, ['right'], 'truck'),
+    car('H', 'v', 2, 4, 5, 7, ['down'], 'sedan'),
+    car('I', 'v', 2, 4, 6, 8, ['up'], 'suv'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'K',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
+      { edge: 'right', index: 2 },
       { edge: 'right', index: 0 },
-      { edge: 'left', index: 6 },
-      { edge: 'top', index: 1 },
+      { edge: 'top', index: 3 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.7,
+    oneWayRatio: 1,
     dependencyDepth: 5,
     difficulty: 8,
   }),
 
   L(18, 7, [
-    car('X', 'v', 2, 3, 3, 0, TWO_WAY_V),
-    car('A', 'h', 2, 3, 1, 1, TWO_WAY_H),
-    car('B', 'h', 2, 2, 3, 2, TWO_WAY_H),
-    car('C', 'v', 3, 0, 6, 3, TWO_WAY_V),
-    car('D', 'h', 3, 6, 1, 4, TWO_WAY_H),
-    car('E', 'v', 2, 1, 0, 5, TWO_WAY_V),
-    car('F', 'h', 2, 0, 2, 6, TWO_WAY_H),
-    car('G', 'v', 2, 4, 6, 7, TWO_WAY_V),
-    car('H', 'h', 2, 5, 4, 8, TWO_WAY_H),
-    car('I', 'v', 2, 1, 2, 9, TWO_WAY_V),
-    car('J', 'h', 2, 4, 0, 10, TWO_WAY_H),
-    car('K', 'v', 2, 0, 1, 11, TWO_WAY_V),
+    car('A', 'h', 2, 5, 5, 0, ['left'], 'sedan'),
+    car('B', 'h', 3, 6, 4, 1, ['left'], 'suv'),
+    car('C', 'v', 2, 1, 3, 2, ['up'], 'taxi'),
+    car('D', 'h', 2, 2, 1, 3, ['left'], 'pickup'),
+    car('E', 'v', 3, 1, 5, 4, ['up'], 'van'),
+    car('F', 'h', 2, 4, 2, 5, ['left'], 'bus'),
+    car('G', 'h', 2, 5, 3, 6, ['left'], 'truck'),
+    car('H', 'v', 2, 4, 0, 7, ['up'], 'sedan'),
+    car('I', 'v', 3, 1, 0, 8, ['up'], 'suv'),
+    car('J', 'h', 2, 6, 2, 9, ['left'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'X',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 0 },
-      { edge: 'right', index: 6 },
+      { edge: 'right', index: 5 },
       { edge: 'left', index: 0 },
-      { edge: 'bottom', index: 5 },
+      { edge: 'top', index: 2 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.7,
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 8,
   }),
 
   L(19, 7, [
-    car('A', 'h', 2, 3, 2, 0, ['right']),
-    car('B', 'v', 3, 0, 0, 1, ['down']),
-    car('C', 'v', 2, 1, 3, 2, TWO_WAY_V),
-    car('D', 'h', 3, 5, 2, 3, TWO_WAY_H),
-    car('E', 'v', 2, 2, 6, 4, ['up']),
-    car('F', 'h', 2, 0, 4, 5, ['left']),
-    car('G', 'v', 2, 4, 1, 6, TWO_WAY_V),
-    car('H', 'h', 2, 6, 4, 7, TWO_WAY_H),
-    car('I', 'v', 3, 1, 5, 8, ['down']),
-    car('J', 'h', 2, 2, 1, 9, ['right']),
-    car('K', 'v', 2, 3, 4, 10, TWO_WAY_V),
-    car('L', 'h', 2, 4, 5, 11, ['left']),
+    car('A', 'v', 2, 1, 5, 0, ['up'], 'sedan'),
+    car('B', 'v', 3, 4, 0, 1, ['up'], 'suv'),
+    car('C', 'v', 3, 0, 6, 2, ['down'], 'taxi'),
+    car('D', 'h', 2, 3, 1, 3, ['right'], 'pickup'),
+    car('E', 'h', 2, 3, 4, 4, ['right'], 'van'),
+    car('F', 'v', 2, 0, 3, 5, ['down'], 'bus'),
+    car('G', 'h', 3, 4, 1, 6, ['right'], 'truck'),
+    car('H', 'v', 2, 1, 0, 7, ['up'], 'sedan'),
+    car('I', 'h', 2, 4, 4, 8, ['right'], 'suv'),
+    car('J', 'h', 2, 5, 1, 9, ['right'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'I',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 2 },
-      { edge: 'right', index: 2 },
-      { edge: 'left', index: 4 },
-      { edge: 'bottom', index: 1 },
-      { edge: 'bottom', index: 6 },
+      { edge: 'left', index: 0 },
+      { edge: 'left', index: 5 },
+      { edge: 'right', index: 0 },
+      { edge: 'left', index: 3 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.75,
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 8,
   }),
 
   L(20, 7, [
-    car('A', 'h', 3, 3, 1, 0, TWO_WAY_H),
-    car('B', 'v', 2, 0, 2, 1, TWO_WAY_V),
-    car('C', 'v', 3, 1, 5, 2, TWO_WAY_V),
-    car('D', 'h', 2, 5, 0, 3, TWO_WAY_H),
-    car('E', 'v', 2, 1, 0, 4, TWO_WAY_V),
-    car('F', 'h', 2, 0, 4, 5, TWO_WAY_H),
-    car('G', 'v', 2, 4, 3, 6, TWO_WAY_V),
-    car('H', 'h', 2, 6, 4, 7, TWO_WAY_H),
-    car('I', 'v', 2, 3, 6, 8, TWO_WAY_V),
-    car('J', 'h', 2, 2, 1, 9, TWO_WAY_H),
-    car('K', 'v', 2, 0, 6, 10, TWO_WAY_V),
-    car('L', 'h', 2, 4, 4, 11, TWO_WAY_H),
+    car('A', 'v', 3, 2, 1, 0, ['down'], 'sedan'),
+    car('B', 'h', 2, 0, 0, 1, ['right'], 'suv'),
+    car('C', 'v', 2, 3, 4, 2, ['down'], 'taxi'),
+    car('D', 'v', 3, 1, 3, 3, ['up'], 'pickup'),
+    car('E', 'h', 2, 5, 4, 4, ['right'], 'van'),
+    car('F', 'h', 3, 6, 2, 5, ['right'], 'bus'),
+    car('G', 'v', 2, 1, 4, 6, ['up'], 'truck'),
+    car('H', 'h', 2, 0, 2, 7, ['right'], 'sedan'),
+    car('I', 'h', 2, 5, 2, 8, ['left'], 'suv'),
+    car('J', 'h', 2, 0, 4, 9, ['right'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'J',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 5 },
-      { edge: 'right', index: 3 },
+      { edge: 'bottom', index: 6 },
+      { edge: 'top', index: 0 },
       { edge: 'left', index: 2 },
-      { edge: 'bottom', index: 4 },
+      { edge: 'left', index: 3 },
     ],
     gatingProfile: 'partial',
-    oneWayRatio: 0.8,
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 9,
   }),
 
   L(21, 7, [
-    car('A', 'h', 2, 3, 2, 0, ['right']),
-    car('B', 'v', 3, 0, 1, 1, ['down']),
-    car('C', 'v', 2, 1, 4, 2, ['up']),
-    car('D', 'h', 3, 5, 1, 3, ['left']),
-    car('E', 'v', 2, 2, 0, 4, ['down']),
-    car('F', 'h', 2, 0, 5, 5, ['left']),
-    car('G', 'v', 2, 4, 6, 6, ['up']),
-    car('H', 'h', 2, 6, 3, 7, ['left']),
-    car('I', 'v', 2, 1, 6, 8, ['down']),
-    car('J', 'h', 2, 2, 2, 9, ['right']),
-    car('K', 'v', 2, 3, 4, 10, ['up']),
-    car('L', 'h', 2, 4, 0, 11, ['right']),
+    car('A', 'v', 2, 3, 4, 0, ['up'], 'sedan'),
+    car('B', 'h', 3, 1, 1, 1, ['left'], 'suv'),
+    car('C', 'h', 2, 6, 2, 2, ['left'], 'taxi'),
+    car('D', 'h', 3, 0, 0, 3, ['right'], 'pickup'),
+    car('E', 'h', 3, 3, 1, 4, ['left'], 'van'),
+    car('F', 'v', 2, 1, 4, 5, ['up'], 'bus'),
+    car('G', 'v', 3, 2, 5, 6, ['down'], 'truck'),
+    car('H', 'h', 3, 0, 3, 7, ['right'], 'sedan'),
+    car('I', 'h', 3, 5, 4, 8, ['left'], 'suv'),
+    car('J', 'v', 2, 4, 1, 9, ['down'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'J',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 1 },
-      { edge: 'top', index: 3 },
-      { edge: 'top', index: 5 },
-      { edge: 'right', index: 1 },
       { edge: 'right', index: 4 },
-      { edge: 'left', index: 2 },
-      { edge: 'left', index: 5 },
-      { edge: 'bottom', index: 0 },
-      { edge: 'bottom', index: 2 },
-      { edge: 'bottom', index: 6 },
+      { edge: 'right', index: 1 },
+      { edge: 'right', index: 3 },
+      { edge: 'top', index: 1 },
     ],
-    gatingProfile: 'full_one_way',
-    oneWayRatio: 0.85,
+    gatingProfile: 'partial',
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 9,
     timeLimitMs: 35_000,
   }),
 
   L(22, 7, [
-    car('X', 'h', 2, 3, 2, 0, ['right']),
-    car('A', 'v', 3, 0, 2, 1, ['down']),
-    car('B', 'v', 2, 1, 5, 2, ['up']),
-    car('C', 'h', 3, 5, 1, 3, ['left']),
-    car('D', 'v', 2, 2, 0, 4, ['down']),
-    car('E', 'h', 2, 0, 4, 5, ['left']),
-    car('F', 'v', 2, 4, 6, 6, ['up']),
-    car('G', 'h', 2, 6, 3, 7, ['left']),
-    car('H', 'v', 2, 1, 6, 8, ['down']),
-    car('I', 'h', 2, 2, 3, 9, ['right']),
-    car('J', 'v', 2, 3, 4, 10, ['up']),
-    car('K', 'h', 2, 4, 0, 11, ['right']),
-    car('L', 'v', 2, 0, 1, 2, ['down']),
+    car('A', 'h', 2, 3, 3, 0, ['left'], 'sedan'),
+    car('B', 'v', 3, 0, 2, 1, ['down'], 'suv'),
+    car('C', 'v', 2, 5, 0, 2, ['up'], 'taxi'),
+    car('D', 'v', 2, 4, 2, 3, ['down'], 'pickup'),
+    car('E', 'v', 2, 1, 1, 4, ['down'], 'van'),
+    car('F', 'v', 3, 0, 5, 5, ['down'], 'bus'),
+    car('G', 'h', 2, 4, 3, 6, ['right'], 'truck'),
+    car('H', 'v', 2, 3, 0, 7, ['up'], 'sedan'),
+    car('I', 'v', 3, 4, 6, 8, ['up'], 'suv'),
+    car('J', 'v', 3, 3, 5, 9, ['down'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'K',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 0 },
-      { edge: 'top', index: 2 },
-      { edge: 'top', index: 4 },
-      { edge: 'right', index: 0 },
-      { edge: 'right', index: 3 },
-      { edge: 'right', index: 6 },
-      { edge: 'left', index: 1 },
+      { edge: 'left', index: 5 },
+      { edge: 'right', index: 1 },
       { edge: 'left', index: 4 },
-      { edge: 'bottom', index: 1 },
-      { edge: 'bottom', index: 3 },
-      { edge: 'bottom', index: 5 },
+      { edge: 'left', index: 2 },
     ],
-    gatingProfile: 'full_one_way',
-    oneWayRatio: 0.88,
+    gatingProfile: 'partial',
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 10,
     timeLimitMs: 32_000,
   }),
 
   L(23, 7, [
-    car('A', 'h', 2, 3, 1, 0, ['right']),
-    car('B', 'v', 3, 0, 0, 1, ['down']),
-    car('C', 'v', 2, 1, 3, 2, ['up']),
-    car('D', 'h', 3, 5, 2, 3, ['left']),
-    car('E', 'v', 2, 2, 6, 4, ['up']),
-    car('F', 'h', 2, 0, 4, 5, ['left']),
-    car('G', 'v', 2, 4, 1, 6, ['down']),
-    car('H', 'h', 2, 6, 4, 7, ['left']),
-    car('I', 'v', 3, 1, 5, 8, ['down']),
-    car('J', 'h', 2, 2, 1, 9, ['right']),
-    car('K', 'v', 2, 3, 4, 10, ['up']),
-    car('L', 'h', 2, 4, 5, 11, ['left']),
+    car('A', 'v', 3, 4, 4, 0, ['up'], 'sedan'),
+    car('B', 'h', 2, 2, 0, 1, ['right'], 'suv'),
+    car('C', 'v', 2, 0, 3, 2, ['down'], 'taxi'),
+    car('D', 'v', 2, 2, 4, 3, ['up'], 'pickup'),
+    car('E', 'v', 3, 1, 6, 4, ['up'], 'van'),
+    car('F', 'h', 3, 3, 1, 5, ['left'], 'bus'),
+    car('G', 'h', 3, 4, 1, 6, ['left'], 'truck'),
+    car('H', 'v', 3, 4, 5, 7, ['up'], 'sedan'),
+    car('I', 'h', 2, 0, 4, 8, ['right'], 'suv'),
+    car('J', 'v', 2, 4, 6, 9, ['down'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'I',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
-      { edge: 'top', index: 1 },
-      { edge: 'top', index: 6 },
-      { edge: 'right', index: 2 },
-      { edge: 'right', index: 5 },
-      { edge: 'left', index: 0 },
-      { edge: 'left', index: 3 },
+      { edge: 'top', index: 0 },
       { edge: 'bottom', index: 2 },
-      { edge: 'bottom', index: 4 },
-      { edge: 'bottom', index: 6 },
+      { edge: 'top', index: 2 },
+      { edge: 'left', index: 6 },
     ],
-    gatingProfile: 'full_one_way',
-    oneWayRatio: 0.9,
+    gatingProfile: 'partial',
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 10,
     timeLimitMs: 30_000,
   }),
 
   L(24, 7, [
-    car('X', 'v', 2, 3, 3, 0, ['up']),
-    car('A', 'h', 2, 3, 0, 1, ['right']),
-    car('B', 'h', 2, 2, 3, 2, ['left']),
-    car('C', 'v', 3, 0, 5, 3, ['down']),
-    car('D', 'h', 3, 6, 1, 4, ['left']),
-    car('E', 'v', 2, 1, 0, 5, ['down']),
-    car('F', 'h', 2, 0, 2, 6, ['right']),
-    car('G', 'v', 2, 4, 6, 7, ['up']),
-    car('H', 'h', 2, 5, 4, 8, ['left']),
-    car('I', 'v', 2, 0, 1, 9, ['down']),
-    car('J', 'h', 2, 4, 0, 10, ['right']),
-    car('K', 'v', 2, 0, 6, 11, ['down']),
-    car('L', 'h', 2, 2, 1, 0, ['right']),
+    car('A', 'v', 3, 4, 4, 0, ['up'], 'sedan'),
+    car('B', 'h', 2, 2, 0, 1, ['right'], 'suv'),
+    car('C', 'v', 2, 0, 3, 2, ['down'], 'taxi'),
+    car('D', 'v', 2, 2, 4, 3, ['up'], 'pickup'),
+    car('E', 'v', 3, 1, 6, 4, ['up'], 'van'),
+    car('F', 'h', 3, 3, 1, 5, ['left'], 'bus'),
+    car('G', 'h', 3, 4, 1, 6, ['left'], 'truck'),
+    car('H', 'v', 3, 4, 5, 7, ['up'], 'sedan'),
+    car('I', 'h', 2, 0, 4, 8, ['right'], 'suv'),
+    car('J', 'v', 2, 4, 6, 9, ['down'], 'taxi'),
   ], {
-    objectiveType: 'exit_target',
-    targetCarId: 'X',
+    objectiveType: 'clear_all',
     blockedGateSegments: [
       { edge: 'top', index: 0 },
+      { edge: 'bottom', index: 2 },
       { edge: 'top', index: 2 },
-      { edge: 'top', index: 4 },
-      { edge: 'top', index: 6 },
-      { edge: 'right', index: 1 },
-      { edge: 'right', index: 3 },
-      { edge: 'right', index: 5 },
-      { edge: 'left', index: 0 },
-      { edge: 'left', index: 2 },
-      { edge: 'left', index: 4 },
       { edge: 'left', index: 6 },
-      { edge: 'bottom', index: 1 },
-      { edge: 'bottom', index: 3 },
-      { edge: 'bottom', index: 5 },
     ],
-    gatingProfile: 'full_one_way',
-    oneWayRatio: 0.92,
+    gatingProfile: 'partial',
+    oneWayRatio: 1,
     dependencyDepth: 6,
     difficulty: 10,
     timeLimitMs: 28_000,
   }),
 ];
+
+const PARKING_JAM_LATE_LEVEL_FALLBACKS = PARKING_JAM_BASE_LEVELS
+  .filter((raw) => raw.level >= 21 && raw.level <= 24)
+  .reduce<Record<number, ParkingJamRawLevelConfig>>((acc, raw) => {
+    acc[raw.level] = raw;
+    return acc;
+  }, {});
+
+const PARKING_JAM_GENERATED_LATE_LEVELS = generateParkingJamLateLevels(PARKING_JAM_LATE_LEVEL_FALLBACKS);
+const PARKING_JAM_GENERATED_LATE_LEVEL_MAP = new Map(
+  PARKING_JAM_GENERATED_LATE_LEVELS.map((raw) => [raw.level, raw] as const)
+);
+
+export const PARKING_JAM_RAW_LEVELS: ParkingJamRawLevelConfig[] = PARKING_JAM_BASE_LEVELS.map((raw) => {
+  return PARKING_JAM_GENERATED_LATE_LEVEL_MAP.get(raw.level) ?? raw;
+});
 
 type ParkingJamLevelMeta = {
   parMoves: number;
@@ -682,24 +627,22 @@ const PRECOMPUTED_LEVEL_META: Record<number, ParkingJamLevelMeta> = {
   10: { parMoves: 3, relevantCarSet: ['B', 'H', 'X'] },
   11: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
   12: { parMoves: 4, relevantCarSet: ['B', 'G', 'H', 'J'] },
-  13: { parMoves: 4, relevantCarSet: ['C', 'D', 'E', 'G', 'H'] },
-  14: { parMoves: 1, relevantCarSet: ['X'] },
-  15: { parMoves: 2, relevantCarSet: ['B', 'J'] },
-  16: { parMoves: 2, relevantCarSet: ['I', 'L'] },
-  17: { parMoves: 5, relevantCarSet: ['A', 'D', 'E', 'J', 'K', 'L'] },
-  18: { parMoves: 2, relevantCarSet: ['D', 'X'] },
-  19: { parMoves: 4, relevantCarSet: ['H', 'I', 'K', 'L'] },
-  20: { parMoves: 4, relevantCarSet: ['C', 'G', 'I', 'J', 'L'] },
-  21: { parMoves: 4, relevantCarSet: ['C', 'F', 'G', 'I', 'J'] },
-  22: { parMoves: 4, relevantCarSet: ['F', 'G', 'J', 'K'] },
-  23: { parMoves: 4, relevantCarSet: ['H', 'I', 'K', 'L'] },
-  24: { parMoves: 5, relevantCarSet: ['B', 'C', 'F', 'H', 'X'] },
+  13: { parMoves: 8, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] },
+  14: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  15: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  16: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  17: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  18: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  19: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  20: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  21: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  22: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  23: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  24: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
 };
 
 const deriveParTimeMs = (parMoves: number, difficulty: number) =>
   Math.max(3000, Math.round(2200 + parMoves * 1700 + difficulty * 350));
-
-const twoWayQuotaForLevel = () => 0;
 
 const carCells = (car: ParkingJamCarConfig) => {
   const cells: string[] = [];
@@ -740,6 +683,24 @@ const sanitizeOverlaps = (cars: ParkingJamCarConfig[], gridSize: number) => {
 const hasBlockedGate = (raw: ParkingJamRawLevelConfig, edge: 'top' | 'right' | 'bottom' | 'left', index: number) =>
   raw.blockedGateSegments.some((segment) => segment.edge === edge && segment.index === index);
 
+const capBlockedGateSegments = (raw: ParkingJamRawLevelConfig) => {
+  const unique = new Map<string, { edge: 'top' | 'right' | 'bottom' | 'left'; index: number }>();
+  raw.blockedGateSegments.forEach((segment) => {
+    if (segment.index < 0 || segment.index >= raw.gridSize) return;
+    unique.set(`${segment.edge}:${segment.index}`, segment);
+  });
+
+  const ordered = [...unique.values()].sort((a, b) => {
+    const edgeOrder = ['top', 'right', 'bottom', 'left'] as const;
+    const edgeDiff = edgeOrder.indexOf(a.edge) - edgeOrder.indexOf(b.edge);
+    if (edgeDiff !== 0) return edgeDiff;
+    return a.index - b.index;
+  });
+
+  const cap = raw.level >= 16 && raw.level <= 24 ? 6 : ordered.length;
+  return ordered.slice(0, cap);
+};
+
 const preferredOneWayDirection = (car: ParkingJamCarConfig, gridSize: number): ParkingJamDirection => {
   // fallback heuristic if no gate information is used
   if (car.axis === 'h') {
@@ -774,30 +735,32 @@ const normalizeCarsForProgression = (raw: ParkingJamRawLevelConfig): ParkingJamR
     cars = cars.slice(0, Math.min(3, cars.length));
   }
 
-  const quota = twoWayQuotaForLevel();
-  const twoWayCars = cars.filter((car) => car.allowedExitDirections.length > 1);
+  const blockedGateSegments = capBlockedGateSegments(raw);
+  const normalizedRaw: ParkingJamRawLevelConfig = {
+    ...raw,
+    blockedGateSegments,
+  };
 
-  // Keep only a small quota of two-way cars and force others to one-way.
-  twoWayCars.forEach((car, index) => {
-    if (index < quota) return;
-    const preferred = chooseOneWayDirection(raw, car);
-    car.allowedExitDirections = [preferred];
-  });
-
-  // Hard guarantee: every level uses one-direction cars only.
-  cars.forEach((car) => {
-    if (car.allowedExitDirections.length <= 1) return;
-    car.allowedExitDirections = [chooseOneWayDirection(raw, car)];
-  });
+  // Progression rule: only levels 16+ are strict one-way.
+  if (raw.level >= 16) {
+    cars.forEach((car) => {
+      if (car.allowedExitDirections.length <= 1) return;
+      car.allowedExitDirections = [chooseOneWayDirection(normalizedRaw, car)];
+    });
+  }
 
   const objectiveType: ParkingJamRawLevelConfig['objectiveType'] = 'clear_all';
   const targetCarId = undefined;
   const oneWayCount = cars.filter((car) => car.allowedExitDirections.length === 1).length;
   const oneWayRatio = cars.length > 0 ? oneWayCount / cars.length : 1;
+  const gatingProfile: ParkingJamRawLevelConfig['gatingProfile'] =
+    blockedGateSegments.length === 0 ? 'none' : raw.level >= 16 ? 'partial' : raw.gatingProfile;
 
   return {
-    ...raw,
+    ...normalizedRaw,
     cars,
+    blockedGateSegments,
+    gatingProfile,
     targetCarId,
     objectiveType,
     oneWayRatio,
@@ -816,8 +779,7 @@ const buildLevelConfig = (raw: ParkingJamRawLevelConfig): ParkingJamLevelConfig 
     )
   );
   const meta = PRECOMPUTED_LEVEL_META[tuned.level];
-  const parMoves = Math.max(1, meta?.parMoves ?? fallbackParMoves);
-  const calibratedParMoves = Math.max(parMoves, fallbackParMoves);
+  const calibratedParMoves = Math.max(1, meta?.parMoves ?? fallbackParMoves);
   const relevantCarSet = meta?.relevantCarSet?.length
     ? [...new Set(meta.relevantCarSet.filter((id) => tuned.cars.some((car) => car.id === id)))]
     : tuned.cars.map((car) => car.id);

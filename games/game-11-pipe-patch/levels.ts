@@ -53,7 +53,8 @@ interface SimpleLevelConfig {
   id: number;
   gridSize: number;
   grid: string[];
-  trayPieces: { code: TrayPieceTypeCode; count: number }[];
+  requiredTrayPieces: { code: TrayPieceTypeCode; count: number }[];
+  decoyTrayPieces?: { code: TrayPieceTypeCode; count: number }[];
   parTimeMs: number;
   hardTimeMs: number;
   difficultyWeight: number;
@@ -224,14 +225,27 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
   const firstTargetList = targets.values().next().value;
   const firstTarget = firstTargetList?.[0];
 
+  const requiredPieceCount = config.requiredTrayPieces.reduce((sum, p) => sum + p.count, 0);
+  const decoyPieceCount = (config.decoyTrayPieces ?? []).reduce((sum, p) => sum + p.count, 0);
+
   const trayPieces: TrayPieceConfig[] = [];
-  for (const { code, count } of config.trayPieces) {
+  for (const { code, count } of config.requiredTrayPieces) {
     const pieceType = PIECE_CODE_MAP[code];
     for (let i = 0; i < count; i += 1) {
       trayPieces.push({
-        id: `lv${config.id}-${code.toLowerCase()}-${i}`,
+        id: `lv${config.id}-${code.toLowerCase()}-req-${i}`,
         pieceType,
         isDecoy: false,
+      });
+    }
+  }
+  for (const { code, count } of config.decoyTrayPieces ?? []) {
+    const pieceType = PIECE_CODE_MAP[code];
+    for (let i = 0; i < count; i += 1) {
+      trayPieces.push({
+        id: `lv${config.id}-${code.toLowerCase()}-decoy-${i}`,
+        pieceType,
+        isDecoy: true,
       });
     }
   }
@@ -252,8 +266,8 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
     oneWayGates: [],
     requiredPlacements: [],
     trayPieces,
-    requiredPieceCount: trayPieces.length,
-    decoyPieceCount: 0,
+    requiredPieceCount,
+    decoyPieceCount,
     parTimeMs: config.parTimeMs,
     hardTimeMs: config.hardTimeMs,
     difficultyWeight: config.difficultyWeight,
@@ -261,7 +275,9 @@ const parseSimpleGrid = (config: SimpleLevelConfig): PipePatchLevelConfig => {
 };
 
 // ============================================================================
-// COMPLETE 40-LEVEL PROGRESSION (MANUAL ONLY)
+// COMPLETE 30-LEVEL PROGRESSION (MANUAL ONLY)
+// `requiredTrayPieces` = solution-critical inventory.
+// `decoyTrayPieces` = near-miss distractors (Lv1-15: 1 piece, Lv16-30: 2 pieces).
 // ============================================================================
 
 // ============================================================================
@@ -278,13 +294,14 @@ const level1: SimpleLevelConfig = {
     '.   .  .  .   .',
     '.   .  .  .   .',
   ],
-  trayPieces: [
-    { code: 'H', count: 5 },
-    { code: 'V', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
     { code: 'UR', count: 1 },
-    { code: 'RD', count: 1 },
     { code: 'DL', count: 1 },
     { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 9000,
   hardTimeMs: 15000,
@@ -301,13 +318,14 @@ const level2: SimpleLevelConfig = {
     '.   .  .  .  .',
     '^T  .  .  .  .',
   ],
-  trayPieces: [
-    { code: 'H', count: 2 },
-    { code: 'V', count: 6 },
-    { code: 'UR', count: 1 },
+  requiredTrayPieces: [
+    { code: 'V', count: 2 },
     { code: 'RD', count: 1 },
     { code: 'DL', count: 1 },
     { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
   ],
   parTimeMs: 10000,
   hardTimeMs: 17000,
@@ -324,13 +342,14 @@ const level3: SimpleLevelConfig = {
     '.   .  .  .  .',
     '.   .  .  .  ^T',
   ],
-  trayPieces: [
-    { code: 'H', count: 4 },
-    { code: 'V', count: 4 },
-    { code: 'UR', count: 2 },
-    { code: 'RD', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 2 },
+    { code: 'UR', count: 1 },
     { code: 'DL', count: 2 },
-    { code: 'LU', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 11000,
   hardTimeMs: 18000,
@@ -347,13 +366,14 @@ const level4: SimpleLevelConfig = {
     '.   .  .  .   .',
     '^T  .  .  .   .',
   ],
-  trayPieces: [
-    { code: 'H', count: 4 },
-    { code: 'V', count: 4 },
-    { code: 'UR', count: 2 },
-    { code: 'RD', count: 2 },
-    { code: 'DL', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
+    { code: 'RD', count: 3 },
     { code: 'LU', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'DL', count: 1 },
   ],
   parTimeMs: 11500,
   hardTimeMs: 18500,
@@ -370,13 +390,15 @@ const level5: SimpleLevelConfig = {
     '.   .  .  .   .',
     '.   .  .  .   .',
   ],
-  trayPieces: [
-    { code: 'H', count: 5 },
-    { code: 'V', count: 4 },
-    { code: 'UR', count: 2 },
-    { code: 'RD', count: 2 },
-    { code: 'DL', count: 2 },
-    { code: 'LU', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 12000,
   hardTimeMs: 19500,
@@ -393,13 +415,14 @@ const level6: SimpleLevelConfig = {
     '.   .  .  #   .',
     '.   .  .  .  ^T',
   ],
-  trayPieces: [
-    { code: 'H', count: 5 },
-    { code: 'V', count: 5 },
-    { code: 'UR', count: 2 },
-    { code: 'RD', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 2 },
+    { code: 'UR', count: 1 },
     { code: 'DL', count: 2 },
-    { code: 'LU', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 12500,
   hardTimeMs: 20500,
@@ -416,13 +439,14 @@ const level7: SimpleLevelConfig = {
     '.   .   .  .  .',
     '^T  .   .  .  .',
   ],
-  trayPieces: [
-    { code: 'H', count: 4 },
-    { code: 'V', count: 6 },
-    { code: 'UR', count: 2 },
+  requiredTrayPieces: [
+    { code: 'V', count: 1 },
     { code: 'RD', count: 2 },
-    { code: 'DL', count: 2 },
+    { code: 'DL', count: 1 },
     { code: 'LU', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'UR', count: 1 },
   ],
   parTimeMs: 13000,
   hardTimeMs: 21500,
@@ -439,13 +463,11 @@ const level8: SimpleLevelConfig = {
     '.   #  .  .   .',
     '.   .  .  .   .',
   ],
-  trayPieces: [
-    { code: 'H', count: 6 },
-    { code: 'V', count: 5 },
-    { code: 'UR', count: 2 },
-    { code: 'RD', count: 2 },
-    { code: 'DL', count: 2 },
-    { code: 'LU', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 3 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 13500,
   hardTimeMs: 22000,
@@ -462,13 +484,13 @@ const level9: SimpleLevelConfig = {
     '.   .  .  .   .',
     '^T  .  .  .   .',
   ],
-  trayPieces: [
-    { code: 'H', count: 5 },
-    { code: 'V', count: 6 },
-    { code: 'UR', count: 3 },
-    { code: 'RD', count: 3 },
-    { code: 'DL', count: 3 },
-    { code: 'LU', count: 3 },
+  requiredTrayPieces: [
+    { code: 'H', count: 3 },
+    { code: 'V', count: 3 },
+    { code: 'RD', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 14500,
   hardTimeMs: 23000,
@@ -485,13 +507,14 @@ const level10: SimpleLevelConfig = {
     '.   .  .  .  .',
     '.   .  .  .  ^T',
   ],
-  trayPieces: [
-    { code: 'H', count: 6 },
-    { code: 'V', count: 6 },
-    { code: 'UR', count: 3 },
-    { code: 'RD', count: 3 },
-    { code: 'DL', count: 3 },
-    { code: 'LU', count: 3 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 2 },
+    { code: 'UR', count: 1 },
+    { code: 'DL', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 15000,
   hardTimeMs: 24000,
@@ -512,13 +535,11 @@ const level11: SimpleLevelConfig = {
     '.   .  #  .   .',
     'G>  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 7 },
-    { code: 'V', count: 6 },
-    { code: 'UR', count: 3 },
-    { code: 'RD', count: 3 },
-    { code: 'DL', count: 3 },
-    { code: 'LU', count: 3 },
+  requiredTrayPieces: [
+    { code: 'H', count: 6 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 17000,
   hardTimeMs: 26000,
@@ -535,13 +556,15 @@ const level12: SimpleLevelConfig = {
     '.   .  #  .  .',
     '^r  .  G> . <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 7 },
-    { code: 'V', count: 7 },
-    { code: 'UR', count: 3 },
-    { code: 'RD', count: 3 },
-    { code: 'DL', count: 3 },
-    { code: 'LU', count: 3 },
+  requiredTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 2 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
   ],
   parTimeMs: 18000,
   hardTimeMs: 27500,
@@ -558,13 +581,14 @@ const level13: SimpleLevelConfig = {
     '.   .  #  .   .',
     'G>  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 7 },
-    { code: 'V', count: 7 },
-    { code: 'UR', count: 4 },
-    { code: 'RD', count: 4 },
-    { code: 'DL', count: 4 },
-    { code: 'LU', count: 4 },
+  requiredTrayPieces: [
+    { code: 'H', count: 5 },
+    { code: 'V', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 18500,
   hardTimeMs: 28500,
@@ -581,13 +605,18 @@ const level14: SimpleLevelConfig = {
     '.   .  .  .   .',
     'G>  .  .  .  <r',
   ],
-  trayPieces: [
-    { code: 'H', count: 8 },
-    { code: 'V', count: 7 },
-    { code: 'UR', count: 4 },
-    { code: 'RD', count: 4 },
-    { code: 'DL', count: 4 },
-    { code: 'LU', count: 4 },
+  requiredTrayPieces: [
+    { code: 'H', count: 4 },
+    { code: 'V', count: 1 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 1 },
+    { code: 'TR', count: 1 },
+    { code: 'TL', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 19500,
   hardTimeMs: 29500,
@@ -604,13 +633,16 @@ const level15: SimpleLevelConfig = {
     '.   .  .  .  .',
     '.  <r  G> . <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 8 },
-    { code: 'V', count: 8 },
-    { code: 'UR', count: 4 },
-    { code: 'RD', count: 4 },
-    { code: 'DL', count: 4 },
-    { code: 'LU', count: 4 },
+  requiredTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 2 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
   ],
   parTimeMs: 20000,
   hardTimeMs: 30500,
@@ -627,17 +659,15 @@ const level16: SimpleLevelConfig = {
     '.   #  .  .   .',
     'G>  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 8 },
-    { code: 'V', count: 8 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
-    { code: 'TL', count: 1 },
-    { code: 'UR', count: 4 },
-    { code: 'RD', count: 4 },
-    { code: 'DL', count: 4 },
-    { code: 'LU', count: 4 },
+  requiredTrayPieces: [
+    { code: 'H', count: 5 },
+    { code: 'V', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'LU', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'UR', count: 1 },
   ],
   parTimeMs: 21000,
   hardTimeMs: 32000,
@@ -654,17 +684,11 @@ const level17: SimpleLevelConfig = {
     '.   #  .  .   .',
     'G>  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 8 },
-    { code: 'V', count: 8 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
-    { code: 'TL', count: 1 },
-    { code: 'UR', count: 5 },
-    { code: 'RD', count: 5 },
-    { code: 'DL', count: 5 },
-    { code: 'LU', count: 5 },
+  requiredTrayPieces: [
+    { code: 'H', count: 6 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 2 },
   ],
   parTimeMs: 22000,
   hardTimeMs: 33000,
@@ -685,13 +709,15 @@ const level18: SimpleLevelConfig = {
     '.   .  #  .   .',
     '^G  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 10 },
-    { code: 'V', count: 9 },
-    { code: 'UR', count: 5 },
-    { code: 'RD', count: 5 },
-    { code: 'DL', count: 5 },
-    { code: 'LU', count: 5 },
+  requiredTrayPieces: [
+    { code: 'H', count: 8 },
+    { code: 'UR', count: 2 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'RD', count: 1 },
   ],
   parTimeMs: 23000,
   hardTimeMs: 34000,
@@ -708,18 +734,16 @@ const level19: SimpleLevelConfig = {
     '.   .  .  #   .',
     '^G  .  .  .  <r',
   ],
-  trayPieces: [
-    { code: 'H', count: 10 },
-    { code: 'V', count: 9 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
-    { code: 'TL', count: 1 },
-    { code: 'UR', count: 5 },
-    { code: 'RD', count: 5 },
-    { code: 'DL', count: 5 },
-    { code: 'LU', count: 5 },
-    { code: 'XO', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 5 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'XO', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 24000,
   hardTimeMs: 35500,
@@ -736,18 +760,18 @@ const level20: SimpleLevelConfig = {
     '.   .  #  .   .',
     '^G  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 9 },
-    { code: 'V', count: 9 },
-    { code: 'XO', count: 1 },
-    { code: 'TU', count: 1 },
+  requiredTrayPieces: [
+    { code: 'H', count: 5 },
+    { code: 'UR', count: 2 },
+    { code: 'RD', count: 3 },
+    { code: 'LU', count: 1 },
     { code: 'TR', count: 1 },
     { code: 'TD', count: 1 },
     { code: 'TL', count: 1 },
-    { code: 'UR', count: 5 },
-    { code: 'RD', count: 5 },
-    { code: 'DL', count: 5 },
-    { code: 'LU', count: 5 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'DL', count: 1 },
   ],
   parTimeMs: 25000,
   hardTimeMs: 36500,
@@ -764,18 +788,17 @@ const level21: SimpleLevelConfig = {
     '.   .  .  .   #',
     'G>  .  .  .  <r',
   ],
-  trayPieces: [
-    { code: 'H', count: 10 },
-    { code: 'V', count: 9 },
-    { code: 'XO', count: 3 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 3 },
+    { code: 'UR', count: 1 },
+    { code: 'LU', count: 1 },
+    { code: 'TR', count: 3 },
     { code: 'TL', count: 1 },
-    { code: 'UR', count: 5 },
-    { code: 'RD', count: 5 },
-    { code: 'DL', count: 5 },
-    { code: 'LU', count: 5 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'TD', count: 1 },
   ],
   parTimeMs: 26000,
   hardTimeMs: 37500,
@@ -792,18 +815,16 @@ const level22: SimpleLevelConfig = {
     '.   .  .  .   .',
     'G>  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 10 },
-    { code: 'V', count: 10 },
-    { code: 'XO', count: 1 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
-    { code: 'TL', count: 1 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+  requiredTrayPieces: [
+    { code: 'H', count: 7 },
+    { code: 'UR', count: 2 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'UR', count: 1 },
   ],
   parTimeMs: 27000,
   hardTimeMs: 39000,
@@ -820,18 +841,15 @@ const level23: SimpleLevelConfig = {
     '.   .  .  .   .',
     '^G  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 11 },
-    { code: 'V', count: 10 },
-    { code: 'XO', count: 2 },
-    { code: 'TU', count: 1 },
-    { code: 'TR', count: 1 },
-    { code: 'TD', count: 1 },
-    { code: 'TL', count: 1 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+  requiredTrayPieces: [
+    { code: 'H', count: 8 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 28000,
   hardTimeMs: 40000,
@@ -848,18 +866,17 @@ const level24: SimpleLevelConfig = {
     '.   .  #  .   .',
     '^G  .  .  .  <g',
   ],
-  trayPieces: [
-    { code: 'H', count: 11 },
-    { code: 'V', count: 11 },
-    { code: 'XO', count: 2 },
-    { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 3 },
+    { code: 'V', count: 1 },
+    { code: 'UR', count: 2 },
+    { code: 'RD', count: 2 },
+    { code: 'DL', count: 2 },
     { code: 'TL', count: 2 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+  ],
+  decoyTrayPieces: [
+    { code: 'V', count: 1 },
+    { code: 'LU', count: 1 },
   ],
   parTimeMs: 29000,
   hardTimeMs: 41000,
@@ -876,18 +893,16 @@ const level25: SimpleLevelConfig = {
     '.   .  .   .  .',
     '^r  #  ^b  ^r  ^g',
   ],
-  trayPieces: [
-    { code: 'H', count: 12 },
-    { code: 'V', count: 11 },
-    { code: 'XO', count: 2 },
+  requiredTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 6 },
+    { code: 'DL', count: 1 },
     { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+    { code: 'TD', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'TR', count: 1 },
   ],
   parTimeMs: 30000,
   hardTimeMs: 42500,
@@ -909,18 +924,16 @@ const level26: SimpleLevelConfig = {
     '.   .  .   .  .  .',
     '^r  #  ^b  #  ^r ^y',
   ],
-  trayPieces: [
-    { code: 'H', count: 14 },
-    { code: 'V', count: 16 },
-    { code: 'XO', count: 3 },
-    { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+  requiredTrayPieces: [
+    { code: 'H', count: 3 },
+    { code: 'V', count: 9 },
+    { code: 'DL', count: 1 },
+    { code: 'TU', count: 1 },
+    { code: 'XO', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 32000,
   hardTimeMs: 44000,
@@ -938,18 +951,17 @@ const level27: SimpleLevelConfig = {
     '.   .  .   .  .  .',
     '^r  ^g  ^b  #  ^r ^y',
   ],
-  trayPieces: [
-    { code: 'H', count: 10 },
-    { code: 'V', count: 8 },
-    { code: 'XO', count: 4 },
-    { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+  requiredTrayPieces: [
+    { code: 'H', count: 2 },
+    { code: 'V', count: 9 },
+    { code: 'DL', count: 1 },
+    { code: 'TU', count: 3 },
+    { code: 'TR', count: 1 },
+    { code: 'TD', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'TR', count: 1 },
   ],
   parTimeMs: 33000,
   hardTimeMs: 45000,
@@ -967,18 +979,16 @@ const level28: SimpleLevelConfig = {
     '.   .  .   .  .  .',
     '^r  #  ^b  #  ^r ^y',
   ],
-  trayPieces: [
-    { code: 'H', count: 9 },
+  requiredTrayPieces: [
+    { code: 'H', count: 4 },
     { code: 'V', count: 9 },
-    { code: 'XO', count: 5 },
-    { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 6 },
-    { code: 'RD', count: 6 },
-    { code: 'DL', count: 6 },
-    { code: 'LU', count: 6 },
+    { code: 'DL', count: 1 },
+    { code: 'TU', count: 1 },
+    { code: 'XO', count: 2 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 34000,
   hardTimeMs: 46500,
@@ -997,18 +1007,21 @@ const level29: SimpleLevelConfig = {
     '.   .  .   .  .  .   .',
     '^g  .  ^y  .  ^r  .  ^b',
   ],
-  trayPieces: [
-    { code: 'H', count: 16 },
-    { code: 'V', count: 19 },
-    { code: 'XO', count: 5 },
+  requiredTrayPieces: [
+    { code: 'H', count: 6 },
+    { code: 'V', count: 3 },
+    { code: 'UR', count: 1 },
+    { code: 'RD', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 1 },
     { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
+    { code: 'TR', count: 1 },
     { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 8 },
-    { code: 'RD', count: 8 },
-    { code: 'DL', count: 8 },
-    { code: 'LU', count: 8 },
+    { code: 'TL', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 37000,
   hardTimeMs: 50000,
@@ -1027,18 +1040,20 @@ const level30: SimpleLevelConfig = {
     '.   .  .   .  .  .   .',
     '^g  .  ^y  .  ^r  .  ^b',
   ],
-  trayPieces: [
-    { code: 'H', count: 16 },
-    { code: 'V', count: 20 },
-    { code: 'XO', count: 4 },
+  requiredTrayPieces: [
+    { code: 'H', count: 3 },
+    { code: 'V', count: 6 },
+    { code: 'UR', count: 1 },
+    { code: 'DL', count: 1 },
+    { code: 'LU', count: 2 },
     { code: 'TU', count: 2 },
-    { code: 'TR', count: 2 },
-    { code: 'TD', count: 2 },
-    { code: 'TL', count: 2 },
-    { code: 'UR', count: 8 },
-    { code: 'RD', count: 8 },
-    { code: 'DL', count: 8 },
-    { code: 'LU', count: 8 },
+    { code: 'TR', count: 3 },
+    { code: 'TL', count: 1 },
+    { code: 'XO', count: 1 },
+  ],
+  decoyTrayPieces: [
+    { code: 'H', count: 1 },
+    { code: 'V', count: 1 },
   ],
   parTimeMs: 38000,
   hardTimeMs: 51500,
