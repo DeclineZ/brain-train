@@ -76,8 +76,7 @@ export interface PipePatchEndpoint {
 
 export interface PipePatchEndpointGroup {
   colorId: string;
-  input: PipePatchEndpoint;
-  outputs: PipePatchEndpoint[];
+  endpoints: PipePatchEndpoint[];  // All peer endpoints, no source/target distinction
 }
 
 export interface ManualGridLevelConfig {
