@@ -234,8 +234,8 @@ const level1: SimpleLevelConfig = {
     { code: 'V', count: 2 },  // (2,3) + endpoint '1^'
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 8000,
-  hardTimeMs: 14000,
+  parTimeMs: 11000,
+  hardTimeMs: 17000,
   difficultyWeight: 1.0,
 };
 
@@ -257,8 +257,8 @@ const level2: SimpleLevelConfig = {
     { code: 'V', count: 2 },  // endpoint '1v' + (1,1)
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 9500,
-  hardTimeMs: 16000,
+  parTimeMs: 12750,
+  hardTimeMs: 19250,
   difficultyWeight: 1.3,
 };
 
@@ -281,8 +281,8 @@ const level3: SimpleLevelConfig = {
     { code: 'V', count: 2 },  // (2,2) + endpoint '1^'
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 11000,
-  hardTimeMs: 18000,
+  parTimeMs: 14500,
+  hardTimeMs: 21500,
   difficultyWeight: 1.6,
 };
 const level4: SimpleLevelConfig = {
@@ -302,8 +302,8 @@ const level4: SimpleLevelConfig = {
     { code: 'V', count: 3 },  // (3,2) + (3,3) + (3,4 endpoint)
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 10500,
-  hardTimeMs: 17500,
+  parTimeMs: 14000,
+  hardTimeMs: 21000,
   difficultyWeight: 1.7,
 };
 
@@ -324,8 +324,8 @@ const level5: SimpleLevelConfig = {
     { code: 'H', count: 2 },  // (3,3) + (4,3 endpoint)
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 12000,
-  hardTimeMs: 19500,
+  parTimeMs: 15750,
+  hardTimeMs: 23250,
   difficultyWeight: 1.8,
 };
 
@@ -349,8 +349,8 @@ const level6: SimpleLevelConfig = {
     { code: 'DL', count: 1 }, // (4,0): Down + Left
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 13500,
-  hardTimeMs: 22000,
+  parTimeMs: 17750,
+  hardTimeMs: 26250,
   difficultyWeight: 2.0,
 };
 const level7: SimpleLevelConfig = {
@@ -371,8 +371,8 @@ const level7: SimpleLevelConfig = {
     { code: 'RD', count: 1 },  // (0,2): Right + Down
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 14500,
-  hardTimeMs: 23500,
+  parTimeMs: 19000,
+  hardTimeMs: 28000,
   difficultyWeight: 2.2,
 };
 
@@ -395,8 +395,8 @@ const level8: SimpleLevelConfig = {
     { code: 'V', count: 3 },   // (3,2), (3,3), (3,4 endpoint)
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 15000,
-  hardTimeMs: 24500,
+  parTimeMs: 19750,
+  hardTimeMs: 29250,
   difficultyWeight: 2.4,
 };
 
@@ -419,8 +419,8 @@ const level9: SimpleLevelConfig = {
     { code: 'H', count: 3 },   // (2,3), (3,3), (4,3 endpoint)
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 15500,
-  hardTimeMs: 25500,
+  parTimeMs: 20500,
+  hardTimeMs: 30500,
   difficultyWeight: 2.6,
 };
 const level10: SimpleLevelConfig = {
@@ -441,8 +441,8 @@ const level10: SimpleLevelConfig = {
     { code: 'V', count: 2 },   // (1,2) + endpoint '1^'
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 16000,
-  hardTimeMs: 26000,
+  parTimeMs: 21000,
+  hardTimeMs: 31000,
   difficultyWeight: 2.8,
 };
 
@@ -465,8 +465,8 @@ const level11: SimpleLevelConfig = {
     { code: 'V', count: 6 },   // color1: (1,2),(1,3),endpoint '1^' + color2: endpoint '2v',(3,1),(3,2)
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 17000,
-  hardTimeMs: 29000,
+  parTimeMs: 23000,
+  hardTimeMs: 35000,
   difficultyWeight: 3.0,
 };
 
@@ -492,8 +492,8 @@ const level12: SimpleLevelConfig = {
     { code: 'V', count: 5 },   // color1: (1,2),(1,3),endpoint '1^' + color2: endpoint '2v',(2,2)
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 18000,
-  hardTimeMs: 30500,
+  parTimeMs: 24250,
+  hardTimeMs: 36750,
   difficultyWeight: 3.2,
 };
 const level13: SimpleLevelConfig = {
@@ -518,8 +518,8 @@ const level13: SimpleLevelConfig = {
     { code: 'RD', count: 2 },
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 18500,
-  hardTimeMs: 31500,
+  parTimeMs: 25000,
+  hardTimeMs: 38000,
   difficultyWeight: 3.4,
 };
 
@@ -545,8 +545,8 @@ const level14: SimpleLevelConfig = {
     { code: 'RD', count: 1 },
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 19000,
-  hardTimeMs: 32500,
+  parTimeMs: 25750,
+  hardTimeMs: 39250,
   difficultyWeight: 3.6,
 };
 
@@ -572,8 +572,8 @@ const level15: SimpleLevelConfig = {
     { code: 'DL', count: 2 },
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 20000,
-  hardTimeMs: 34000,
+  parTimeMs: 27000,
+  hardTimeMs: 41000,
   difficultyWeight: 3.8,
 };
 const level16: SimpleLevelConfig = {
@@ -595,8 +595,8 @@ const level16: SimpleLevelConfig = {
     { code: 'V', count: 9 },   // color1: 4, color2: 5
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 20500,
-  hardTimeMs: 35000,
+  parTimeMs: 27750,
+  hardTimeMs: 42250,
   difficultyWeight: 4.0,
 };
 
@@ -617,8 +617,8 @@ const level17: SimpleLevelConfig = {
     { code: 'V', count: 14 },  // color1: 4 (since one cell becomes TD), color2:5, color3:5
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
-  parTimeMs: 22000,
-  hardTimeMs: 37000,
+  parTimeMs: 29500,
+  hardTimeMs: 44500,
   difficultyWeight: 4.2,
 };
 
@@ -639,8 +639,8 @@ const level18: SimpleLevelConfig = {
     { code: 'V', count: 14 },  // color1:5, color2:5, color3:4 (since one cell becomes TU)
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
-  parTimeMs: 23500,
-  hardTimeMs: 39500,
+  parTimeMs: 31500,
+  hardTimeMs: 47500,
   difficultyWeight: 4.4,
 };
 const level19: SimpleLevelConfig = {
@@ -666,8 +666,8 @@ const level19: SimpleLevelConfig = {
     { code: 'H', count: 1 },
     { code: 'V', count: 1 },
   ],
-  parTimeMs: 24500,
-  hardTimeMs: 39500,
+  parTimeMs: 32000,
+  hardTimeMs: 47000,
   difficultyWeight: 4.6,
 };
 
@@ -695,8 +695,8 @@ const level20: SimpleLevelConfig = {
     { code: 'H', count: 1 },
     { code: 'V', count: 1 },
   ],
-  parTimeMs: 26000,
-  hardTimeMs: 41600,
+  parTimeMs: 33800,
+  hardTimeMs: 49400,
   difficultyWeight: 4.9,
 };
 
@@ -725,8 +725,8 @@ const level21: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 28000,
-  hardTimeMs: 44800,
+  parTimeMs: 36400,
+  hardTimeMs: 53200,
   difficultyWeight: 5.2,
 };
 const level22: SimpleLevelConfig = {
@@ -753,8 +753,8 @@ const level22: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 29000,
-  hardTimeMs: 46000,
+  parTimeMs: 37500,
+  hardTimeMs: 54500,
   difficultyWeight: 5.4,
 };
 
@@ -782,8 +782,8 @@ const level23: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'UR', count: 1 },
   ],
-  parTimeMs: 30500,
-  hardTimeMs: 48800,
+  parTimeMs: 39650,
+  hardTimeMs: 57950,
   difficultyWeight: 5.6,
 };
 
@@ -812,8 +812,8 @@ const level24: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 32000,
-  hardTimeMs: 51200,
+  parTimeMs: 41600,
+  hardTimeMs: 60800,
   difficultyWeight: 5.8,
 };
 const level25: SimpleLevelConfig = {
@@ -840,8 +840,8 @@ const level25: SimpleLevelConfig = {
     { code: 'H', count: 1 },
     { code: 'V', count: 1 },
   ],
-  parTimeMs: 32000,
-  hardTimeMs: 51200,
+  parTimeMs: 41600,
+  hardTimeMs: 60800,
   difficultyWeight: 6.0,
 };
 
@@ -870,8 +870,8 @@ const level26: SimpleLevelConfig = {
     { code: 'H', count: 1 },
     { code: 'V', count: 1 },
   ],
-  parTimeMs: 34000,
-  hardTimeMs: 54400,
+  parTimeMs: 44200,
+  hardTimeMs: 64600,
   difficultyWeight: 6.2,
 };
 
@@ -901,8 +901,8 @@ const level27: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 36000,
-  hardTimeMs: 57600,
+  parTimeMs: 46800,
+  hardTimeMs: 68400,
   difficultyWeight: 6.4,
 };
 const level28: SimpleLevelConfig = {
@@ -928,8 +928,8 @@ const level28: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 36000,
-  hardTimeMs: 57600,
+  parTimeMs: 46800,
+  hardTimeMs: 68400,
   difficultyWeight: 6.6,
 };
 
@@ -957,8 +957,8 @@ const level29: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'UR', count: 1 },
   ],
-  parTimeMs: 39000,
-  hardTimeMs: 62400,
+  parTimeMs: 50700,
+  hardTimeMs: 74100,
   difficultyWeight: 7.0,
 };
 
@@ -988,8 +988,8 @@ const level30: SimpleLevelConfig = {
     { code: 'V', count: 1 },
     { code: 'XO', count: 1 },
   ],
-  parTimeMs: 42000,
-  hardTimeMs: 67200,
+  parTimeMs: 54600,
+  hardTimeMs: 79800,
   difficultyWeight: 7.4,
 };
 
