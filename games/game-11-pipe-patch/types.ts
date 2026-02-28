@@ -76,8 +76,7 @@ export interface PipePatchEndpoint {
 
 export interface PipePatchEndpointGroup {
   colorId: string;
-  input: PipePatchEndpoint;
-  outputs: PipePatchEndpoint[];
+  endpoints: PipePatchEndpoint[];  // All peer endpoints, no source/target distinction
 }
 
 export interface ManualGridLevelConfig {
@@ -115,6 +114,29 @@ export interface PipePatchLevelConfig {
   hardTimeMs: number;
   difficultyWeight: number;
   tutorialCues?: TutorialCues;
+}
+
+export interface PipePatchSolvedPlacement {
+  key: string; // "x,y"
+  pieceType: PipePieceType;
+}
+
+export interface PipePatchSolvedLevel {
+  levelId: number;
+  requiredCounts: Partial<Record<PipePieceType, number>>;
+  placements: PipePatchSolvedPlacement[];
+  pieceTotal: number;
+  endpointPieceCount: number;
+  objective: 'min_piece_count_including_endpoints';
+  minimalByDecrement?: boolean;
+  minimalityByPieceType?: Partial<Record<PipePieceType, boolean>>;
+}
+
+export interface PipePatchSolveSummary {
+  generatedAt: string;
+  objective: 'min_piece_count_including_endpoints';
+  levelCount: number;
+  levels: PipePatchSolvedLevel[];
 }
 
 export interface RuntimePlacedPiece {

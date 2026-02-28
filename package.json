@@ -8,6 +8,9 @@
     "analyze": "cross-env ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "audit:parking-jam": "node games/game-21-parking-jam/scripts/audit-levels.cjs",
+    "solve:pipe-patch": "node games/game-11-pipe-patch/scripts/solve-levels.cjs",
+    "audit:pipe-patch": "node games/game-11-pipe-patch/scripts/audit-levels.cjs",
     "prepare": "husky",
     "test": "echo 'No tests yet'"
   },

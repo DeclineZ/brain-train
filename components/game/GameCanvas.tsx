@@ -131,6 +131,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         } else if (gameId === 'game-20-boxcounting') {
           const { BoxCountingTutorialScene } = await import('@/games/game-20-boxcounting/TutorialScene');
           config.scene = BoxCountingTutorialScene;
+        } else if (gameId === 'game-21-parking-jam') {
+          const { ParkingJamTutorialScene } = await import('@/games/game-21-parking-jam/TutorialScene');
+          config.scene = ParkingJamTutorialScene;
         }
       }
 

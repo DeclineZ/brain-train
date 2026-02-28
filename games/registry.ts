@@ -19,6 +19,7 @@ import { FloatingMarketGameConfig } from './game-17-floatingmarket/config';
 import { RunForYourLifeGameConfig } from './game-18-runforyourlife/config';
 import { CashierGameConfig } from './game-19-cashier/config';
 import { BoxCountingGameConfig } from './game-20-boxcounting/config';
+import { ParkingJamGameConfig } from './game-21-parking-jam/config';
 
 export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-00-example': ExampleGameConfig,
@@ -42,5 +43,5 @@ export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
   'game-18-runforyourlife': RunForYourLifeGameConfig,
   'game-19-cashier': CashierGameConfig,
   'game-20-boxcounting': BoxCountingGameConfig,
+  'game-21-parking-jam': ParkingJamGameConfig,
 };
-
