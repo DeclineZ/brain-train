@@ -117,6 +117,29 @@ export interface PipePatchLevelConfig {
   tutorialCues?: TutorialCues;
 }
 
+export interface PipePatchSolvedPlacement {
+  key: string; // "x,y"
+  pieceType: PipePieceType;
+}
+
+export interface PipePatchSolvedLevel {
+  levelId: number;
+  requiredCounts: Partial<Record<PipePieceType, number>>;
+  placements: PipePatchSolvedPlacement[];
+  pieceTotal: number;
+  endpointPieceCount: number;
+  objective: 'min_piece_count_including_endpoints';
+  minimalByDecrement?: boolean;
+  minimalityByPieceType?: Partial<Record<PipePieceType, boolean>>;
+}
+
+export interface PipePatchSolveSummary {
+  generatedAt: string;
+  objective: 'min_piece_count_including_endpoints';
+  levelCount: number;
+  levels: PipePatchSolvedLevel[];
+}
+
 export interface RuntimePlacedPiece {
   pieceId: string;
   pieceType: PipePieceType;
