@@ -40,8 +40,8 @@ export class MinerTutorialScene extends Phaser.Scene {
   private hookBaseY = 0;
   private hookAngle = Phaser.Math.DegToRad(-28);
   private hookLockedAngle = 0;
-  private hookSwingSpeed = 0.0011;
-  private hookSwingMaxAngle = Phaser.Math.DegToRad(32);
+  private hookSwingSpeed = 0.0006;
+  private hookSwingMaxAngle = Phaser.Math.DegToRad(50);
   private hookSwingDirection = 1;
   private hookState: HookState = 'swing';
   private hookSwingLength = 120;

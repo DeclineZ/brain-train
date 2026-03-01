@@ -181,7 +181,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.drawTimerDial();
 
     if (this.remainingMs <= 0) {
-      this.completeLevel({ solved: false, failedTimeout: true, skipped: false });
+      this.endGame(false);
     }
   }
 
@@ -1076,6 +1076,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
     }
   }
 
+  private endGame(success: boolean) {
+    if (success) {
+      this.completeLevel({ solved: true, failedTimeout: false, skipped: false });
+    } else {
+      this.completeLevel({ solved: false, failedTimeout: true, skipped: false });
+    }
+  }
+
   private completeLevel(result: { solved: boolean; failedTimeout: boolean; skipped: boolean }) {
     if (this.sceneState === 'complete') return;
 
@@ -1136,7 +1144,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     const payload: ParkingJamOnGameOverPayload = {
       ...sessionStats,
-      success: true,
+      success: result.solved,
       level: this.level.level,
       current_played: this.level.level,
       userTimeMs: levelTimeMs,
