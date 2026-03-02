@@ -1,6 +1,7 @@
 export type MinerGameStats = {
   levelPlayed: number;
   attempts: number;
+  crack_attempts: number;
   success_grabs: number;
   valuable_grabs: number;
   mistakes: number;
@@ -13,9 +14,11 @@ export type MinerGameStats = {
 
 const clamp = (value: number) => Math.min(100, Math.max(0, value));
 
+const getEffectiveAttempts = (stats: MinerGameStats) => Math.max(1, stats.attempts - stats.crack_attempts);
+
 export function calculateMinerStats(stats: MinerGameStats) {
   const goalAmount = Math.max(stats.goal_amount, 1);
-  const safeAttempts = Math.max(stats.attempts, 1);
+  const safeAttempts = getEffectiveAttempts(stats);
   const valueRatio = stats.total_value / goalAmount;
   const efficiency = stats.valuable_grabs / safeAttempts;
 
@@ -36,7 +39,7 @@ export function calculateMinerStats(stats: MinerGameStats) {
 
 export function calculateMinerStars(stats: MinerGameStats) {
   const goalAmount = Math.max(stats.goal_amount, 1);
-  const safeAttempts = Math.max(stats.attempts, 1);
+  const safeAttempts = getEffectiveAttempts(stats);
   const planning = clamp((stats.total_value / goalAmount) * (stats.valuable_grabs / safeAttempts) * 100);
   const focus = clamp((1 - stats.mistakes / safeAttempts) * 100);
   const speed = clamp((stats.target_decision_time_ms / Math.max(stats.avg_decision_time_ms, 1)) * 100);

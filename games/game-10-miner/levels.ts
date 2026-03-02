@@ -13,6 +13,7 @@ export type MinerObjectType =
   | 'silver_large'
   | 'diamond_small'
   | 'diamond_medium'
+  | 'fake_diamond'
   | 'gem'
   | 'money_bag'
   | 'rock'
@@ -24,6 +25,13 @@ export type MinerObjectType =
   | 'bomb_large'
   | 'cursed';
 
+export type MinerLevelObjective = {
+  targetType: MinerObjectType;
+  requiredCount: number;
+  label: string;
+  iconType: MinerObjectType;
+};
+
 export type MinerObjectConfig = {
   type: MinerObjectType;
   count: number;
@@ -32,11 +40,14 @@ export type MinerObjectConfig = {
   size: number;
   isHazard?: boolean;
   isCursed?: boolean;
+  objectiveEligible?: boolean;
+  durabilityHits?: number;
+  isDecoy?: boolean;
 };
 
 export type MinerDynamicEvent = {
   timeSec: number;
-  type: 'shift_layer' | 'move_vein' | 'cursed_spawn';
+  type: 'shift_layer' | 'move_vein' | 'cursed_spawn' | 'roll_pattern';
   payload?: Record<string, number>;
   repeat_interval?: number;
 };
@@ -53,6 +64,7 @@ export type MinerLevelConfig = {
   target_decision_time_ms: number;
   spawn_seed: number;
   objects: MinerObjectConfig[];
+  objective: MinerLevelObjective;
   hazards: {
     rocks_are_mistake: boolean;
     cursed_items_enabled: boolean;
@@ -64,7 +76,7 @@ export type MinerLevelConfig = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const baseObjects = {
+const baseObjects: Record<MinerObjectType, { value: number; weight: number; size: number }> = {
   gold_small: { value: 90, weight: 2.4, size: 18 },
   gold_medium: { value: 210, weight: 3.2, size: 22 },
   gold_large: { value: 380, weight: 4.0, size: 28 },
@@ -79,6 +91,7 @@ const baseObjects = {
   silver_large: { value: 310, weight: 2.6, size: 28 },
   diamond_small: { value: 360, weight: 0.6, size: 19 },
   diamond_medium: { value: 620, weight: 0.8, size: 24 },
+  fake_diamond: { value: 0, weight: 0.9, size: 20 },
   gem: { value: 520, weight: 1.0, size: 20 },
   money_bag: { value: 420, weight: 2.2, size: 24 },
   rock: { value: 0, weight: 2.6, size: 26 },
@@ -92,6 +105,8 @@ const baseObjects = {
 };
 
 const LEVEL_COUNT = 30;
+
+type ObjectCounts = Partial<Record<MinerObjectType, number>>;
 
 const getTier = (level: number) => {
   if (level <= 10) return 'early';
@@ -144,7 +159,35 @@ const getFreeHooks = (level: number) => {
   return 1;
 };
 
-const getObjectCounts = (level: number) => {
+const getLevelObjective = (level: number): MinerLevelObjective => {
+  if (level <= 3) {
+    return { targetType: 'gold_small', requiredCount: 2, label: 'Gold S', iconType: 'gold_small' };
+  }
+  if (level <= 6) {
+    return { targetType: 'gold_medium', requiredCount: 2, label: 'Gold M', iconType: 'gold_medium' };
+  }
+  if (level <= 10) {
+    return { targetType: 'iron_small', requiredCount: 3, label: 'Iron', iconType: 'iron_small' };
+  }
+  if (level <= 13) {
+    return { targetType: 'silver_small', requiredCount: 1, label: 'Silver', iconType: 'silver_small' };
+  }
+  if (level <= 16) {
+    return { targetType: 'gold_large', requiredCount: 1, label: 'Gold L', iconType: 'gold_large' };
+  }
+  if (level <= 20) {
+    return { targetType: 'money_bag', requiredCount: 1, label: 'Money Bag', iconType: 'money_bag' };
+  }
+  if (level <= 24) {
+    return { targetType: 'diamond_small', requiredCount: 1, label: 'Diamond', iconType: 'diamond_small' };
+  }
+  if (level <= 27) {
+    return { targetType: 'diamond_medium', requiredCount: 1, label: 'Big Diamond', iconType: 'diamond_medium' };
+  }
+  return { targetType: 'gem', requiredCount: 1, label: 'Gem', iconType: 'gem' };
+};
+
+const getObjectCounts = (level: number): ObjectCounts => {
   const tier = getTier(level);
   if (tier === 'early') {
     return {
@@ -169,8 +212,8 @@ const getObjectCounts = (level: number) => {
       copper_large: 1,
       iron_small: 2,
       iron_medium: 2,
-      silver_small: level >= 12 ? 2 : 0,
-      diamond_small: level >= 18 ? 1 : 0,
+      silver_small: level >= 11 ? 2 : 0,
+      diamond_small: level >= 18 ? (level <= 24 ? 2 : 1) : 0,
       gem: 1,
       money_bag: level >= 15 ? 1 : 0,
       stone_medium: level >= 13 ? 2 : 0,
@@ -191,9 +234,10 @@ const getObjectCounts = (level: number) => {
     silver_small: 2,
     silver_medium: 1,
     silver_large: 1,
-    diamond_small: 1,
+    diamond_small: level <= 24 ? 2 : 1,
     diamond_medium: level >= 25 ? 1 : 0,
-    gem: 2,
+    fake_diamond: level >= 21 && level <= 24 ? 1 : level >= 25 && level <= 27 ? 1 : level >= 28 ? 2 : 0,
+    gem: level >= 28 ? 3 : 2,
     money_bag: 2,
     stone_small: 1,
     stone_medium: 1,
@@ -230,6 +274,17 @@ const getDynamicEvents = (level: number): MinerDynamicEvent[] => {
   if (level >= 18) {
     events.push({ timeSec: 30, type: 'move_vein', payload: { speed: 26 } });
   }
+  if (level >= 24 && level <= 26) {
+    events.push({ timeSec: 16, type: 'roll_pattern', payload: { amplitudeMin: 22, amplitudeMax: 30, driftY: 8 } });
+  }
+  if (level === 27) {
+    events.push({ timeSec: 13, type: 'roll_pattern', payload: { amplitudeMin: 32, amplitudeMax: 48, driftY: 8 } });
+    events.push({ timeSec: 18, type: 'move_vein', payload: { speed: 28 } });
+  }
+  if (level >= 28) {
+    events.push({ timeSec: 10, type: 'roll_pattern', payload: { amplitudeMin: 40, amplitudeMax: 64, driftY: 8 } });
+    events.push({ timeSec: 18, type: 'move_vein', payload: { speed: 34 } });
+  }
   if (level >= 10) {
     events.push({ timeSec: 32, type: 'cursed_spawn', payload: { penalty: 5 } });
   }
@@ -245,22 +300,35 @@ const getValueMultiplier = (level: number) => {
   return 1.6;
 };
 
-const buildObjects = (counts: ReturnType<typeof getObjectCounts>, level: number): MinerObjectConfig[] => {
+const getDurabilityHits = (type: MinerObjectType) => {
+  if (type === 'diamond_medium') return 1;
+  if (type === 'gold_large' || type === 'copper_large' || type === 'iron_large' || type === 'silver_large') {
+    return 1;
+  }
+  return 0;
+};
+
+const buildObjects = (counts: ObjectCounts, level: number): MinerObjectConfig[] => {
   const multiplier = getValueMultiplier(level);
   const entries = Object.entries(counts) as Array<[MinerObjectType, number]>;
   return entries
     .filter(([, count]) => count > 0)
     .map(([type, count]) => {
       const base = baseObjects[type];
-      const scaledValue = Math.round(base.value * multiplier);
+      const scaledValue = type === 'fake_diamond' ? 0 : Math.round(base.value * multiplier);
+      const isHazard = type === 'rock' || type.startsWith('stone') || type.startsWith('bomb');
+      const isDecoy = type === 'fake_diamond';
       return {
         type,
         count,
         value: scaledValue,
         weight: base.weight,
         size: base.size,
-        isHazard: type === 'rock' || type.startsWith('stone') || type.startsWith('bomb'),
-        isCursed: type === 'cursed'
+        isHazard,
+        isCursed: type === 'cursed',
+        objectiveEligible: !isHazard && !isDecoy && type !== 'cursed',
+        durabilityHits: getDurabilityHits(type),
+        isDecoy
       };
     });
 };
@@ -287,6 +355,7 @@ export const getMinerLevel = (level: number): MinerLevelConfig => {
     target_decision_time_ms: getTargetDecisionTime(bounded),
     spawn_seed: 5000 + bounded * 7919,
     objects,
+    objective: getLevelObjective(bounded),
     hazards: {
       rocks_are_mistake: bounded >= 2,
       cursed_items_enabled: bounded >= 26

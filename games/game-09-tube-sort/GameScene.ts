@@ -175,6 +175,10 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.layoutTubes();
       this.renderTubes();
     });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.sound.getAll(this.soundKeys.timerWarning).forEach(sound => sound.stop());
+    });
   }
 
   private setupAudio() {
@@ -1609,6 +1613,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.timerEvent.remove();
     }
     this.stopTimerShake();
+    this.sound.getAll(this.soundKeys.timerWarning).forEach(sound => sound.stop());
 
     if (this.bgMusic?.isPlaying) {
       this.bgMusic.stop();

@@ -52,6 +52,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   private timerEvent!: Phaser.Time.TimerEvent;
   private customTimerBar!: Phaser.GameObjects.Graphics;
   private lastTimerPct = 100;
+  private hasPlayedLowTimeWarning = false;
   
   // Grid Layout
   private gridMetrics: GridConfig | null = null;
@@ -89,6 +90,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.hasMovedFirst = false;
     this.isNumbersRevealed = false;
     this.isLocked = false;
+    this.hasPlayedLowTimeWarning = false;
+    this.stopWarningSound();
     
     // Initialize telemetry
     this.telemetry = {
@@ -181,6 +184,10 @@ export class PinkCupGameScene extends Phaser.Scene {
       if (this.customTimerBar.visible) {
         this.drawTimerBar(this.lastTimerPct);
       }
+    });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.stopWarningSound();
     });
 
     // Start BG music
@@ -640,6 +647,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   startTimer() {
     this.customTimerBar.setVisible(true);
     this.drawTimerBar(100);
+    this.hasPlayedLowTimeWarning = false;
 
     this.timerEvent = this.time.addEvent({
       delay: 100,
@@ -657,6 +665,11 @@ export class PinkCupGameScene extends Phaser.Scene {
           remaining: remainingSeconds,
           total: this.currentLevelConfig.timeLimitSeconds
         });
+
+        if (pct <= 25 && !this.hasPlayedLowTimeWarning) {
+          this.hasPlayedLowTimeWarning = true;
+          this.sound.play('timer-warning', { volume: 0.6 });
+        }
 
         if (remainingMs <= 0) {
           this.handleTimeout();
@@ -980,6 +993,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     if (this.timerEvent) this.timerEvent.remove();
     if (this.customTimerBar) this.customTimerBar.setVisible(false);
+    this.stopWarningSound();
 
     this.showMessage('หมดเวลา!');
     this.sound.play('level-fail');
@@ -1365,6 +1379,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     if (this.timerEvent) this.timerEvent.remove();
     if (this.customTimerBar) this.customTimerBar.setVisible(false);
     if (this.revealTimerEvent) this.revealTimerEvent.remove();
+    this.stopWarningSound();
 
     // Stop music
     if (this.bgMusic && this.bgMusic.isPlaying) {
@@ -1391,6 +1406,10 @@ export class PinkCupGameScene extends Phaser.Scene {
     }
 
     this.sound.play(success ? 'level-pass' : 'level-fail');
+  }
+
+  private stopWarningSound() {
+    this.sound.getAll('timer-warning').forEach(sound => sound.stop());
   }
 
   private generateStarHint(stars: number): string | null {

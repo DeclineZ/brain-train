@@ -167,6 +167,10 @@ export class MatchingGameScene extends Phaser.Scene {
             }
         });
 
+        this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.stopWarningSound();
+        });
+
         // Listen for Resume Event from React
         this.game.events.on('resume-game', (data: { penalty: boolean }) => {
             this.resumeGame(data.penalty);
@@ -700,11 +704,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 // Low Time Warning
                 if (pct <= 25 && !this.hasPlayedLowTimeWarning && !this.continuedAfterTimeout) {
                     this.hasPlayedLowTimeWarning = true;
-                    // Play looped warning or single warning? 
-                    // Requirement: "Play when countdown timer is close to ending"
-                    // Let's play it once or loop? Looping might be annoying if they recover.
-                    // For now, play once when crossing 25%.
-                    this.sound.play('timer-warning');
+                    this.sound.play('timer-warning', { volume: 0.6 });
                 }
 
                 // if (remainingMs <= 0) {
