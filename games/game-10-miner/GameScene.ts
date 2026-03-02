@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { MINER_LEVELS } from './levels';
 import { calculateMinerStars } from '@/lib/scoring/miner';
-import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig } from './levels';
+import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig, MinerObjectType } from './levels';
 import { createSeededRandom } from '@/lib/seededRandom';
 
 type MinerObject = MinerObjectConfig & {
@@ -444,13 +444,14 @@ export class MinerGameScene extends Phaser.Scene {
   spawnObjects() {
     const { width, height } = this.scale;
     const rng = createSeededRandom(this.currentLevelConfig.spawn_seed);
+    const objective = this.currentLevelConfig.objective;
     this.spawnArea = {
       left: width * 0.15,
       right: width * 0.85,
       top: height * 0.42,
       bottom: height * 0.9
     };
-    const margin = 72;
+    const defaultMargin = 72;
     const spawnQueue: MinerObjectConfig[] = [];
     this.currentLevelConfig.objects.forEach((config) => {
       for (let i = 0; i < config.count; i++) {
@@ -463,30 +464,23 @@ export class MinerGameScene extends Phaser.Scene {
       [spawnQueue[i], spawnQueue[j]] = [spawnQueue[j], spawnQueue[i]];
     }
 
+    const objectiveQueue = spawnQueue.filter((config) => config.type === objective.targetType && !config.isDecoy && !config.isHazard);
+    const fillerQueue = spawnQueue.filter((config) => config.type !== objective.targetType || config.isDecoy || config.isHazard);
     let id = 1;
-    spawnQueue.forEach((config) => {
-      let attempts = 0;
-      let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-      let y = this.getSpawnYForValue(config.value, rng);
-      const maxAttempts = 200;
-      while (!this.isSpawnPositionValid(x, y, config.size, margin) && attempts < maxAttempts) {
-        x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-        y = this.getSpawnYForValue(config.value, rng);
-        attempts += 1;
-      }
+    let spawnedObjectiveCount = 0;
 
-      if (attempts >= maxAttempts && !this.isSpawnPositionValid(x, y, config.size, margin)) {
-        return;
-      }
+    const spawnConfig = (config: MinerObjectConfig, margin: number, fallbackToGrid = false) => {
+      const position = this.findSpawnPosition(config, rng, margin, fallbackToGrid);
+      if (!position) return false;
 
       const showValueLabel = rng.next() < this.valueLabelChance && config.value !== 0;
-      const sprite = this.createMinerSprite(x, y, config, showValueLabel);
+      const sprite = this.createMinerSprite(position.x, position.y, config, showValueLabel);
       const maxDurability = config.durabilityHits ?? 0;
       const minerObject: MinerObject = {
         ...config,
         id: id++,
-        x,
-        y,
+        x: position.x,
+        y: position.y,
         sprite,
         grabbed: false,
         maxDurability,
@@ -504,7 +498,81 @@ export class MinerGameScene extends Phaser.Scene {
       }
       this.updateDurabilityVisuals(minerObject);
       this.minerObjects.push(minerObject);
+      return true;
+    };
+
+    objectiveQueue.forEach((config) => {
+      if (spawnConfig(config, defaultMargin, true)) {
+        spawnedObjectiveCount += 1;
+      }
     });
+
+    if (spawnedObjectiveCount < objective.requiredCount) {
+      const objectiveSource = this.currentLevelConfig.objects.find((config) => config.type === objective.targetType && !config.isDecoy && !config.isHazard);
+      if (objectiveSource) {
+        const retryMargins = [56, 42, 28, 16];
+        for (const margin of retryMargins) {
+          while (spawnedObjectiveCount < objective.requiredCount && spawnConfig(objectiveSource, margin, true)) {
+            spawnedObjectiveCount += 1;
+          }
+          if (spawnedObjectiveCount >= objective.requiredCount) break;
+        }
+      }
+    }
+
+    fillerQueue.forEach((config) => {
+      spawnConfig(config, defaultMargin, false);
+    });
+  }
+
+  private findSpawnPosition(
+    config: MinerObjectConfig,
+    rng: ReturnType<typeof createSeededRandom>,
+    margin: number,
+    fallbackToGrid: boolean
+  ) {
+    let attempts = 0;
+    let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
+    let y = this.getSpawnYForValue(config.value, rng);
+    const maxAttempts = 200;
+    while (!this.isSpawnPositionValid(x, y, config.size, margin) && attempts < maxAttempts) {
+      x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
+      y = this.getSpawnYForValue(config.value, rng);
+      attempts += 1;
+    }
+
+    if (this.isSpawnPositionValid(x, y, config.size, margin)) {
+      return { x, y };
+    }
+
+    if (!fallbackToGrid) {
+      return null;
+    }
+
+    return this.findDeterministicSpawnPosition(config.size, margin, config.type);
+  }
+
+  private findDeterministicSpawnPosition(size: number, margin: number, targetType?: MinerObjectType) {
+    const left = Math.ceil(this.spawnArea.left + size * 0.5);
+    const right = Math.floor(this.spawnArea.right - size * 0.5);
+    const top = Math.ceil(this.spawnArea.top + size * 0.5);
+    const bottom = Math.floor(this.spawnArea.bottom - size * 0.5);
+    const step = Math.max(12, Math.floor(size * 0.7));
+    const objectiveBias = targetType === this.currentLevelConfig.objective.targetType ? 0.18 : 0;
+    const preferredCenterY = Phaser.Math.Linear(top, bottom, 0.55 + objectiveBias);
+    let bestCandidate: { x: number; y: number; score: number } | null = null;
+
+    for (let y = top; y <= bottom; y += step) {
+      for (let x = left; x <= right; x += step) {
+        if (!this.isSpawnPositionValid(x, y, size, margin)) continue;
+        const score = Math.abs(y - preferredCenterY) + Math.abs(x - this.hookCenterX) * 0.15;
+        if (!bestCandidate || score < bestCandidate.score) {
+          bestCandidate = { x, y, score };
+        }
+      }
+    }
+
+    return bestCandidate ? { x: bestCandidate.x, y: bestCandidate.y } : null;
   }
 
   private isSpawnPositionValid(x: number, y: number, size: number, margin: number) {
@@ -619,7 +687,7 @@ export class MinerGameScene extends Phaser.Scene {
         0, -size
       ], 0xc79b5e, 1);
       bag.setStrokeStyle(2, 0x8a6a3f, 0.8);
-      const tie = this.add.rectangle(0, -size * 0.62, size * 0.95, 3, 0x8b5a2b, 1);
+      const tie = this.add.rectangle(-size * 0.82, -size , size * 0.95, 3, 0x8b5a2b, 1);
       container.add([bag, tie]);
       return;
     }

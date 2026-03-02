@@ -237,6 +237,8 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    this.input.dragDistanceThreshold = 4;
+    this.input.dragTimeThreshold = 90;
     this.setupAudio();
     this.createUiChrome();
     this.startLevel(this.levelIndex);
@@ -855,6 +857,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private spawnPieceVisual(pieceId: string, pieceType: PipePieceType, x: number, y: number, isFromTray: boolean, size: number) {
     const container = this.add.container(x, y);
+    const touchHitSize = Math.max(size, size + 14);
     const bgShadow = this.add.rectangle(1, 2, size, size, 0x000000, 0.26).setStrokeStyle(0);
     const bg = this.add.rectangle(0, 0, size, size, COLORS.trayCard, 0.9).setStrokeStyle(1, COLORS.traySlotStroke, 0.9);
     const slotGlow = this.add.rectangle(0, 0, size - 6, size - 6, COLORS.traySlot, 0.3).setStrokeStyle(1, 0x5f8f91, 0.6);
@@ -864,8 +867,9 @@ export class PipePatchGameScene extends Phaser.Scene {
     
     const art = this.createPipeVisual(pieceType, 0, 0, size * 0.88, true, COLORS.pipe);
     container.add(art);
-    container.setSize(size, size);
-    container.setInteractive({ draggable: true, useHandCursor: true });
+    container.setSize(touchHitSize, touchHitSize);
+    container.setInteractive();
+    container.input!.cursor = 'pointer';
 
     const data: PieceVisual = { pieceId, pieceType, container, isFromTray, homeX: x, homeY: y };
     this.input.setDraggable(container);

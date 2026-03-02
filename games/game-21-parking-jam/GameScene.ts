@@ -13,6 +13,9 @@ import {
 } from './types';
 
 type SceneState = 'playing' | 'paused' | 'complete';
+type TapZone = ParkingJamDirection | 'center';
+type BoardDensityMode = 'normal' | 'compact';
+type CarVisualDensity = 'full' | 'medium' | 'compact';
 
 interface CarVisual {
   config: ParkingJamCarConfig;
@@ -26,6 +29,44 @@ interface CarVisual {
 
 interface UndoSnapshot {
   cars: Record<string, Pick<ParkingJamCarRuntime, 'row' | 'col' | 'removed'>>;
+}
+
+interface AdaptiveMetrics {
+  mode: BoardDensityMode;
+  boardTop: number;
+  boardBottomReserve: number;
+  boardWidthRatio: number;
+  objectiveY: number;
+  progressY: number;
+  objectiveFontSize: number;
+  progressFontSize: number;
+  toastYRatio: number;
+  timerX: number;
+  timerY: number;
+  timerRadius: number;
+  timerThickness: number;
+  timerFontSize: number;
+  buttonWidth: number;
+  buttonHeight: number;
+  buttonFontSize: number;
+  buttonGap: number;
+  buttonY: number;
+  boardBorderWidth: number;
+  gridAlpha: number;
+  gateMinThickness: number;
+  gateMinInset: number;
+  openGateAlpha: number;
+  blockedGateAlpha: number;
+}
+
+interface CarPixelBounds {
+  widthCells: number;
+  heightCells: number;
+  widthPx: number;
+  heightPx: number;
+  cornerRadius: number;
+  labelInsetX: number;
+  labelInsetY: number;
 }
 
 const COLORS = {
@@ -72,6 +113,8 @@ export class ParkingJamGameScene extends Phaser.Scene {
   private cellSize = 0;
 
   private levelGraphics!: Phaser.GameObjects.Graphics;
+  private selectionGraphics!: Phaser.GameObjects.Graphics;
+  private selectionFeedbackGraphics!: Phaser.GameObjects.Graphics;
   private timerDial!: Phaser.GameObjects.Graphics;
   private timerText!: Phaser.GameObjects.Text;
   private objectiveText!: Phaser.GameObjects.Text;
@@ -83,6 +126,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
   private cars = new Map<string, CarVisual>();
   private undoStack: UndoSnapshot[] = [];
+  private selectedCarId?: string;
 
   private levelStartMs = 0;
   private remainingMs = PARKING_JAM_SESSION_MS;
@@ -153,6 +197,8 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.remainingMs = this.effectiveLimitMs;
 
     this.levelGraphics = this.add.graphics();
+    this.selectionGraphics = this.add.graphics().setDepth(26);
+    this.selectionFeedbackGraphics = this.add.graphics().setDepth(27);
 
     this.createHud();
     this.createControls();
@@ -318,7 +364,16 @@ export class ParkingJamGameScene extends Phaser.Scene {
     if (this.isPointerOnControl(pointer)) return;
 
     const car = this.getCarAtPointer(pointer);
-    if (!car) return;
+    if (!car) {
+      this.clearSelectedCar();
+      return;
+    }
+
+    if (this.selectedCarId === car.config.id && this.isTwoWayCar(car)) {
+      this.handleSelectedCarTap(car, pointer);
+      return;
+    }
+
     this.handleCarTap(car.config.id, pointer);
   }
 
@@ -334,10 +389,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.cars.forEach((car) => {
       if (car.runtime.removed || !car.container.visible) return;
 
-      const widthCells = car.config.axis === 'h' ? car.config.length : 1;
-      const heightCells = car.config.axis === 'v' ? car.config.length : 1;
-      const widthPx = widthCells * this.cellSize - 10;
-      const heightPx = heightCells * this.cellSize - 10;
+      const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
       const left = car.container.x - widthPx / 2;
       const top = car.container.y - heightPx / 2;
       const hit = new Phaser.Geom.Rectangle(left, top, widthPx, heightPx);
@@ -350,14 +402,104 @@ export class ParkingJamGameScene extends Phaser.Scene {
     return candidates[0].car;
   }
 
+  private getBoardDensityMode(): BoardDensityMode {
+    const denseByGrid = this.level.gridSize >= 6 && this.level.cars.length >= 8;
+    if (denseByGrid || this.level.difficulty >= 7) {
+      return 'compact';
+    }
+    return 'normal';
+  }
+
+  private getCarVisualDensity(): CarVisualDensity {
+    const mode = this.getBoardDensityMode();
+    if (this.cellSize <= 52) return 'compact';
+    if (this.cellSize <= 66) return mode === 'compact' ? 'compact' : 'medium';
+    if (mode === 'compact') return 'medium';
+    return 'full';
+  }
+
+  private getAdaptiveMetrics(): AdaptiveMetrics {
+    const mode = this.getBoardDensityMode();
+    const compact = mode === 'compact';
+
+    return {
+      mode,
+      boardTop: compact ? 118 : 150,
+      boardBottomReserve: compact ? 110 : 140,
+      boardWidthRatio: compact ? 0.92 : 0.88,
+      objectiveY: compact ? 62 : 84,
+      progressY: compact ? 94 : 122,
+      objectiveFontSize: compact ? 20 : 24,
+      progressFontSize: compact ? 16 : 18,
+      toastYRatio: compact ? 0.2 : 0.26,
+      timerX: this.scale.width - (compact ? 36 : 44),
+      timerY: compact ? 36 : 44,
+      timerRadius: compact ? 18 : 21,
+      timerThickness: compact ? 5 : 6,
+      timerFontSize: compact ? 16 : 18,
+      buttonWidth: compact ? 126 : 144,
+      buttonHeight: compact ? 52 : 56,
+      buttonFontSize: compact ? 20 : 22,
+      buttonGap: compact ? 14 : 20,
+      buttonY: this.scale.height - (compact ? 42 : 48),
+      boardBorderWidth: compact ? 3 : 4,
+      gridAlpha: compact ? 0.68 : 1,
+      gateMinThickness: compact ? 7 : 8,
+      gateMinInset: compact ? 5 : 7,
+      openGateAlpha: compact ? 0.56 : 0.65,
+      blockedGateAlpha: compact ? 0.78 : 0.85,
+    };
+  }
+
+  private getCarPixelBounds(config: ParkingJamCarConfig): CarPixelBounds {
+    const density = this.getCarVisualDensity();
+    const widthCells = config.axis === 'h' ? config.length : 1;
+    const heightCells = config.axis === 'v' ? config.length : 1;
+    const inset = density === 'compact'
+      ? Math.max(8, Math.round(this.cellSize * 0.18))
+      : density === 'medium'
+        ? Math.max(8, Math.round(this.cellSize * 0.16))
+        : 10;
+    const widthPx = Math.max(18, widthCells * this.cellSize - inset);
+    const heightPx = Math.max(18, heightCells * this.cellSize - inset);
+
+    return {
+      widthCells,
+      heightCells,
+      widthPx,
+      heightPx,
+      cornerRadius: density === 'compact' ? 12 : density === 'medium' ? 13 : 14,
+      labelInsetX: density === 'compact' ? 8 : density === 'medium' ? 10 : 12,
+      labelInsetY: density === 'compact' ? 7 : density === 'medium' ? 9 : 10,
+    };
+  }
+
+  private applyControlButtonLayout(
+    button: Phaser.GameObjects.Container,
+    width: number,
+    height: number,
+    fontSize: number
+  ) {
+    const bg = button.list[0] as Phaser.GameObjects.Rectangle | undefined;
+    const text = button.list[1] as Phaser.GameObjects.Text | undefined;
+    if (bg) {
+      bg.setSize(width, height);
+      bg.setDisplaySize(width, height);
+    }
+    if (text) {
+      text.setFontSize(fontSize);
+    }
+  }
+
   private layoutScene() {
     const { width, height } = this.scale;
-    const boardTop = 150;
-    const boardBottomLimit = height - 140;
+    const metrics = this.getAdaptiveMetrics();
+    const boardTop = metrics.boardTop;
+    const boardBottomLimit = height - metrics.boardBottomReserve;
 
     this.cellSize = Math.floor(
       Math.min(
-        (width * 0.88) / this.level.gridSize,
+        (width * metrics.boardWidthRatio) / this.level.gridSize,
         Math.max(40, (boardBottomLimit - boardTop) / this.level.gridSize)
       )
     );
@@ -366,34 +508,37 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.gridOriginX = Math.floor((width - boardSize) / 2);
     this.gridOriginY = Math.floor((boardTop + boardBottomLimit - boardSize) / 2);
 
-    this.objectiveText.setPosition(width / 2, 84);
-    this.progressText.setPosition(width / 2, 122);
-    this.toastText.setPosition(width / 2, height * 0.26);
+    this.objectiveText.setPosition(width / 2, metrics.objectiveY).setFontSize(metrics.objectiveFontSize);
+    this.progressText.setPosition(width / 2, metrics.progressY).setFontSize(metrics.progressFontSize);
+    this.toastText.setPosition(width / 2, height * metrics.toastYRatio);
 
     const buttons = [this.controls.undo, this.controls.reset];
-    const gap = 20;
-    const buttonWidth = 144;
+    const gap = metrics.buttonGap;
+    const buttonWidth = metrics.buttonWidth;
     const totalWidth = buttons.length * buttonWidth + (buttons.length - 1) * gap;
     const startX = (width - totalWidth) / 2 + buttonWidth / 2;
-    const y = height - 48;
+    const y = metrics.buttonY;
     buttons.forEach((button, index) => {
+      this.applyControlButtonLayout(button, metrics.buttonWidth, metrics.buttonHeight, metrics.buttonFontSize);
       button.setPosition(startX + index * (buttonWidth + gap), y);
     });
 
     this.drawBoard();
     this.positionCars();
+    this.refreshSelectionOverlay();
     this.drawTimerDial();
   }
 
   private drawBoard() {
     this.levelGraphics.clear();
+    const metrics = this.getAdaptiveMetrics();
 
     const size = this.level.gridSize;
     const boardSize = this.cellSize * size;
 
     this.levelGraphics.fillStyle(0xffffff, 1);
     this.levelGraphics.fillRoundedRect(this.gridOriginX - 12, this.gridOriginY - 12, boardSize + 24, boardSize + 24, 20);
-    this.levelGraphics.lineStyle(4, COLORS.gridBorder, 1);
+    this.levelGraphics.lineStyle(metrics.boardBorderWidth, COLORS.gridBorder, 1);
     this.levelGraphics.strokeRoundedRect(this.gridOriginX - 12, this.gridOriginY - 12, boardSize + 24, boardSize + 24, 20);
 
     for (let row = 0; row < size; row += 1) {
@@ -406,7 +551,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
           this.cellSize
         );
 
-        this.levelGraphics.lineStyle(1, COLORS.grid, 1);
+        this.levelGraphics.lineStyle(1, COLORS.grid, metrics.gridAlpha);
         this.levelGraphics.strokeRect(
           this.gridOriginX + col * this.cellSize,
           this.gridOriginY + row * this.cellSize,
@@ -425,15 +570,16 @@ export class ParkingJamGameScene extends Phaser.Scene {
   }
 
   private drawGate(edge: 'top' | 'right' | 'bottom' | 'left', index: number) {
+    const metrics = this.getAdaptiveMetrics();
     const blocked = this.level.blockedGateSegments.some((segment) => segment.edge === edge && segment.index === index);
     const color = blocked ? COLORS.gateBlocked : COLORS.gateOpen;
     const boardSize = this.cellSize * this.level.gridSize;
-    const gateThickness = Math.max(8, Math.round(this.cellSize * 0.14));
-    const gateInset = Math.max(7, Math.round(this.cellSize * 0.13));
+    const gateThickness = Math.max(metrics.gateMinThickness, Math.round(this.cellSize * 0.14));
+    const gateInset = Math.max(metrics.gateMinInset, Math.round(this.cellSize * 0.13));
     const gateLength = this.cellSize - gateInset * 2;
     const gateRadius = Math.max(4, Math.round(gateThickness * 0.55));
 
-    this.levelGraphics.fillStyle(color, blocked ? 0.85 : 0.65);
+    this.levelGraphics.fillStyle(color, blocked ? metrics.blockedGateAlpha : metrics.openGateAlpha);
 
     if (edge === 'left') {
       const x = this.gridOriginX - gateThickness - 3;
@@ -503,17 +649,22 @@ export class ParkingJamGameScene extends Phaser.Scene {
       return;
     }
 
-    const widthCells = config.axis === 'h' ? config.length : 1;
-    const heightCells = config.axis === 'v' ? config.length : 1;
-
-    const widthPx = widthCells * this.cellSize - 10;
-    const heightPx = heightCells * this.cellSize - 10;
+    const density = this.getCarVisualDensity();
+    const {
+      widthCells,
+      heightCells,
+      widthPx,
+      heightPx,
+      cornerRadius,
+      labelInsetX,
+      labelInsetY,
+    } = this.getCarPixelBounds(config);
 
     car.bg.clear();
     car.bg.fillStyle(config.color, 1);
-    car.bg.fillRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, 14);
-    car.bg.lineStyle(2, 0x0f172a, 0.28);
-    car.bg.strokeRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, 14);
+    car.bg.fillRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, cornerRadius);
+    car.bg.lineStyle(density === 'compact' ? 1.5 : 2, 0x0f172a, density === 'compact' ? 0.22 : 0.28);
+    car.bg.strokeRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, cornerRadius);
 
     this.drawVehicleDetails(car, widthPx, heightPx);
     if (this.shouldShowDirectionHints()) {
@@ -522,17 +673,25 @@ export class ParkingJamGameScene extends Phaser.Scene {
       car.directionHint.clear();
     }
 
-    car.label.setPosition(-widthPx / 2 + 12, -heightPx / 2 + 10).setOrigin(0, 0);
+    car.label
+      .setPosition(-widthPx / 2 + labelInsetX, -heightPx / 2 + labelInsetY)
+      .setOrigin(0, 0)
+      .setFontSize(density === 'compact' ? 13 : density === 'medium' ? 14 : 16);
 
     const centerX = Math.round(this.gridOriginX + (runtime.col + widthCells / 2) * this.cellSize);
     const centerY = Math.round(this.gridOriginY + (runtime.row + heightCells / 2) * this.cellSize);
 
     car.container.setPosition(centerX, centerY).setVisible(true).setScale(1);
+    if (this.selectedCarId === car.config.id) {
+      this.renderSelectedOverlay(car);
+    }
   }
 
   private drawVehicleDetails(car: CarVisual, widthPx: number, heightPx: number) {
     const g = car.details;
     const { carType, axis } = car.config;
+    const isTwoWay = this.isTwoWayCar(car);
+    const density = this.getCarVisualDensity();
     g.clear();
     const defaultForward: ParkingJamDirection = axis === 'h' ? 'right' : 'down';
     let forwardDirection = (car.config.allowedExitDirections[0] ?? defaultForward) as ParkingJamDirection;
@@ -571,20 +730,57 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     let roofX = -widthPx / 2 + roofInset.x;
     let roofY = -heightPx / 2 + roofInset.y;
-    if (axis === 'h') {
-      roofX += forwardDirection === 'right' ? -roofShiftPx : roofShiftPx;
-      roofX = Phaser.Math.Clamp(roofX, -widthPx / 2 + 2, widthPx / 2 - roofWidth - 2);
-    } else {
-      roofY += forwardDirection === 'down' ? -roofShiftPx : roofShiftPx;
-      roofY = Phaser.Math.Clamp(roofY, -heightPx / 2 + 2, heightPx / 2 - roofHeight - 2);
+    if (!isTwoWay) {
+      if (axis === 'h') {
+        roofX += forwardDirection === 'right' ? -roofShiftPx : roofShiftPx;
+        roofX = Phaser.Math.Clamp(roofX, -widthPx / 2 + 2, widthPx / 2 - roofWidth - 2);
+      } else {
+        roofY += forwardDirection === 'down' ? -roofShiftPx : roofShiftPx;
+        roofY = Phaser.Math.Clamp(roofY, -heightPx / 2 + 2, heightPx / 2 - roofHeight - 2);
+      }
     }
 
-    g.fillStyle(0xffffff, roofInset.alpha);
-    g.fillRoundedRect(roofX, roofY, roofWidth, roofHeight, 8);
+    if (density !== 'compact') {
+      g.fillStyle(0xffffff, density === 'medium' ? Math.min(roofInset.alpha, 0.24) : roofInset.alpha);
+      g.fillRoundedRect(roofX, roofY, roofWidth, roofHeight, density === 'medium' ? 7 : 8);
+    } else {
+      g.fillStyle(0xffffff, 0.18);
+      g.fillRoundedRect(-widthPx * 0.18, -heightPx * 0.18, widthPx * 0.36, heightPx * 0.36, 6);
+    }
 
-    // Headlights / taillights
     const lightThickness = Math.max(4, Math.floor(Math.min(widthPx, heightPx) * 0.12));
-    if (axis === 'h') {
+    if (isTwoWay) {
+      g.fillStyle(0xe0f2fe, 0.82);
+      if (axis === 'h') {
+        const leftX = -widthPx / 2 + 1;
+        const rightX = widthPx / 2 - lightThickness - 1;
+        g.fillRoundedRect(leftX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
+        g.fillRoundedRect(leftX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
+        g.fillRoundedRect(rightX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
+        g.fillRoundedRect(rightX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
+        if (density !== 'compact') {
+          g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
+          g.beginPath();
+          g.moveTo(0, -heightPx * 0.28);
+          g.lineTo(0, heightPx * 0.28);
+          g.strokePath();
+        }
+      } else {
+        const topY = -heightPx / 2 + 1;
+        const bottomY = heightPx / 2 - lightThickness - 1;
+        g.fillRoundedRect(-widthPx * 0.26, topY, widthPx * 0.22, lightThickness, 3);
+        g.fillRoundedRect(widthPx * 0.04, topY, widthPx * 0.22, lightThickness, 3);
+        g.fillRoundedRect(-widthPx * 0.26, bottomY, widthPx * 0.22, lightThickness, 3);
+        g.fillRoundedRect(widthPx * 0.04, bottomY, widthPx * 0.22, lightThickness, 3);
+        if (density !== 'compact') {
+          g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
+          g.beginPath();
+          g.moveTo(-widthPx * 0.28, 0);
+          g.lineTo(widthPx * 0.28, 0);
+          g.strokePath();
+        }
+      }
+    } else if (axis === 'h') {
       const frontOnRight = forwardDirection === 'right';
       const frontX = frontOnRight ? widthPx / 2 - lightThickness - 1 : -widthPx / 2 + 1;
       const rearX = frontOnRight ? -widthPx / 2 + 1 : widthPx / 2 - lightThickness - 1;
@@ -620,48 +816,112 @@ export class ParkingJamGameScene extends Phaser.Scene {
       g.fillRoundedRect(widthPx * 0.04, rearY, widthPx * 0.22, lightThickness, 3);
     }
 
-    // Windshield near the front side.
     g.fillStyle(0xdbeafe, 0.72);
-    g.lineStyle(1.5, 0xffffff, 0.6);
+    g.lineStyle(density === 'compact' ? 0.8 : density === 'medium' ? 1 : 1.5, 0xffffff, density === 'compact' ? 0.42 : density === 'medium' ? 0.5 : 0.6);
     if (axis === 'h') {
-      const windshieldWidth = Math.max(8, Math.round(roofWidth * 0.2));
-      const windshieldHeight = Math.max(8, roofHeight - 6);
-      const windshieldX = forwardDirection === 'right'
-        ? roofX + roofWidth - windshieldWidth - 2
-        : roofX + 2;
-      const windshieldY = roofY + 3;
-      g.fillRoundedRect(windshieldX, windshieldY, windshieldWidth, windshieldHeight, 3);
-      g.beginPath();
-      if (forwardDirection === 'right') {
-        g.moveTo(windshieldX + 1, windshieldY + 1);
-        g.lineTo(windshieldX + windshieldWidth - 1, windshieldY + 4);
+      const windshieldWidth = density === 'compact'
+        ? Math.max(8, Math.round(widthPx * 0.16))
+        : Math.max(8, Math.round(roofWidth * 0.2));
+      const windshieldHeight = density === 'compact'
+        ? Math.max(10, Math.round(heightPx * 0.5))
+        : Math.max(8, roofHeight - 6);
+      const frontInset = density === 'compact' ? Math.max(5, Math.round(widthPx * 0.05)) : 4;
+      const windshieldY = density === 'compact' ? -windshieldHeight / 2 : roofY + 3;
+
+      if (isTwoWay) {
+        const leftWindshieldX = density === 'compact'
+          ? -widthPx / 2 + frontInset
+          : roofX + frontInset;
+        const rightWindshieldX = density === 'compact'
+          ? widthPx / 2 - windshieldWidth - frontInset
+          : roofX + roofWidth - windshieldWidth - frontInset;
+
+        g.fillRoundedRect(leftWindshieldX, windshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        g.moveTo(leftWindshieldX + windshieldWidth - 1, windshieldY + 1);
+        g.lineTo(leftWindshieldX + 1, windshieldY + 4);
+        g.strokePath();
+
+        g.fillRoundedRect(rightWindshieldX, windshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        g.moveTo(rightWindshieldX + 1, windshieldY + 1);
+        g.lineTo(rightWindshieldX + windshieldWidth - 1, windshieldY + 4);
+        g.strokePath();
       } else {
-        g.moveTo(windshieldX + windshieldWidth - 1, windshieldY + 1);
-        g.lineTo(windshieldX + 1, windshieldY + 4);
+        const windshieldX = density === 'compact'
+          ? forwardDirection === 'right'
+            ? widthPx / 2 - windshieldWidth - frontInset
+            : -widthPx / 2 + frontInset
+          : forwardDirection === 'right'
+            ? roofX + roofWidth - windshieldWidth - frontInset
+            : roofX + frontInset;
+        g.fillRoundedRect(windshieldX, windshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        if (forwardDirection === 'right') {
+          g.moveTo(windshieldX + 1, windshieldY + 1);
+          g.lineTo(windshieldX + windshieldWidth - 1, windshieldY + 4);
+        } else {
+          g.moveTo(windshieldX + windshieldWidth - 1, windshieldY + 1);
+          g.lineTo(windshieldX + 1, windshieldY + 4);
+        }
+        g.strokePath();
       }
-      g.strokePath();
     } else {
-      const windshieldWidth = Math.max(8, roofWidth - 6);
-      const windshieldHeight = Math.max(8, Math.round(roofHeight * 0.2));
-      const windshieldX = roofX + 3;
-      const windshieldY = forwardDirection === 'down'
-        ? roofY + roofHeight - windshieldHeight - 2
-        : roofY + 2;
-      g.fillRoundedRect(windshieldX, windshieldY, windshieldWidth, windshieldHeight, 3);
-      g.beginPath();
-      if (forwardDirection === 'down') {
-        g.moveTo(windshieldX + 1, windshieldY + 1);
-        g.lineTo(windshieldX + 4, windshieldY + windshieldHeight - 1);
+      const windshieldWidth = density === 'compact'
+        ? Math.max(10, Math.round(widthPx * 0.5))
+        : Math.max(8, roofWidth - 6);
+      const windshieldHeight = density === 'compact'
+        ? Math.max(8, Math.round(heightPx * 0.16))
+        : Math.max(8, Math.round(roofHeight * 0.2));
+      const frontInset = density === 'compact' ? Math.max(5, Math.round(heightPx * 0.05)) : 4;
+      const windshieldX = density === 'compact' ? -windshieldWidth / 2 : roofX + 3;
+
+      if (isTwoWay) {
+        const topWindshieldY = density === 'compact'
+          ? -heightPx / 2 + frontInset
+          : roofY + frontInset;
+        const bottomWindshieldY = density === 'compact'
+          ? heightPx / 2 - windshieldHeight - frontInset
+          : roofY + roofHeight - windshieldHeight - frontInset;
+
+        g.fillRoundedRect(windshieldX, topWindshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        g.moveTo(windshieldX + 1, topWindshieldY + windshieldHeight - 1);
+        g.lineTo(windshieldX + 4, topWindshieldY + 1);
+        g.strokePath();
+
+        g.fillRoundedRect(windshieldX, bottomWindshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        g.moveTo(windshieldX + 1, bottomWindshieldY + 1);
+        g.lineTo(windshieldX + 4, bottomWindshieldY + windshieldHeight - 1);
+        g.strokePath();
       } else {
-        g.moveTo(windshieldX + 1, windshieldY + windshieldHeight - 1);
-        g.lineTo(windshieldX + 4, windshieldY + 1);
+        const windshieldY = density === 'compact'
+          ? forwardDirection === 'down'
+            ? heightPx / 2 - windshieldHeight - frontInset
+            : -heightPx / 2 + frontInset
+          : forwardDirection === 'down'
+            ? roofY + roofHeight - windshieldHeight - frontInset
+            : roofY + frontInset;
+        g.fillRoundedRect(windshieldX, windshieldY, windshieldWidth, windshieldHeight, density === 'compact' ? 2 : density === 'medium' ? 2 : 3);
+        g.beginPath();
+        if (forwardDirection === 'down') {
+          g.moveTo(windshieldX + 1, windshieldY + 1);
+          g.lineTo(windshieldX + 4, windshieldY + windshieldHeight - 1);
+        } else {
+          g.moveTo(windshieldX + 1, windshieldY + windshieldHeight - 1);
+          g.lineTo(windshieldX + 4, windshieldY + 1);
+        }
+        g.strokePath();
       }
-      g.strokePath();
     }
 
-    // Tire cues
+    if (density === 'compact') {
+      return;
+    }
+
     g.fillStyle(0x0f172a, 0.5);
-    const tireSize = Math.max(5, Math.floor(Math.min(widthPx, heightPx) * 0.15));
+    const tireSize = Math.max(density === 'medium' ? 4 : 5, Math.floor(Math.min(widthPx, heightPx) * (density === 'medium' ? 0.12 : 0.15)));
     if (axis === 'h') {
       g.fillRoundedRect(-widthPx / 2 + bodyInset, -heightPx / 2 + 1, tireSize, 3, 1);
       g.fillRoundedRect(widthPx / 2 - bodyInset - tireSize, -heightPx / 2 + 1, tireSize, 3, 1);
@@ -674,7 +934,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       g.fillRoundedRect(widthPx / 2 - 4, heightPx / 2 - bodyInset - tireSize, 3, tireSize, 1);
     }
 
-    if (carType === 'pickup') {
+    if (density === 'full' && carType === 'pickup') {
       g.lineStyle(2, 0x0f172a, 0.3);
       if (axis === 'h') {
         g.beginPath();
@@ -689,7 +949,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
     }
 
-    if (carType === 'taxi') {
+    if (density === 'full' && carType === 'taxi') {
       g.fillStyle(0xfacc15, 0.95);
       if (axis === 'h') {
         g.fillRoundedRect(-8, -heightPx * 0.38, 16, 6, 3);
@@ -702,6 +962,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
   private drawDirectionHints(car: CarVisual, widthPx: number, heightPx: number) {
     const g = car.directionHint;
     const { axis, allowedExitDirections } = car.config;
+    const density = this.getCarVisualDensity();
     g.clear();
 
     const directions = axis === 'h' ? (['left', 'right'] as const) : (['up', 'down'] as const);
@@ -709,12 +970,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const allowed = allowedExitDirections.includes(direction);
       const color = allowed ? 0x16a34a : 0x94a3b8;
       const alpha = allowed ? 0.95 : 0.5;
-      const marker = Math.max(6, Math.floor(Math.min(widthPx, heightPx) * 0.16));
+      const marker = Math.max(density === 'compact' ? 5 : 6, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.13 : 0.16)));
 
       g.fillStyle(color, alpha);
-      g.lineStyle(2, 0xffffff, allowed ? 0.9 : 0.55);
+      g.lineStyle(density === 'compact' ? 1.5 : 2, 0xffffff, allowed ? 0.9 : 0.55);
 
-      const inset = 6;
+      const inset = density === 'compact' ? 6: 8;
       if (direction === 'left') {
         g.beginPath();
         g.moveTo(-widthPx / 2 + inset, 0);
@@ -750,7 +1011,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
 
       if (allowed) return;
-      g.lineStyle(2, 0x7f1d1d, 0.8);
+      g.lineStyle(density === 'compact' ? 1.5 : 2, 0x7f1d1d, 0.8);
       if (direction === 'left') {
         g.beginPath();
         g.moveTo(-widthPx / 2 + marker * 0.2, -marker * 0.5);
@@ -788,23 +1049,36 @@ export class ParkingJamGameScene extends Phaser.Scene {
     const car = this.cars.get(carId);
     if (!car || car.runtime.removed) return;
     this.markInput();
-
-    const direction = this.resolveTapDirection(car, pointer);
-    this.tryStepMove(car, direction);
-  }
-
-  private resolveTapDirection(car: CarVisual, pointer: Phaser.Input.Pointer): ParkingJamDirection {
-    if (car.config.allowedExitDirections.length === 1) {
-      return car.config.allowedExitDirections[0];
+    if (!this.isTwoWayCar(car)) {
+      this.clearSelectedCar();
+      this.tryStepMove(car, car.config.allowedExitDirections[0]);
+      return;
     }
 
-    if (car.config.axis === 'h') {
-      return pointer.x < car.container.x ? 'left' : 'right';
+    this.selectCar(car.config.id);
+    if (this.getTapZoneForPointer(car, pointer) === 'center') {
+      this.toast(car.config.axis === 'h' ? 'แตะซ้ายหรือขวาของรถคันนี้' : 'แตะบนหรือล่างของรถคันนี้', false);
     }
-    return pointer.y < car.container.y ? 'up' : 'down';
   }
 
-  private tryStepMove(car: CarVisual, direction: ParkingJamDirection) {
+  private handleSelectedCarTap(car: CarVisual, pointer: Phaser.Input.Pointer) {
+    this.markInput();
+    const zone = this.getTapZoneForPointer(car, pointer);
+    if (zone === 'center') {
+      this.toast(car.config.axis === 'h' ? 'แตะครึ่งซ้ายหรือขวาเพื่อเลือกทิศ' : 'แตะครึ่งบนหรือล่างเพื่อเลือกทิศ', true);
+      return;
+    }
+
+    this.trySelectedDirection(car, zone);
+  }
+
+  private trySelectedDirection(car: CarVisual, direction: ParkingJamDirection) {
+    this.showSelectionFeedback(car, direction, this.isDirectionCurrentlyAvailable(car, direction));
+    this.clearSelectedCar();
+    this.tryStepMove(car, direction, true);
+  }
+
+  private tryStepMove(car: CarVisual, direction: ParkingJamDirection, fromSelected = false) {
     const slideRange = this.computeSlideRange(car);
     const sign = direction === 'left' || direction === 'up' ? -1 : 1;
     const distance = sign < 0 ? Math.abs(slideRange.minOffset) : slideRange.maxOffset;
@@ -833,8 +1107,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
       } else if (this.isBlockedExitAttempt(car, direction)) {
         this.blockedExitAttemptCount += 1;
         this.flashError(car.container);
+        if (fromSelected) {
+          this.toast('ด้านนี้ออกไม่ได้', true);
+        }
       } else {
         this.flashNudge(car.container);
+        if (fromSelected) {
+          this.toast('ด้านนี้ไปต่อไม่ได้', true);
+        }
       }
 
       this.renderCar(car);
@@ -886,6 +1166,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     const snapshot = this.undoStack.pop();
     if (!snapshot) return;
+    this.clearSelectedCar();
 
     Object.entries(snapshot.cars).forEach(([id, saved]) => {
       const car = this.cars.get(id);
@@ -905,6 +1186,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.markInput();
     this.restartCount += 1;
     this.undoStack = [];
+    this.clearSelectedCar();
 
     this.cars.forEach((car) => {
       car.runtime.row = car.config.row;
@@ -1026,6 +1308,9 @@ export class ParkingJamGameScene extends Phaser.Scene {
   }
 
   private animateExit(car: CarVisual, direction: ParkingJamDirection) {
+    if (this.selectedCarId === car.config.id) {
+      this.clearSelectedCar();
+    }
     car.runtime.removed = true;
     this.playSfx(this.exitSfx);
 
@@ -1261,10 +1546,11 @@ export class ParkingJamGameScene extends Phaser.Scene {
   }
 
   private drawTimerDial() {
-    const x = this.scale.width - 44;
-    const y = 44;
-    const radius = 21;
-    const thickness = 6;
+    const metrics = this.getAdaptiveMetrics();
+    const x = metrics.timerX;
+    const y = metrics.timerY;
+    const radius = metrics.timerRadius;
+    const thickness = metrics.timerThickness;
 
     const pct = Math.max(0, Math.min(1, this.remainingMs / this.effectiveLimitMs));
     const warning = pct <= 0.25;
@@ -1281,6 +1567,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     const seconds = Math.ceil(this.remainingMs / 1000);
     this.timerText.setText(`${Math.max(0, seconds)}`);
     this.timerText.setColor(warning ? '#b91c1c' : '#0f172a');
+    this.timerText.setFontSize(metrics.timerFontSize);
     this.timerText.setPosition(x, y);
   }
 
@@ -1296,6 +1583,180 @@ export class ParkingJamGameScene extends Phaser.Scene {
       delay: this.reduceMotion ? 420 : 760,
       duration: this.reduceMotion ? 160 : 260,
       ease: 'Sine.out',
+    });
+  }
+
+  private isTwoWayCar(car: CarVisual) {
+    return car.config.allowedExitDirections.length > 1;
+  }
+
+  private selectCar(carId: string) {
+    this.selectedCarId = carId;
+    this.refreshSelectionOverlay();
+  }
+
+  private clearSelectedCar() {
+    this.selectedCarId = undefined;
+    this.selectionGraphics?.clear();
+  }
+
+  private refreshSelectionOverlay() {
+    if (!this.selectionGraphics) return;
+    if (!this.selectedCarId) {
+      this.selectionGraphics.clear();
+      return;
+    }
+
+    const car = this.cars.get(this.selectedCarId);
+    if (!car || car.runtime.removed || !this.isTwoWayCar(car)) {
+      this.clearSelectedCar();
+      return;
+    }
+
+    this.renderSelectedOverlay(car);
+  }
+
+  private renderSelectedOverlay(car: CarVisual) {
+    this.selectionGraphics.clear();
+    if (!this.isTwoWayCar(car)) return;
+
+    const g = this.selectionGraphics;
+    const density = this.getCarVisualDensity();
+    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
+    const centerX = car.container.x;
+    const centerY = car.container.y;
+    const left = centerX - widthPx / 2;
+    const top = centerY - heightPx / 2;
+    const directions = car.config.axis === 'h'
+      ? (['left', 'right'] as const)
+      : (['up', 'down'] as const);
+
+    g.lineStyle(density === 'compact' ? 2 : 3, 0x22d3ee, 0.9);
+    g.strokeRoundedRect(left - 4, top - 4, widthPx + 8, heightPx + 8, 16);
+
+    directions.forEach((direction) => {
+      const available = this.isDirectionCurrentlyAvailable(car, direction);
+      g.fillStyle(available ? 0x67e8f9 : 0x94a3b8, available ? 0.22 : 0.14);
+
+      if (car.config.axis === 'h') {
+        const zoneLeft = direction === 'left' ? left : centerX;
+        g.fillRect(zoneLeft, top, widthPx / 2, heightPx);
+      } else {
+        const zoneTop = direction === 'up' ? top : centerY;
+        g.fillRect(left, zoneTop, widthPx, heightPx / 2);
+      }
+
+      g.fillStyle(available ? 0x0f766e : 0x64748b, 0.95);
+      const offset = Math.max(density === 'compact' ? 14 : 18, Math.min(widthPx, heightPx) * (density === 'compact' ? 0.2 : 0.24));
+      const arrowX = direction === 'left'
+        ? centerX - offset
+        : direction === 'right'
+          ? centerX + offset
+          : centerX;
+      const arrowY = direction === 'up'
+        ? centerY - offset
+        : direction === 'down'
+          ? centerY + offset
+          : centerY;
+      this.drawSelectionArrow(g, arrowX, arrowY, direction, Math.max(density === 'compact' ? 9 : 11, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.14 : 0.16))));
+    });
+
+    g.lineStyle(density === 'compact' ? 1.5 : 2, 0xffffff, 0.8);
+    if (car.config.axis === 'h') {
+      g.beginPath();
+      g.moveTo(centerX, top + 4);
+      g.lineTo(centerX, top + heightPx - 4);
+      g.strokePath();
+    } else {
+      g.beginPath();
+      g.moveTo(left + 4, centerY);
+      g.lineTo(left + widthPx - 4, centerY);
+      g.strokePath();
+    }
+  }
+
+  private drawSelectionArrow(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    direction: ParkingJamDirection,
+    size: number
+  ) {
+    graphics.beginPath();
+    if (direction === 'left') {
+      graphics.moveTo(x - size, y);
+      graphics.lineTo(x + size * 0.7, y - size * 0.8);
+      graphics.lineTo(x + size * 0.7, y + size * 0.8);
+    } else if (direction === 'right') {
+      graphics.moveTo(x + size, y);
+      graphics.lineTo(x - size * 0.7, y - size * 0.8);
+      graphics.lineTo(x - size * 0.7, y + size * 0.8);
+    } else if (direction === 'up') {
+      graphics.moveTo(x, y - size);
+      graphics.lineTo(x - size * 0.8, y + size * 0.7);
+      graphics.lineTo(x + size * 0.8, y + size * 0.7);
+    } else {
+      graphics.moveTo(x, y + size);
+      graphics.lineTo(x - size * 0.8, y - size * 0.7);
+      graphics.lineTo(x + size * 0.8, y - size * 0.7);
+    }
+    graphics.closePath();
+    graphics.fillPath();
+  }
+
+  private getTapZoneForPointer(car: CarVisual, pointer: Phaser.Input.Pointer): TapZone {
+    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
+    const localX = pointer.x - car.container.x;
+    const localY = pointer.y - car.container.y;
+
+    if (car.config.axis === 'h') {
+      const deadHalfWidth = Math.max(10, widthPx * 0.075);
+      if (Math.abs(localX) <= deadHalfWidth) return 'center';
+      return localX < 0 ? 'left' : 'right';
+    }
+
+    const deadHalfHeight = Math.max(10, heightPx * 0.075);
+    if (Math.abs(localY) <= deadHalfHeight) return 'center';
+    return localY < 0 ? 'up' : 'down';
+  }
+
+  private isDirectionCurrentlyAvailable(car: CarVisual, direction: ParkingJamDirection) {
+    if (!car.config.allowedExitDirections.includes(direction)) return false;
+    if (this.canExitByDirection(car, direction)) return true;
+
+    const slideRange = this.computeSlideRange(car);
+    if (direction === 'left' || direction === 'up') {
+      return Math.abs(slideRange.minOffset) >= 1;
+    }
+    return slideRange.maxOffset >= 1;
+  }
+
+  private showSelectionFeedback(car: CarVisual, direction: ParkingJamDirection, success: boolean) {
+    if (!this.selectionFeedbackGraphics) return;
+
+    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
+    const left = car.container.x - widthPx / 2;
+    const top = car.container.y - heightPx / 2;
+
+    const draw = (alpha: number) => {
+      this.selectionFeedbackGraphics.clear();
+      this.selectionFeedbackGraphics.fillStyle(success ? 0x22c55e : 0xef4444, alpha);
+      if (car.config.axis === 'h') {
+        const zoneLeft = direction === 'left' ? left : car.container.x;
+        this.selectionFeedbackGraphics.fillRect(zoneLeft, top, widthPx / 2, heightPx);
+      } else {
+        const zoneTop = direction === 'up' ? top : car.container.y;
+        this.selectionFeedbackGraphics.fillRect(left, zoneTop, widthPx, heightPx / 2);
+      }
+    };
+
+    draw(success ? 0.35 : 0.28);
+    this.tweens.addCounter({
+      from: success ? 0.35 : 0.28,
+      to: 0,
+      duration: this.reduceMotion ? 120 : 220,
+      onUpdate: (tween) => draw(tween.getValue() ?? 0),
+      onComplete: () => this.selectionFeedbackGraphics.clear(),
     });
   }
 
@@ -1390,6 +1851,8 @@ export class ParkingJamGameScene extends Phaser.Scene {
   }
 
   private cleanupAudio() {
+    this.selectionGraphics?.clear();
+    this.selectionFeedbackGraphics?.clear();
     this.bgMusic?.stop();
     this.bgMusic?.destroy();
     this.bgMusic = undefined;
