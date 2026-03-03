@@ -32,6 +32,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   const [currentLevel, setCurrentLevel] = useState(level);
   const [showTutorialNextButton, setShowTutorialNextButton] = useState(false);
   const [trapWarning, setTrapWarning] = useState<string | null>(null);
+  const [tutorialPillVisible, setTutorialPillVisible] = useState(true);
 
   // Intro Popup State
   const [showIntroPopup, setShowIntroPopup] = useState(false);
@@ -54,6 +55,15 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   useEffect(() => {
     onTutorialCompleteRef.current = onTutorialComplete;
   }, [onTutorialComplete]);
+
+  // Auto-hide tutorial pill after 3 seconds
+  useEffect(() => {
+    if (mode === 'tutorial') {
+      setTutorialPillVisible(true);
+      const timer = setTimeout(() => setTutorialPillVisible(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [mode]);
 
   useEffect(() => {
     // Reset state on new level/game
@@ -145,8 +155,6 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       const newGame = new Phaser.Game({
         ...config,
         parent: gameRef.current || 'game-container',
-        // High-DPI & Sharpness Settings
-        resolution: window.devicePixelRatio,
         render: {
           pixelArt: false,
           antialias: true,
@@ -276,12 +284,19 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
         {/* Tutorial Mode Indicator - Only show tutorial badge */}
         {mode === 'tutorial' && (
-          <div className={`font-bold text-3xl font-sans drop-shadow-sm px-6 py-2 rounded-full backdrop-blur-sm shadow-sm mt-2 ${gameId === 'game-08-mysterysound'
-            ? 'text-white bg-white/30 border border-white/50'
-            : gameId === 'game-05-wormtrain'
-              ? 'text-[#594032] bg-white border border-[#594032]/20' // Solid white background, brown text
-              : 'text-[#58CC02] bg-white/50 border border-[#58CC02]/20'
-            }`}>
+          <div
+            className={`font-bold text-3xl font-sans drop-shadow-sm px-6 py-2 rounded-full backdrop-blur-sm shadow-sm mt-2 ${gameId === 'game-08-mysterysound'
+              ? 'text-white bg-white/30 border border-white/50'
+              : gameId === 'game-05-wormtrain'
+                ? 'text-[#594032] bg-white border border-[#594032]/20'
+                : 'text-[#58CC02] bg-white/50 border border-[#58CC02]/20'
+              }`}
+            style={{
+              transition: 'opacity 0.5s ease-out',
+              opacity: tutorialPillVisible ? 1 : 0,
+              pointerEvents: tutorialPillVisible ? 'auto' : 'none',
+            }}
+          >
             โหมดฝึกสอน
           </div>
         )}

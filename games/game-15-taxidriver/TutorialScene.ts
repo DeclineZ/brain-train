@@ -775,52 +775,6 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         });
     }
 
-    private startPhase7() {
-        this.currentPhase = 7;
-        this.gameStarted = false;
-        this.isMoving = false;
-        this.targetPosition = null;
-        this.correctTurnsInPractice = 0;
-        this.totalTurnsInPractice = 0;
-        this.practiceHintShown = false;
-
-        // Reset controls just in case
-        if (this.controlsSwapped) {
-            this.resumeAfterSwapBrake(); // Hack to animate back? Or just resetUI() in resetCar handled it.
-        }
-
-        this.showInstruction('บททดสอบสุดท้าย! 🎓\nเลี้ยว + เบรก + สลับปุ่ม\nคุณทำได้!');
-
-        this.time.delayedCall(4000, () => {
-            // Practice run: Turn Left -> Brake -> Turn Right -> Swap -> Turn Left
-            this.resetCar(4, 6, 'N');
-            this.generateTutorialPath([
-                { x: 4, y: 6, dir: 'N', turn: false },
-                { x: 4, y: 5, dir: 'N', turn: true, turnDir: 'left' },
-                { x: 3, y: 5, dir: 'W', turn: false }, // Brake here
-                { x: 2, y: 5, dir: 'W', turn: true, turnDir: 'right' },
-                { x: 2, y: 4, dir: 'N', turn: false }, // Swap here
-                { x: 2, y: 3, dir: 'N', turn: true, turnDir: 'left' },
-                { x: 1, y: 3, dir: 'W', turn: false },
-            ]);
-            this.drawPath();
-
-            this.brakeStopSegments = [2];
-            this.swapControlSegment = 4;
-            this.placeTrapMarkers();
-            this.setButtonsEnabled(true);
-
-            this.showInstruction('พร้อมแล้ว... ลุยเลย! 🛺💨');
-
-            this.time.delayedCall(2000, () => {
-                this.hideInstruction();
-                this.gameStarted = true;
-                this.findNextIntersection();
-                this.startContinuousMovement();
-            });
-        });
-    }
-
     // ========================================================================
     // PATH GENERATION (Scripted for tutorial)
     // ========================================================================
@@ -1195,6 +1149,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
             if (currentSeg.isIntersection) {
                 if (this.queuedDirection) {
                     this.processQueuedDirection();
+                    if (!this.isMoving) return; // If processQueuedDirection stopped the car, abort continuation
                 } else {
                     // No input - in tutorial, give another chance
                     this.isMoving = false;
@@ -1222,6 +1177,12 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                         this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
                         this.time.delayedCall(2000, () => {
                             this.startPhase5();
+                        });
+                    } else if (this.currentPhase === 6) {
+                        // Practice mode: retry from same position
+                        this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
+                        this.time.delayedCall(2000, () => {
+                            this.startPhase6();
                         });
                     }
                     return;
@@ -1347,7 +1308,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
             this.playSound('wrong-turn');
             this.showFeedback('✗', 0xFF4444);
 
-            if (this.currentPhase === 5) {
+            if (this.currentPhase === 5 || this.currentPhase === 6) {
                 this.totalTurnsInPractice++;
             }
 
@@ -1361,15 +1322,24 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                     this.startPhase3();
                 });
                 return;
-                return;
-            } else if (this.currentPhase === 7) { // Phase 7 is now the final practice
+            } else if (this.currentPhase === 5) {
                 // Practice: retry from beginning
                 this.isMoving = false;
                 this.targetPosition = null;
                 this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
                 this.time.delayedCall(2000, () => {
                     this.gameStarted = false;
-                    this.startPhase7();
+                    this.startPhase5();
+                });
+                return;
+            } else if (this.currentPhase === 6) {
+                // Practice: retry from beginning
+                this.isMoving = false;
+                this.targetPosition = null;
+                this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
+                this.time.delayedCall(2000, () => {
+                    this.gameStarted = false;
+                    this.startPhase6();
                 });
                 return;
             }
@@ -1652,9 +1622,6 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
             this.time.delayedCall(1000, () => this.startPhase6());
         } else if (this.currentPhase === 6) {
             // Control swap phase completion
-            this.time.delayedCall(1000, () => this.startPhase7());
-        } else if (this.currentPhase === 7) {
-            // Final practice complete!
             this.showInstruction('ยอดเยี่ยม! 🎊\nคุณพร้อมสำหรับของจริงแล้ว!');
             this.triggerConfetti(this.car.x, this.car.y);
 
@@ -1671,8 +1638,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         // Mark tutorial as complete in registry
         this.registry.set('taxidriver_tutorial_complete', true);
 
-        // Start the main game
-        this.scene.start('TaxiDriverGameScene', { level: 1 });
+        // Notify React to show the success popup and transition properly
+        const onTutorialComplete = this.registry.get('onTutorialComplete');
+        if (onTutorialComplete) {
+            onTutorialComplete();
+        }
     }
 
 

@@ -578,9 +578,10 @@ export class CashierGameScene extends Phaser.Scene {
             this.showSpeechBubble("ทอนเกินยอด!", true);
             this.cameras.main.shake(100, 0.01);
 
-            // Clear belt stack and reset
+            // Clear belt stack and reset — but redraw the hand afterwards
             this.changeGivenSoFar = 0;
             this.dynamicItemsGroup.clear(true, true);
+            this.redrawPhase3Hand();
             this.updatePOSForPhase3();
             return;
         }
@@ -902,7 +903,7 @@ export class CashierGameScene extends Phaser.Scene {
         this.phase1MonitorGroup.clear(true, true);
 
         let p2MonitorText = ">> กรอกยอดสุทธิใหม่ <<\n\n";
-        p2MonitorText += `ยอดรวมเดิม     : $${this.validTotal}\n`;
+        p2MonitorText += `ยอดรวมเดิม     : ฿${this.validTotal}\n`;
 
         this.paymentTargetBalance = this.validTotal;
         const additions: number[] = [];
@@ -941,11 +942,11 @@ export class CashierGameScene extends Phaser.Scene {
                 typeLabel = "รายการ";
             }
 
-            p2MonitorText += `${typeLabel.padEnd(10, ' ')} : ${sign}$${val}\n`;
+            p2MonitorText += `${typeLabel.padEnd(10, ' ')} : ${sign}฿${val}\n`;
 
             // Draw visual on belt in front of hand
             const bgObj = this.add.rectangle(itemX, handY, 120, 70, bgColor).setStrokeStyle(2, borderColor).setAngle(Phaser.Math.RND.between(-15, 15));
-            const txtObj = this.add.text(bgObj.x, bgObj.y, `${sign}$${val}`, { fontSize: '28px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setAngle(bgObj.angle);
+            const txtObj = this.add.text(bgObj.x, bgObj.y, `${sign}฿${val}`, { fontSize: '28px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setAngle(bgObj.angle);
 
             this.dynamicItemsGroup.add(bgObj);
             this.dynamicItemsGroup.add(txtObj);
@@ -1013,7 +1014,7 @@ export class CashierGameScene extends Phaser.Scene {
         else if (this.customerGivenAmount === 50) paidImg.setTint(0x6666ff);
         else if (this.customerGivenAmount === 20) paidImg.setTint(0x66ff66);
 
-        const paidTxt = this.add.text(paidImg.x, paidImg.y, `$${this.customerGivenAmount}`, { fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5);
+        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, { fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5);
 
         this.dynamicItemsGroup.add(arm);
         this.dynamicItemsGroup.add(paidImg);
@@ -1024,12 +1025,34 @@ export class CashierGameScene extends Phaser.Scene {
         this.updatePOSForPhase3();
     }
 
+    private redrawPhase3Hand() {
+        const handX = 400 + 150;
+        const handY = 560;
+        const arm = this.add.image(handX, handY - 20, 'ui-customer-hand').setOrigin(0.5, 0.5);
+
+        let paidImgKey = 'bill-100';
+        if (this.customerGivenAmount === 50) paidImgKey = 'bill-50';
+        else if (this.customerGivenAmount === 20) paidImgKey = 'bill-20';
+        else if (this.customerGivenAmount <= 10) paidImgKey = 'coin-10';
+
+        const paidImg = this.add.image(handX - 80, handY - 20, paidImgKey);
+        if (this.customerGivenAmount === 100) paidImg.setTint(0xff6666);
+        else if (this.customerGivenAmount === 50) paidImg.setTint(0x6666ff);
+        else if (this.customerGivenAmount === 20) paidImg.setTint(0x66ff66);
+
+        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, { fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5);
+
+        this.dynamicItemsGroup.add(arm);
+        this.dynamicItemsGroup.add(paidImg);
+        this.dynamicItemsGroup.add(paidTxt);
+    }
+
     private updatePOSForPhase3() {
         let p3MonitorText = ">> ทอนเงินลูกค้า <<\n\n";
-        p3MonitorText += `ยอดสุทธิ  : $${this.paymentTargetBalance}\n`;
-        p3MonitorText += `รับเงินมา  : $${this.customerGivenAmount}\n`;
-        p3MonitorText += `ต้องทอนเงิน : $${this.changeTarget}\n\n`;
-        p3MonitorText += `[ทอนแล้ว: $${this.changeGivenSoFar}]`;
+        p3MonitorText += `ยอดสุทธิ  : ฿${this.paymentTargetBalance}\n`;
+        p3MonitorText += `รับเงินมา  : ฿${this.customerGivenAmount}\n`;
+        p3MonitorText += `ต้องทอนเงิน : ฿${this.changeTarget}\n\n`;
+        p3MonitorText += `[ทอนแล้ว: ฿${this.changeGivenSoFar}]`;
 
         this.posMonitorText.setText(p3MonitorText);
     }
@@ -1040,14 +1063,14 @@ export class CashierGameScene extends Phaser.Scene {
             this.time.delayedCall(1500, () => this.endGame());
         } else {
             this.sound.play('sfx-error', { volume: 0.5 });
-            this.showFloatingFeedback(`ทอนเงินผิด! ยอดรวมคือ $${this.changeTarget}`, 0xff0000);
+            this.showFloatingFeedback(`ทอนเงินผิด! ยอดรวมคือ ฿${this.changeTarget}`, 0xff0000);
             this.operator_errors++;
             this.score = Math.max(0, this.score - 10);
             this.stars = Math.max(1, this.stars - 1);
             this.changeGivenSoFar = 0;
-            this.dynamicItemsGroup.clear(true, true); // Visual reset
-            // Redraw hand, since clear wipes it
-            this.startPhase3();
+            this.dynamicItemsGroup.clear(true, true);
+            this.redrawPhase3Hand();
+            this.updatePOSForPhase3();
         }
     }
 
