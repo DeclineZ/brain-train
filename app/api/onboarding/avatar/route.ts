@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addItemToInventory } from '@/lib/server/shopAction';
 import { createClient } from '@/utils/supabase/server';
+import { generateUniqueFriendCode } from '@/lib/server/friendActions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,6 +93,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Generate unique friend code for new user
+    await generateUniqueFriendCode(user.id).catch(err => {
+      console.error('Friend code generation error (non-fatal):', err);
+    });
 
     return NextResponse.json({
       ok: true,

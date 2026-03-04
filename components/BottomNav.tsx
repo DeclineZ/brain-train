@@ -1,11 +1,11 @@
 "use client";
 
-import { Grid3X3, Home, User, Store } from "lucide-react";
+import { Grid3X3, Home, User, Store, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 interface BottomNavProps {
-  active?: "all" | "home" | "stats" | "shop";
+  active?: "all" | "home" | "stats" | "shop" | "friends";
 }
 
 export default function BottomNav({ active: propActive }: BottomNavProps) {
@@ -18,6 +18,7 @@ export default function BottomNav({ active: propActive }: BottomNavProps) {
   const navItems = [
     { id: "home", label: "หน้าหลัก", icon: Home, href: "/" },
     { id: "all", label: "ทุกเกม", icon: Grid3X3, href: "/allgames" },
+    { id: "friends", label: "เพื่อน", icon: Users, href: "/friends" },
     { id: "shop", label: "ร้านค้า", icon: Store, href: "/shop" },
     { id: "stats", label: "คุณ", icon: User, href: "/stats" },
   ];
