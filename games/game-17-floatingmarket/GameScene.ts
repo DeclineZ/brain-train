@@ -827,21 +827,36 @@ export class FloatingMarketScene extends Phaser.Scene {
         const eventName = isAbsolute ? 'deviceorientationabsolute' : 'deviceorientation';
 
         window.addEventListener(eventName, (e: any) => {
-            if (e.gamma !== null && e.gamma !== undefined) {
+            if (e.gamma !== null && e.beta !== null && e.gamma !== undefined && e.beta !== undefined) {
+                let rawTilt = e.gamma;
+                // Determine screen orientation to use correct axis
+                const orientation = window.orientation || (screen.orientation || {}).angle || 0;
+
+                if (orientation === 90) {
+                    rawTilt = e.beta;
+                } else if (orientation === -90 || orientation === 270) {
+                    rawTilt = -e.beta;
+                } else if (orientation === 180) {
+                    rawTilt = -e.gamma;
+                }
+
                 // Calibrate zero-point on first valid reading
                 if (this.baseTiltGamma === null) {
-                    this.baseTiltGamma = e.gamma;
+                    this.baseTiltGamma = rawTilt;
                 }
+
+                // To prevent massive flip-overs when rotating past vertical, we loosely clamp it.
+                // Depending on axis, rawTilt might flip rapidly.
+                let currentTilt = Phaser.Math.Clamp(rawTilt, -90, 90);
 
                 // Calculate relative tilt safely
                 const base = this.baseTiltGamma ?? 0;
-                let relativeGamma = e.gamma - base;
+                let relativeTilt = currentTilt - base;
 
-                // Handle wrap-around for extreme angles (e.g., -180 to 180 transition)
-                if (relativeGamma > 180) relativeGamma -= 360;
-                if (relativeGamma < -180) relativeGamma += 360;
+                // Enforce a hard cap on relative tilt to prevent the "stuck on wall" bug
+                relativeTilt = Phaser.Math.Clamp(relativeTilt, -60, 60);
 
-                this.tiltGamma = relativeGamma;
+                this.tiltGamma = relativeTilt;
             }
         });
         this.setupTouchZones(this.scale.width, this.scale.height);
