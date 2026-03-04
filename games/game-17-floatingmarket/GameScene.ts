@@ -830,12 +830,14 @@ export class FloatingMarketScene extends Phaser.Scene {
             if (e.gamma !== null && e.beta !== null && e.gamma !== undefined && e.beta !== undefined) {
                 let rawTilt = e.gamma;
                 // Determine screen orientation to use correct axis
-                const orientation = window.orientation || (screen.orientation || {}).angle || 0;
+                let orientationStr = window.orientation;
+                if (orientationStr === undefined) {
+                    orientationStr = (screen.orientation || {}).angle;
+                }
+                const orientation = Number(orientationStr) || 0;
 
-                if (orientation === 90) {
-                    rawTilt = e.beta;
-                } else if (orientation === -90 || orientation === 270) {
-                    rawTilt = -e.beta;
+                if (Math.abs(orientation) === 90 || orientation === 270) {
+                    rawTilt = (orientation === 90) ? e.beta : -e.beta;
                 } else if (orientation === 180) {
                     rawTilt = -e.gamma;
                 }
@@ -1031,11 +1033,11 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     moveBoat(dt: number) {
         let targetDirection = 0;
-        if (this.useTilt && Math.abs(this.tiltGamma) > 5) {
-            // Increased divisor to 45 so max speed requires more tilt
-            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / 45, -1, 1);
-            // Non-linear curve to make small tilts less sensitive
-            targetDirection = Math.sign(normalizedTilt) * Math.pow(Math.abs(normalizedTilt), 1.5);
+        if (this.useTilt && Math.abs(this.tiltGamma) > 3) {
+            // Decreased divisor to 25 so max speed requires less tilt, making it easier to turn
+            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / 25, -1, 1);
+            // Non-linear curve to make small tilts less sensitive, but large tilts snap fast
+            targetDirection = Math.sign(normalizedTilt) * Math.pow(Math.abs(normalizedTilt), 1.3);
         }
         if (this.touchLeft) targetDirection = -1;
         if (this.touchRight) targetDirection = 1;
