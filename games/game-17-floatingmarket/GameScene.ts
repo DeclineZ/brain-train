@@ -360,7 +360,10 @@ export class FloatingMarketScene extends Phaser.Scene {
             duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
         });
 
-        overlay.once('pointerdown', () => {
+        const startHandler = () => {
+            this.sys.canvas.removeEventListener('click', startHandler);
+            this.sys.canvas.removeEventListener('touchend', startHandler);
+
             // iOS 13+ requires requesting permission explicitly on user interaction
             if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
                 const DeviceOrientationEventTyped = DeviceOrientationEvent as any;
@@ -387,7 +390,10 @@ export class FloatingMarketScene extends Phaser.Scene {
             overlay.destroy();
             text.destroy();
             this.startGame();
-        });
+        };
+
+        this.sys.canvas.addEventListener('click', startHandler);
+        this.sys.canvas.addEventListener('touchend', startHandler);
     }
 
     public startGame() {
