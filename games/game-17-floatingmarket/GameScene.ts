@@ -343,26 +343,54 @@ export class FloatingMarketScene extends Phaser.Scene {
     }
 
     protected showTapToStart(width: number, height: number) {
-        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
-        overlay.setDepth(200);
-        overlay.setInteractive();
+        // Create a native HTML overlay to ensure iOS Safari recognizes the user gesture
+        const overlay = document.createElement('div');
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.cursor = 'pointer';
 
-        const text = this.add.text(width / 2, height / 2, 'แตะเพื่อเริ่มเกม', {
-            fontSize: '32px', fontFamily: "'Noto Sans Thai', sans-serif",
-            color: '#FFFFFF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
-        });
-        text.setOrigin(0.5);
-        text.setDepth(201);
+        const text = document.createElement('div');
+        text.innerText = 'แตะเพื่อเริ่มเกม';
+        text.style.color = '#FFFFFF';
+        text.style.fontFamily = "'Noto Sans Thai', sans-serif";
+        text.style.fontSize = '32px';
+        text.style.fontWeight = 'bold';
+        text.style.textShadow = '2px 2px 4px #000000';
 
-        // Pulse effect
-        this.tweens.add({
-            targets: text, scaleX: 1.1, scaleY: 1.1,
-            duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-        });
+        // Simple CSS pulse animation
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes pulseText {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+        text.style.animation = 'pulseText 1.6s infinite ease-in-out';
+
+        overlay.appendChild(text);
+        document.body.appendChild(overlay);
 
         const startHandler = () => {
-            this.sys.canvas.removeEventListener('click', startHandler);
-            this.sys.canvas.removeEventListener('touchend', startHandler);
+            overlay.removeEventListener('click', startHandler);
+            overlay.removeEventListener('touchend', startHandler);
+
+            // Clean up DOM elements
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+            if (style.parentNode) {
+                style.parentNode.removeChild(style);
+            }
 
             // iOS 13+ requires requesting permission explicitly on user interaction
             if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
@@ -378,8 +406,6 @@ export class FloatingMarketScene extends Phaser.Scene {
                         })
                         .catch(() => this.enableTouchFallback(width, height))
                         .finally(() => {
-                            overlay.destroy();
-                            text.destroy();
                             this.startGame();
                         });
                     return; // Return early, game starts after permission resolves
@@ -387,13 +413,11 @@ export class FloatingMarketScene extends Phaser.Scene {
             }
 
             // For other devices, proceed immediately
-            overlay.destroy();
-            text.destroy();
             this.startGame();
         };
 
-        this.sys.canvas.addEventListener('click', startHandler);
-        this.sys.canvas.addEventListener('touchend', startHandler);
+        overlay.addEventListener('click', startHandler);
+        overlay.addEventListener('touchend', startHandler);
     }
 
     public startGame() {
