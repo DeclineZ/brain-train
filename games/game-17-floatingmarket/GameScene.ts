@@ -117,6 +117,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     // Input
     protected useTilt = false;
     protected tiltGamma = 0;
+    protected baseTiltGamma: number | null = null;
     protected touchLeft = false;
     protected touchRight = false;
     protected leftZone!: Phaser.GameObjects.Rectangle;
@@ -345,13 +346,13 @@ export class FloatingMarketScene extends Phaser.Scene {
     protected showTapToStart(width: number, height: number) {
         // Create a native HTML overlay to ensure iOS Safari recognizes the user gesture
         const overlay = document.createElement('div');
-        overlay.style.position = 'absolute';
+        overlay.style.position = 'fixed'; // Use fixed to ensure it covers the whole screen regardless of scrolling
         overlay.style.top = '0';
         overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        overlay.style.zIndex = '9999';
+        overlay.style.width = '100vw'; // Use vh/vw to guarantee viewport coverage
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)'; // Slightly darker to match previous Phaser overlay
+        overlay.style.zIndex = '999999'; // Super high z-index to cover React UI headers
         overlay.style.display = 'flex';
         overlay.style.justifyContent = 'center';
         overlay.style.alignItems = 'center';
@@ -821,11 +822,27 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     enableTilt(isAbsolute: boolean = false) {
         this.useTilt = true;
+        this.baseTiltGamma = null;
 
         const eventName = isAbsolute ? 'deviceorientationabsolute' : 'deviceorientation';
 
         window.addEventListener(eventName, (e: any) => {
-            if (e.gamma !== null) this.tiltGamma = e.gamma;
+            if (e.gamma !== null && e.gamma !== undefined) {
+                // Calibrate zero-point on first valid reading
+                if (this.baseTiltGamma === null) {
+                    this.baseTiltGamma = e.gamma;
+                }
+
+                // Calculate relative tilt safely
+                const base = this.baseTiltGamma ?? 0;
+                let relativeGamma = e.gamma - base;
+
+                // Handle wrap-around for extreme angles (e.g., -180 to 180 transition)
+                if (relativeGamma > 180) relativeGamma -= 360;
+                if (relativeGamma < -180) relativeGamma += 360;
+
+                this.tiltGamma = relativeGamma;
+            }
         });
         this.setupTouchZones(this.scale.width, this.scale.height);
     }
