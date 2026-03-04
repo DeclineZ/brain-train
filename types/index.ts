@@ -413,3 +413,5 @@ export interface DailyMission {
   completed: boolean;
   completed_at: string | null;
 }
+
+export type { ParkingJamGameStats } from '@/games/game-21-parking-jam/types';

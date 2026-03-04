@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 
-type TutorialTargetType = 'gold' | 'gem' | 'rock';
+type TutorialTargetType = 'gold_large' | 'gem' | 'rock';
 type HookState = 'swing' | 'dropping' | 'pulling';
-type TutorialStepAction = 'tap_hook' | 'grab_gold' | 'grab_gem';
+type TutorialStepAction = 'tap_hook' | 'crack_gold' | 'collect_gold' | 'grab_gem';
 
 type TutorialStep = {
   instruction: string;
@@ -22,6 +22,10 @@ type TutorialMinerObject = {
   y: number;
   grabbed: boolean;
   sprite: Phaser.GameObjects.Container;
+  durabilityRemaining: number;
+  isBroken: boolean;
+  hitMarker?: Phaser.GameObjects.Container;
+  crackOverlay?: Phaser.GameObjects.Container;
 };
 
 const COLORS = {
@@ -40,8 +44,8 @@ export class MinerTutorialScene extends Phaser.Scene {
   private hookBaseY = 0;
   private hookAngle = Phaser.Math.DegToRad(-28);
   private hookLockedAngle = 0;
-  private hookSwingSpeed = 0.0011;
-  private hookSwingMaxAngle = Phaser.Math.DegToRad(32);
+  private hookSwingSpeed = 0.0006;
+  private hookSwingMaxAngle = Phaser.Math.DegToRad(50);
   private hookSwingDirection = 1;
   private hookState: HookState = 'swing';
   private hookSwingLength = 120;
@@ -63,13 +67,16 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private score = 0;
   private goal = 700;
+  private objectiveRequired = 1;
+  private objectiveCollected = 0;
   private hookDropCost = 25;
   private totalFreeHooks = 2;
   private freeHooksRemaining = 2;
   private hookFeePending = false;
 
   private hudScoreText!: Phaser.GameObjects.Text;
-  private hudGoalText!: Phaser.GameObjects.Text;
+  private hudObjectiveText!: Phaser.GameObjects.Text;
+  private hudObjectiveBadge!: Phaser.GameObjects.Text;
   private hookCostText!: Phaser.GameObjects.Text;
 
   private tutorialPanel!: Phaser.GameObjects.Container;
@@ -158,44 +165,81 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private createHUD() {
     const { width, height } = this.scale;
-    const panel = this.add.container(width / 2, height * 0.11).setDepth(10);
+    const panel = this.add.container(width / 2, height * 0.165).setDepth(10);
     const bg = this.add.graphics();
-    const panelWidth = Math.min(380, width * 0.66);
-    const panelHeight = 52;
+    const panelWidth = Math.min(430, width * 0.74);
+    const panelHeight = 66;
+    const sectionWidth = panelWidth / 2;
     bg.fillStyle(0xfff8ea, 0.93);
     bg.lineStyle(1.5, 0xdcc7a2, 0.75);
     bg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
     bg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
 
-    const scoreLabel = this.add.text(-panelWidth * 0.26, -8, 'คะแนน', {
+    const divider = this.add.rectangle(0, 0, 1, panelHeight - 12, 0xdcc7a2, 0.75);
+
+    const scoreX = -sectionWidth / 2;
+    const objectiveX = sectionWidth / 2;
+
+    const scoreLabel = this.add.text(scoreX, -14, 'คะแนน', {
       fontFamily: 'Sarabun, Arial, sans-serif',
       fontSize: '12px',
       color: '#7b5b3e',
       padding: { x: 2, y: 2 }
     }).setOrigin(0.5);
-    this.hudScoreText = this.add.text(-panelWidth * 0.26, 11, `${this.score}`, {
+    this.hudScoreText = this.add.text(scoreX, 12, `${this.score}/${this.goal}`, {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '20px',
+      fontSize: '17px',
       color: '#d17300',
       fontStyle: '700',
       padding: { x: 2, y: 2 }
     }).setOrigin(0.5);
 
-    const goalLabel = this.add.text(panelWidth * 0.26, -8, 'เป้าหมาย', {
+    const objectiveCard = this.add.graphics();
+    objectiveCard.fillStyle(0xf5edd4, 0.95);
+    objectiveCard.lineStyle(1.5, 0xe2c78b, 0.85);
+    objectiveCard.fillRoundedRect(objectiveX - 72, -24, 144, 48, 12);
+    objectiveCard.strokeRoundedRect(objectiveX - 72, -24, 144, 48, 12);
+    const objectiveLabel = this.add.text(objectiveX, -18, 'เป้าหมายแร่', {
       fontFamily: 'Sarabun, Arial, sans-serif',
       fontSize: '12px',
       color: '#7b5b3e',
       padding: { x: 2, y: 2 }
     }).setOrigin(0.5);
-    this.hudGoalText = this.add.text(panelWidth * 0.26, 11, `${this.goal}`, {
+    const objectiveIcon = this.add.polygon(objectiveX - 24, 6, [
+      0, -16,
+      12, -4,
+      9, 14,
+      0, 18,
+      -9, 14,
+      -12, -4
+    ], COLORS.gold, 1);
+    objectiveIcon.setStrokeStyle(2, 0x6d4f1f, 0.7);
+    this.hudObjectiveText = this.add.text(objectiveX + 10, 6, '0/1', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '20px',
-      color: '#5a7aa5',
+      fontSize: '18px',
+      color: '#7b5b3e',
+      fontStyle: '700'
+    }).setOrigin(0.5);
+    this.hudObjectiveBadge = this.add.text(objectiveX + 52, 10, '?', {
+      fontFamily: 'Sarabun, Arial, sans-serif',
+      fontSize: '16px',
+      color: '#725400',
       fontStyle: '700',
-      padding: { x: 2, y: 2 }
+      backgroundColor: '#f3c94b',
+      padding: { x: 6, y: 2 }
     }).setOrigin(0.5);
 
-    panel.add([bg, scoreLabel, this.hudScoreText, goalLabel, this.hudGoalText]);
+    panel.add([
+      bg,
+      divider,
+      scoreLabel,
+      this.hudScoreText,
+      objectiveCard,
+      objectiveLabel,
+      objectiveIcon,
+      this.hudObjectiveText,
+      this.hudObjectiveBadge
+    ]);
 
     this.hookCostText = this.add.text(width * 0.09, this.hookBaseY + 108, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
@@ -205,6 +249,7 @@ export class MinerTutorialScene extends Phaser.Scene {
       padding: { x: 10, y: 6 }
     }).setDepth(12);
     this.updateHookCostText();
+    this.updateObjectiveHUD();
   }
 
   private createHook() {
@@ -226,8 +271,8 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private createTutorialObjects() {
     const { width, height } = this.scale;
-    const objects: Array<Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite'>> = [
-      { type: 'gold', value: 260, weight: 2.3, size: 24, isHazard: false, x: width * 0.42, y: height * 0.58 },
+    const objects: Array<Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>> = [
+      { type: 'gold_large', value: 260, weight: 2.3, size: 26, isHazard: false, x: width * 0.42, y: height * 0.58 },
       { type: 'gem', value: 430, weight: 1.1, size: 20, isHazard: false, x: width * 0.62, y: height * 0.64 },
       { type: 'rock', value: -120, weight: 2.8, size: 30, isHazard: true, x: width * 0.26, y: height * 0.72 }
     ];
@@ -236,16 +281,27 @@ export class MinerTutorialScene extends Phaser.Scene {
       ...obj,
       id: index + 1,
       grabbed: false,
-      sprite: this.createMinerObjectSprite(obj)
+      sprite: this.createMinerObjectSprite(obj),
+      durabilityRemaining: obj.type === 'gold_large' ? 1 : 0,
+      isBroken: obj.type !== 'gold_large'
     }));
+    this.minerObjects.forEach((obj) => {
+      if (obj.type === 'gold_large') {
+        obj.hitMarker = this.createHitMarker(obj.size);
+        obj.crackOverlay = this.createCrackOverlay(obj.size);
+        obj.sprite.add(obj.hitMarker);
+        obj.sprite.add(obj.crackOverlay);
+        this.updateDurabilityVisuals(obj);
+      }
+    });
   }
 
-  private createMinerObjectSprite(object: Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite'>) {
+  private createMinerObjectSprite(object: Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>) {
     const sprite = this.add.container(object.x, object.y).setDepth(6);
     const shadow = this.add.circle(0, 0, object.size + 4, 0x1c1412, 0.22);
     sprite.add(shadow);
 
-    if (object.type === 'gold') {
+    if (object.type === 'gold_large') {
       const body = this.add.polygon(object.size * 0.82, object.size * 0.82, [
         0, -object.size,
         object.size * 0.8, -object.size * 0.2,
@@ -358,7 +414,7 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private createTutorialSteps() {
     this.tutorialSteps = [
-      { instruction: 'เป้าหมายคือเก็บแร่มีค่าให้ได้คะแนนถึงเป้าหมาย', interactive: false },
+      { instruction: 'คะแนนด้านซ้ายจะแสดงเป็น คะแนนปัจจุบัน/เป้าหมาย และต้องเก็บแร่เป้าหมายให้ครบด้วย', interactive: false },
       {
         instruction: 'แตะบริเวณตะขอด้านบนเพื่อปล่อยตะขอลงไป',
         interactive: true,
@@ -366,13 +422,19 @@ export class MinerTutorialScene extends Phaser.Scene {
         helperText: 'แตะใกล้จุดหมุนตะขอด้านบน'
       },
       {
-        instruction: 'จับจังหวะตะขอให้ตรงทอง แล้วแตะเพื่อปล่อยตะขอ',
+        instruction: 'ทองก้อนใหญ่ที่มีเศษหินติดอยู่ต้องกะเทาะก่อน 1 ครั้ง ลองเล็งให้โดนทองก้อนใหญ่',
         interactive: true,
-        action: 'grab_gold',
-        helperText: 'เล็งให้ตะขอชี้ใกล้ทอง แล้วแตะปล่อย'
+        action: 'crack_gold',
+        helperText: 'เศษหินบนแร่หมายถึงต้องยิง 2 ครั้ง'
       },
       {
-        instruction: 'หินเป็นสิ่งกีดขวาง ควรหลีกเลี่ยงเพราะเสียจัง\nหวะและอาจเสียคะแนน',
+        instruction: 'ตอนนี้ทองแตกแล้ว ยิงซ้ำอีกครั้งเพื่อเก็บจริง และดูช่อง objective จะเปลี่ยนเป็นสีเขียว',
+        interactive: true,
+        action: 'collect_gold',
+        helperText: 'ไอคอนเขียว = เป้าหมายครบแล้ว'
+      },
+      {
+        instruction: 'หินเป็นสิ่งกีดขวาง ควรหลีกเลี่ยงเพราะเสียจังหวะและเสียคะแนนได้',
         interactive: false
       },
       {
@@ -408,8 +470,8 @@ export class MinerTutorialScene extends Phaser.Scene {
       return;
     }
 
-    if (this.currentStepIndex === 2) {
-      const gold = this.getObjectByType('gold');
+    if (this.currentStepIndex === 2 || this.currentStepIndex === 3) {
+      const gold = this.getObjectByType('gold_large');
       if (gold && !gold.grabbed) {
         this.drawArrowTo(gold.x, gold.y);
         this.highlightObject(gold);
@@ -417,7 +479,7 @@ export class MinerTutorialScene extends Phaser.Scene {
       return;
     }
 
-    if (this.currentStepIndex === 3) {
+    if (this.currentStepIndex === 4) {
       const rock = this.getObjectByType('rock');
       if (rock && !rock.grabbed) {
         this.drawArrowTo(rock.x, rock.y);
@@ -427,13 +489,13 @@ export class MinerTutorialScene extends Phaser.Scene {
       return;
     }
 
-    if (this.currentStepIndex === 4) {
+    if (this.currentStepIndex === 5) {
       this.drawArrowTo(this.hookCostText.x + this.hookCostText.width * 0.45, this.hookCostText.y + 12);
       this.highlightPoint(this.hookCostText.x + this.hookCostText.width * 0.45, this.hookCostText.y + 10, 28);
       return;
     }
 
-    if (this.currentStepIndex === 5) {
+    if (this.currentStepIndex === 6) {
       const gem = this.getObjectByType('gem');
       if (gem && !gem.grabbed) {
         this.drawArrowTo(gem.x, gem.y);
@@ -471,7 +533,13 @@ export class MinerTutorialScene extends Phaser.Scene {
       return;
     }
 
-    if (step.action === 'grab_gold') {
+    if (step.action === 'crack_gold') {
+      this.pendingStepAdvanceAfterPull = true;
+      this.releaseHook();
+      return;
+    }
+
+    if (step.action === 'collect_gold') {
       this.pendingStepAdvanceAfterPull = true;
       this.releaseHook();
       return;
@@ -518,18 +586,22 @@ export class MinerTutorialScene extends Phaser.Scene {
       grabbedTarget.sprite.setVisible(false);
       const netValue = this.applyHookFee(grabbedTarget.value);
       this.score += netValue;
-      this.hudScoreText.setText(`${this.score}`);
+      this.hudScoreText.setText(`${this.score}/${this.goal}`);
       this.spawnScorePopup(grabbedTarget.x, grabbedTarget.y, netValue);
       if (grabbedTarget.isHazard) {
         this.playSafeSound('miner-grab-hazard', 0.65);
       } else {
         this.playSafeSound('miner-grab-success', 0.65);
+        if (grabbedTarget.type === 'gold_large') {
+          this.objectiveCollected = 1;
+          this.updateObjectiveHUD();
+        }
       }
     } else {
       const feeOnlyValue = this.applyHookFee(0);
       if (feeOnlyValue < 0) {
         this.score += feeOnlyValue;
-        this.hudScoreText.setText(`${this.score}`);
+        this.hudScoreText.setText(`${this.score}/${this.goal}`);
         this.spawnScorePopup(this.hookCenterX, this.hookBaseY + 140, feeOnlyValue);
       }
     }
@@ -538,8 +610,15 @@ export class MinerTutorialScene extends Phaser.Scene {
       const currentStep = this.tutorialSteps[this.currentStepIndex];
       this.pendingStepAdvanceAfterPull = false;
 
-      if (currentStep.action === 'grab_gold' && grabbedTarget?.type !== 'gold') {
-        this.setHelperText('ลองอีกครั้ง ระบบต้องเก็บ “ทอง” ในขั้นตอนนี้');
+      if (currentStep.action === 'crack_gold') {
+        const gold = this.getObjectByType('gold_large');
+        if (!gold?.isBroken) {
+          this.setHelperText('ลองอีกครั้ง ขั้นตอนนี้ต้องกะเทาะทองก้อนใหญ่ก่อน');
+          return;
+        }
+      }
+      if (currentStep.action === 'collect_gold' && grabbedTarget?.type !== 'gold_large') {
+        this.setHelperText('ลองอีกครั้ง ขั้นตอนนี้ต้องเก็บ “ทองก้อนใหญ่”');
         return;
       }
       if (currentStep.action === 'grab_gem' && grabbedTarget?.type !== 'gem') {
@@ -590,6 +669,17 @@ export class MinerTutorialScene extends Phaser.Scene {
     }
 
     if (closest) {
+      if (closest.type === 'gold_large' && !closest.isBroken) {
+        closest.durabilityRemaining = Math.max(0, closest.durabilityRemaining - 1);
+        closest.isBroken = closest.durabilityRemaining <= 0;
+        this.updateDurabilityVisuals(closest);
+        this.spawnChipEffect(closest);
+        this.playSafeSound('miner-grab-hazard', 0.45);
+        this.setHelperText(closest.isBroken ? 'ดีมาก! ยิงอีกครั้งเพื่อเก็บจริง' : 'แร่ก้อนใหญ่ต้องกะเทาะก่อน');
+        this.startPull();
+        return;
+      }
+
       closest.grabbed = true;
       this.hookTarget = closest;
       this.startPull();
@@ -616,7 +706,7 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private getExpectedGrabTypeForCurrentStep(): TutorialTargetType | null {
     const action = this.tutorialSteps[this.currentStepIndex]?.action;
-    if (action === 'grab_gold') return 'gold';
+    if (action === 'crack_gold' || action === 'collect_gold') return 'gold_large';
     if (action === 'grab_gem') return 'gem';
     return null;
   }
@@ -694,8 +784,86 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.tutorialHelperText.setText(text);
   }
 
+  private updateObjectiveHUD() {
+    if (!this.hudObjectiveText || !this.hudObjectiveBadge) return;
+    const complete = this.objectiveCollected >= this.objectiveRequired;
+    this.hudObjectiveText.setText(`${this.objectiveCollected}/${this.objectiveRequired}`);
+    this.hudObjectiveText.setColor(complete ? '#3d8f49' : '#7b5b3e');
+    this.hudObjectiveBadge.setText(complete ? '✓' : '?');
+    this.hudObjectiveBadge.setColor(complete ? '#ffffff' : '#725400');
+    this.hudObjectiveBadge.setBackgroundColor(complete ? '#4caf50' : '#f3c94b');
+  }
+
   private getObjectByType(type: TutorialTargetType) {
     return this.minerObjects.find((obj) => obj.type === type);
+  }
+
+  private createCrackOverlay(size: number) {
+    const overlay = this.add.container(0, 0);
+    const lineA = this.add.line(0, 0, -size * 0.2, -size * 0.8, size * 0.24, size * 0.48, 0x40261a, 0.8);
+    lineA.setLineWidth(2, 2);
+    const lineB = this.add.line(0, 0, size * 0.15, -size * 0.12, -size * 0.4, size * 0.58, 0x40261a, 0.75);
+    lineB.setLineWidth(2, 2);
+    overlay.add([lineA, lineB]);
+    overlay.setVisible(false);
+    overlay.setAlpha(0);
+    return overlay;
+  }
+
+  private createHitMarker(size: number) {
+    const marker = this.add.container(size * 0.24, -size * 0.16);
+    const chunk = this.add.polygon(0, 0, [
+      -size * 0.2, -size * 0.08,
+      -size * 0.08, size * 0.16,
+      size * 0.14, size * 0.18,
+      size * 0.26, -size * 0.02,
+      size * 0.04, -size * 0.22
+    ], 0x7d6857, 1);
+    chunk.setStrokeStyle(1.5, 0x4d3e31, 0.85);
+    const ridge = this.add.line(0, 0, -size * 0.14, -size * 0.02, size * 0.12, size * 0.12, 0x4d3e31, 0.8);
+    ridge.setLineWidth(1.5, 1.5);
+    const dust = this.add.circle(-size * 0.04, -size * 0.05, Math.max(1.5, size * 0.08), 0xc7a98a, 0.65);
+    marker.add([chunk, ridge, dust]);
+    return marker;
+  }
+
+  private updateDurabilityVisuals(target: TutorialMinerObject) {
+    target.hitMarker?.setVisible(!target.isBroken);
+    if (!target.crackOverlay) return;
+    const cracked = target.isBroken || target.durabilityRemaining <= 0;
+    target.crackOverlay.setVisible(cracked);
+    target.crackOverlay.setAlpha(cracked ? 0.8 : 0);
+  }
+
+  private spawnChipEffect(target: TutorialMinerObject) {
+    const debris = Array.from({ length: 6 }, (_, index) => {
+      const shard = this.add
+        .circle(target.x, target.y, 2 + (index % 2), index % 3 === 0 ? 0xc7a98a : 0x7d6857, 0.95)
+        .setDepth(35);
+      this.tweens.add({
+        targets: shard,
+        x: target.x + Phaser.Math.Between(-18, 18),
+        y: target.y + Phaser.Math.Between(-12, 16),
+        alpha: 0,
+        scale: 0.4,
+        duration: 360 + index * 35,
+        ease: 'Quad.out',
+        onComplete: () => shard.destroy()
+      });
+      return shard;
+    });
+
+    this.tweens.add({
+      targets: target.sprite,
+      angle: { from: -6, to: 6 },
+      duration: 70,
+      yoyo: true,
+      repeat: 1,
+      onComplete: () => {
+        target.sprite.setAngle(0);
+        debris.length = 0;
+      }
+    });
   }
 
   private spawnScorePopup(x: number, y: number, value: number) {

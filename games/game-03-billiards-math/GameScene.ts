@@ -21,6 +21,7 @@ interface PhysicsBall extends Ball {
     velocityY: number;
     isMoving: boolean;
     isHazard?: boolean;
+    lastEjectedAt?: number;
 }
 
 interface SlotZone {
@@ -93,6 +94,10 @@ export class BilliardsGameScene extends Phaser.Scene {
     private shotCounterText!: Phaser.GameObjects.Text;
     private equationTimerText!: Phaser.GameObjects.Text;
 
+    // Revert button & slot fill order tracking
+    private slotFillOrder: SlotZone[] = [];
+    private revertButton!: Phaser.GameObjects.Container;
+
     // Cue ball (white ball)
     private cueBall: PhysicsBall | null = null;
 
@@ -142,6 +147,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.isLocked = true;
         this.continuedAfterTimeout = false;
         this.isPaused = false;
+        this.slotFillOrder = [];
         this.completedEquationResults = [];
         this.shadowBalls = [];
         this.aimingBall = null;
@@ -327,6 +333,32 @@ export class BilliardsGameScene extends Phaser.Scene {
                     this.checkBallInSlot(ball);
                 }
                 return;
+            }
+
+            // --- Continuous in-flight slot detection + magnetic pull ---
+            if (!ball.isPlaced && ball !== this.cueBall && !ball.isHazard) {
+                // Ignore balls that were just ejected (1s cooldown)
+                if (!ball.lastEjectedAt || Date.now() - ball.lastEjectedAt > 1000) {
+                    for (const slot of this.slots) {
+                        if (slot.filled) continue;
+                        const distToSlot = Phaser.Math.Distance.Between(
+                            ball.container!.x, ball.container!.y, slot.x, slot.y
+                        );
+                        // Capture ball in-flight if close enough
+                        if (distToSlot < slot.radius * 2.5) {
+                            this.checkBallInSlot(ball);
+                            if (ball.isPlaced) return; // ball was captured
+                        }
+                        // Magnetic pull when moving slowly and near a slot
+                        if (speed < 150 && distToSlot < slot.radius * 3.5) {
+                            const pullStrength = 0.15 * (1 - distToSlot / (slot.radius * 3.5));
+                            const dx = slot.x - ball.container!.x;
+                            const dy = slot.y - ball.container!.y;
+                            ball.velocityX += dx * pullStrength;
+                            ball.velocityY += dy * pullStrength;
+                        }
+                    }
+                }
             }
 
             ball.isMoving = true;
@@ -604,7 +636,60 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Shadow ball progress tracker
         this.createShadowBallTracker();
 
+        // Revert (undo) button — below table, left side
+        this.createRevertButton();
+
         console.log("[BilliardsGameScene] UI created");
+    }
+
+    /** Creates a visible ↩ revert button below the pool table */
+    private createRevertButton() {
+        const { width } = this.scale;
+        const btnX = this.tableBounds.left + 50;
+        const btnY = this.tableBounds.bottom + 40;
+
+        const container = this.add.container(btnX, btnY).setDepth(50);
+
+        // Background pill
+        const bg = this.add.graphics();
+        bg.fillStyle(0x1a1a2e, 0.85);
+        bg.fillRoundedRect(-44, -20, 88, 40, 14);
+        bg.lineStyle(2, 0x8B7355, 0.8);
+        bg.strokeRoundedRect(-44, -20, 88, 40, 14);
+
+        // Icon + label
+        const label = this.add.text(0, 0, '↩ ย้อน', {
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            fontSize: `${Math.min(18, width * 0.035)}px`,
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+
+        container.add([bg, label]);
+
+        // Make interactive
+        container.setInteractive(
+            new Phaser.Geom.Rectangle(-44, -20, 88, 40),
+            Phaser.Geom.Rectangle.Contains
+        );
+        container.on('pointerdown', () => {
+            if (this.slotFillOrder.length > 0) {
+                const lastSlot = this.slotFillOrder[this.slotFillOrder.length - 1];
+                this.ejectBallFromSlot(lastSlot);
+            }
+        });
+        container.on('pointerover', () => label.setColor('#00ffff'));
+        container.on('pointerout', () => label.setColor('#FFFFFF'));
+
+        container.setVisible(false); // hidden until a ball is placed
+        this.revertButton = container;
+    }
+
+    /** Show/hide the revert button based on whether any balls are in slots */
+    private updateRevertButtonVisibility() {
+        if (this.revertButton) {
+            this.revertButton.setVisible(this.slotFillOrder.length > 0);
+        }
     }
 
     createSlotZones() {
@@ -1049,7 +1134,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                 slot.y
             );
 
-            if (dist < slot.radius * 2.0) { // Increased for easier entry
+            if (dist < slot.radius * 2.5) { // Generous capture radius
                 // Ball is in slot!
                 this.fillSlot(slot, ball);
                 return;
@@ -1062,6 +1147,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         slot.filledValue = ball.value;
         slot.occupiedBall = ball;
         ball.isPlaced = true;
+        // Fix: clear isMoving immediately so aim controls aren't locked forever
+        ball.isMoving = false;
+        ball.velocityX = 0;
+        ball.velocityY = 0;
 
         console.log("[BilliardsGameScene] Slot filled", { slot: slot.index, value: ball.value });
 
@@ -1109,6 +1198,10 @@ export class BilliardsGameScene extends Phaser.Scene {
                 this.ejectBallFromSlot(slot);
             });
         }
+
+        // Track fill order for revert button
+        this.slotFillOrder.push(slot);
+        this.updateRevertButtonVisibility();
 
         // Update equation display
         this.placedBalls.push(ball.value);
@@ -1162,6 +1255,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Reset ball state
         ball.isPlaced = false;
         ball.isMoving = true;
+        ball.lastEjectedAt = Date.now();
 
         // Pop it out gently downwards
         ball.velocityY = 50;
@@ -1175,6 +1269,11 @@ export class BilliardsGameScene extends Phaser.Scene {
                 duration: 200,
             });
         }
+
+        // Remove from fill order tracking
+        const fillIdx = this.slotFillOrder.indexOf(slot);
+        if (fillIdx > -1) this.slotFillOrder.splice(fillIdx, 1);
+        this.updateRevertButtonVisibility();
 
         // Remove from current placed balls calculation logic
         // placedBalls array is just a list of values, but order matters for equation check
@@ -1502,8 +1601,10 @@ export class BilliardsGameScene extends Phaser.Scene {
             this.createBalls();
         }
 
-        // Reset placed balls
+        // Reset placed balls and fill order
         this.placedBalls = [];
+        this.slotFillOrder = [];
+        this.updateRevertButtonVisibility();
 
         // Initialize shot limit for this equation
         this.shotsRemaining = this.currentLevelConfig.shotLimit;
@@ -1680,6 +1781,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         }
 
         this.placedBalls = [];
+        this.slotFillOrder = [];
+        this.updateRevertButtonVisibility();
         this.updateEquationText();
         this.isLocked = false;
 
@@ -1715,6 +1818,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         });
 
         this.placedBalls = [];
+        this.slotFillOrder = [];
+        this.updateRevertButtonVisibility();
         this.currentEquationIndex++;
 
         if (this.currentEquationIndex >= this.currentLevelConfig.equations.length) {

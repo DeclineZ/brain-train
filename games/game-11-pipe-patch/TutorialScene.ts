@@ -46,36 +46,63 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'intro',
     title: 'ภารกิจด่านสอน',
-    description: 'เราจะพาเล่นทีละขั้น: ต่อท่อจากจุดเริ่ม (ซ้าย) ไปจุดปลาย (ขวา) ให้สำเร็จ',
+    description: 'เราจะพาเล่นทีละขั้น: ต่อท่อจากจุดเริ่ม (ซ้าย) ไปจุดปลาย (ด้านล่าง) ให้สำเร็จ หมายเหตุ: มีกำแพงขวางอยู่!',
     anchor: 'board',
     action: 'info',
   },
   {
     id: 'place-1',
     title: 'ขั้นที่ 1',
-    description: 'ลากท่อตรงแนวนอน ไปวางที่ช่องที่ไฮไลต์ถัดจากจุดเริ่ม',
-    anchor: 'source',
+    description: 'ลากท่อข้องอซ้าย-ขึ้น ไปวางที่ช่องถัดจากจุดเริ่ม (คอลัมน์ 2, แถว 3) เพื่อเลี้ยวขึ้นด้านบน',
+    anchor: 'board',
     action: 'place',
-    targetCell: { x: 1, y: 0 },
-    targetPieceType: 'straight_h',
+    targetCell: { x: 1, y: 2 },
+    targetPieceType: 'elbow_lu',
   },
   {
     id: 'place-2',
     title: 'ขั้นที่ 2',
-    description: 'ดีมาก ต่อท่อตรงแนวนอนอีกชิ้นในช่องไฮไลต์ถัดไป',
+    description: 'ดีมาก! วางท่อข้องอขวา-ลง ที่ช่อง (คอลัมน์ 2, แถว 2) เพื่อเลี้ยวไปทางขวา',
     anchor: 'board',
     action: 'place',
-    targetCell: { x: 2, y: 0 },
-    targetPieceType: 'straight_h',
+    targetCell: { x: 1, y: 1 },
+    targetPieceType: 'elbow_rd',
   },
   {
     id: 'place-3',
     title: 'ขั้นที่ 3',
-    description: 'วางท่อตรงแนวนอนชิ้นสุดท้ายให้ถึงจุดปลาย',
-    anchor: 'target',
+    description: 'วางท่อตรงแนวนอน ที่ช่อง (คอลัมน์ 3, แถว 2) เพื่อเดินทางต่อไปทางขวา',
+    anchor: 'board',
     action: 'place',
-    targetCell: { x: 3, y: 0 },
+    targetCell: { x: 2, y: 1 },
     targetPieceType: 'straight_h',
+  },
+  {
+    id: 'place-4',
+    title: 'ขั้นที่ 4',
+    description: 'วางท่อข้องอลง-ซ้าย ที่ช่อง (คอลัมน์ 4, แถว 2) เพื่อเลี้ยวลงด้านล่าง',
+    anchor: 'board',
+    action: 'place',
+    targetCell: { x: 3, y: 1 },
+    targetPieceType: 'elbow_dl',
+  },
+  {
+    id: 'place-5',
+    title: 'ขั้นที่ 5',
+    description: 'วางท่อตรงแนวตั้ง ที่ช่อง (คอลัมน์ 4, แถว 3) เพื่อลงไปด้านล่าง',
+    anchor: 'board',
+    action: 'place',
+    targetCell: { x: 3, y: 2 },
+    targetPieceType: 'straight_v',
+  },
+  {
+    id: 'place-6',
+    title: 'ขั้นที่ 6',
+    description: 'วางท่อตรงแนวตั้ง ที่ช่อง (คอลัมน์ 4, แถว 4) ใกล้ถึงจุดปลายแล้ว!',
+    anchor: 'board',
+    action: 'place',
+    targetCell: { x: 3, y: 3 },
+    targetPieceType: 'straight_v',
   },
 ];
 
@@ -623,7 +650,7 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
     }
 
     const firstGroup = level.endpointGroups[0];
-    const cell = step.anchor === 'source' ? firstGroup?.input.position : firstGroup?.outputs[0]?.position;
+    const cell = step.anchor === 'source' ? firstGroup?.endpoints[0]?.position : firstGroup?.endpoints[1]?.position;
     const coord: Coord = cell ?? { x: 0, y: 0 };
     const centerX = layout.boardOrigin.x + coord.x * layout.cellSize + layout.cellSize / 2;
     const centerY = layout.boardOrigin.y + coord.y * layout.cellSize + layout.cellSize / 2;

@@ -13,9 +13,11 @@ import {
   type PipePatchTelemetryEvent,
   type PipePatchLevelConfig,
   type PipePatchEndpointGroup,
+  type PipePatchEndpoint,
   type RuntimePlacedPiece,
   type PipePieceType,
   type RequiredPlacement,
+  type OneWayGateConfig,
   type ColorId,
   COLOR_HEX,
   COLOR_NAMES,
@@ -49,6 +51,8 @@ interface EvalResult {
   requiredCellsFilled: number;
   correctPlacements: number;
   incorrectPlacements: number;
+  endpointSatisfiedCount: number;
+  endpointUnsatisfiedCount: number;
   distanceToSolution: number;
   isBeneficialAction: boolean;
   isSolved: boolean;
@@ -65,6 +69,25 @@ interface EvalResult {
     incorrectPlacements: number;
   }>;
 }
+
+type NetworkTraversalMode = 'gameplay' | 'visual';
+type TraversalNeighborResult =
+  | {
+      status: 'ok';
+      x: number;
+      y: number;
+      key: string;
+      opp: number;
+      neighborType: PipePieceType | undefined;
+    }
+  | {
+      status: 'blocked' | 'leak' | 'open' | 'gate_fail';
+      x: number;
+      y: number;
+      key?: string;
+      opp?: number;
+      gate?: OneWayGateConfig;
+    };
 
 const SESSION_DURATION_MS = 90_000;
 const COLORS = {
@@ -115,6 +138,7 @@ export class PipePatchGameScene extends Phaser.Scene {
   private trayPage = 0;
   private placedIdSeq = 0;
   private activeRequiredPlacements: RequiredPlacement[] = [];
+  private activeEndpointCells: Coord[] = [];
 
   private cellVisuals = new Map<string, CellVisual>();
   private endpointVisuals = new Map<string, Phaser.GameObjects.Graphics>();
@@ -151,13 +175,31 @@ export class PipePatchGameScene extends Phaser.Scene {
     return this.level.lockedPlaceholders.some((l) => l.position.x === x && l.position.y === y);
   }
 
+  private buildActiveEndpointCells(): Coord[] {
+    const endpoints: Coord[] = [];
+    const seen = new Set<string>();
+    const upsert = (position: Coord) => {
+      const key = `${position.x},${position.y}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      endpoints.push({ ...position });
+    };
+
+    this.level.endpointGroups.forEach((group) => {
+      group.endpoints.forEach((endpoint) => upsert(endpoint.position));
+    });
+
+    return endpoints;
+  }
+
   private buildTrayInventory() {
     const lockedSet = new Set(this.level.lockedPlaceholders.map((l) => this.getCellKey(l.position)));
     this.activeRequiredPlacements = this.level.requiredPlacements.filter((r) => !lockedSet.has(this.getCellKey(r.position)));
+    this.activeEndpointCells = this.buildActiveEndpointCells().filter((c) => !lockedSet.has(this.getCellKey(c)));
 
     const inv = new Map<PipePieceType, number>();
     
-    // Add pieces from requiredPlacements (if any)
+    // Authored required placements must exist in tray count.
     this.activeRequiredPlacements.forEach((r) => {
       inv.set(r.pieceType, (inv.get(r.pieceType) ?? 0) + 1);
     });
@@ -195,6 +237,8 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    this.input.dragDistanceThreshold = 4;
+    this.input.dragTimeThreshold = 90;
     this.setupAudio();
     this.createUiChrome();
     this.startLevel(this.levelIndex);
@@ -219,6 +263,44 @@ export class PipePatchGameScene extends Phaser.Scene {
     // Keep layout stable during play: do not auto-skip to the next level based on
     // per-level hard time. This prevents obstacles/targets from changing position
     // mid-run. Level transitions now happen only when solved or when session ends.
+  }
+
+  public advanceTime(ms: number) {
+    const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+    const delta = ms / steps;
+    for (let i = 0; i < steps; i += 1) {
+      this.update(0, delta);
+    }
+  }
+
+  public renderGameToText() {
+    const evalResult = this.evaluateBoardState();
+    const payload = {
+      mode: this.sceneState,
+      levelId: this.level?.id ?? null,
+      gridSize: this.level?.gridSize ?? null,
+      coordinateSystem: { origin: 'top-left', x: 'right', y: 'down' },
+      endpoints: this.activeEndpointCells.map((cell) => ({
+        key: this.getCellKey(cell),
+        colorId: this.getEndpointColorAt(cell.x, cell.y) ?? null,
+        active: this.hasActiveEndpointPipe(cell.x, cell.y),
+      })),
+      placed: [...this.placed.entries()].map(([key, piece]) => ({
+        key,
+        pieceType: piece.pieceType,
+        colorId: piece.colorId ?? null,
+      })),
+      tray: [...this.trayInventory.entries()].map(([pieceType, count]) => ({ pieceType, count })),
+      evaluation: {
+        isSolved: evalResult.isSolved,
+        isConnected: evalResult.isConnected,
+        openEndsCount: evalResult.openEndsCount,
+        leakCount: evalResult.leakCount,
+        endpointSatisfiedCount: evalResult.endpointSatisfiedCount,
+        endpointUnsatisfiedCount: evalResult.endpointUnsatisfiedCount,
+      },
+    };
+    return JSON.stringify(payload);
   }
 
   private createUiChrome() {
@@ -334,9 +416,10 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.placedIdSeq = 0;
     this.trayPage = 0;
     this.buildTrayInventory();
-    this.levelMetrics.requiredPieceCount = this.activeRequiredPlacements.length;
-    this.levelMetrics.optimalPlacements = this.activeRequiredPlacements.length;
-    this.prevDistance = this.activeRequiredPlacements.length;
+    const targetPlacementCount = this.activeRequiredPlacements.length + this.activeEndpointCells.length;
+    this.levelMetrics.requiredPieceCount = targetPlacementCount;
+    this.levelMetrics.optimalPlacements = targetPlacementCount;
+    this.prevDistance = targetPlacementCount;
 
     this.drawBoard();
     this.drawTray();
@@ -380,10 +463,13 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const blockedSet = new Set(this.level.blockedCells.map((c) => `${c.x},${c.y}`));
     const endpointGroups = this.level.endpointGroups;
-    const inputMap = new Map(endpointGroups.map((g) => [`${g.input.position.x},${g.input.position.y}`, g]));
-    const outputMap = new Map(
-      endpointGroups.flatMap((g) => g.outputs.map((o) => [`${o.position.x},${o.position.y}`, { endpoint: o, group: g }] as const))
-    );
+    // Build a map from position to endpoint info for all endpoints (peer-to-peer)
+    const endpointMap = new Map<string, { endpoint: PipePatchEndpoint; group: PipePatchEndpointGroup }>();
+    endpointGroups.forEach((group) => {
+      group.endpoints.forEach((ep) => {
+        endpointMap.set(`${ep.position.x},${ep.position.y}`, { endpoint: ep, group });
+      });
+    });
     const endpointHighlightMap = this.getEndpointConnectionHighlightMap();
     const fixedMap = new Map(this.level.fixedPipes.map((f) => [`${f.position.x},${f.position.y}`, f.pieceType]));
     const lockedMap = new Map(this.level.lockedPlaceholders.map((l) => [`${l.position.x},${l.position.y}`, l]));
@@ -406,18 +492,10 @@ export class PipePatchGameScene extends Phaser.Scene {
           cv.overlay = this.add.text(rect.x, rect.y, '▨', { fontSize: `${Math.floor(this.cellSize * 0.48)}px`, color: '#94a3b8' }).setOrigin(0.5);
           continue;
         }
-        if (inputMap.has(key)) {
+        if (endpointMap.has(key)) {
           if (this.isBoardEdgeCoord(x, y)) {
-            const group = inputMap.get(key)!;
-            const color = COLOR_HEX[group.colorId as ColorId];
-            border.setStrokeStyle(2, this.brightenColor(color, 18), 0.85);
-          }
-          continue;
-        }
-        if (outputMap.has(key as `${number},${number}`)) {
-          if (this.isBoardEdgeCoord(x, y)) {
-            const out = outputMap.get(key as `${number},${number}`)!;
-            const color = COLOR_HEX[out.group.colorId as ColorId];
+            const info = endpointMap.get(key)!;
+            const color = COLOR_HEX[info.group.colorId as ColorId];
             border.setStrokeStyle(2, this.brightenColor(color, 18), 0.85);
           }
           continue;
@@ -476,11 +554,9 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     this.level.endpointGroups.forEach((group) => {
       const color = COLOR_HEX[group.colorId as ColorId];
-      const inMask = this.resolveEndpointFlowMask(group.input.position.x, group.input.position.y, OPPOSITE_DIR[group.input.mask]);
-      addHighlight(group.input.position.x, group.input.position.y, inMask, color);
-      group.outputs.forEach((out) => {
-        const outMask = this.resolveEndpointFlowMask(out.position.x, out.position.y, out.mask);
-        addHighlight(out.position.x, out.position.y, outMask, color);
+      group.endpoints.forEach((endpoint) => {
+        const mask = this.resolveEndpointFlowMask(endpoint.position.x, endpoint.position.y, OPPOSITE_DIR[endpoint.mask]);
+        addHighlight(endpoint.position.x, endpoint.position.y, mask, color);
       });
     });
     return highlights;
@@ -494,23 +570,35 @@ export class PipePatchGameScene extends Phaser.Scene {
     });
   }
 
-  private getConnectedMaskForCell(x: number, y: number, mask: number) {
+  private getGameplayConnectedMaskForCell(x: number, y: number, mask: number) {
     let connectedMask = 0;
     for (const dir of DIRS) {
       if ((mask & dir) === 0) continue;
-      const v = DIR_VECTORS[dir];
-      const nx = x + v.x;
-      const ny = y + v.y;
-      if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-      if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
-      if (this.isLockedCell(nx, ny)) continue;
-
-      const neighborMask = this.getColorMaskAt(nx, ny);
-      if ((neighborMask & OPPOSITE_DIR[dir]) !== 0) {
+      const neighbor = this.inspectTraversalNeighbor(x, y, dir, 'gameplay');
+      if (neighbor.status === 'ok') {
         connectedMask |= dir;
       }
     }
     return connectedMask;
+  }
+
+  private getVisualConnectedMaskForCell(x: number, y: number, mask: number) {
+    let connectedMask = 0;
+    for (const dir of DIRS) {
+      if ((mask & dir) === 0) continue;
+      const neighbor = this.inspectTraversalNeighbor(x, y, dir, 'visual');
+      if (neighbor.status === 'ok') {
+        connectedMask |= dir;
+      }
+    }
+    return connectedMask;
+  }
+
+  private getEndpointVisualHideMask(x: number, y: number, endpointMask: number) {
+    const placed = this.placed.get(this.getCellKey({ x, y }));
+    if (!placed) return 0;
+    if (!this.isEndpointPlacementValid(x, y, placed.pieceType)) return 0;
+    return endpointMask;
   }
 
   private refreshFixedPipeVisuals(colorByCell?: Map<string, ColorId | undefined>) {
@@ -523,16 +611,19 @@ export class PipePatchGameScene extends Phaser.Scene {
       if (!cell) return;
 
       const mask = PIECE_DEFINITIONS[fixed.pieceType].mask;
-      const hideCapMask = this.getConnectedMaskForCell(fixed.position.x, fixed.position.y, mask);
+      const touchesInactiveEndpoint = this.hasInactiveEndpointContact(fixed.position.x, fixed.position.y, mask);
+      const hideCapMask = touchesInactiveEndpoint ? 0 : this.getVisualConnectedMaskForCell(fixed.position.x, fixed.position.y, mask);
       const isCrossover = fixed.pieceType === 'crossover';
       let axisXColor: number | undefined;
       let axisYColor: number | undefined;
-      if (isCrossover) {
+      if (isCrossover && !touchesInactiveEndpoint) {
         const axis = this.resolveCrossoverAxisColors(fixed.position.x, fixed.position.y);
         axisXColor = axis.axisX ? COLOR_HEX[axis.axisX] : undefined;
         axisYColor = axis.axisY ? COLOR_HEX[axis.axisY] : undefined;
       }
-      const fixedColor = isCrossover ? COLORS.pipe : (colorByCell?.get(key) ? COLOR_HEX[colorByCell.get(key)!] : COLORS.pipe);
+      const fixedColor = isCrossover
+        ? COLORS.pipe
+        : (!touchesInactiveEndpoint && colorByCell?.get(key) ? COLOR_HEX[colorByCell.get(key)!] : COLORS.pipe);
       const art = this.createPipeVisual(
         fixed.pieceType,
         cell.rect.x,
@@ -556,50 +647,30 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const endpointGroups = this.level.endpointGroups;
     endpointGroups.forEach((group) => {
-      const inputPos = group.input.position;
-      const inputKey = `${inputPos.x},${inputPos.y}`;
-      const inputCell = this.cellVisuals.get(inputKey);
-      if (inputCell) {
-        const color = COLOR_HEX[group.colorId as ColorId];
-        const mask = this.resolveEndpointFlowMask(inputPos.x, inputPos.y, OPPOSITE_DIR[group.input.mask]);
-        const facingDir = this.resolveEndpointFacingDir(inputPos.x, inputPos.y, mask);
-        const isEdge = this.isBoardEdgeCoord(inputPos.x, inputPos.y);
+      const color = COLOR_HEX[group.colorId as ColorId];
+      group.endpoints.forEach((endpoint) => {
+        const key = `${endpoint.position.x},${endpoint.position.y}`;
+        const cell = this.cellVisuals.get(key);
+        if (!cell) return;
+        
+        // endpoint.mask is the direction the endpoint faces INTO the board
+        const facingDir = endpoint.mask;
+        // Visual mask is same as facing direction - pipe arm faces into the board
+        const mask = facingDir;
+        const isEdge = this.isBoardEdgeCoord(endpoint.position.x, endpoint.position.y);
         if (!isEdge) {
-          const wall = this.drawInteriorEndpointWall(inputCell.rect.x, inputCell.rect.y, facingDir);
-          this.endpointWallVisuals.set(inputKey, wall);
+          const wall = this.drawInteriorEndpointWall(cell.rect.x, cell.rect.y, facingDir);
+          this.endpointWallVisuals.set(key, wall);
         }
         const drawPos = this.resolveEndpointRenderPosition(
-          inputCell.rect.x,
-          inputCell.rect.y,
+          cell.rect.x,
+          cell.rect.y,
           facingDir,
           isEdge
         );
-        const hideMouthMask = this.getConnectedMaskForCell(inputPos.x, inputPos.y, mask);
+        const hideMouthMask = this.getEndpointVisualHideMask(endpoint.position.x, endpoint.position.y, mask);
         const g = this.drawEndpointPipe(drawPos.x, drawPos.y, mask, color, hideMouthMask);
-        this.endpointVisuals.set(inputKey, g);
-      }
-
-      group.outputs.forEach((out) => {
-        const outKey = `${out.position.x},${out.position.y}`;
-        const outCell = this.cellVisuals.get(outKey);
-        if (!outCell) return;
-        const mask = this.resolveEndpointFlowMask(out.position.x, out.position.y, out.mask);
-        const outputColor = COLOR_HEX[group.colorId as ColorId];
-        const facingDir = this.resolveEndpointFacingDir(out.position.x, out.position.y, mask);
-        const isEdge = this.isBoardEdgeCoord(out.position.x, out.position.y);
-        if (!isEdge) {
-          const wall = this.drawInteriorEndpointWall(outCell.rect.x, outCell.rect.y, facingDir);
-          this.endpointWallVisuals.set(outKey, wall);
-        }
-        const drawPos = this.resolveEndpointRenderPosition(
-          outCell.rect.x,
-          outCell.rect.y,
-          facingDir,
-          isEdge
-        );
-        const hideMouthMask = this.getConnectedMaskForCell(out.position.x, out.position.y, mask);
-        const g = this.drawEndpointPipe(drawPos.x, drawPos.y, mask, outputColor, hideMouthMask);
-        this.endpointVisuals.set(outKey, g);
+        this.endpointVisuals.set(key, g);
       });
     });
   }
@@ -786,6 +857,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private spawnPieceVisual(pieceId: string, pieceType: PipePieceType, x: number, y: number, isFromTray: boolean, size: number) {
     const container = this.add.container(x, y);
+    const touchHitSize = Math.max(size, size + 14);
     const bgShadow = this.add.rectangle(1, 2, size, size, 0x000000, 0.26).setStrokeStyle(0);
     const bg = this.add.rectangle(0, 0, size, size, COLORS.trayCard, 0.9).setStrokeStyle(1, COLORS.traySlotStroke, 0.9);
     const slotGlow = this.add.rectangle(0, 0, size - 6, size - 6, COLORS.traySlot, 0.3).setStrokeStyle(1, 0x5f8f91, 0.6);
@@ -795,8 +867,9 @@ export class PipePatchGameScene extends Phaser.Scene {
     
     const art = this.createPipeVisual(pieceType, 0, 0, size * 0.88, true, COLORS.pipe);
     container.add(art);
-    container.setSize(size, size);
-    container.setInteractive({ draggable: true, useHandCursor: true });
+    container.setSize(touchHitSize, touchHitSize);
+    container.setInteractive();
+    container.input!.cursor = 'pointer';
 
     const data: PieceVisual = { pieceId, pieceType, container, isFromTray, homeX: x, homeY: y };
     this.input.setDraggable(container);
@@ -888,14 +961,21 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.playSfx(this.soundKeys.pumpOn, { volume: 0.42 });
 
     const req = this.activeRequiredPlacements.find((r) => r.position.x === cell.x && r.position.y === cell.y);
-    const isCorrectCell = !!req && req.pieceType === activePiece.pieceType;
+    const isEndpointTarget = this.isEndpointCell(cell.x, cell.y);
+    const isCorrectCell = (!!req && req.pieceType === activePiece.pieceType)
+      || this.isEndpointPlacementValid(cell.x, cell.y, activePiece.pieceType);
     if (isCorrectCell && !this.cellHadWrongAttempt.has(key)) {
       this.levelMetrics.correctPlacementsOnFirstTryCount += 1;
     }
     if (!isCorrectCell) this.levelMetrics.incorrectPlacementCount += 1;
     this.levelMetrics.validPlacementsCount += 1;
 
-    this.logEvent('piece_placed', { pieceId: activePiece.pieceId, cellId: key, isCorrectCell, isRequiredCell: !!req });
+    this.logEvent('piece_placed', {
+      pieceId: activePiece.pieceId,
+      cellId: key,
+      isCorrectCell,
+      isRequiredCell: !!req || isEndpointTarget,
+    });
     this.updateAllPieceColors();
     this.runBoardEval();
     return 'cell';
@@ -971,6 +1051,8 @@ export class PipePatchGameScene extends Phaser.Scene {
       requiredCellsFilled: evalResult.requiredCellsFilled,
       correctPlacements: evalResult.correctPlacements,
       incorrectPlacements: evalResult.incorrectPlacements,
+      endpointSatisfiedCount: evalResult.endpointSatisfiedCount,
+      endpointUnsatisfiedCount: evalResult.endpointUnsatisfiedCount,
       distanceToSolution: evalResult.distanceToSolution,
       isBeneficialAction: evalResult.isBeneficialAction,
     });
@@ -1065,30 +1147,48 @@ export class PipePatchGameScene extends Phaser.Scene {
   }
 
   private evaluateBoardState(): EvalResult {
-    let requiredCellsFilled = 0;
-    let correctPlacements = 0;
-    let incorrectPlacements = 0;
+    let authoredRequiredCellsFilled = 0;
+    let authoredCorrectPlacements = 0;
+    let authoredIncorrectPlacements = 0;
+    let endpointSatisfiedCount = 0;
 
     this.activeRequiredPlacements.forEach((r) => {
-      const key = `${r.position.x},${r.position.y}`;
+      const key = this.getCellKey(r.position);
       const placed = this.placed.get(key);
       if (!placed) return;
-      requiredCellsFilled += 1;
-      if (placed.pieceType === r.pieceType) correctPlacements += 1;
-      else incorrectPlacements += 1;
+      authoredRequiredCellsFilled += 1;
+      if (placed.pieceType === r.pieceType) authoredCorrectPlacements += 1;
+      else authoredIncorrectPlacements += 1;
     });
 
-    const extraWrong = [...this.placed.entries()].filter(([k]) => !this.activeRequiredPlacements.some((r) => `${r.position.x},${r.position.y}` === k)).length;
-    incorrectPlacements += extraWrong;
-    const targetCount = this.activeRequiredPlacements.length;
-    const distance = (targetCount - correctPlacements) + extraWrong;
+    this.activeEndpointCells.forEach((cell) => {
+      const placed = this.placed.get(this.getCellKey(cell));
+      if (placed && this.isEndpointPlacementValid(cell.x, cell.y, placed.pieceType)) {
+        endpointSatisfiedCount += 1;
+      }
+    });
+
+    const endpointUnsatisfiedCount = this.activeEndpointCells.length - endpointSatisfiedCount;
+    const authoredKeys = new Set(this.activeRequiredPlacements.map((r) => this.getCellKey(r.position)));
+    const endpointKeys = new Set(this.activeEndpointCells.map((c) => this.getCellKey(c)));
+    const extraWrong = [...this.placed.entries()].filter(([k]) => !authoredKeys.has(k) && !endpointKeys.has(k)).length;
+    const requiredCellsFilled = authoredRequiredCellsFilled + endpointSatisfiedCount;
+    const correctPlacements = authoredCorrectPlacements + endpointSatisfiedCount;
+    const incorrectPlacements = authoredIncorrectPlacements + endpointUnsatisfiedCount + extraWrong;
+    const distance = (this.activeRequiredPlacements.length - authoredCorrectPlacements) + endpointUnsatisfiedCount + extraWrong;
     const path = this.checkMultiColorConnectivity();
-    const solved = correctPlacements === targetCount && path.isConnected && path.openEndsCount === 0 && path.leakCount === 0;
+    const solved = authoredCorrectPlacements === this.activeRequiredPlacements.length
+      && endpointUnsatisfiedCount === 0
+      && path.isConnected
+      && path.openEndsCount === 0
+      && path.leakCount === 0;
     
     return {
       requiredCellsFilled,
       correctPlacements,
       incorrectPlacements,
+      endpointSatisfiedCount,
+      endpointUnsatisfiedCount,
       distanceToSolution: Math.max(0, distance),
       isBeneficialAction: distance < this.prevDistance,
       isSolved: solved,
@@ -1101,7 +1201,6 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private checkMultiColorConnectivity() {
     const endpointGroups = this.level.endpointGroups;
-    const blockedSet = new Set(this.level.blockedCells.map((b) => `${b.x},${b.y}`));
     const gateMap = new Map(this.level.oneWayGates.map((g) => [`${g.position.x},${g.position.y}`, g]));
 
     let leakCount = 0;
@@ -1118,71 +1217,75 @@ export class PipePatchGameScene extends Phaser.Scene {
     }> = [];
 
     for (const group of endpointGroups) {
-      const requiredOutputs = new Set(group.outputs.map((o) => `${o.position.x},${o.position.y}`));
-      const reachedOutputs = new Set<string>();
-      const visited = new Set<string>();
-      const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-      visited.add(this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined));
-
+      // In peer-to-peer model, all endpoints must be connected to each other
+      const endpointKeys = new Set(group.endpoints.map((e) => `${e.position.x},${e.position.y}`));
+      const connectedEndpoints = new Set<string>();
+      
+      // Start traversal from each endpoint that has an active pipe
+      const activeStartPoints = group.endpoints.filter((e) => this.hasActiveEndpointPipe(e.position.x, e.position.y));
+      
       let colorLeakCount = 0;
       let colorOpenEndsCount = 0;
       const colorRequiredCellsFilled = 0;
       const colorCorrectPlacements = 0;
       const colorIncorrectPlacements = 0;
 
-      while (queue.length) {
-        const c = queue.shift()!;
-        const mask = this.getColorMaskAt(c.x, c.y);
-        if (mask === 0) continue;
-        const pieceType = this.getPieceTypeAt(c.x, c.y);
-        const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
+      if (activeStartPoints.length > 0) {
+        const visited = new Set<string>();
+        const queue: Array<{ x: number; y: number; incomingDir?: number }> = [];
+        
+        // Start from the first active endpoint
+        const startPoint = activeStartPoints[0];
+        queue.push({ x: startPoint.position.x, y: startPoint.position.y });
+        visited.add(this.getTraversalStateKey(startPoint.position.x, startPoint.position.y, this.getPieceTypeAt(startPoint.position.x, startPoint.position.y), undefined));
+        connectedEndpoints.add(`${startPoint.position.x},${startPoint.position.y}`);
 
-        for (const dir of dirs) {
-          const v = DIR_VECTORS[dir];
-          const nx = c.x + v.x;
-          const ny = c.y + v.y;
-          if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) {
-            colorLeakCount += 1;
-            continue;
-          }
-          const neighborKey = `${nx},${ny}`;
-          if (blockedSet.has(neighborKey)) {
-            colorLeakCount += 1;
-            continue;
-          }
-          if (this.isLockedCell(nx, ny)) {
-            colorLeakCount += 1;
-            continue;
-          }
+        while (queue.length) {
+          const c = queue.shift()!;
+          const mask = this.getColorMaskAt(c.x, c.y);
+          if (mask === 0) continue;
+          const pieceType = this.getPieceTypeAt(c.x, c.y);
+          const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
 
-          const nMask = this.getColorMaskAt(nx, ny);
-          const opp = OPPOSITE_DIR[dir];
-          if ((nMask & opp) === 0) {
-            const isUnreachedTargetOfGroup = requiredOutputs.has(neighborKey) && !reachedOutputs.has(neighborKey);
-            if (!isUnreachedTargetOfGroup) colorOpenEndsCount += 1;
-            continue;
-          }
-
-          const gate = gateMap.get(neighborKey);
-          if (gate) {
-            const entry = NAME_TO_DIR[gate.entry];
-            if (opp !== entry) {
-              this.logEvent('one_way_gate_path_fail', { gateId: gate.id, attemptedFlowDirection: dir, colorId: group.colorId });
+          for (const dir of dirs) {
+            const neighbor = this.inspectTraversalNeighbor(c.x, c.y, dir, 'gameplay', gateMap);
+            if (neighbor.status === 'leak') {
+              colorLeakCount += 1;
+              continue;
+            }
+            if (neighbor.status === 'open') {
+              // Check if this is another endpoint in the same group
+              if (neighbor.key && endpointKeys.has(neighbor.key)) {
+                connectedEndpoints.add(neighbor.key);
+              } else if (!neighbor.key || !endpointKeys.has(neighbor.key)) {
+                colorOpenEndsCount += 1;
+              }
+              continue;
+            }
+            if (neighbor.status === 'gate_fail') {
+              if (neighbor.gate) {
+                this.logEvent('one_way_gate_path_fail', { gateId: neighbor.gate.id, attemptedFlowDirection: dir, colorId: group.colorId });
+              }
               return { isConnected: false, openEndsCount: colorOpenEndsCount + 1, leakCount: colorLeakCount, colorResults };
             }
-          }
+            if (neighbor.status !== 'ok') continue;
 
-          if (requiredOutputs.has(neighborKey)) reachedOutputs.add(neighborKey);
-          const neighborType = this.getPieceTypeAt(nx, ny);
-          const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
-          if (!visited.has(stateKey)) {
-            visited.add(stateKey);
-            queue.push({ x: nx, y: ny, incomingDir: opp });
+            // Check if we reached another endpoint of the same group
+            if (neighbor.key && endpointKeys.has(neighbor.key)) {
+              connectedEndpoints.add(neighbor.key);
+            }
+
+            const stateKey = this.getTraversalStateKey(neighbor.x, neighbor.y, neighbor.neighborType, neighbor.opp);
+            if (!visited.has(stateKey)) {
+              visited.add(stateKey);
+              queue.push({ x: neighbor.x, y: neighbor.y, incomingDir: neighbor.opp });
+            }
           }
         }
       }
 
-      const isGroupConnected = reachedOutputs.size === requiredOutputs.size && requiredOutputs.size > 0;
+      // Group is connected if all endpoints are connected
+      const isGroupConnected = connectedEndpoints.size === endpointKeys.size && endpointKeys.size > 1;
       if (isGroupConnected) {
         groupsConnected += 1;
       }
@@ -1239,8 +1342,15 @@ export class PipePatchGameScene extends Phaser.Scene {
   private findPathForColor(group: PipePatchEndpointGroup): Coord[] {
     const path: Coord[] = [];
     const visited = new Set<string>();
-    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ ...group.input.position }];
-    visited.add(this.getTraversalStateKey(group.input.position.x, group.input.position.y, this.getPieceTypeAt(group.input.position.x, group.input.position.y), undefined));
+    const gateMap = new Map(this.level.oneWayGates.map((g) => [`${g.position.x},${g.position.y}`, g]));
+    
+    // Start from any endpoint that has an active pipe
+    const activeEndpoints = group.endpoints.filter((e) => this.hasActiveEndpointPipe(e.position.x, e.position.y));
+    if (activeEndpoints.length === 0) return path;
+    
+    const startPoint = activeEndpoints[0];
+    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ x: startPoint.position.x, y: startPoint.position.y }];
+    visited.add(this.getTraversalStateKey(startPoint.position.x, startPoint.position.y, this.getPieceTypeAt(startPoint.position.x, startPoint.position.y), undefined));
 
     while (queue.length) {
       const c = queue.shift()!;
@@ -1250,20 +1360,13 @@ export class PipePatchGameScene extends Phaser.Scene {
       const pieceType = this.getPieceTypeAt(c.x, c.y);
       const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
       for (const dir of dirs) {
-        const v = DIR_VECTORS[dir];
-        const nx = c.x + v.x;
-        const ny = c.y + v.y;
-        if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-        
-        const nMask = this.getColorMaskAt(nx, ny);
-        const opp = OPPOSITE_DIR[dir];
-        if ((nMask & opp) === 0) continue;
+        const neighbor = this.inspectTraversalNeighbor(c.x, c.y, dir, 'gameplay', gateMap);
+        if (neighbor.status !== 'ok') continue;
 
-        const neighborType = this.getPieceTypeAt(nx, ny);
-        const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
+        const stateKey = this.getTraversalStateKey(neighbor.x, neighbor.y, neighbor.neighborType, neighbor.opp);
         if (!visited.has(stateKey)) {
           visited.add(stateKey);
-          queue.push({ x: nx, y: ny, incomingDir: opp });
+          queue.push({ x: neighbor.x, y: neighbor.y, incomingDir: neighbor.opp });
         }
       }
     }
@@ -1646,6 +1749,60 @@ export class PipePatchGameScene extends Phaser.Scene {
     return fallback[hash % fallback.length];
   }
 
+  private isEndpointCell(x: number, y: number) {
+    return !!this.getEndpointInfoAt(x, y);
+  }
+
+  private getEndpointInfoAt(
+    x: number,
+    y: number
+  ): { colorId: ColorId; flowMask: ConnectionMask; connectionMask: ConnectionMask; kind: 'input' | 'output' } | undefined {
+    // In peer-to-peer model, all endpoints are equal - no input/output distinction
+    for (const group of this.level.endpointGroups) {
+      const endpoint = group.endpoints.find((e) => e.position.x === x && e.position.y === y);
+      if (endpoint) {
+        // connectionMask is the direction FROM the cell TO the endpoint (opposite of visual facing direction)
+        // If endpoint faces LEFT visually, the pipe connects via RIGHT opening
+        const connectionMask = OPPOSITE_DIR[endpoint.mask];
+        return {
+          colorId: group.colorId as ColorId,
+          flowMask: this.resolveEndpointFlowMask(x, y, OPPOSITE_DIR[endpoint.mask]),
+          connectionMask,
+          kind: 'output', // All endpoints treated as output for compatibility
+        };
+      }
+    }
+
+    return undefined;
+  }
+
+  private isEndpointPlacementValid(x: number, y: number, pieceType: PipePieceType): boolean {
+    const endpoint = this.getEndpointInfoAt(x, y);
+    if (!endpoint) return false;
+
+    const pieceMask = PIECE_DEFINITIONS[pieceType].mask;
+    return (pieceMask & endpoint.connectionMask) !== 0;
+  }
+
+  private hasActiveEndpointPipe(x: number, y: number) {
+    const pieceType = this.getPieceTypeAt(x, y);
+    return !!pieceType && this.isEndpointPlacementValid(x, y, pieceType);
+  }
+
+  private hasInactiveEndpointContact(x: number, y: number, mask: ConnectionMask) {
+    for (const dir of DIRS) {
+      if ((mask & dir) === 0) continue;
+      const v = DIR_VECTORS[dir];
+      const nx = x + v.x;
+      const ny = y + v.y;
+      if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
+      if (this.isEndpointCell(nx, ny) && !this.hasActiveEndpointPipe(nx, ny)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private getTargetColor(targetIndex: number) {
     const palette = [0x22c55e, 0xef4444, 0x3b82f6, 0xeab308, 0xa855f7];
     if (targetIndex < 0) return palette[0];
@@ -1685,9 +1842,11 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     for (const group of endpointGroups) {
       const groupColor = group.colorId as ColorId;
-      // Color can flow from both source(input) and outputs(targets),
-      // but only through properly connected masks.
-      const startPoints = [group.input.position, ...group.outputs.map((o) => o.position)];
+      // In peer-to-peer model, color flows from all endpoints with active pipes
+      const startPoints = group.endpoints
+        .map((e) => e.position)
+        .filter((p) => this.hasActiveEndpointPipe(p.x, p.y));
+      if (startPoints.length === 0) continue;
       const queue: Array<{ x: number; y: number; incomingDir?: number }> = startPoints.map((p) => ({ ...p }));
       const visited = new Set<string>(
         startPoints.map((p) => this.getTraversalStateKey(p.x, p.y, this.getPieceTypeAt(p.x, p.y), undefined))
@@ -1696,30 +1855,25 @@ export class PipePatchGameScene extends Phaser.Scene {
       while (queue.length > 0) {
         const c = queue.shift()!;
         const pieceTypeAtCell = this.getPieceTypeAt(c.x, c.y);
-        if (pieceTypeAtCell && pieceTypeAtCell !== 'crossover') {
+        const cellMask = pieceTypeAtCell ? PIECE_DEFINITIONS[pieceTypeAtCell].mask : 0;
+        const hasEndpointGap = pieceTypeAtCell ? this.hasInactiveEndpointContact(c.x, c.y, cellMask) : false;
+        if (pieceTypeAtCell && pieceTypeAtCell !== 'crossover' && !hasEndpointGap) {
           addColorToCell(`${c.x},${c.y}`, groupColor);
         }
+        if (hasEndpointGap) continue;
 
-        const cMask = this.getColorMaskAt(c.x, c.y);
+        const cMask = this.getVisualMaskAt(c.x, c.y);
         if (cMask === 0) continue;
         const dirs = this.getFlowDirections(cMask, c.incomingDir, pieceTypeAtCell);
 
         for (const dir of dirs) {
-          const v = DIR_VECTORS[dir];
-          const nx = c.x + v.x;
-          const ny = c.y + v.y;
-          if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-          if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
-          if (this.isLockedCell(nx, ny)) continue;
-          const nMask = this.getColorMaskAt(nx, ny);
-          const opp = OPPOSITE_DIR[dir];
-          if ((nMask & opp) === 0) continue;
+          const neighbor = this.inspectTraversalNeighbor(c.x, c.y, dir, 'visual');
+          if (neighbor.status !== 'ok') continue;
 
-          const neighborType = this.getPieceTypeAt(nx, ny);
-          const stateKey = this.getTraversalStateKey(nx, ny, neighborType, opp);
+          const stateKey = this.getTraversalStateKey(neighbor.x, neighbor.y, neighbor.neighborType, neighbor.opp);
           if (!visited.has(stateKey)) {
             visited.add(stateKey);
-            queue.push({ x: nx, y: ny, incomingDir: opp });
+            queue.push({ x: neighbor.x, y: neighbor.y, incomingDir: neighbor.opp });
           }
         }
       }
@@ -1737,47 +1891,106 @@ export class PipePatchGameScene extends Phaser.Scene {
   }
 
   private getColorMaskAt(cx: number, cy: number): ConnectionMask {
-    const endpointMask = this.getEndpointMaskAt(cx, cy);
-    let finalMask = endpointMask;
+    if (this.isEndpointCell(cx, cy) && !this.hasActiveEndpointPipe(cx, cy)) {
+      return 0;
+    }
+
+    let finalMask = 0;
     const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
     if (fixed) finalMask |= PIECE_DEFINITIONS[fixed.pieceType].mask;
     const placed = this.placed.get(`${cx},${cy}`);
     if (placed) finalMask |= PIECE_DEFINITIONS[placed.pieceType].mask;
 
-    // Endpoint overlay cells on board edges must not leak out of board bounds.
-    // Keep the endpoint board-facing side, but clip any outward edge direction
-    // introduced by an overlaid piece (e.g. straight_h on left-edge source).
-    if (endpointMask !== 0 && this.isBoardEdgeCoord(cx, cy)) {
-      finalMask &= this.getInBoardMaskForEdgeCell(cx, cy);
+    if (this.hasActiveEndpointPipe(cx, cy)) {
+      finalMask &= ~this.getEndpointConnectionMaskAt(cx, cy);
     }
 
     return finalMask;
   }
 
+  private getVisualMaskAt(cx: number, cy: number): ConnectionMask {
+    if (this.isEndpointCell(cx, cy) && !this.hasActiveEndpointPipe(cx, cy)) {
+      return 0;
+    }
+
+    let finalMask = 0;
+    const fixed = this.level.fixedPipes.find((f) => f.position.x === cx && f.position.y === cy);
+    if (fixed) finalMask |= PIECE_DEFINITIONS[fixed.pieceType].mask;
+    const placed = this.placed.get(`${cx},${cy}`);
+    if (placed) finalMask |= PIECE_DEFINITIONS[placed.pieceType].mask;
+
+    if (this.hasActiveEndpointPipe(cx, cy)) {
+      finalMask &= ~this.getEndpointConnectionMaskAt(cx, cy);
+    }
+
+    return finalMask;
+  }
+
+  private getMaskAtForTraversal(cx: number, cy: number, mode: NetworkTraversalMode): ConnectionMask {
+    return mode === 'visual' ? this.getVisualMaskAt(cx, cy) : this.getColorMaskAt(cx, cy);
+  }
+
+  private inspectTraversalNeighbor(
+    x: number,
+    y: number,
+    dir: number,
+    mode: NetworkTraversalMode,
+    gateMap?: Map<string, OneWayGateConfig>
+  ): TraversalNeighborResult {
+    const v = DIR_VECTORS[dir];
+    const nx = x + v.x;
+    const ny = y + v.y;
+    if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) {
+      return { status: mode === 'gameplay' ? 'leak' : 'blocked', x: nx, y: ny };
+    }
+
+    const neighborKey = `${nx},${ny}`;
+    if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny) || this.isLockedCell(nx, ny)) {
+      return { status: mode === 'gameplay' ? 'leak' : 'blocked', x: nx, y: ny, key: neighborKey };
+    }
+
+    if (this.isEndpointCell(nx, ny) && !this.hasActiveEndpointPipe(nx, ny)) {
+      return { status: mode === 'gameplay' ? 'open' : 'blocked', x: nx, y: ny, key: neighborKey };
+    }
+
+    const opp = OPPOSITE_DIR[dir];
+    const neighborMask = this.getMaskAtForTraversal(nx, ny, mode);
+    if ((neighborMask & opp) === 0) {
+      return { status: mode === 'gameplay' ? 'open' : 'blocked', x: nx, y: ny, key: neighborKey, opp };
+    }
+
+    const gate = gateMap?.get(neighborKey)
+      ?? this.level.oneWayGates.find((g) => g.position.x === nx && g.position.y === ny);
+    if (gate && opp !== NAME_TO_DIR[gate.entry]) {
+      return { status: mode === 'gameplay' ? 'gate_fail' : 'blocked', x: nx, y: ny, key: neighborKey, opp, gate };
+    }
+
+    return {
+      status: 'ok',
+      x: nx,
+      y: ny,
+      key: neighborKey,
+      opp,
+      neighborType: this.getPieceTypeAt(nx, ny),
+    };
+  }
+
   private getEndpointMaskAt(cx: number, cy: number): ConnectionMask {
-    const endpointGroups = this.level.endpointGroups;
-    const input = endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy)?.input;
-    if (input) return this.resolveEndpointFlowMask(cx, cy, OPPOSITE_DIR[input.mask]);
-    const output = endpointGroups.flatMap((g) => g.outputs).find((o) => o.position.x === cx && o.position.y === cy);
-    if (output) return this.resolveEndpointFlowMask(cx, cy, output.mask);
-    return 0;
+    return this.getEndpointInfoAt(cx, cy)?.flowMask ?? 0;
+  }
+
+  private getEndpointConnectionMaskAt(cx: number, cy: number): ConnectionMask {
+    return this.getEndpointInfoAt(cx, cy)?.connectionMask ?? 0;
   }
 
   private resolveEndpointFlowMask(x: number, y: number, fallbackMask: number): ConnectionMask {
-    if (x === 0) return DIR.RIGHT;
-    if (x === this.level.gridSize - 1) return DIR.LEFT;
-    if (y === 0) return DIR.DOWN;
-    if (y === this.level.gridSize - 1) return DIR.UP;
-
-    // Interior endpoints must obey the direction encoded in level config.
+    // Endpoint direction comes from level config (arrow token or positional default).
+    // Edge clipping is handled later in `getColorMaskAt`.
     return fallbackMask;
   }
 
-  private resolveEndpointFacingDir(x: number, y: number, mask: number): number {
-    if (x === 0) return DIR.RIGHT;
-    if (x === this.level.gridSize - 1) return DIR.LEFT;
-    if (y === 0) return DIR.DOWN;
-    if (y === this.level.gridSize - 1) return DIR.UP;
+  private resolveEndpointFacingDir(_x: number, _y: number, mask: number): number {
+    // Visual orientation must follow endpoint token/config direction.
     return DIRS.find((dir) => (mask & dir) !== 0) ?? DIR.RIGHT;
   }
 
@@ -1813,17 +2026,13 @@ export class PipePatchGameScene extends Phaser.Scene {
   }
 
   private getSourceColorAt(cx: number, cy: number): ColorId | undefined {
-    const group = this.level.endpointGroups.find((g) => g.input.position.x === cx && g.input.position.y === cy);
-    return group?.colorId as ColorId | undefined;
+    const endpoint = this.getEndpointInfoAt(cx, cy);
+    return endpoint?.kind === 'input' ? endpoint.colorId : undefined;
   }
 
   private getTargetColorAt(cx: number, cy: number): ColorId | undefined {
-    for (const group of this.level.endpointGroups) {
-      if (group.outputs.some((o) => o.position.x === cx && o.position.y === cy)) {
-        return group.colorId as ColorId;
-      }
-    }
-    return undefined;
+    const endpoint = this.getEndpointInfoAt(cx, cy);
+    return endpoint?.kind === 'output' ? endpoint.colorId : undefined;
   }
 
   private getEndpointColorAt(cx: number, cy: number): ColorId | undefined {
@@ -1831,52 +2040,48 @@ export class PipePatchGameScene extends Phaser.Scene {
   }
 
   private findConnectedColorForDirection(x: number, y: number, dir: number): ColorId | undefined {
-    const centerMask = this.getColorMaskAt(x, y);
+    const centerMask = this.getVisualMaskAt(x, y);
     if ((centerMask & dir) === 0) return undefined;
-    const v = DIR_VECTORS[dir];
-    const sx = x + v.x;
-    const sy = y + v.y;
-    if (sx < 0 || sy < 0 || sx >= this.level.gridSize || sy >= this.level.gridSize) return undefined;
-    if (this.level.blockedCells.some((b) => b.x === sx && b.y === sy)) return undefined;
-    if (this.isLockedCell(sx, sy)) return undefined;
+    const startNeighbor = this.inspectTraversalNeighbor(x, y, dir, 'visual');
+    if (startNeighbor.status !== 'ok') return undefined;
 
-    const startMask = this.getColorMaskAt(sx, sy);
-    const opp = OPPOSITE_DIR[dir];
-    if ((startMask & opp) === 0) return undefined;
-
-    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{ x: sx, y: sy, incomingDir: opp }];
+    const queue: Array<{ x: number; y: number; incomingDir?: number }> = [{
+      x: startNeighbor.x,
+      y: startNeighbor.y,
+      incomingDir: startNeighbor.opp,
+    }];
     const visited = new Set<string>([
-      this.getTraversalStateKey(sx, sy, this.getPieceTypeAt(sx, sy), opp),
+      this.getTraversalStateKey(startNeighbor.x, startNeighbor.y, startNeighbor.neighborType, startNeighbor.opp),
     ]);
     const foundColors = new Set<ColorId>();
 
     while (queue.length > 0) {
       const c = queue.shift()!;
-      const endpointColor = this.getEndpointColorAt(c.x, c.y);
+      const currentPieceType = this.getPieceTypeAt(c.x, c.y);
+      if (currentPieceType) {
+        const currentMask = PIECE_DEFINITIONS[currentPieceType].mask;
+        if (this.hasInactiveEndpointContact(c.x, c.y, currentMask)) {
+          continue;
+        }
+      }
+      const endpointColor = this.hasActiveEndpointPipe(c.x, c.y) ? this.getEndpointColorAt(c.x, c.y) : undefined;
       if (endpointColor) {
         foundColors.add(endpointColor);
         if (foundColors.size > 1) return undefined;
       }
-      const mask = this.getColorMaskAt(c.x, c.y);
+      const mask = this.getVisualMaskAt(c.x, c.y);
       if (mask === 0) continue;
       const pieceType = this.getPieceTypeAt(c.x, c.y);
       const dirs = this.getFlowDirections(mask, c.incomingDir, pieceType);
 
       for (const d of dirs) {
-        const dv = DIR_VECTORS[d];
-        const nx = c.x + dv.x;
-        const ny = c.y + dv.y;
-        if (nx < 0 || ny < 0 || nx >= this.level.gridSize || ny >= this.level.gridSize) continue;
-        if (nx === x && ny === y) continue;
-        if (this.level.blockedCells.some((b) => b.x === nx && b.y === ny)) continue;
-        if (this.isLockedCell(nx, ny)) continue;
-        const nMask = this.getColorMaskAt(nx, ny);
-        if ((nMask & OPPOSITE_DIR[d]) === 0) continue;
-        const nextType = this.getPieceTypeAt(nx, ny);
-        const stateKey = this.getTraversalStateKey(nx, ny, nextType, OPPOSITE_DIR[d]);
+        const neighbor = this.inspectTraversalNeighbor(c.x, c.y, d, 'visual');
+        if (neighbor.status !== 'ok') continue;
+        if (neighbor.x === x && neighbor.y === y) continue;
+        const stateKey = this.getTraversalStateKey(neighbor.x, neighbor.y, neighbor.neighborType, neighbor.opp);
         if (visited.has(stateKey)) continue;
         visited.add(stateKey);
-        queue.push({ x: nx, y: ny, incomingDir: OPPOSITE_DIR[d] });
+        queue.push({ x: neighbor.x, y: neighbor.y, incomingDir: neighbor.opp });
       }
     }
 
@@ -1920,8 +2125,10 @@ export class PipePatchGameScene extends Phaser.Scene {
         // Add new pipe graphics with correct color
         let axisXColor: number | undefined;
         let axisYColor: number | undefined;
-        if (isCrossover) {
-          const [x, y] = key.split(',').map(Number);
+        const [x, y] = key.split(',').map(Number);
+        const mask = PIECE_DEFINITIONS[piece.pieceType].mask;
+        const touchesInactiveEndpoint = !this.isEndpointCell(x, y) && this.hasInactiveEndpointContact(x, y, mask);
+        if (isCrossover && !touchesInactiveEndpoint) {
           const axis = this.resolveCrossoverAxisColors(x, y);
           visual.axisColorX = axis.axisX;
           visual.axisColorY = axis.axisY;
@@ -1931,10 +2138,10 @@ export class PipePatchGameScene extends Phaser.Scene {
           visual.axisColorX = undefined;
           visual.axisColorY = undefined;
         }
-        const pipeColor = isCrossover ? COLORS.pipe : (colorId ? COLOR_HEX[colorId] : COLORS.pipe);
-        const [x, y] = key.split(',').map(Number);
-        const mask = PIECE_DEFINITIONS[piece.pieceType].mask;
-        const hideCapMask = this.getConnectedMaskForCell(x, y, mask);
+        const pipeColor = isCrossover
+          ? COLORS.pipe
+          : (!touchesInactiveEndpoint && colorId ? COLOR_HEX[colorId] : COLORS.pipe);
+        const hideCapMask = touchesInactiveEndpoint ? 0 : this.getVisualConnectedMaskForCell(x, y, mask);
         const art = this.createPipeVisual(
           piece.pieceType,
           0,

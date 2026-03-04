@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { MATCHING_LEVELS } from "@/games/game-01-cardmatch/levels";
 import { FLOATING_BALL_MATH_LEVELS } from "@/games/game-04-floating-ball-math/levels";
 import { CASHIER_LEVELS } from "@/games/game-19-cashier/levels";
@@ -53,16 +54,27 @@ const getCurrentTier = (gameId: string, activeLevel: number): string | undefined
 };
 
 const BASE_BADGE_CLASS =
-  "absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 transition-all duration-300 animate-in slide-in-from-top-4";
+  "absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4";
 
 export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: PlayLevelBadgeProps) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    setVisible(true);
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, [activeLevel, gameId]);
+
   if (isLoadingLevel || activeLevel <= 0) return null;
 
   const tierColor = getDifficultyVisuals(getCurrentTier(gameId, activeLevel));
 
   if (gameId === "game-13-boxpattern") {
     return (
-      <div className={`${BASE_BADGE_CLASS} bg-teal-100 text-teal-700 border-teal-300 whitespace-nowrap`}>
+      <div
+        className={`${BASE_BADGE_CLASS} bg-teal-100 text-teal-700 border-teal-300 whitespace-nowrap`}
+        style={{ transition: 'opacity 0.5s ease-out', opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' }}
+      >
         <span className="text-2xl">Box Pattern</span>
       </div>
     );
@@ -70,7 +82,10 @@ export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: 
 
   if (gameId === "game-14-wordrecognize") {
     return (
-      <div className={`${BASE_BADGE_CLASS} bg-purple-100 text-purple-700 border-purple-300 whitespace-nowrap`}>
+      <div
+        className={`${BASE_BADGE_CLASS} bg-purple-100 text-purple-700 border-purple-300 whitespace-nowrap`}
+        style={{ transition: 'opacity 0.5s ease-out', opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' }}
+      >
         <span className="text-2xl">จดจำคำ</span>
       </div>
     );
@@ -82,6 +97,7 @@ export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: 
     "game-15-taxidriver": "bg-yellow-100 text-yellow-800 border-yellow-400",
     "game-17-floatingmarket": "bg-cyan-100 text-cyan-800 border-cyan-400",
     "game-20-boxcounting": "bg-orange-100 text-orange-800 border-orange-400",
+    "game-21-parking-jam": "bg-sky-100 text-sky-800 border-sky-400",
   };
 
   const tierBasedGames = new Set([
@@ -98,7 +114,14 @@ export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: 
   if (!visualClass) return null;
 
   return (
-    <div className={`${BASE_BADGE_CLASS} ${visualClass}`}>
+    <div
+      className={`${BASE_BADGE_CLASS} ${visualClass}`}
+      style={{
+        transition: 'opacity 0.5s ease-out',
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'auto' : 'none',
+      }}
+    >
       <span className="text-3xl">LEVEL {activeLevel}</span>
     </div>
   );

@@ -11,6 +11,8 @@ import { calculateTaxiDriverStats } from '@/lib/scoring/taxidriver';
 import { calculateFloatingMarketStats, type FloatingMarketGameStats } from '@/lib/scoring/floatingmarket';
 import { calculateCashierStats } from '@/lib/scoring/cashier';
 import { calculatePipePatchStats, type PipePatchGameStats } from '@/lib/scoring/pipepatch';
+import { calculateParkingJamStats } from '@/lib/scoring/parking-jam';
+import type { ParkingJamGameStats } from '@/games/game-21-parking-jam/types';
 import { submitGameSession } from '@/lib/server/gameSessionActions';
 import type { CardGameRawStats, MatchingGameStats, ClinicalStats, SensorLockGameStats, BilliardsGameStats, FloatingBallMathGameStats, DreamDirectGameStats, PinkCupGameStats, TubeSortGameStats, GridHunterGameStats, TaxiDriverGameStats } from '@/types';
 import type { CashierGameStats } from '@/games/game-19-cashier/types';
@@ -79,6 +81,8 @@ export const useGameSession = () => {
       clinicalStats = calculatePipePatchStats(rawData as PipePatchGameStats);
     } else if (gameId === 'game-19-cashier') {
       clinicalStats = calculateCashierStats(rawData as CashierGameStats);
+    } else if (gameId === 'game-21-parking-jam') {
+      clinicalStats = calculateParkingJamStats(rawData as ParkingJamGameStats);
     }
     // Add 'else if' for other games here later...
 
