@@ -1034,8 +1034,13 @@ export class FloatingMarketScene extends Phaser.Scene {
     moveBoat(dt: number) {
         let targetDirection = 0;
         if (this.useTilt && Math.abs(this.tiltGamma) > 3) {
-            // Decreased divisor to 25 so max speed requires less tilt, making it easier to turn
-            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / 25, -1, 1);
+            // Adjust sensitivity based on orientation.
+            // In portrait (width < height), the river is narrow, so we need LESS sensitivity
+            // to avoid instantly crashing into walls. In landscape, we want MORE sensitivity.
+            const isPortrait = this.scale.width < this.scale.height;
+            const sensitivityDivisor = isPortrait ? 35 : 25;
+
+            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / sensitivityDivisor, -1, 1);
             // Non-linear curve to make small tilts less sensitive, but large tilts snap fast
             targetDirection = Math.sign(normalizedTilt) * Math.pow(Math.abs(normalizedTilt), 1.3);
         }
