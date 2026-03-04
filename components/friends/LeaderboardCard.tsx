@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Trophy } from "lucide-react";
+import { Star, Trophy, Medal, Award, Crown } from "lucide-react";
 import { getAvatarSrc } from "@/lib/utils";
 import Image from "next/image";
 
@@ -10,8 +10,7 @@ interface LeaderboardCardProps {
     displayName: string;
     value: number;
     valueLabel: string;
-    secondaryValue?: number;
-    secondaryLabel?: string;
+    valueIcon?: "star" | "trophy";
     isSelf: boolean;
     isTopThree: boolean;
 }
@@ -43,8 +42,7 @@ export default function LeaderboardCard({
     displayName,
     value,
     valueLabel,
-    secondaryValue,
-    secondaryLabel,
+    valueIcon = "star",
     isSelf,
     isTopThree,
 }: LeaderboardCardProps) {
@@ -74,12 +72,14 @@ export default function LeaderboardCard({
           ${isChampion ? 'shadow-md ring-2 ring-yellow-highlight/30' : ''}
         `}
             >
-                {rank <= 3 ? (
-                    <span className="text-xs">
-                        {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
-                    </span>
+                {rank === 1 ? (
+                    <Crown className="w-4 h-4 text-white drop-shadow" />
+                ) : rank === 2 ? (
+                    <Medal className="w-4 h-4 text-white drop-shadow" />
+                ) : rank === 3 ? (
+                    <Award className="w-4 h-4 text-white drop-shadow" />
                 ) : (
-                    rank
+                    <span className="text-xs font-bold">{rank}</span>
                 )}
             </div>
 
@@ -115,28 +115,21 @@ export default function LeaderboardCard({
                 </p>
             </div>
 
-            {/* Stars / Score */}
+            {/* Value */}
             <div className="flex items-center gap-3 flex-shrink-0">
-                {/* Primary Value (Stars) */}
                 <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-highlight fill-yellow-highlight" />
+                    {valueIcon === "trophy" ? (
+                        <Trophy className="w-4 h-4 text-blue" />
+                    ) : (
+                        <Star className="w-4 h-4 text-yellow-highlight fill-yellow-highlight" />
+                    )}
                     <span className={`
             text-sm font-bold
             ${isSelf ? 'text-orange-action' : 'text-brown-darkest'}
           `}>
-                        {value}
+                        {value.toLocaleString()}
                     </span>
                 </div>
-
-                {/* Secondary Value (Score) */}
-                {secondaryValue !== undefined && secondaryValue > 0 && (
-                    <div className="flex items-center gap-1 pl-2 border-l border-brown-border/50">
-                        <Trophy className="w-3.5 h-3.5 text-blue" />
-                        <span className="text-xs font-bold text-brown-medium">
-                            {secondaryValue.toLocaleString()}
-                        </span>
-                    </div>
-                )}
             </div>
         </div>
     );
