@@ -81,7 +81,7 @@ export default function AddFriendModal({ friendCode, onClose, onFriendAdded }: A
             />
 
             {/* Modal */}
-            <div className="relative bg-popup-bg rounded-2xl shadow-2xl w-full max-w-sm border-2 border-brown-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative bg-popup-bg rounded-2xl shadow-2xl w-full max-w-[calc(100vw-2rem)] sm:max-w-sm border-2 border-brown-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-orange-action to-orange-dark px-5 py-4 flex items-center justify-between">
                     <h2 className="text-white font-bold text-lg flex items-center gap-2">
@@ -96,21 +96,21 @@ export default function AddFriendModal({ friendCode, onClose, onFriendAdded }: A
                     </button>
                 </div>
 
-                <div className="p-5 space-y-5">
+                <div className="p-4 sm:p-5 space-y-4">
                     {/* Your Code Section */}
                     <div>
                         <label className="block text-sm font-bold text-brown-darkest mb-2">
                             รหัสของคุณ
                         </label>
-                        <div className="flex items-center gap-2 bg-cream rounded-xl border-2 border-brown-border px-4 py-3">
-                            <span className="flex-1 text-2xl font-mono font-bold text-brown-darkest tracking-[0.3em] text-center select-all">
+                        <div className="flex items-center gap-2 bg-cream rounded-xl border-2 border-brown-border px-3 py-2.5">
+                            <span className="flex-1 text-xl sm:text-2xl font-mono font-bold text-brown-darkest tracking-[0.15em] sm:tracking-[0.25em] text-center select-all">
                                 {friendCode}
                             </span>
                             <button
                                 onClick={handleCopy}
                                 className={`p-2 rounded-lg transition-all duration-200 active:scale-95 ${copied
-                                        ? 'bg-green-success text-white'
-                                        : 'bg-tan-light text-brown-medium hover:bg-gray-medium'
+                                    ? 'bg-green-success text-white'
+                                    : 'bg-tan-light text-brown-medium hover:bg-gray-medium'
                                     }`}
                             >
                                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -144,7 +144,7 @@ export default function AddFriendModal({ friendCode, onClose, onFriendAdded }: A
                                     setSuccess(null);
                                 }}
                                 placeholder="XXXX"
-                                className="flex-1 text-center text-2xl font-mono font-bold tracking-[0.3em] bg-cream border-2 border-brown-border rounded-xl px-4 py-3 text-brown-darkest placeholder:text-brown-lightest focus:outline-none focus:border-orange-action focus:ring-2 focus:ring-orange-action/20 transition-all"
+                                className="flex-1 text-center text-xl sm:text-2xl font-mono font-bold tracking-[0.15em] sm:tracking-[0.25em] bg-cream border-2 border-brown-border rounded-xl px-3 py-2.5 text-brown-darkest placeholder:text-brown-lightest focus:outline-none focus:border-orange-action focus:ring-2 focus:ring-orange-action/20 transition-all"
                                 autoFocus
                             />
                         </div>
