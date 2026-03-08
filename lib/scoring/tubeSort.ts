@@ -12,21 +12,38 @@ export type TubeSortRawStats = {
   targetTimeMs: number;
 };
 
+const DIFFICULTY_MIN = 0.8;
+const DIFFICULTY_SPAN = 1.9;
+const DIFFICULTY_MAX_BONUS = 0.12;
+
+const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
+const toPercent = (core: number) => Math.round(100 * core);
+
+const difficultyBonus = (difficultyMultiplier: number) =>
+  DIFFICULTY_MAX_BONUS * ((difficultyMultiplier - DIFFICULTY_MIN) / DIFFICULTY_SPAN);
+
 export function calculateTubeSortStats(stats: TubeSortRawStats) {
-  const planningRaw = (stats.optimalMoves / Math.max(stats.playerMoves, 1)) * 100;
-  const spatialRaw = (stats.correctPours / Math.max(stats.correctPours + stats.incorrectPours, 1)) * 100;
+  const bonus = difficultyBonus(stats.difficultyMultiplier);
 
-  const errors = stats.illegalPourAttempts + stats.redundantMoves;
-  const attentionRaw = (1 - errors / Math.max(stats.totalActions, 1)) * 100;
+  const extraMoves = Math.max(0, stats.playerMoves - stats.optimalMoves);
+  const moveEfficiency = stats.optimalMoves / Math.max(stats.optimalMoves + extraMoves, 1);
+  const errorActions = stats.illegalPourAttempts + stats.redundantMoves;
+  const totalActions = Math.max(stats.totalActions, errorActions);
+  const errorRate = errorActions / Math.max(totalActions, 1);
+  const planningCore = 0.7 * moveEfficiency + 0.3 * (1 - errorRate);
 
-  const safeTime = Math.max(stats.completionTimeMs, 1000);
-  const speedRaw = (stats.targetTimeMs / safeTime) * 100;
+  const visualCore = stats.correctPours / Math.max(stats.correctPours + stats.incorrectPours, 1);
+  const goodActions = Math.max(totalActions - errorActions, 0);
+  const focusCore = goodActions / Math.max(goodActions + errorActions, 1);
+
+  const overTimeMs = Math.max(0, stats.completionTimeMs - stats.targetTimeMs);
+  const speedCore = stats.targetTimeMs / Math.max(stats.targetTimeMs + overTimeMs, 1);
 
   return {
-    stat_planning: Math.min(Math.round(planningRaw), 100),
-    stat_visual: Math.min(Math.round(spatialRaw), 100),
-    stat_focus: Math.min(Math.round(attentionRaw), 100),
-    stat_speed: Math.min(Math.round(speedRaw), 100),
+    stat_planning: toPercent(applySoftBonus(planningCore, bonus)),
+    stat_visual: toPercent(applySoftBonus(visualCore, bonus)),
+    stat_focus: toPercent(applySoftBonus(focusCore, bonus)),
+    stat_speed: toPercent(applySoftBonus(speedCore, bonus)),
     stat_memory: null,
     stat_emotion: null
   };

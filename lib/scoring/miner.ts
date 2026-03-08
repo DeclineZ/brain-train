@@ -12,26 +12,39 @@ export type MinerGameStats = {
   target_decision_time_ms: number;
 };
 
+const LEVEL_MIN = 1;
+const LEVEL_SPAN = 29;
+const DIFFICULTY_MAX_BONUS = 0.12;
+
 const clamp = (value: number) => Math.min(100, Math.max(0, value));
 
 const getEffectiveAttempts = (stats: MinerGameStats) => Math.max(1, stats.attempts - stats.crack_attempts);
 
-export function calculateMinerStats(stats: MinerGameStats) {
-  const goalAmount = Math.max(stats.goal_amount, 1);
-  const safeAttempts = getEffectiveAttempts(stats);
-  const valueRatio = stats.total_value / goalAmount;
-  const efficiency = stats.valuable_grabs / safeAttempts;
+const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
 
-  const planningRaw = valueRatio * efficiency * 100;
-  const spatialRaw = efficiency * 100;
-  const attentionRaw = (1 - stats.mistakes / safeAttempts) * 100;
-  const speedRaw = (stats.target_decision_time_ms / Math.max(stats.avg_decision_time_ms, 1)) * 100;
+const levelDifficultyBonus = (levelPlayed: number) =>
+  DIFFICULTY_MAX_BONUS * ((levelPlayed - LEVEL_MIN) / LEVEL_SPAN);
+
+export function calculateMinerStats(stats: MinerGameStats) {
+  const bonus = levelDifficultyBonus(stats.levelPlayed);
+
+  const remainingGoal = Math.max(stats.goal_amount - stats.total_value, 0);
+  const valueGoalCore = stats.total_value / Math.max(stats.total_value + remainingGoal, 1);
+
+  const nonValuableGrabs = Math.max(stats.success_grabs - stats.valuable_grabs, 0) + stats.crack_attempts;
+  const efficiencyCore = stats.valuable_grabs / Math.max(stats.valuable_grabs + nonValuableGrabs + stats.mistakes, 1);
+
+  const planningCore = 0.65 * valueGoalCore + 0.35 * efficiencyCore;
+  const focusCore = stats.success_grabs / Math.max(stats.success_grabs + stats.mistakes + stats.crack_attempts, 1);
+
+  const overDecisionMs = Math.max(0, stats.avg_decision_time_ms - stats.target_decision_time_ms);
+  const speedCore = stats.target_decision_time_ms / Math.max(stats.target_decision_time_ms + overDecisionMs, 1);
 
   return {
-    stat_planning: Math.round(clamp(planningRaw)),
-    stat_visual: Math.round(clamp(spatialRaw)),
-    stat_focus: Math.round(clamp(attentionRaw)),
-    stat_speed: Math.round(clamp(speedRaw)),
+    stat_planning: Math.round(100 * applySoftBonus(planningCore, bonus)),
+    stat_visual: Math.round(100 * applySoftBonus(efficiencyCore, bonus)),
+    stat_focus: Math.round(100 * applySoftBonus(focusCore, bonus)),
+    stat_speed: Math.round(100 * applySoftBonus(speedCore, bonus)),
     stat_memory: null,
     stat_emotion: null
   };

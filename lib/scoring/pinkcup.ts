@@ -1,15 +1,9 @@
 import type { RoundTelemetry } from '@/games/game-07-pinkcup/types';
+import type { ClinicalStats } from '@/types';
 
-/**
- * Find the Pink Cup - Scoring System
- * Calculates 4 cognitive stats from game telemetry
- * 
- * SCORING ALGORITHM:
- * - All stats start at 100 and subtract penalties for suboptimal performance
- * - Penalties are calculated based on performance metrics vs benchmarks
- * - Final scores are clamped to 0-100 range
- * - Difficulty multiplier scales the final score (typically 0.8-2.0)
- */
+const DIFFICULTY_MIN = 0.8;
+const DIFFICULTY_SPAN = 1.9;
+const DIFFICULTY_MAX_BONUS = 0.12;
 
 export interface PinkCupGameStats {
   telemetry: RoundTelemetry;
@@ -18,58 +12,50 @@ export interface PinkCupGameStats {
   difficultyMultiplier: number;
 }
 
-export interface PinkCupScoringResult {
-  stat_memory: number;
-  stat_speed: number;
-  stat_spatial: number;
-  stat_planning: number;
-  stat_visual: number | null;
-  stat_focus: number | null;
-  stat_emotion: number | null;
-}
+const safeRate = (numerator: number, denominator: number) => (denominator > 0 ? numerator / denominator : 0);
 
-/**
- * Main scoring function - calculates all 4 cognitive stats
- * 
- * Returns values 0-100 for each stat, clamped to valid range
- */
-export function calculatePinkCupStats(data: PinkCupGameStats): PinkCupScoringResult {
+const saturatingTargetCore = (actual: number, target: number) => {
+  if (target <= 0) return 1;
+  const over = Math.max(0, actual - target);
+  return target / (target + over);
+};
+
+const toPercent = (core: number) => Math.round(100 * core);
+
+const difficultyBonus = (difficultyMultiplier: number) =>
+  DIFFICULTY_MAX_BONUS * ((difficultyMultiplier - DIFFICULTY_MIN) / DIFFICULTY_SPAN);
+
+const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
+
+export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
   const { telemetry, difficultyMultiplier, success } = data;
-  const isTutorial = data.level === 0;
 
-  // Validate inputs
   if (!telemetry || !difficultyMultiplier || difficultyMultiplier <= 0) {
-    if (!isTutorial) {
-      console.error('[PinkCupStats] Invalid input data');
-    }
     return getZeroStats();
   }
 
-  // Calculate individual metrics with defensive checks
-  const spatialMetrics = calculateSpatialMetrics(telemetry, difficultyMultiplier);
-  const memoryMetrics = calculateMemoryMetrics(telemetry, difficultyMultiplier, success);
-  const speedMetrics = calculateSpeedMetrics(telemetry, difficultyMultiplier);
-  const planningMetrics = calculatePlanningMetrics(telemetry, difficultyMultiplier);
+  const bonus = difficultyBonus(difficultyMultiplier);
+
+  const spatialCore = calculateSpatialCore(telemetry);
+  const planningCore = calculatePlanningCore(telemetry);
+  const memoryCore = calculateMemoryCore(telemetry, success);
+  const speedCore = calculateSpeedCore(telemetry);
+  const planningBlendCore = 0.6 * spatialCore + 0.4 * planningCore;
 
   return {
-    stat_memory: Math.round(memoryMetrics.score),
-    stat_speed: Math.round(speedMetrics.score),
-    stat_spatial: Math.round(spatialMetrics.score),
-    stat_planning: Math.round(planningMetrics.score),
+    stat_memory: toPercent(applySoftBonus(memoryCore, bonus)),
+    stat_speed: toPercent(applySoftBonus(speedCore, bonus)),
+    stat_planning: toPercent(applySoftBonus(planningBlendCore, bonus)),
     stat_visual: null,
     stat_focus: null,
     stat_emotion: null
   };
 }
 
-/**
- * Helper: Return zero stats for invalid input
- */
-function getZeroStats(): PinkCupScoringResult {
+function getZeroStats(): ClinicalStats {
   return {
     stat_memory: 0,
     stat_speed: 0,
-    stat_spatial: 0,
     stat_planning: 0,
     stat_visual: null,
     stat_focus: null,
@@ -77,138 +63,61 @@ function getZeroStats(): PinkCupScoringResult {
   };
 }
 
-/**
- * Calculate Spatial Awareness score
- * Starts at 100, subtracts penalties for bad moves and inefficiency
- */
-function calculateSpatialMetrics(
-  telemetry: RoundTelemetry,
-  difficultyMultiplier: number
-) {
+function calculateSpatialCore(telemetry: RoundTelemetry): number {
   const { moves, targetCell, pinkStart } = telemetry;
 
   if (moves.length === 0) {
-    return {
-      goodMoveRate: 0,
-      pathDirectness: 0,
-      score: 0
-    };
+    return 0;
   }
 
-  // Calculate good move rate
-  // A move is "good" if it reduces distance to target
   let goodMoves = 0;
   let currentPos = pinkStart;
 
-  moves.forEach((move, index) => {
+  moves.forEach((move) => {
     const distanceBefore = Math.abs(currentPos.x - targetCell.x) + Math.abs(currentPos.y - targetCell.y);
     const distanceAfter = move.distanceToTarget;
-    
     if (distanceAfter < distanceBefore) {
       goodMoves++;
     }
-
     currentPos = move.to;
   });
 
   const goodMoveRate = goodMoves / moves.length;
-
-  // Calculate path directness
   const optimalMoves = Math.abs(pinkStart.x - targetCell.x) + Math.abs(pinkStart.y - targetCell.y);
-  const pathDirectness = optimalMoves / Math.max(moves.length, 1);
-
-  // Calculate spatial score (0-100)
-  // Penalty-based: Start at 100, subtract penalties
-  // -25 points for each bad move (move that increases distance)
-  // -10 points per extra move beyond optimal
-  const rawSpatialScore = 100 - 25 * (moves.length - goodMoves) - 10 * Math.max(0, moves.length - optimalMoves);
-
-  // Apply difficulty multiplier
-  const spatialScore = clamp(rawSpatialScore * difficultyMultiplier);
-
-  return {
-    goodMoveRate: Math.round(goodMoveRate * 100) / 100,
-    pathDirectness: Math.round(pathDirectness * 100) / 100,
-    score: spatialScore
-  };
+  const detourMoves = Math.max(0, moves.length - optimalMoves);
+  const pathEfficiency = safeRate(optimalMoves, optimalMoves + detourMoves);
+  return 0.6 * goodMoveRate + 0.4 * pathEfficiency;
 }
 
-/**
- * Calculate Memory score
- * Starts at 100, subtracts penalties for wrong answers and slow response
- */
-function calculateMemoryMetrics(
-  telemetry: RoundTelemetry,
-  difficultyMultiplier: number,
-  success: boolean
-) {
+function calculateMemoryCore(telemetry: RoundTelemetry, success: boolean): number {
   const { probes } = telemetry;
 
   if (probes.length === 0) {
-    return {
-      recallAccuracy: 0,
-      avgRecallRTMs: 0,
-      score: 0
-    };
+    return 0;
   }
 
-  // Calculate recall accuracy
   const correctProbes = probes.filter(p => p.correct).length;
   const recallAccuracy = correctProbes / probes.length;
 
-  // Calculate average recall reaction time
   const recallRTs = probes
     .map(p => p.answerTime - p.probeTime)
     .filter(rt => rt > 0);
-  
-  const avgRecallRTMs = recallRTs.length > 0 
-    ? recallRTs.reduce((sum, rt) => sum + rt, 0) / recallRTs.length 
-    : 0;
-
-  // Calculate memory score (0-100)
-  // Penalty-based: Start at 100, subtract penalties
-  // -50 points for each wrong answer
-  // -0.02 points per millisecond of reaction time
-  // If game failed, score is 0
-  // Apply difficulty multiplier
-  let rawMemoryScore = 100 - 50 * (probes.length - correctProbes) - 0.02 * avgRecallRTMs;
-
-  if (!success) {
-    rawMemoryScore = 0;
-  }
-
-  const memoryScore = clamp(rawMemoryScore * difficultyMultiplier);
-
-  return {
-    recallAccuracy: Math.round(recallAccuracy * 100) / 100,
-    avgRecallRTMs: Math.round(avgRecallRTMs),
-    score: memoryScore
-  };
+  const avgRecallRTMs = recallRTs.length > 0
+    ? recallRTs.reduce((sum, rt) => sum + rt, 0) / recallRTs.length
+    : 2500;
+  const recallRtCore = saturatingTargetCore(avgRecallRTMs, 2500);
+  const baseCore = 0.85 * recallAccuracy + 0.15 * recallRtCore;
+  return success ? baseCore : baseCore * 0.6;
 }
 
-/**
- * Calculate Processing Speed score
- * Starts at 100, subtracts penalties only if slower than benchmarks
- */
-function calculateSpeedMetrics(
-  telemetry: RoundTelemetry,
-  difficultyMultiplier: number
-) {
+function calculateSpeedCore(telemetry: RoundTelemetry): number {
   const { moves, t_start, t_end } = telemetry;
 
   if (moves.length === 0) {
-    return {
-      RT_firstMs: 0,
-      meanInterMoveRT: 0,
-      completionTimeMs: 0,
-      score: 0
-    };
+    return 0;
   }
 
-  // Calculate first reaction time
-  const RT_firstMs = moves[0].timestamp - t_start;
-
-  // Calculate inter-move reaction times
+  const rtFirstMs = Math.max(0, moves[0].timestamp - t_start);
   const interMoveRTs: number[] = [];
   for (let i = 1; i < moves.length; i++) {
     const rt = moves[i].timestamp - moves[i - 1].timestamp;
@@ -219,88 +128,27 @@ function calculateSpeedMetrics(
 
   const meanInterMoveRT = interMoveRTs.length > 0
     ? interMoveRTs.reduce((sum, rt) => sum + rt, 0) / interMoveRTs.length
-    : 0;
+    : 2000;
+  const completionTimeMs = Math.max(0, t_end - t_start);
 
-  // Calculate completion time
-  const completionTimeMs = t_end - t_start;
+  const firstMoveCore = saturatingTargetCore(rtFirstMs, 3000);
+  const interMoveCore = saturatingTargetCore(meanInterMoveRT, 2000);
+  const completionCore = saturatingTargetCore(completionTimeMs, 60000);
 
-  // Calculate speed score (0-100)
-  // Start at 100, subtract penalties for slow performance
-  // Only penalize if SLOWER than benchmarks
-  const T_first_target = 3000; // 3 seconds for first move
-  const T_move_target = 2000; // 2 seconds per move
-  const T_complete_target = 60000; // 60 seconds total
-
-  // Penalty: -1 point per 30ms over benchmark (only if slower)
-  const firstMovePenalty = Math.max(0, (RT_firstMs - T_first_target) / 30);
-  const interMovePenalty = Math.max(0, (meanInterMoveRT - T_move_target) / 30);
-  const completionPenalty = Math.max(0, (completionTimeMs - T_complete_target) / 600);
-
-  // Apply difficulty multiplier
-  const rawSpeedScore = 100 - firstMovePenalty - interMovePenalty - completionPenalty;
-  const speedScore = clamp(rawSpeedScore * difficultyMultiplier);
-
-  return {
-    RT_firstMs: Math.round(RT_firstMs),
-    meanInterMoveRT: Math.round(meanInterMoveRT),
-    completionTimeMs: Math.round(completionTimeMs),
-    score: speedScore
-  };
+  return 0.4 * firstMoveCore + 0.3 * interMoveCore + 0.3 * completionCore;
 }
 
-/**
- * Calculate Planning score
- * Measures decision efficiency: reaching goal with minimal unnecessary moves and backtracking
- * Already penalty-based (starts at 100)
- */
-function calculatePlanningMetrics(
-  telemetry: RoundTelemetry,
-  difficultyMultiplier: number
-) {
+function calculatePlanningCore(telemetry: RoundTelemetry): number {
   const { moves, targetCell, pinkStart } = telemetry;
 
   if (moves.length === 0) {
-    return {
-      optimalMoves: 0,
-      movesTaken: 0,
-      detourMoves: 0,
-      backtrackCount: 0,
-      score: 0
-    };
+    return 0;
   }
 
-  // Calculate optimal moves (Manhattan distance)
   const optimalMoves = Math.abs(pinkStart.x - targetCell.x) + Math.abs(pinkStart.y - targetCell.y);
-
-  // Calculate detour moves
   const detourMoves = Math.max(0, moves.length - optimalMoves);
-
-  // Calculate backtrack count
   const backtrackCount = moves.filter(m => m.backtracked).length;
-
-  // Calculate planning score (0-100)
-  // Penalty-based: Start at 100, subtract penalties
-  // -10 points for each detour move
-  // -5 points for each backtrack
-  let rawPlanningScore = 100 
-    - 10 * detourMoves 
-    - 5 * backtrackCount;
-
-  // Apply difficulty multiplier
-  const planningScore = clamp(rawPlanningScore * difficultyMultiplier);
-
-  return {
-    optimalMoves,
-    movesTaken: moves.length,
-    detourMoves,
-    backtrackCount,
-    score: planningScore
-  };
-}
-
-/**
- * Helper: Clamp value between 0 and 100
- */
-function clamp(value: number): number {
-  return Math.max(0, Math.min(100, value));
+  const moveEfficiency = safeRate(optimalMoves, optimalMoves + detourMoves);
+  const stability = 1 - safeRate(backtrackCount, moves.length);
+  return 0.75 * moveEfficiency + 0.25 * stability;
 }
