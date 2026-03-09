@@ -155,10 +155,10 @@ export class CashierGameScene extends Phaser.Scene {
         this.peopleGroup = this.add.group();
 
         this.createEnvironment();
-        // Shift Numpad to the left (250 instead of 400) to make room for desk notes
-        this.createNumpad(280, 910);
+        // Shift Numpad to the left (280 instead of 400) to make room for desk notes
+        this.createNumpad(280, 895); // Moved down slightly to prevent belt overlap
         // Drawer remains centered
-        this.createCashDrawer(400, 910);
+        this.createCashDrawer(400, 895);
 
         // Hide Drawer initially
         this.cashDrawerGroup.setVisible(false);
@@ -211,10 +211,10 @@ export class CashierGameScene extends Phaser.Scene {
         this.add.rectangle(400, registerY - 940, 4000, 20, 0xdccbb5).setDepth(-1);  // Edge highlight
 
         // --- Top: POS Monitor ---
-        const monitorY = 220; // Shift down to allow bigger size
+        const monitorY = 220; // Reverted back to original position
 
         // --- Middle: Conveyor Belt ---
-        const beltY = 560; // Shifted down
+        const beltY = 560; // Reverted back to original position
         // Tile sprite so we can animate it moving infinitely. Make it huge so it bleeds off the edges
         this.beltSprite = this.add.tileSprite(400, beltY, 4000, 260, 'bg-conveyor-belt').setDepth(0);
         // Optional rails if the asset doesn't have borders
@@ -394,7 +394,7 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Display
         const displayBg = this.add.rectangle(sx, sy - 120, 300, 70, 0x223322).setStrokeStyle(3, 0x000);
-        this.inputDisplay = this.add.text(sx + 130, sy - 120, "0", { fontSize: '48px', color: '#00ff00', fontFamily: 'monospace', padding: { x: 10, y: 10 } }).setOrigin(1, 0.5);
+        this.inputDisplay = this.add.text(sx + 130, sy - 120, "0", { fontSize: '54px', color: '#00ff00', fontFamily: 'monospace', padding: { x: 10, y: 10 } }).setOrigin(1, 0.5);
         this.numpadGroup.add(displayBg);
         this.numpadGroup.add(this.inputDisplay);
 
@@ -420,7 +420,7 @@ export class CashierGameScene extends Phaser.Scene {
                 if (label === 'CLEAR') textLabel = 'C';
                 if (label === 'ENTER') textLabel = 'OK';
 
-                const btnText = this.add.text(bx, by, textLabel, { fontSize: '40px', color: btnTxtColor, fontStyle: 'bold', padding: { x: 5, y: 5 } }).setOrigin(0.5);
+                const btnText = this.add.text(bx, by, textLabel, { fontSize: '48px', color: btnTxtColor, fontStyle: 'bold', padding: { x: 5, y: 5 } }).setOrigin(0.5);
 
                 this.numpadGroup.add(btnShadow);
                 this.numpadGroup.add(btnBg);
@@ -493,7 +493,7 @@ export class CashierGameScene extends Phaser.Scene {
     }
 
     private addInteractiveCurrencyToDrawer(bx: number, by: number, denom: any) {
-        let sizeMult = 1;
+        let sizeMult = 1.0; // Bills scale reduced
 
         let visualTint = 0xffffff;
         if (denom.type === 'bill') {
@@ -518,10 +518,10 @@ export class CashierGameScene extends Phaser.Scene {
         } else {
             // Natural variations
             if (denom.type === 'coin') {
-                if (denom.val === 1) sizeMult = 1.0;
-                if (denom.val === 2) sizeMult = 1.15;
-                if (denom.val === 5) sizeMult = 1.35;
-                if (denom.val === 10) sizeMult = 1.5;
+                if (denom.val === 1) sizeMult = 1.4;
+                if (denom.val === 2) sizeMult = 1.6;
+                if (denom.val === 5) sizeMult = 1.85;
+                if (denom.val === 10) sizeMult = 2.0;
             }
         }
 
@@ -542,14 +542,15 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Draw readable value overlays
         const fontColor = denom.type === 'bill' ? '#ffffff' : '#000000';
-        const fontSize = denom.type === 'bill' ? '32px' : '28px';
+        const fontSize = denom.type === 'bill' ? '42px' : '36px'; // Increased font sizes
         const strokeColor = denom.type === 'bill' ? '#000000' : '#ffffff';
-        const lbl = this.add.text(topObj.x, topObj.y, `${denom.val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: 3 }).setOrigin(0.5);
+        const strokeT = denom.type === 'bill' ? 5 : 4;
+        const lbl = this.add.text(topObj.x, topObj.y, `${denom.val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT }).setOrigin(0.5);
         this.cashDrawerGroup.add(lbl);
 
         // Ensure interactive area is large enough
-        const hw = denom.type === 'bill' ? 140 : 100;
-        const hh = denom.type === 'bill' ? 80 : 100;
+        const hw = denom.type === 'bill' ? 160 : 120;
+        const hh = denom.type === 'bill' ? 100 : 120;
         const hitArea = this.add.rectangle(bx, by, hw, hh, 0x000000, 0).setInteractive({ useHandCursor: true });
         this.cashDrawerGroup.add(hitArea);
 
@@ -594,9 +595,10 @@ export class CashierGameScene extends Phaser.Scene {
         flyingObj.setTint(tint);
 
         const fontColor = cType === 'bill' ? '#ffffff' : '#000000';
-        const fontSize = cType === 'bill' ? '32px' : '28px';
+        const fontSize = cType === 'bill' ? '42px' : '36px'; // Increased font sizes
         const strokeColor = cType === 'bill' ? '#000000' : '#ffffff';
-        const flyingLbl = this.add.text(sourceObj.x, sourceObj.y, `${val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: 3 }).setOrigin(0.5);
+        const strokeT = cType === 'bill' ? 5 : 4;
+        const flyingLbl = this.add.text(sourceObj.x, sourceObj.y, `${val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT }).setOrigin(0.5);
 
 
         // Random destination on the belt
@@ -706,17 +708,19 @@ export class CashierGameScene extends Phaser.Scene {
 
             // Draw items visually on conveyor belt
             for (let j = 0; j < itemVisualQty; j++) {
-                const py = 560 + Phaser.Math.RND.between(-30, 30);
+                const py = 560 + Phaser.Math.RND.between(-25, 25); // Restrained random variance
 
-                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(1.8);
+                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(2.2);
                 itemImg.setInteractive({
                     useHandCursor: true,
-                    hitArea: new Phaser.Geom.Rectangle(40, -10, itemImg.width, itemImg.height + 20),
+                    // The origin is 0.5, but hitArea local coordinates define 0,0 at top-left of the original unscaled image. 
+                    // No negative offsets or scaling padding needed because Phaser.Geom.Rectangle.Contains scales inherently with the game object bounds.
+                    hitArea: new Phaser.Geom.Rectangle(0, 0, itemImg.width, itemImg.height),
                     hitAreaCallback: Phaser.Geom.Rectangle.Contains
                 });
 
                 // Add simple box shadow
-                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.8);
+                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(2.2);
 
                 this.dynamicItemsGroup.add(shadow);
                 this.dynamicItemsGroup.add(itemImg);
@@ -726,10 +730,10 @@ export class CashierGameScene extends Phaser.Scene {
                     this.sound.play('sfx-pop', { volume: 0.5 });
                     // Visual Tap Feedback
                     itemImg.setY(itemImg.y - 10);
-                    itemImg.setScale(1.7);
+                    itemImg.setScale(2.0);
                     this.time.delayedCall(100, () => {
                         itemImg.setY(itemImg.y + 10);
-                        itemImg.setScale(1.5);
+                        itemImg.setScale(2.2);
                     });
 
                     // Clear previous item from monitor completely
@@ -747,8 +751,8 @@ export class CashierGameScene extends Phaser.Scene {
                     this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
                 });
 
-                currentBeltX += 60;
-                if (currentBeltX > 400 + 350) currentBeltX = 400 - 350; // Wrap around if too many
+                currentBeltX += 80; // More spacing for larger items
+                if (currentBeltX > 400 + 350) currentBeltX = Math.max(100, 400 - 320); // Wrap around if too many
             }
         }
 
