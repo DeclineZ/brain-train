@@ -987,24 +987,29 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.livesContainer = this.add.container(width / 2, this.scale.height * 0.08);
         this.livesContainer.setDepth(200);
 
+        // Scale relative to screen width (base design = 400px wide)
+        const uiScale = Math.max(0.8, Math.min(1.6, width / 400));
+
         // Background pill
-        const bgWidth = 160;
-        const bgHeight = 50;
+        const bgWidth = 160 * uiScale;
+        const bgHeight = 50 * uiScale;
         const bg = this.add.graphics();
         bg.fillStyle(COLORS.UI_PANEL, 0.9);
-        bg.fillRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25);
+        bg.fillRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25 * uiScale);
         bg.lineStyle(2, COLORS.UI_STROKE);
-        bg.strokeRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25);
+        bg.strokeRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25 * uiScale);
         this.livesContainer.add(bg);
 
         // 3 Life Icons (Tuktuks)
         this.lifeIcons = [];
-        const startX = -40;
-        const spacing = 40;
+        const iconW = 35 * uiScale;
+        const iconH = 45 * uiScale;
+        const spacing = 40 * uiScale;
+        const startX = -spacing;
         
         for (let i = 0; i < 3; i++) {
             const icon = this.add.image(startX + (i * spacing), 0, 'tuktuk-body');
-            icon.setDisplaySize(35, 45); // small tuktuk icon
+            icon.setDisplaySize(iconW, iconH);
             icon.setAngle(90); // facing right
             this.livesContainer.add(icon);
             this.lifeIcons.push(icon);
@@ -1023,7 +1028,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         }
     }
 
-    private deductLife(reason: 'timeout' | 'wrong_direction') {
+    private deductLife(reason: 'timeout' | 'wrong_direction' | 'brake_timeout') {
         if (this.lives <= 0 || this.gameOver) return;
 
         this.lives--;
@@ -1042,7 +1047,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Audio & visual feedback
         this.playSound('wrong-turn');
         this.showFeedback('✗', 0xFF4444);
-        this.messageText.setText('ผิดทาง!');
+        this.messageText.setText(reason === 'brake_timeout' ? 'จอดนานเกิน!' : 'ผิดทาง!');
         this.messageText.setColor('#FF4444');
         this.messageText.setVisible(true);
 
@@ -1073,33 +1078,38 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             });
         }
 
+        // Map brake_timeout to timeout for endGame
+        const endReason = reason === 'brake_timeout' ? 'timeout' : reason;
+
         if (this.lives <= 0) {
             // Out of lives — brief pause then end game
             this.time.delayedCall(1200, () => {
-                this.endGame(reason);
+                this.endGame(endReason);
             });
         } else {
-            // Still have lives — auto-correct the car onto the right path and resume
+            // Still have lives — pause, then auto-correct and resume
             this.time.delayedCall(1800, () => {
                 if (this.gameOver) return;
 
                 this.messageText.setVisible(false);
                 
-                // The car is currently sitting at the intersection (currentPathIndex).
-                // We need to point it in the correct direction and continue.
-                const currentSeg = this.path[this.currentPathIndex];
-                
-                // Snap car to intersection position
-                const pos = this.gridToWorld(currentSeg.x, currentSeg.y);
-                this.car.setPosition(pos.x, pos.y);
-                this.carGridX = currentSeg.x;
-                this.carGridY = currentSeg.y;
-                
-                // Face the correct direction (next segment's heading)
-                if (this.currentPathIndex + 1 < this.path.length) {
-                    this.carHeading = this.path[this.currentPathIndex + 1].direction;
+                // For brake_timeout: car is already at the right position, just resume
+                // For wrong_direction/timeout: snap car to intersection and correct heading
+                if (reason !== 'brake_timeout') {
+                    const currentSeg = this.path[this.currentPathIndex];
+                    
+                    // Snap car to intersection position
+                    const pos = this.gridToWorld(currentSeg.x, currentSeg.y);
+                    this.car.setPosition(pos.x, pos.y);
+                    this.carGridX = currentSeg.x;
+                    this.carGridY = currentSeg.y;
+                    
+                    // Face the correct direction (next segment's heading)
+                    if (this.currentPathIndex + 1 < this.path.length) {
+                        this.carHeading = this.path[this.currentPathIndex + 1].direction;
+                    }
+                    this.updateCarRotation();
                 }
-                this.updateCarRotation();
 
                 // Reset navigation state
                 this.queuedDirection = null;
@@ -1810,7 +1820,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isBrakeStopped = false;
         this.messageText.setVisible(false);
         this.highlightForwardButton(false);
-        this.handleTimeout();
+
+        // Deduct a life but DON'T snap the car — it's already at the correct segment
+        // Just penalize and resume from where we are
+        this.deductLife('brake_timeout');
     }
 
     private handleForwardPress() {
