@@ -13,6 +13,12 @@ export class BoxPatternGameScene extends Phaser.Scene {
     protected gameActive = false;
     protected roundsInPhase = 0;
 
+    // --- Stat Tracking ---
+    protected mistakeCount = 0;
+    protected totalRoundsPlayed = 0;
+    protected longestSequence = 0;
+    protected startTime = 0;
+
     // --- Configuration ---
     // Rounds required per phase to advance
     protected readonly PHASE_ROUNDS = {
@@ -61,6 +67,8 @@ export class BoxPatternGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.startTime = Date.now();
+
         // 1. Audio Setup
         this.soundBeep = this.sound.add('beep', { volume: 0.5 });
         this.soundSuccess = this.sound.add('match-success', { volume: 0.4 });
@@ -188,6 +196,9 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.sequence = [];
         this.lives = 3;
         this.gameActive = true;
+        this.mistakeCount = 0;
+        this.totalRoundsPlayed = 0;
+        this.longestSequence = 0;
 
         this.updateScoreUI();
         this.startPhase(1);
@@ -451,6 +462,12 @@ export class BoxPatternGameScene extends Phaser.Scene {
     protected handleRoundPass() {
         this.isInputLocked = true;
         this.roundsInPhase++; // Increment rounds completed
+        this.totalRoundsPlayed++;
+
+        // Track longest sequence successfully completed
+        if (this.sequence.length > this.longestSequence) {
+            this.longestSequence = this.sequence.length;
+        }
 
         // Add Score based on Phase
         let points = 0;
@@ -482,6 +499,8 @@ export class BoxPatternGameScene extends Phaser.Scene {
 
     protected handleMistake() {
         this.soundFail.play();
+        this.mistakeCount++;
+        this.totalRoundsPlayed++;
 
         if (this.phase === 1) {
             // Instant Death
@@ -532,20 +551,33 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.sound.stopAll();
 
         // Emit Game Over Event to React Wrapper (GameCanvas -> Page)
+        // Calculate Stats (0-100 scale)
+        // Memory: based on longest sequence remembered relative to benchmark
+        const SEQUENCE_BENCHMARK = 51; // Sum of all phase rounds (5+8+12+16+10 bonus)
+        const memoryRatio = Math.min(1, this.longestSequence / SEQUENCE_BENCHMARK);
+        const stat_memory = Math.round(60 + memoryRatio * 40);
+
+        // Focus: based on accuracy (fewer mistakes = higher focus)
+        const mistakeRatio = this.totalRoundsPlayed > 0
+            ? this.mistakeCount / this.totalRoundsPlayed
+            : 0;
+        const stat_focus = Math.round(Math.max(0, 100 - mistakeRatio * 50));
+
+        console.log(`BoxPattern Stats — Memory: ${stat_memory}, Focus: ${stat_focus}, Longest: ${this.longestSequence}, Mistakes: ${this.mistakeCount}/${this.totalRoundsPlayed}`);
+
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
-                success: true, // It's always a "completed session" in terms of saving stats? 
-                // Wait, page.tsx logic: "if (rawData.success === false && !isEndless) ... setResult({ success: false })"
-                // For Endless/Highscore games, usually we send success: true to show the Score Popup.
-                // BoxPattern IS endless / highscore based.
-                // So send success: true so `page.tsx` shows the Score/Highscore UI.
+                success: true,
                 score: this.score,
-                stars: 0, // Not primarily used but prevents errors
+                stars: 0,
                 starHint: "",
-                // Add specific stats if we tracked them (e.g. max combo?)
-                // We can add "phase" or "rounds" if needed in metadata?
-                // For now, simpler is better.
+                stat_memory,
+                stat_focus,
+                stat_planning: null,
+                stat_speed: null,
+                stat_visual: null,
+                stat_emotion: null,
             });
         }
     }
