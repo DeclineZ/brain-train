@@ -254,7 +254,7 @@ const level2: SimpleLevelConfig = {
     { code: 'DL', count: 1 }, // (4,2): Left + Down
     { code: 'H', count: 3 },  // (2,2),(3,2) + endpoint '1<'
     { code: 'UR', count: 1 }, // (1,2): Up + Right
-    { code: 'V', count: 2 },  // endpoint '1v' + (1,1)
+    { code: 'V', count: 3 },  // endpoint '1v' + (1,1)
   ],
   decoyTrayPieces: [{ code: 'H', count: 1 }],
   parTimeMs: 12750,
@@ -298,7 +298,7 @@ const level4: SimpleLevelConfig = {
   // Path: (0,1)->(3,1)->(3,4)
   requiredTrayPieces: [
     { code: 'H', count: 3 },  // (0,1 endpoint) + (1,1) + (2,1)
-    { code: 'RD', count: 1 }, // (3,1): Right + Down
+    { code: 'DL', count: 1 }, // (3,1): Left + Down
     { code: 'V', count: 3 },  // (3,2) + (3,3) + (3,4 endpoint)
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
@@ -347,6 +347,7 @@ const level6: SimpleLevelConfig = {
     { code: 'V', count: 1 },  // (1,1)
     { code: 'RD', count: 1 }, // (1,0): Right + Down
     { code: 'DL', count: 1 }, // (4,0): Down + Left
+    { code: 'UR', count: 1 }, // (4,0): Down + Left
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
   parTimeMs: 17750,

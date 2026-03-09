@@ -70,6 +70,14 @@ interface EvalResult {
   }>;
 }
 
+interface PipePatchStarBreakdown {
+  mindChangeScore: number;
+  accuracyScore: number;
+  precisionScore: number;
+  speedScore: number;
+  starScore: number;
+}
+
 type NetworkTraversalMode = 'gameplay' | 'visual';
 type TraversalNeighborResult =
   | {
@@ -1093,8 +1101,9 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.cleanupAudio();
 
     const current = this.perLevel[this.perLevel.length - 1] ?? this.levelMetrics;
-    const stars = current.solveTimeMs <= current.parTimeMs ? 3 : current.solveTimeMs <= current.hardTimeMs ? 2 : 1;
-    const starHint = stars < 3 ? this.getStarHint(current, stars) : null;
+    const starBreakdown = this.calculateStarBreakdown(current);
+    const stars = this.calculateStarsByBreakdown(starBreakdown);
+    const starHint = this.getStarHint(current, stars, starBreakdown);
     const levelScore = Math.max(
       1,
       Math.round(current.requiredPieceCount * 12 - current.rejectedDropCount * 2 - current.incorrectPlacementCount)
@@ -1124,26 +1133,82 @@ export class PipePatchGameScene extends Phaser.Scene {
     }
   }
 
-  private getStarHint(current: PipePatchPerLevelMetrics, stars: number): string | null {
-    const mistakeCount = current.rejectedDropCount + current.incorrectPlacementCount + current.repeatedErrorCount;
-    const highMistakeThreshold = Math.max(2, Math.ceil(current.requiredPieceCount * 0.8));
+  private clampScore(value: number): number {
+    return Math.max(0, Math.min(100, value));
+  }
 
-    if (mistakeCount >= highMistakeThreshold) {
-      return 'ลดการวางผิดช่องและการปล่อยชิ้นส่วนผิดตำแหน่ง แล้วจะได้ดาวเพิ่มง่ายขึ้น';
+  private calculateStarBreakdown(current: PipePatchPerLevelMetrics): PipePatchStarBreakdown {
+    const totalDragAttempts = Math.max(1, current.totalDragAttempts);
+    const requiredPieceCount = Math.max(1, current.requiredPieceCount);
+
+    // New model uses only direct, explainable gameplay metrics.
+    const mindChangeEvents = current.undoCount + current.resetCount;
+    const mindChangeScore = this.clampScore(
+      100 * (1 - mindChangeEvents / Math.max(1, totalDragAttempts + mindChangeEvents + 4))
+    );
+
+    const incorrectRate = current.incorrectPlacementCount / Math.max(1, requiredPieceCount + current.incorrectPlacementCount);
+    const firstTryRate = current.correctPlacementsOnFirstTryCount / requiredPieceCount;
+    const accuracyScore = this.clampScore(100 * (0.7 * (1 - incorrectRate) + 0.3 * firstTryRate));
+
+    const rejectedRate = current.rejectedDropCount / Math.max(1, totalDragAttempts + current.rejectedDropCount + 6);
+    const precisionScore = this.clampScore(100 * (1 - rejectedRate));
+
+    const timeCore = current.parTimeMs / Math.max(current.parTimeMs, current.solveTimeMs);
+    const latencyCore = 3000 / Math.max(3000, current.firstActionLatencyMs);
+    const speedScore = this.clampScore(100 * (0.7 * timeCore + 0.3 * latencyCore));
+
+    const starScore = this.clampScore(
+      0.3 * mindChangeScore + 0.35 * accuracyScore + 0.15 * precisionScore + 0.2 * speedScore
+    );
+
+    return {
+      mindChangeScore,
+      accuracyScore,
+      precisionScore,
+      speedScore,
+      starScore,
+    };
+  }
+
+  private calculateStarsByBreakdown(breakdown: PipePatchStarBreakdown): 1 | 2 | 3 {
+    let stars: 1 | 2 | 3 = 1;
+    // Slightly harder: raise thresholds while keeping same scoring model.
+    if (breakdown.starScore >= 80) stars = 3;
+    else if (breakdown.starScore >= 60) stars = 2;
+    return stars;
+  }
+
+  private getStarHint(
+    current: PipePatchPerLevelMetrics,
+    stars: number,
+    breakdown: PipePatchStarBreakdown
+  ): string | null {
+    if (stars >= 3) return null;
+
+    const weakest = [
+      { key: 'mindChange', score: breakdown.mindChangeScore },
+      { key: 'accuracy', score: breakdown.accuracyScore },
+      { key: 'precision', score: breakdown.precisionScore },
+      { key: 'speed', score: breakdown.speedScore },
+    ].sort((a, b) => a.score - b.score)[0];
+
+    if (weakest.key === 'mindChange') {
+      return 'ลดการ undo/reset และลดผิดซ้ำ จะช่วยเพิ่มดาวได้เร็วที่สุด';
     }
-
-    if (current.solveTimeMs > current.parTimeMs) {
-      if (stars <= 1 || current.solveTimeMs > current.hardTimeMs) {
-        return 'ลองวางชิ้นส่วนหลักให้ต่อเนื่องเร็วขึ้น เพื่อเก็บเวลาและเพิ่มดาว';
+    if (weakest.key === 'accuracy') {
+      if (current.incorrectPlacementCount > 0) {
+        return 'ลองวางให้ตรงช่องมากขึ้น เพื่อลดจำนวนวางผิดและเพิ่มดาว';
       }
-      return 'อีกนิดเดียว! ถ้าต่อท่อให้เร็วขึ้นอีกหน่อยจะได้ 3 ดาว';
+      return 'ลองเพิ่มความแม่นยำแบบวางถูกตั้งแต่ครั้งแรกให้มากขึ้น จะช่วยดันดาวได้';
     }
-
-    if (current.undoCount + current.resetCount > 0) {
-      return 'วางแผนเส้นทางก่อนลากท่อ จะช่วยลดการย้อนและเพิ่มโอกาสได้ดาวสูง';
+    if (weakest.key === 'precision') {
+      if (current.rejectedDropCount > 0) {
+        return 'ลดจังหวะลาก/ปล่อยที่ไม่ลงช่องให้พอดี จะช่วยเพิ่มดาวได้';
+      }
+      return 'เล่นได้ดีแล้ว ลองคงจังหวะให้นิ่งต่อเนื่องเพื่อดันดาวให้สูงขึ้น';
     }
-
-    return 'ลองเชื่อมเส้นทางให้ลื่นไหลและลดจังหวะลังเล เพื่อทำดาวให้สูงขึ้น';
+    return 'ทำ flow ให้ต่อเนื่องขึ้นอีกนิด โดยเฉพาะช่วงต้นด่าน จะช่วยดันดาวได้';
   }
 
   private evaluateBoardState(): EvalResult {
