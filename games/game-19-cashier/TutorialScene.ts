@@ -72,7 +72,6 @@ export class CashierTutorialScene extends Phaser.Scene {
     private monitorContentGroup!: Phaser.GameObjects.Group;
 
     // ─── Instruction overlay ───
-    private instructionBg!: Phaser.GameObjects.Rectangle;
     private instructionText!: Phaser.GameObjects.Text;
     private instructionContainer!: Phaser.GameObjects.Container;
 
@@ -153,8 +152,8 @@ export class CashierTutorialScene extends Phaser.Scene {
 
         // Environment (same as GameScene)
         this.createEnvironment();
-        this.createNumpad(280, 910);
-        this.createCashDrawer(400, 910);
+        this.createNumpad(280, 895); // Moved down slightly to prevent belt overlap
+        this.createCashDrawer(400, 895);
 
         // Hide both initially
         this.numpadGroup.setVisible(false);
@@ -195,10 +194,11 @@ export class CashierTutorialScene extends Phaser.Scene {
         const monitor = this.add.image(400, monitorY + 10, 'ui-pos-monitor').setDepth(-1);
         monitor.setDisplaySize(790, 440);
 
-        this.posMonitorText = this.add.text(400 - 200, monitorY - 140, '', {
-            fontSize: '28px', color: COLORS.MONITOR_TEXT, fontFamily: 'monospace',
-            padding: { x: 5, y: 5 }, lineSpacing: 5, wordWrap: { width: 400 }
-        }).setOrigin(0, 0).setDepth(1);
+        // Moved posMonitorText downwards to make room for instruction overlay at the top of the monitor
+        this.posMonitorText = this.add.text(400 - 220, monitorY - 30, '', {
+            fontSize: '26px', color: COLORS.MONITOR_TEXT, fontFamily: 'monospace',
+            padding: { x: 5, y: 5 }, lineSpacing: 5, wordWrap: { width: 440 }
+        }).setOrigin(0, 0).setDepth(2);
 
         // Conveyor belt
         const beltY = 560;
@@ -212,36 +212,37 @@ export class CashierTutorialScene extends Phaser.Scene {
     // ════════════════════════════════════════════════════════════
 
     private createInstructionOverlay() {
-        this.instructionContainer = this.add.container(400, 80).setDepth(300);
+        this.instructionContainer = this.add.container(400, 110).setDepth(10);
         this.instructionContainer.setAlpha(0);
 
-        this.instructionBg = this.add.rectangle(0, 0, 760, 110, COLORS.INSTRUCTION_BG, 0.92);
-        this.instructionBg.setStrokeStyle(3, 0x58CC02, 0.8);
-
-        // Round corners via postFX if available; otherwise just looks like a clean bar
         this.instructionText = this.add.text(0, 0, '', thaiStyle({
-            fontSize: '30px',
-            wordWrap: { width: 700 },
+            fontSize: '28px',
+            color: COLORS.MONITOR_TEXT,
+            wordWrap: { width: 540 },
         })).setOrigin(0.5);
 
-        this.instructionContainer.add([this.instructionBg, this.instructionText]);
+        this.instructionContainer.add([this.instructionText]);
     }
 
-    private showInstruction(text: string, large: boolean = false) {
+    private showInstruction(text: string, large: boolean = false, center: boolean = false) {
         this.instructionText.setText(text);
         const fontSize = large ? '34px' : '30px';
         this.instructionText.setStyle(thaiStyle({
-            fontSize, wordWrap: { width: 700 },
+            fontSize, 
+            color: COLORS.MONITOR_TEXT,
+            wordWrap: { width: 540 },
+            fontStyle: 'bold'
         }));
 
-        // Auto size the background
         const bounds = this.instructionText.getBounds();
-        const padX = 40;
-        const padY = 30;
-        this.instructionBg.setSize(
-            Math.min(780, bounds.width + padX),
-            Math.max(80, bounds.height + padY)
-        );
+        
+        if (center) {
+            // Move container down to true monitor center
+            this.instructionContainer.setY(220);
+        } else {
+            // Keep container at the top rim of monitor
+            this.instructionContainer.setY(110);
+        }
 
         this.instructionContainer.setAlpha(0);
         this.tweens.add({
@@ -272,7 +273,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
         const displayBg = this.add.rectangle(sx, sy - 120, 300, 70, COLORS.DISPLAY_BG).setStrokeStyle(3, 0x000);
         this.inputDisplay = this.add.text(sx + 130, sy - 120, '0', {
-            fontSize: '48px', color: '#00ff00', fontFamily: 'monospace',
+            fontSize: '54px', color: '#00ff00', fontFamily: 'monospace',
             padding: { x: 10, y: 10 }
         }).setOrigin(1, 0.5);
         this.numpadGroup.add(displayBg);
@@ -300,7 +301,7 @@ export class CashierTutorialScene extends Phaser.Scene {
                 if (label === 'ENTER') textLabel = 'OK';
 
                 const btnText = this.add.text(bx, by, textLabel, {
-                    fontSize: '40px', color: btnTxtColor, fontStyle: 'bold',
+                    fontSize: '48px', color: btnTxtColor, fontStyle: 'bold',
                     padding: { x: 5, y: 5 }
                 }).setOrigin(0.5);
 
@@ -385,12 +386,12 @@ export class CashierTutorialScene extends Phaser.Scene {
             if (denom.val === 20) visualTint = COLORS.BILL_20_TINT;
         }
 
-        let sizeMult = 1;
+        let sizeMult = 1.0; // Bills scale reduced
         if (denom.type === 'coin') {
-            if (denom.val === 1) sizeMult = 1.0;
-            if (denom.val === 2) sizeMult = 1.15;
-            if (denom.val === 5) sizeMult = 1.35;
-            if (denom.val === 10) sizeMult = 1.5;
+            if (denom.val === 1) sizeMult = 1.4;
+            if (denom.val === 2) sizeMult = 1.6;
+            if (denom.val === 5) sizeMult = 1.85;
+            if (denom.val === 10) sizeMult = 2.0;
         }
 
         // Draw stack
@@ -404,18 +405,19 @@ export class CashierTutorialScene extends Phaser.Scene {
 
         // Value label
         const fontColor = denom.type === 'bill' ? '#ffffff' : '#000000';
-        const fontSize = denom.type === 'bill' ? '32px' : '28px';
+        const fontSize = denom.type === 'bill' ? '42px' : '36px'; // Matched GameScene sizes
         const strokeColor = denom.type === 'bill' ? '#000000' : '#ffffff';
+        const strokeT = denom.type === 'bill' ? 5 : 4;
         const lbl = this.add.text(bx, by, `${denom.val}`, {
             fontSize, color: fontColor, fontStyle: 'bold',
-            stroke: strokeColor, strokeThickness: 3,
+            stroke: strokeColor, strokeThickness: strokeT,
             padding: { x: 3, y: 3 }
         }).setOrigin(0.5);
         this.cashDrawerGroup.add(lbl);
 
         // Hit area
-        const hw = denom.type === 'bill' ? 140 : 100;
-        const hh = denom.type === 'bill' ? 80 : 100;
+        const hw = denom.type === 'bill' ? 160 : 120;
+        const hh = denom.type === 'bill' ? 100 : 120;
         const hitArea = this.add.rectangle(bx, by, hw, hh, 0x000000, 0).setInteractive({ useHandCursor: true });
         this.cashDrawerGroup.add(hitArea);
 
@@ -432,7 +434,7 @@ export class CashierTutorialScene extends Phaser.Scene {
             flyingObj.setTint(visualTint);
             const flyLbl = this.add.text(bx, by, `${denom.val}`, {
                 fontSize, color: fontColor, fontStyle: 'bold',
-                stroke: strokeColor, strokeThickness: 3,
+                stroke: strokeColor, strokeThickness: strokeT,
                 padding: { x: 3, y: 3 }
             }).setOrigin(0.5);
 
@@ -652,12 +654,12 @@ export class CashierTutorialScene extends Phaser.Scene {
     private startWelcome() {
         this.tutorialStep = 0;
 
-        this.posMonitorText.setText('POS SYSTEM\n>> TUTORIAL MODE <<');
+        this.posMonitorText.setText('');
 
-        this.showInstruction('ยินดีต้อนรับสู่ร้านค้า!\nคุณจะเป็นพนักงานแคชเชียร์', true);
+        this.showInstruction('ยินดีต้อนรับสู่ร้านค้า!\nคุณจะเป็นพนักงานแคชเชียร์', true, true);
 
         this.time.delayedCall(3000, () => {
-            this.showInstruction('งานของคุณมี 3 ขั้นตอน\nมาเรียนรู้ทีละขั้นกันนะคะ', true);
+            this.showInstruction('งานของคุณมี 3 ขั้นตอน\nมาเรียนรู้ทีละขั้นกันนะคะ', true, true);
             this.showNextButton('เริ่มเรียนรู้', () => {
                 this.startPhase1Intro();
             });
@@ -684,14 +686,14 @@ export class CashierTutorialScene extends Phaser.Scene {
             this.phase1Total += item.price;
 
             const py = 560;
-            const itemImg = this.add.image(beltX, py, item.key).setOrigin(0.5).setScale(1.8).setDepth(2);
+            const itemImg = this.add.image(beltX, py, item.key).setOrigin(0.5).setScale(2.2).setDepth(2);
             itemImg.setInteractive({
                 useHandCursor: true,
-                hitArea: new Phaser.Geom.Rectangle(40, -10, itemImg.width, itemImg.height + 20),
+                hitArea: new Phaser.Geom.Rectangle(0, 0, itemImg.width, itemImg.height),
                 hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             });
 
-            const shadow = this.add.image(beltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.8).setDepth(1);
+            const shadow = this.add.image(beltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(2.2).setDepth(1);
             this.beltItemsGroup.add(shadow);
             this.beltItemsGroup.add(itemImg);
 
@@ -702,15 +704,15 @@ export class CashierTutorialScene extends Phaser.Scene {
                 this.sound.play('sfx-pop', { volume: 0.5 });
                 // Tap effect
                 itemImg.setY(itemImg.y - 10);
-                itemImg.setScale(1.7);
+                itemImg.setScale(2.0);
                 this.time.delayedCall(100, () => {
                     itemImg.setY(itemImg.y + 10);
-                    itemImg.setScale(1.5);
+                    itemImg.setScale(2.2);
                 });
 
                 // Show price on monitor
                 this.monitorContentGroup.clear(true, true);
-                this.drawMonitorItem(400, 240, capturedItemKey, 1, price);
+                this.drawMonitorItem(400, 220, capturedItemKey, 1, price);
 
                 this.itemsTapped++;
                 if (this.itemsTapped >= items.length) {
@@ -723,9 +725,6 @@ export class CashierTutorialScene extends Phaser.Scene {
 
             beltX += 200;
         }
-
-        // Show monitor prompt
-        this.posMonitorText.setText('>> รวมยอดเงิน <<\nสินค้าบนสายพาน');
 
         // Show arrow on first item
         this.time.delayedCall(1500, () => {
@@ -746,10 +745,9 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.numpadGroup.setVisible(true);
 
         this.showInstruction(
-            `ราคารวมทั้งหมดคือ ฿${this.phase1Total}\nพิมพ์ตัวเลขแล้วกด OK`
+            `ราคารวมทั้งหมดคือ ฿${this.phase1Total}\nพิมพ์ตัวเลขแล้วกด OK`,
+            false, false
         );
-
-        this.posMonitorText.setText(`>> รวมยอดเงิน <<`);
 
         // Point arrow at numpad
         this.showArrow(280, 730);
@@ -775,7 +773,8 @@ export class CashierTutorialScene extends Phaser.Scene {
             this.showFeedback('ลองใหม่นะคะ!', false);
             this.cameras.main.shake(200, 0.01);
             this.showInstruction(
-                `คำตอบยังไม่ถูก\nราคารวมคือ ฿${this.phase1Total}\nลองพิมพ์ใหม่อีกครั้ง`
+                `คำตอบยังไม่ถูก\nราคารวมคือ ฿${this.phase1Total}\nลองพิมพ์ใหม่อีกครั้ง`,
+                false, false
             );
             this.displayedInput = '';
             this.updateDisplay();
@@ -793,7 +792,7 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.phase2Target = this.phase1Total - couponValue;
 
         this.showInstruction(
-            'ขั้นที่ 2: คำนวณยอดสุทธิ\nลูกค้ามีคูปองส่วนลด!', true
+            'ขั้นที่ 2: คำนวณยอดสุทธิ\nลูกค้ามีคูปองส่วนลด!', true, true
         );
 
         // Draw coupon on belt
@@ -811,21 +810,14 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.beltItemsGroup.add(couponBg);
         this.beltItemsGroup.add(couponTxt);
 
-        // Update monitor
-        let monitorText = '>> กรอกยอดสุทธิใหม่ <<\n\n';
-        monitorText += `ยอดรวมเดิม     : ฿${this.phase1Total}\n`;
-        monitorText += `คูปอง          : -฿${couponValue}\n`;
-        monitorText += `────────────────\n`;
-        monitorText += `ยอดสุทธิที่ต้องกรอก = ?\n`;
-        this.posMonitorText.setText(monitorText);
-
         this.displayedInput = '';
         this.updateDisplay();
         this.isWaitingInput = true;
 
         this.time.delayedCall(2500, () => {
             this.showInstruction(
-                `ยอดเดิม ฿${this.phase1Total} ลบคูปอง ฿${couponValue}\nเท่ากับ ฿${this.phase2Target}\nพิมพ์ตัวเลขแล้วกด OK`
+                `ยอดเดิม ฿${this.phase1Total} ลบคูปอง ฿${couponValue}\nเท่ากับ ฿${this.phase2Target}\nพิมพ์ตัวเลขแล้วกด OK`,
+                true, true
             );
             this.showArrow(280, 730);
         });
@@ -852,7 +844,8 @@ export class CashierTutorialScene extends Phaser.Scene {
             this.showFeedback('ลองใหม่นะคะ!', false);
             this.cameras.main.shake(200, 0.01);
             this.showInstruction(
-                `คำตอบยังไม่ถูก\n฿${this.phase1Total} - ฿${this.phase1Total - this.phase2Target} = ฿${this.phase2Target}\nลองพิมพ์ใหม่อีกครั้ง`
+                `คำตอบยังไม่ถูก\n฿${this.phase1Total} - ฿${this.phase1Total - this.phase2Target} = ฿${this.phase2Target}\nลองพิมพ์ใหม่อีกครั้ง`,
+                true, true
             );
             this.displayedInput = '';
             this.updateDisplay();
@@ -870,7 +863,7 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.changeGiven = 0;
 
         this.showInstruction(
-            'ขั้นที่ 3: ทอนเงินลูกค้า\nลูกค้าจ่ายธนบัตรมา', true
+            'ขั้นที่ 3: ทอนเงินลูกค้า\nลูกค้าจ่ายธนบัตรมา', true, true
         );
 
         // Draw customer hand with bill
@@ -890,11 +883,10 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.beltItemsGroup.add(paidImg);
         this.beltItemsGroup.add(paidTxt);
 
-        this.updatePhase3Monitor();
-
         this.time.delayedCall(2500, () => {
             this.showInstruction(
-                `ลูกค้าจ่าย ฿${customerPays}\nต้องทอน ฿${this.changeTarget}\nเลือกเหรียญ/ธนบัตรจากลิ้นชัก`
+                `ลูกค้าจ่าย ฿${customerPays}\nต้องทอน ฿${this.changeTarget}\nเลือกเหรียญ/ธนบัตรจากลิ้นชัก`,
+                true, true
             );
             this.cashDrawerGroup.setVisible(true);
             this.isWaitingInput = true;
@@ -924,13 +916,8 @@ export class CashierTutorialScene extends Phaser.Scene {
     }
 
     private updatePhase3Monitor() {
-        const customerPays = 50;
-        let text = '>> ทอนเงินลูกค้า <<\n\n';
-        text += `ยอดสุทธิ    : ฿${this.phase2Target}\n`;
-        text += `รับเงินมา    : ฿${customerPays}\n`;
-        text += `ต้องทอนเงิน  : ฿${this.changeTarget}\n\n`;
-        text += `[ทอนแล้ว: ฿${this.changeGiven}]`;
-        this.posMonitorText.setText(text);
+        // Removed monitor text per request
+        this.posMonitorText.setText('');
     }
 
     private checkChangeSubmit() {
@@ -947,7 +934,8 @@ export class CashierTutorialScene extends Phaser.Scene {
             this.sound.play('sfx-error', { volume: 0.5 });
             this.showFeedback(`ยังไม่ครบ! ต้องทอน ฿${this.changeTarget}`, false);
             this.showInstruction(
-                `ยังทอนไม่ครบนะคะ\nต้องทอนทั้งหมด ฿${this.changeTarget}\nทอนแล้ว ฿${this.changeGiven}\nเลือกเพิ่มอีก ฿${this.changeTarget - this.changeGiven}`
+                `ยังทอนไม่ครบนะคะ\nต้องทอนทั้งหมด ฿${this.changeTarget}\nทอนแล้ว ฿${this.changeGiven}\nเลือกเพิ่มอีก ฿${this.changeTarget - this.changeGiven}`,
+                true, true
             );
         } else {
             // Over — handled in pointerdown already, but just in case
@@ -970,9 +958,9 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.beltItemsGroup.clear(true, true);
         this.monitorContentGroup.clear(true, true);
 
-        this.posMonitorText.setText('>> TUTORIAL COMPLETE <<\n\nเยี่ยมมาก!');
+        this.posMonitorText.setText('');
 
-        this.showInstruction('คุณพร้อมเป็นแคชเชียร์แล้ว!\nมาเริ่มเล่นจริงกันเลย!', true);
+        this.showInstruction('คุณพร้อมเป็นแคชเชียร์แล้ว!\nมาเริ่มเล่นจริงกันเลย!', true, true);
 
         this.time.delayedCall(2500, () => {
             this.sound.play('sfx-pass', { volume: 0.7 });
