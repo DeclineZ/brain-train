@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { UserPlus, Inbox, Trophy, ChevronDown, ChevronUp, Star, Users } from "lucide-react";
+import { useState } from "react";
+import { UserPlus, Inbox, Trophy, Star, Users, Crown, Gamepad2 } from "lucide-react";
 import AddFriendModal from "./AddFriendModal";
 import FriendRequestsModal from "./FriendRequestsModal";
+import GameRankingModal from "./GameRankingModal";
 import LeaderboardCard from "./LeaderboardCard";
-import type { FriendProfile, LeaderboardEntry, GameLeaderboardEntry } from "@/lib/server/friendActions";
+import type { FriendProfile, LeaderboardEntry, Top1GameInfo } from "@/lib/server/friendActions";
 import type { Game } from "@/types/game";
 
 interface FriendsPageClientProps {
@@ -15,6 +16,7 @@ interface FriendsPageClientProps {
     pendingCount: number;
     initialLeaderboard: LeaderboardEntry[];
     games: Game[];
+    top1Games: Top1GameInfo[];
 }
 
 export default function FriendsPageClient({
@@ -24,45 +26,16 @@ export default function FriendsPageClient({
     pendingCount: initialPendingCount,
     initialLeaderboard,
     games,
+    top1Games,
 }: FriendsPageClientProps) {
     const [friends, setFriends] = useState(initialFriends);
     const [pendingCount, setPendingCount] = useState(initialPendingCount);
     const [overallLeaderboard, setOverallLeaderboard] = useState(initialLeaderboard);
-    const [gameLeaderboards, setGameLeaderboards] = useState<Record<string, GameLeaderboardEntry[]>>({});
-    const [expandedGames, setExpandedGames] = useState<Set<string>>(new Set());
     const [showAddFriendModal, setShowAddFriendModal] = useState(false);
     const [showRequestsModal, setShowRequestsModal] = useState(false);
-    const [loadingGameId, setLoadingGameId] = useState<string | null>(null);
+    const [showGameRankingModal, setShowGameRankingModal] = useState(false);
 
     const hasFriends = friends.length > 0;
-
-    // Fetch game leaderboard data
-    const fetchGameLeaderboard = async (gameId: string) => {
-        if (gameLeaderboards[gameId]) return; // Already fetched
-        setLoadingGameId(gameId);
-        try {
-            const res = await fetch(`/api/friends/leaderboard?gameId=${gameId}`);
-            const json = await res.json();
-            if (json.ok) {
-                setGameLeaderboards(prev => ({ ...prev, [gameId]: json.data }));
-            }
-        } catch (err) {
-            console.error('Failed to fetch game leaderboard:', err);
-        }
-        setLoadingGameId(null);
-    };
-
-    // Toggle expanded state for a game
-    const toggleGameExpand = (gameId: string) => {
-        const newExpanded = new Set(expandedGames);
-        if (newExpanded.has(gameId)) {
-            newExpanded.delete(gameId);
-        } else {
-            newExpanded.add(gameId);
-            fetchGameLeaderboard(gameId);
-        }
-        setExpandedGames(newExpanded);
-    };
 
     // Refresh data after friend actions
     const refreshData = async () => {
@@ -81,15 +54,18 @@ export default function FriendsPageClient({
             if (leaderboardJson.ok) {
                 setOverallLeaderboard(leaderboardJson.data || []);
             }
-            // Clear game leaderboard cache to force refresh
-            setGameLeaderboards({});
         } catch (err) {
             console.error('Failed to refresh data:', err);
         }
     };
 
-    // Filter games that have been played by anyone (have stars in leaderboard)
-    const playedGames = games.filter(g => g.currentLevel > 0);
+    // Match top1 game IDs to game data
+    const top1GameDetails = top1Games
+        .map(t1 => {
+            const game = games.find(g => g.gameId === t1.game_id);
+            return game ? { ...t1, game } : null;
+        })
+        .filter(Boolean) as (Top1GameInfo & { game: Game })[];
 
     return (
         <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6 pb-28">
@@ -144,7 +120,7 @@ export default function FriendsPageClient({
                 </div>
             )}
 
-            {/* ── Leaderboard ── */}
+            {/* ── Leaderboard Content ── */}
             {hasFriends && (
                 <div className="space-y-6">
                     {/* Overall Leaderboard */}
@@ -156,7 +132,7 @@ export default function FriendsPageClient({
                             </h2>
                         </div>
                         <div className="p-3 space-y-2">
-                            {overallLeaderboard.map((entry, idx) => (
+                            {overallLeaderboard.map((entry) => (
                                 <LeaderboardCard
                                     key={entry.user_id}
                                     rank={entry.rank}
@@ -171,100 +147,72 @@ export default function FriendsPageClient({
                         </div>
                     </div>
 
-                    {/* Per-Game Leaderboards */}
-                    {playedGames.map((game) => {
-                        const isExpanded = expandedGames.has(game.gameId);
-                        const gameData = gameLeaderboards[game.gameId];
-                        const isLoading = loadingGameId === game.gameId;
-                        const top3 = gameData?.slice(0, 3) || [];
-
-                        return (
-                            <div
-                                key={game.gameId}
-                                className="rounded-2xl border-2 border-brown-border overflow-hidden shadow-sm relative"
-                            >
-                                {/* Faded game image background */}
-                                {game.image && (
+                    {/* ── Top 1 Games Section ── */}
+                    {top1GameDetails.length > 0 && (
+                        <div className="bg-tan-light rounded-2xl border-2 border-brown-border overflow-hidden shadow-sm">
+                            <div className="px-4 py-3 bg-gradient-to-r from-orange-action to-orange-dark flex items-center gap-2">
+                                <Crown className="w-5 h-5 text-white drop-shadow" />
+                                <h2 className="text-white font-bold text-lg drop-shadow">
+                                    เกมที่คุณเป็นอันดับ 1
+                                </h2>
+                            </div>
+                            <div className="p-3 space-y-2">
+                                {top1GameDetails.map(({ game_id, game, user_value, metric }) => (
                                     <div
-                                        className="absolute inset-0 z-0 opacity-[0.08] bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${game.image})` }}
-                                    />
-                                )}
-
-                                {/* Game Header - Clickable */}
-                                <button
-                                    onClick={() => toggleGameExpand(game.gameId)}
-                                    className="w-full relative z-10 px-4 py-3 flex items-center justify-between bg-cream/80 backdrop-blur-sm hover:bg-cream/90 transition-colors border-b border-brown-border"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        {game.image && (
+                                        key={game_id}
+                                        className="flex items-center gap-3 bg-gradient-to-r from-yellow-highlight/10 to-orange-action/5 rounded-xl px-3 py-3 border border-yellow-highlight/30"
+                                    >
+                                        {/* Game Image */}
+                                        {game.image ? (
                                             <img
                                                 src={game.image}
                                                 alt={game.title}
-                                                className="w-10 h-10 rounded-lg object-cover shadow-sm border border-brown-border"
+                                                className="w-11 h-11 rounded-xl object-cover shadow-sm border border-brown-border"
                                             />
-                                        )}
-                                        <h3 className="font-bold text-brown-darkest text-sm">
-                                            {game.title}
-                                        </h3>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-brown-medium">
-                                        <span className="text-xs font-medium">
-                                            {isExpanded ? 'ย่อ' : 'ดูเพิ่มเติม'}
-                                        </span>
-                                        {isExpanded ? (
-                                            <ChevronUp className="w-4 h-4" />
                                         ) : (
-                                            <ChevronDown className="w-4 h-4" />
+                                            <div className="w-11 h-11 rounded-xl bg-cream border border-brown-border flex items-center justify-center">
+                                                <Gamepad2 className="w-5 h-5 text-brown-medium" />
+                                            </div>
                                         )}
-                                    </div>
-                                </button>
 
-                                {/* Expanded Content */}
-                                {isExpanded && (
-                                    <div className="relative z-10 p-3 bg-cream/60 backdrop-blur-sm">
-                                        {isLoading ? (
-                                            <div className="flex items-center justify-center py-6">
-                                                <div className="w-6 h-6 border-2 border-orange-action border-t-transparent rounded-full animate-spin" />
+                                        {/* Game Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-brown-darkest text-sm truncate">
+                                                {game.title}
+                                            </p>
+                                            <div className="flex items-center gap-1 mt-0.5">
+                                                <Crown className="w-3 h-3 text-yellow-highlight" />
+                                                <span className="text-xs font-bold text-yellow-highlight">
+                                                    อันดับ 1
+                                                </span>
                                             </div>
-                                        ) : gameData ? (
-                                            <div className="space-y-2">
-                                                {(expandedGames.has(game.gameId + '_full') ? gameData : top3).map((entry) => (
-                                                    <LeaderboardCard
-                                                        key={entry.user_id}
-                                                        rank={entry.rank}
-                                                        avatarUrl={entry.avatar_url}
-                                                        displayName={entry.display_name}
-                                                        value={entry.game_stars}
-                                                        valueLabel="ดาว"
-                                                        secondaryValue={entry.high_score}
-                                                        secondaryLabel="คะแนน"
-                                                        isSelf={entry.is_self}
-                                                        isTopThree={entry.rank <= 3}
-                                                    />
-                                                ))}
-                                                {gameData.length > 3 && !expandedGames.has(game.gameId + '_full') && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setExpandedGames(prev => {
-                                                                const newSet = new Set(prev);
-                                                                newSet.add(game.gameId + '_full');
-                                                                return newSet;
-                                                            });
-                                                        }}
-                                                        className="w-full text-center py-2 text-sm font-bold text-orange-action hover:text-orange-hover transition-colors"
-                                                    >
-                                                        ดูเพิ่มเติม ({gameData.length - 3} คนเพิ่มเติม)
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ) : null}
+                                        </div>
+
+                                        {/* Value */}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {metric === 'stars' ? (
+                                                <Star className="w-4 h-4 text-yellow-highlight fill-yellow-highlight" />
+                                            ) : (
+                                                <Trophy className="w-4 h-4 text-blue" />
+                                            )}
+                                            <span className="text-sm font-bold text-brown-darkest">
+                                                {user_value.toLocaleString()}
+                                            </span>
+                                        </div>
                                     </div>
-                                )}
+                                ))}
                             </div>
-                        );
-                    })}
+                        </div>
+                    )}
+
+                    {/* ── Browse Game Rankings Button ── */}
+                    <button
+                        onClick={() => setShowGameRankingModal(true)}
+                        className="w-full flex items-center justify-center gap-3 bg-cream rounded-2xl border-2 border-brown-border px-4 py-4 hover:bg-tan-light active:scale-[0.98] transition-all duration-200 shadow-sm"
+                    >
+                        <Gamepad2 className="w-6 h-6 text-orange-action" />
+                        <span className="font-bold text-brown-darkest">ดูอันดับแต่ละเกม</span>
+                    </button>
                 </div>
             )}
 
@@ -280,12 +228,16 @@ export default function FriendsPageClient({
             {showRequestsModal && (
                 <FriendRequestsModal
                     onClose={() => setShowRequestsModal(false)}
-                    onRequestHandled={() => {
-                        refreshData();
-                    }}
+                    onRequestHandled={refreshData}
+                />
+            )}
+
+            {showGameRankingModal && (
+                <GameRankingModal
+                    games={games}
+                    onClose={() => setShowGameRankingModal(false)}
                 />
             )}
         </div>
     );
 }
-

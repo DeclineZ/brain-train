@@ -201,17 +201,16 @@ export async function getPendingRequests(userId: string): Promise<Result<FriendR
     const fromUserIds = data.map(r => r.from_user_id);
     const { data: profiles } = await supabase
         .from('user_profiles')
-        .select('user_id, avatar_url')
+        .select('user_id, avatar_url, full_name')
         .in('user_id', fromUserIds);
 
-    // Fetch display names from auth (use email prefix as fallback)
     const requests: FriendRequest[] = data.map(req => {
         const profile = profiles?.find(p => p.user_id === req.from_user_id);
         return {
             id: req.id,
             from_user_id: req.from_user_id,
             from_avatar_url: profile?.avatar_url || null,
-            from_display_name: profile?.avatar_url?.replace('avatar-', '').replace(/-/g, ' ') || 'ผู้ใช้',
+            from_display_name: profile?.full_name || 'ผู้ใช้',
             created_at: req.created_at
         };
     });
@@ -318,14 +317,14 @@ export async function getFriendsList(userId: string): Promise<Result<FriendProfi
     // Fetch profiles
     const { data: profiles } = await supabase
         .from('user_profiles')
-        .select('user_id, avatar_url, friend_code')
+        .select('user_id, avatar_url, friend_code, full_name')
         .in('user_id', friendIds);
 
     const friends: FriendProfile[] = (profiles || []).map(p => ({
         user_id: p.user_id,
         avatar_url: p.avatar_url,
         friend_code: p.friend_code,
-        display_name: p.avatar_url?.replace('avatar-', '').replace(/-/g, ' ') || 'ผู้ใช้'
+        display_name: p.full_name || 'ผู้ใช้'
     }));
 
     return { ok: true, data: friends };
@@ -366,7 +365,7 @@ export async function getOverallLeaderboard(userId: string): Promise<Result<Lead
     // Get profiles
     const { data: profiles } = await supabase
         .from('user_profiles')
-        .select('user_id, avatar_url, friend_code')
+        .select('user_id, avatar_url, friend_code, full_name')
         .in('user_id', allUserIds);
 
     // Build leaderboard
@@ -375,7 +374,7 @@ export async function getOverallLeaderboard(userId: string): Promise<Result<Lead
         return {
             user_id: uid,
             avatar_url: profile?.avatar_url || null,
-            display_name: profile?.avatar_url?.replace('avatar-', '').replace(/-/g, ' ') || 'ผู้ใช้',
+            display_name: profile?.full_name || 'ผู้ใช้',
             total_stars: starsByUser[uid] || 0,
             is_self: uid === userId,
             rank: 0
@@ -441,7 +440,7 @@ export async function getGameLeaderboard(userId: string, gameId: string): Promis
     // Get profiles
     const { data: profiles } = await supabase
         .from('user_profiles')
-        .select('user_id, avatar_url')
+        .select('user_id, avatar_url, full_name')
         .in('user_id', allUserIds);
 
     // Build leaderboard
@@ -450,7 +449,7 @@ export async function getGameLeaderboard(userId: string, gameId: string): Promis
         return {
             user_id: uid,
             avatar_url: profile?.avatar_url || null,
-            display_name: profile?.avatar_url?.replace('avatar-', '').replace(/-/g, ' ') || 'ผู้ใช้',
+            display_name: profile?.full_name || 'ผู้ใช้',
             total_stars: starsByUser[uid] || 0,
             game_stars: starsByUser[uid] || 0,
             high_score: highScores[uid] || 0,
@@ -489,4 +488,92 @@ export async function getPendingRequestCount(userId: string): Promise<number> {
     }
 
     return count || 0;
+}
+
+// ─── Get games where user is #1 among friends ───────────────
+
+export interface Top1GameInfo {
+    game_id: string;
+    user_value: number; // stars or score
+    metric: 'stars' | 'score';
+}
+
+export async function getTop1Games(
+    userId: string,
+    gameIds: string[],
+    haveLevelMap: Record<string, boolean>
+): Promise<Result<Top1GameInfo[]>> {
+    const supabase = await createClient();
+
+    // Get friends
+    const friendsResult = await getFriendsList(userId);
+    if (!friendsResult.ok) return { ok: false, error: friendsResult.error };
+
+    if (friendsResult.data.length === 0) {
+        return { ok: true, data: [] };
+    }
+
+    const allUserIds = [userId, ...friendsResult.data.map(f => f.user_id)];
+
+    // Batch fetch stars for ALL games at once
+    const { data: allStars } = await supabase
+        .from('user_game_stars')
+        .select('user_id, game_id, star')
+        .in('user_id', allUserIds)
+        .in('game_id', gameIds);
+
+    // Batch fetch high scores for endless games
+    const endlessGameIds = gameIds.filter(id => !haveLevelMap[id]);
+    let allSessions: { user_id: string; game_id: string; score: number }[] = [];
+    if (endlessGameIds.length > 0) {
+        const { data: sessions } = await supabase
+            .from('game_sessions')
+            .select('user_id, game_id, score')
+            .in('user_id', allUserIds)
+            .in('game_id', endlessGameIds);
+        allSessions = sessions || [];
+    }
+
+    const top1Games: Top1GameInfo[] = [];
+
+    for (const gameId of gameIds) {
+        const isLevelGame = haveLevelMap[gameId];
+
+        if (isLevelGame) {
+            // Sum stars per user for this game
+            const gameStars = (allStars || []).filter(s => s.game_id === gameId);
+            const starsByUser: Record<string, number> = {};
+            allUserIds.forEach(id => { starsByUser[id] = 0; });
+            gameStars.forEach(s => {
+                starsByUser[s.user_id] = (starsByUser[s.user_id] || 0) + (s.star || 0);
+            });
+
+            // Check if user is #1
+            const userStars = starsByUser[userId] || 0;
+            if (userStars <= 0) continue;
+
+            const isTop1 = allUserIds.every(uid => uid === userId || (starsByUser[uid] || 0) <= userStars);
+            if (isTop1) {
+                top1Games.push({ game_id: gameId, user_value: userStars, metric: 'stars' });
+            }
+        } else {
+            // Max score per user for this game
+            const gameSessions = allSessions.filter(s => s.game_id === gameId);
+            const scoresByUser: Record<string, number> = {};
+            allUserIds.forEach(id => { scoresByUser[id] = 0; });
+            gameSessions.forEach(s => {
+                scoresByUser[s.user_id] = Math.max(scoresByUser[s.user_id] || 0, s.score || 0);
+            });
+
+            const userScore = scoresByUser[userId] || 0;
+            if (userScore <= 0) continue;
+
+            const isTop1 = allUserIds.every(uid => uid === userId || (scoresByUser[uid] || 0) <= userScore);
+            if (isTop1) {
+                top1Games.push({ game_id: gameId, user_value: userScore, metric: 'score' });
+            }
+        }
+    }
+
+    return { ok: true, data: top1Games };
 }

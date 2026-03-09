@@ -86,6 +86,9 @@ export const useGameSession = () => {
     }
     // Add 'else if' for other games here later...
 
+    if (process.env.NODE_ENV === "development") {
+        console.log("[submitGameSession] clinicalStats:", clinicalStats);
+    }
     // 2. Submit to Server Action
     // This handles: Auth check, Replay check (Learning Rate), Profile Update, Session Save
     const result = await submitGameSession(gameId, rawData, clinicalStats);
