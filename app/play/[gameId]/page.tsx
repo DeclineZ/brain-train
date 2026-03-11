@@ -84,6 +84,7 @@ export default function GamePage({ params }: PageProps) {
                                 : gameId === 'game-19-cashier' ? 30
                                     : gameId === 'game-20-boxcounting' ? 30
                                         : gameId === 'game-21-parking-jam' ? 24
+                                        : gameId === 'game-11-pipe-patch' ? 30
                                         : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
 
     const safeParamLevel =

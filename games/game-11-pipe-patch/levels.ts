@@ -543,7 +543,7 @@ const level14: SimpleLevelConfig = {
     { code: 'DL', count: 2 },
     { code: 'UR', count: 2 },
     { code: 'LU', count: 2 },
-    { code: 'RD', count: 1 },
+    { code: 'RD', count: 2 },
   ],
   decoyTrayPieces: [{ code: 'V', count: 1 }],
   parTimeMs: 25750,
