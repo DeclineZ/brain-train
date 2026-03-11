@@ -92,11 +92,14 @@ const getCells = (car: ParkingJamCarConfig, row: number, col: number): Array<{ r
 };
 
 const buildOccupied = (
-  level: Pick<ParkingJamRawLevelConfig, 'cars'>,
+  level: Pick<ParkingJamRawLevelConfig, 'cars' | 'blockedCells'>,
   vector: VectorState,
   skipIndex: number
 ): Set<string> => {
   const occupied = new Set<string>();
+  (level.blockedCells ?? []).forEach((cell) => {
+    occupied.add(`${cell.row},${cell.col}`);
+  });
   level.cars.forEach((car, index) => {
     if (index === skipIndex || isRemoved(vector, index)) return;
     const row = getRow(vector, index);
@@ -432,6 +435,7 @@ export const annotateParkingJamLevels = (
     if (rawLevel.level <= 0) {
       byId[rawLevel.level] = {
         ...rawLevel,
+        blockedCells: rawLevel.blockedCells ?? [],
         parMoves: 2,
         parTimeMs: 6000,
         relevantCarSet: rawLevel.cars.map((car) => car.id),
@@ -442,6 +446,7 @@ export const annotateParkingJamLevels = (
     const solved = solveParkingJamLevel(rawLevel, options);
     byId[rawLevel.level] = {
       ...rawLevel,
+      blockedCells: rawLevel.blockedCells ?? [],
       parMoves: solved.parMoves,
       parTimeMs: solved.parTimeMs,
       relevantCarSet: solved.relevantCarSet.length > 0 ? solved.relevantCarSet : rawLevel.cars.map((car) => car.id),

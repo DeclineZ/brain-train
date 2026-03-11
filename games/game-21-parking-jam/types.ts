@@ -13,6 +13,11 @@ export interface ParkingJamGateSegment {
   index: number;
 }
 
+export interface ParkingJamBlockedCell {
+  row: number;
+  col: number;
+}
+
 export interface ParkingJamCarConfig {
   id: string;
   axis: ParkingJamAxis;
@@ -31,6 +36,7 @@ export interface ParkingJamLevelConfig {
   objectiveType: ParkingJamObjectiveType;
   targetCarId?: string;
   blockedGateSegments: ParkingJamGateSegment[];
+  blockedCells: ParkingJamBlockedCell[];
   gatingProfile: ParkingJamGatingProfile;
   oneWayRatio: number;
   dependencyDepth: number;
@@ -127,6 +133,7 @@ export interface ParkingJamRawLevelConfig {
   objectiveType: ParkingJamObjectiveType;
   targetCarId?: string;
   blockedGateSegments: ParkingJamGateSegment[];
+  blockedCells?: ParkingJamBlockedCell[];
   gatingProfile: ParkingJamGatingProfile;
   oneWayRatio: number;
   dependencyDepth: number;
