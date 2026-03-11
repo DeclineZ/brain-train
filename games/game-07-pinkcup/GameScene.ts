@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { PINKCUP_LEVELS, getPinkCupLevel } from './levels';
 import { upsertLevelStars } from '@/lib/stars';
 import { createSeededRandom, shuffleWithSeed, SeededRandom } from '@/lib/seededRandom';
+import { calculatePinkCupLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import type { 
   PinkCupLevelConfig, 
   CupData, 
@@ -1388,6 +1389,15 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     // Calculate stars
     const stars = this.calculateStars(success);
+    const score = calculatePinkCupLevelScore(
+      {
+        telemetry: this.telemetry,
+        success,
+        level: this.currentLevelConfig.level,
+        difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
+      },
+      this.currentLevelConfig.parTimeSeconds * 1000
+    );
     const starHint = this.generateStarHint(stars);
 
     // Save stars to database
@@ -1398,6 +1408,7 @@ export class PinkCupGameScene extends Phaser.Scene {
       onGameOver({
         telemetry: this.telemetry,
         success,
+        score,
         level: this.currentLevelConfig.level,
         difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
         stars,
