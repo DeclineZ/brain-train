@@ -394,8 +394,8 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private createUI() {
         const { width, height } = this.scale;
-        const buttonSize = Math.min(80, width * 0.2);
-        const spacing = Math.min(30, width * 0.05);
+        const buttonSize = Math.min(130, width * 0.28);
+        const spacing = Math.min(20, width * 0.035);
         const panelY = height - (buttonSize + 40) - (height * 0.05);
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
@@ -532,7 +532,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
         // Position panel between grid bottom and button panel
         const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
-        const buttonSize = Math.min(80, width * 0.2);
+        const buttonSize = Math.min(130, width * 0.28);
         const buttonPanelY = height - (buttonSize + 40) - (height * 0.05);
         const gapCenter = (gridBottom + buttonPanelY) / 2;
 
@@ -1032,8 +1032,8 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         // Reset button positions if swapped
         // Assuming default positions based on createUI
         const { width } = this.scale;
-        const buttonSize = Math.min(80, width * 0.2);
-        const spacing = Math.min(30, width * 0.05);
+        const buttonSize = Math.min(130, width * 0.28);
+        const spacing = Math.min(20, width * 0.035);
         // We need to re-calculate Y or store it. Let's just swap X values back if we tracked them.
         // Easier: destroy and re-create UI or just swap X coordinates back based on `controlsSwapped` state?
         // Actually, just swapping the X positions of left/right buttons is enough.
@@ -1322,8 +1322,9 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                     this.startPhase3();
                 });
                 return;
-            } else if (this.currentPhase === 5) {
-                // Practice: retry from beginning
+            }
+            // Phase 5 or 6: retry
+            if (this.currentPhase === 5) {
                 this.isMoving = false;
                 this.targetPosition = null;
                 this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
@@ -1333,7 +1334,6 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
                 });
                 return;
             } else if (this.currentPhase === 6) {
-                // Practice: retry from beginning
                 this.isMoving = false;
                 this.targetPosition = null;
                 this.showInstruction('พลาด! ลองใหม่อีกครั้ง');
