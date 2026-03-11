@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { calculateParkingJamStats } from '@/lib/scoring/parking-jam';
+import { calculateParkingJamLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { getParkingJamLevel } from './levels';
 import { canParkingJamCarExit } from './solver';
 import {
@@ -1424,7 +1425,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     const clinicalStats = calculateParkingJamStats(sessionStats);
 
     const stars = this.calculateStars(result, levelAttempt);
-    const score = this.calculateScore(result, levelAttempt, stars);
+    const score = this.calculateScore(result, levelAttempt);
     const starHint = this.getStarHint(result, levelAttempt, stars);
 
     const payload: ParkingJamOnGameOverPayload = {
@@ -1474,27 +1475,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
   private calculateScore(
     result: { solved: boolean; failedTimeout: boolean; skipped: boolean },
-    attempt: ParkingJamLevelAttemptStats,
-    stars: 0 | 1 | 2 | 3
+    attempt: ParkingJamLevelAttemptStats
   ) {
-    if (result.failedTimeout || result.skipped) {
-      return Math.max(30, 120 - this.invalidMoveCount * 8 - this.blockedExitAttemptCount * 10);
-    }
-
-    if (!result.solved) return 0;
-
-    const moveFactor = this.level.parMoves / Math.max(1, attempt.moveCount);
-    const timeFactor = this.level.parTimeMs / Math.max(1, attempt.levelTimeMs);
-    const base = 240 + stars * 130;
-    const score = Math.round(
-      base +
-      moveFactor * 260 +
-      timeFactor * 220 -
-      this.undoCount * 22 -
-      this.invalidMoveCount * 10 -
-      this.collisionCount * 12
-    );
-    return Math.max(1, score);
+    return calculateParkingJamLevelScore({
+      attempt,
+      solved: result.solved && !result.failedTimeout && !result.skipped,
+    });
   }
 
   private getStarHint(

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { MINER_LEVELS } from './levels';
 import { calculateMinerStars } from '@/lib/scoring/miner';
+import { calculateMinerLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig, MinerObjectType } from './levels';
 import { createSeededRandom } from '@/lib/seededRandom';
 
@@ -1332,10 +1333,12 @@ export class MinerGameScene extends Phaser.Scene {
         mistakes: adjustedMistakes
       };
       const stars = success ? calculateMinerStars(starPayload) : 0;
+      const score = calculateMinerLevelScore(payload, success);
       const starHint = stars < 3 ? this.getStarHint(starPayload) : null;
 
       onGameOver({
         ...payload,
+        score,
         stars,
         starHint
       });

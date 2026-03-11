@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import { PIPE_PATCH_LEVELS, getPipePatchLevel } from './levels';
+import { calculatePipePatchLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
+import { calculateUnifiedLevelScore, mapDifficultyFromScale } from '@/lib/scoring/engine/unifiedLevelScore';
 import {
   DIR,
   DIR_VECTORS,
@@ -1104,10 +1106,12 @@ export class PipePatchGameScene extends Phaser.Scene {
     const starBreakdown = this.calculateStarBreakdown(current);
     const stars = this.calculateStarsByBreakdown(starBreakdown);
     const starHint = this.getStarHint(current, stars, starBreakdown);
-    const levelScore = Math.max(
-      1,
-      Math.round(current.requiredPieceCount * 12 - current.rejectedDropCount * 2 - current.incorrectPlacementCount)
-    );
+    const levelScore = calculatePipePatchLevelScore({
+      level: current.levelId,
+      difficultyWeight: current.difficultyWeight,
+      success: true,
+      breakdown: starBreakdown,
+    });
 
     const summary: PipePatchGameStats = {
       sessionDurationMs: current.activeTimeMs,
@@ -1469,11 +1473,20 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
+      const success = reason !== 'timeout';
+      const rawCore = summary.levelsSolved / Math.max(1, summary.levelsAttempted);
+      const score = calculateUnifiedLevelScore({
+        rawCore,
+        level: this.levelIndex,
+        maxLevel: 30,
+        difficultyMultiplier: mapDifficultyFromScale(this.level.difficultyWeight, 1, 10),
+        success,
+      });
       onGameOver({
         ...summary,
-        score: summary.levelsSolved,
+        score,
         stars: 0,
-        success: reason !== 'timeout',
+        success,
       });
     }
   }
