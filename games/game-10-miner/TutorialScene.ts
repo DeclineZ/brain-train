@@ -59,6 +59,9 @@ export class MinerTutorialScene extends Phaser.Scene {
   private ropeGraphics!: Phaser.GameObjects.Graphics;
   private hookContainer!: Phaser.GameObjects.Container;
   private hookPivot!: Phaser.GameObjects.Arc;
+  private hookJawLeft!: Phaser.GameObjects.Container;
+  private hookJawRight!: Phaser.GameObjects.Container;
+  private hookOpenProgress = 1;
 
   private minerObjects: TutorialMinerObject[] = [];
   private tutorialSteps: TutorialStep[] = [];
@@ -258,23 +261,56 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hookPivot.setStrokeStyle(2, 0x1f1f1f, 0.8);
 
     this.hookContainer = this.add.container(0, 0).setDepth(13);
-    const head = this.add.rectangle(0, 0, 30, 14, 0x5f5f5f).setOrigin(0.5);
-    head.setStrokeStyle(2, 0x1f1f1f, 0.8);
-    const tip = this.add.triangle(0, 14, 0, 0, 12, 20, -12, 20, 0x3d3d3d).setOrigin(0.5, 0);
-    tip.setStrokeStyle(1.5, 0x1f1f1f, 0.8);
     const ring = this.add.circle(0, -12, 7, 0x6a6a6a, 0.95);
     ring.setStrokeStyle(2, 0x2a2a2a, 0.8);
+    const ringPin = this.add.circle(0, -12, 2.5, 0x1f1f1f, 0.9);
+    const shackle = this.add.rectangle(0, -4, 7, 14, 0x686868).setOrigin(0.5);
+    shackle.setStrokeStyle(1.6, 0x2a2a2a, 0.75);
+    const collar = this.add.rectangle(0, 3, 19, 7, 0x393939).setOrigin(0.5);
+    collar.setStrokeStyle(1.4, 0x1a1a1a, 0.8);
+    const head = this.add.rectangle(0, 11, 26, 14, 0x5f5f5f).setOrigin(0.5);
+    head.setStrokeStyle(2, 0x1f1f1f, 0.82);
+    const tip = this.add.rectangle(0, 20, 8, 6, 0x3d3d3d).setOrigin(0.5);
+    tip.setStrokeStyle(1.2, 0x1f1f1f, 0.8);
+    const hingeLeft = this.add.circle(-8, 14, 2.6, 0x252525, 0.95);
+    const hingeRight = this.add.circle(8, 14, 2.6, 0x252525, 0.95);
 
-    this.hookContainer.add([ring, head, tip]);
+    const leftJawCore = this.add.rectangle(0, 0, 5, 14, 0x3a3a3a).setOrigin(0.5, 0);
+    leftJawCore.setStrokeStyle(1.2, 0x171717, 0.9);
+    const leftJawTip = this.add.rectangle(1.8, 14, 4, 8, 0x343434).setOrigin(0.5, 0);
+    leftJawTip.setRotation(Phaser.Math.DegToRad(50));
+    leftJawTip.setStrokeStyle(1.1, 0x1a1a1a, 0.9);
+    this.hookJawLeft = this.add.container(-8, 14, [leftJawCore, leftJawTip]);
+
+    const rightJawCore = this.add.rectangle(0, 0, 5, 14, 0x3a3a3a).setOrigin(0.5, 0);
+    rightJawCore.setStrokeStyle(1.2, 0x171717, 0.9);
+    const rightJawTip = this.add.rectangle(-1.8, 14, 4, 8, 0x343434).setOrigin(0.5, 0);
+    rightJawTip.setRotation(Phaser.Math.DegToRad(-50));
+    rightJawTip.setStrokeStyle(1.1, 0x1a1a1a, 0.9);
+    this.hookJawRight = this.add.container(8, 14, [rightJawCore, rightJawTip]);
+
+    this.hookContainer.add([
+      ring,
+      ringPin,
+      shackle,
+      collar,
+      head,
+      tip,
+      hingeLeft,
+      hingeRight,
+      this.hookJawLeft,
+      this.hookJawRight
+    ]);
+    this.updateHookJaw(this.hookOpenProgress);
     this.updateHookVisual(this.hookSwingLength, this.hookAngle);
   }
 
   private createTutorialObjects() {
     const { width, height } = this.scale;
     const objects: Array<Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>> = [
-      { type: 'gold_large', value: 260, weight: 2.3, size: 26, isHazard: false, x: width * 0.42, y: height * 0.58 },
-      { type: 'gem', value: 430, weight: 1.1, size: 20, isHazard: false, x: width * 0.62, y: height * 0.64 },
-      { type: 'rock', value: -120, weight: 2.8, size: 30, isHazard: true, x: width * 0.26, y: height * 0.72 }
+      { type: 'gold_large', value: 260, weight: 2.3, size: 30, isHazard: false, x: width * 0.42, y: height * 0.58 },
+      { type: 'gem', value: 430, weight: 1.1, size: 24, isHazard: false, x: width * 0.62, y: height * 0.64 },
+      { type: 'rock', value: -120, weight: 2.8, size: 33, isHazard: true, x: width * 0.26, y: height * 0.72 }
     ];
 
     this.minerObjects = objects.map((obj, index) => ({
@@ -299,6 +335,11 @@ export class MinerTutorialScene extends Phaser.Scene {
   private createMinerObjectSprite(object: Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>) {
     const sprite = this.add.container(object.x, object.y).setDepth(6);
     const shadow = this.add.circle(0, 0, object.size + 4, 0x1c1412, 0.22);
+    const nameMap: Record<TutorialTargetType, string> = {
+      gold_large: 'ทองก้อนใหญ่',
+      gem: 'เพชร',
+      rock: 'หิน'
+    };
     sprite.add(shadow);
 
     if (object.type === 'gold_large') {
@@ -311,7 +352,20 @@ export class MinerTutorialScene extends Phaser.Scene {
       ], COLORS.gold, 1);
       body.setStrokeStyle(2, 0x6d4f1f, 0.7);
       const shine = this.add.circle(-object.size * 0.28, -object.size * 0.25, object.size * 0.35, 0xffffff, 0.45);
-      sprite.add([body, shine]);
+      const valueLabel = this.add.text(0, 0, `${object.value}`, {
+        fontFamily: 'Sarabun, Arial, sans-serif',
+        fontSize: `${Math.max(15, object.size * 0.42)}px`,
+        color: '#f7e2a1',
+        fontStyle: '700'
+      }).setOrigin(0.5);
+      const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+        fontFamily: 'Sarabun, Arial, sans-serif',
+        fontSize: '17px',
+        color: '#fff2cd',
+        backgroundColor: 'rgba(41, 28, 17, 0.72)',
+        padding: { x: 8, y: 3 }
+      }).setOrigin(0.5);
+      sprite.add([body, shine, valueLabel, nameLabel]);
       return sprite;
     }
 
@@ -331,7 +385,20 @@ export class MinerTutorialScene extends Phaser.Scene {
         0, object.size * 0.4,
         -object.size * 0.28, -object.size * 0.1
       ], 0xffffff, 0.35);
-      sprite.add([body, facet]);
+      const valueLabel = this.add.text(0, 0, `${object.value}`, {
+        fontFamily: 'Sarabun, Arial, sans-serif',
+        fontSize: `${Math.max(15, object.size * 0.42)}px`,
+        color: '#f4f8ff',
+        fontStyle: '700'
+      }).setOrigin(0.5);
+      const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+        fontFamily: 'Sarabun, Arial, sans-serif',
+        fontSize: '17px',
+        color: '#ebe6ff',
+        backgroundColor: 'rgba(31, 31, 60, 0.72)',
+        padding: { x: 8, y: 3 }
+      }).setOrigin(0.5);
+      sprite.add([body, facet, valueLabel, nameLabel]);
       return sprite;
     }
 
@@ -347,7 +414,20 @@ export class MinerTutorialScene extends Phaser.Scene {
     rock.setStrokeStyle(2, 0x303030, 0.8);
     const crack = this.add.rectangle(0, 0, object.size * 0.9, 3, 0x3f3022, 0.6);
     crack.setRotation(Phaser.Math.DegToRad(20));
-    sprite.add([rock, crack]);
+    const valueLabel = this.add.text(0, 0, `${object.value}`, {
+      fontFamily: 'Sarabun, Arial, sans-serif',
+      fontSize: `${Math.max(15, object.size * 0.42)}px`,
+      color: '#f0dede',
+      fontStyle: '700'
+    }).setOrigin(0.5);
+    const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+      fontFamily: 'Sarabun, Arial, sans-serif',
+      fontSize: '17px',
+      color: '#f5e8d4',
+      backgroundColor: 'rgba(36, 28, 20, 0.7)',
+      padding: { x: 8, y: 3 }
+    }).setOrigin(0.5);
+    sprite.add([rock, crack, valueLabel, nameLabel]);
 
     return sprite;
   }
@@ -557,6 +637,7 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hookDropDistance = this.hookSwingLength;
     this.hookDropVelocity = 0;
     this.hookLockedAngle = this.hookAngle;
+    this.animateHookOpen(1, 120);
     this.hookLastDropEnd = this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle);
 
     if (this.freeHooksRemaining > 0) {
@@ -581,6 +662,7 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hookTarget = null;
     this.hookDropDistance = this.hookSwingLength;
     this.hookLastDropEnd = null;
+    this.animateHookOpen(1, 150);
 
     if (grabbedTarget) {
       grabbedTarget.sprite.setVisible(false);
@@ -674,6 +756,7 @@ export class MinerTutorialScene extends Phaser.Scene {
         closest.isBroken = closest.durabilityRemaining <= 0;
         this.updateDurabilityVisuals(closest);
         this.spawnChipEffect(closest);
+        this.animateHookOpen(0.1, 140);
         this.playSafeSound('miner-grab-hazard', 0.45);
         this.setHelperText(closest.isBroken ? 'ดีมาก! ยิงอีกครั้งเพื่อเก็บจริง' : 'แร่ก้อนใหญ่ต้องกะเทาะก่อน');
         this.startPull();
@@ -682,6 +765,7 @@ export class MinerTutorialScene extends Phaser.Scene {
 
       closest.grabbed = true;
       this.hookTarget = closest;
+      this.animateHookOpen(0.1, 140);
       this.startPull();
     }
   }
@@ -897,22 +981,36 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   private updateHookVisual(length: number, angle: number) {
-    const end = this.getHookEndPosition(length, angle);
-    this.drawRope(length, angle);
-    this.hookContainer.setPosition(end.x, end.y);
-    this.hookContainer.setRotation(angle);
-    return end;
+    const rope = this.getRopeGeometry(length, angle);
+    this.drawRope(rope);
+    this.hookContainer.setPosition(rope.end.x, rope.end.y);
+    this.hookContainer.setRotation(this.getRopeEndTangentAngle(rope));
+    return rope.end;
   }
 
-  private drawRope(length: number, angle: number) {
-    const start = { x: this.hookCenterX, y: this.hookBaseY };
-    const end = this.getHookEndPosition(length, angle);
+  private drawRope(rope: { start: { x: number; y: number }; end: { x: number; y: number } }) {
     this.ropeGraphics.clear();
     this.ropeGraphics.lineStyle(3, COLORS.rope, 0.9);
     this.ropeGraphics.beginPath();
-    this.ropeGraphics.moveTo(start.x, start.y);
-    this.ropeGraphics.lineTo(end.x, end.y);
+    this.ropeGraphics.moveTo(rope.start.x, rope.start.y);
+    this.ropeGraphics.lineTo(rope.end.x, rope.end.y);
     this.ropeGraphics.strokePath();
+  }
+
+  private updateHookJaw(progress: number) {
+    const openAngle = Phaser.Math.DegToRad(10 + progress * 18);
+    this.hookJawLeft.setRotation(openAngle);
+    this.hookJawRight.setRotation(-openAngle);
+  }
+
+  private animateHookOpen(target: number, duration = 140) {
+    this.tweens.add({
+      targets: this,
+      hookOpenProgress: target,
+      duration,
+      ease: 'Quad.out',
+      onUpdate: () => this.updateHookJaw(this.hookOpenProgress)
+    });
   }
 
   private getHookEndPosition(length: number, angle: number) {
@@ -920,6 +1018,22 @@ export class MinerTutorialScene extends Phaser.Scene {
       x: this.hookCenterX + Math.sin(angle) * length,
       y: this.hookBaseY + Math.cos(angle) * length
     };
+  }
+
+  private getRopeGeometry(length: number, angle: number) {
+    const start = { x: this.hookCenterX, y: this.hookBaseY };
+    const end = this.getHookEndPosition(length, angle);
+    const control = {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    };
+    return { start, control, end };
+  }
+
+  private getRopeEndTangentAngle(rope: { control: { x: number; y: number }; end: { x: number; y: number } }) {
+    const tangentX = rope.end.x - rope.control.x;
+    const tangentY = rope.end.y - rope.control.y;
+    return -Math.atan2(tangentX, tangentY);
   }
 
   private drawBackground(width: number, height: number) {

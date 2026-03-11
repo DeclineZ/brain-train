@@ -13,6 +13,8 @@ export type MinerObjectType =
   | 'silver_large'
   | 'diamond_small'
   | 'diamond_medium'
+  | 'ruby_tiny'
+  | 'vein_core'
   | 'fake_diamond'
   | 'gem'
   | 'money_bag'
@@ -77,20 +79,22 @@ export type MinerLevelConfig = {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const baseObjects: Record<MinerObjectType, { value: number; weight: number; size: number }> = {
-  gold_small: { value: 90, weight: 2.4, size: 18 },
-  gold_medium: { value: 210, weight: 3.2, size: 22 },
-  gold_large: { value: 380, weight: 4.0, size: 28 },
-  copper_small: { value: 40, weight: 1.2, size: 16 },
-  copper_medium: { value: 70, weight: 1.5, size: 20 },
-  copper_large: { value: 120, weight: 1.9, size: 24 },
-  iron_small: { value: 60, weight: 1.1, size: 18 },
-  iron_medium: { value: 95, weight: 1.4, size: 22 },
-  iron_large: { value: 160, weight: 1.7, size: 26 },
-  silver_small: { value: 120, weight: 1.5, size: 18 },
-  silver_medium: { value: 190, weight: 2.0, size: 22 },
-  silver_large: { value: 310, weight: 2.6, size: 28 },
+  gold_small: { value: 90, weight: 2.4, size: 21 },
+  gold_medium: { value: 210, weight: 3.2, size: 25 },
+  gold_large: { value: 380, weight: 4.0, size: 31 },
+  copper_small: { value: 40, weight: 1.2, size: 19 },
+  copper_medium: { value: 70, weight: 1.5, size: 23 },
+  copper_large: { value: 120, weight: 1.9, size: 27 },
+  iron_small: { value: 60, weight: 1.1, size: 21 },
+  iron_medium: { value: 95, weight: 1.4, size: 25 },
+  iron_large: { value: 160, weight: 1.7, size: 29 },
+  silver_small: { value: 120, weight: 1.5, size: 21 },
+  silver_medium: { value: 190, weight: 2.0, size: 25 },
+  silver_large: { value: 310, weight: 2.6, size: 31 },
   diamond_small: { value: 360, weight: 0.6, size: 19 },
   diamond_medium: { value: 620, weight: 0.8, size: 24 },
+  ruby_tiny: { value: 560, weight: 0.45, size: 12 },
+  vein_core: { value: 720, weight: 1.5, size: 19 },
   fake_diamond: { value: 0, weight: 0.9, size: 20 },
   gem: { value: 520, weight: 1.0, size: 20 },
   money_bag: { value: 420, weight: 2.2, size: 24 },
@@ -161,30 +165,30 @@ const getFreeHooks = (level: number) => {
 
 const getLevelObjective = (level: number): MinerLevelObjective => {
   if (level <= 3) {
-    return { targetType: 'gold_small', requiredCount: 2, label: 'Gold S', iconType: 'gold_small' };
+    return { targetType: 'gold_small', requiredCount: 2, label: 'ทองก้อนเล็ก', iconType: 'gold_small' };
   }
   if (level <= 6) {
-    return { targetType: 'gold_medium', requiredCount: 2, label: 'Gold M', iconType: 'gold_medium' };
+    return { targetType: 'gold_medium', requiredCount: 2, label: 'ทองก้อนกลาง', iconType: 'gold_medium' };
   }
   if (level <= 10) {
-    return { targetType: 'iron_small', requiredCount: 3, label: 'Iron', iconType: 'iron_small' };
+    return { targetType: 'iron_small', requiredCount: 3, label: 'เหล็ก', iconType: 'iron_small' };
   }
   if (level <= 13) {
-    return { targetType: 'silver_small', requiredCount: 1, label: 'Silver', iconType: 'silver_small' };
+    return { targetType: 'silver_small', requiredCount: 1, label: 'เงิน', iconType: 'silver_small' };
   }
   if (level <= 16) {
-    return { targetType: 'gold_large', requiredCount: 1, label: 'Gold L', iconType: 'gold_large' };
+    return { targetType: 'gold_large', requiredCount: 1, label: 'ทองก้อนใหญ่', iconType: 'gold_large' };
   }
   if (level <= 20) {
-    return { targetType: 'money_bag', requiredCount: 1, label: 'Money Bag', iconType: 'money_bag' };
+    return { targetType: 'money_bag', requiredCount: 1, label: 'ถุงเงิน', iconType: 'money_bag' };
   }
   if (level <= 24) {
-    return { targetType: 'diamond_small', requiredCount: 1, label: 'Diamond', iconType: 'diamond_small' };
+    return { targetType: 'diamond_small', requiredCount: 1, label: 'เพชร', iconType: 'diamond_small' };
   }
   if (level <= 27) {
-    return { targetType: 'diamond_medium', requiredCount: 1, label: 'Big Diamond', iconType: 'diamond_medium' };
+    return { targetType: 'diamond_medium', requiredCount: 1, label: 'เพชรใหญ่', iconType: 'diamond_medium' };
   }
-  return { targetType: 'gem', requiredCount: 1, label: 'Gem', iconType: 'gem' };
+  return { targetType: 'gem', requiredCount: 1, label: 'อัญมณี', iconType: 'gem' };
 };
 
 const getObjectCounts = (level: number): ObjectCounts => {
@@ -213,9 +217,11 @@ const getObjectCounts = (level: number): ObjectCounts => {
       iron_small: 2,
       iron_medium: 2,
       silver_small: level >= 11 ? 2 : 0,
+      ruby_tiny: level >= 17 ? 1 : 0,
       diamond_small: level >= 18 ? (level <= 24 ? 2 : 1) : 0,
       gem: 1,
       money_bag: level >= 15 ? 1 : 0,
+      vein_core: level >= 19 ? 1 : 0,
       stone_medium: level >= 13 ? 2 : 0,
       bomb_small: level >= 14 ? 2 : 0,
       rock: 3
@@ -234,6 +240,8 @@ const getObjectCounts = (level: number): ObjectCounts => {
     silver_small: 2,
     silver_medium: 1,
     silver_large: 1,
+    ruby_tiny: level >= 22 ? 1 : 2,
+    vein_core: level >= 24 ? 1 : 0,
     diamond_small: level <= 24 ? 2 : 1,
     diamond_medium: level >= 25 ? 1 : 0,
     fake_diamond: level >= 21 && level <= 24 ? 1 : level >= 25 && level <= 27 ? 1 : level >= 28 ? 2 : 0,
@@ -301,6 +309,7 @@ const getValueMultiplier = (level: number) => {
 };
 
 const getDurabilityHits = (type: MinerObjectType) => {
+  if (type === 'vein_core') return 2;
   if (type === 'diamond_medium') return 1;
   if (type === 'gold_large' || type === 'copper_large' || type === 'iron_large' || type === 'silver_large') {
     return 1;
