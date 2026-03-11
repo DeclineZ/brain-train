@@ -55,6 +55,11 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     protected allowedCharacterIds: string[] = [];
     protected refViewsUsed = 0;
 
+    // --- Stat Tracking ---
+    protected correctCount = 0;
+    protected abnormalCorrect = 0;
+    protected abnormalTotal = 0;
+
     // --- Background ---
     protected bgContainer!: Phaser.GameObjects.Container;
 
@@ -80,8 +85,8 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         // Reset state
         this.score = 0;
-        this.lives = 1; // Strict mode: 1 life
-        this.maxLives = 1;
+        this.lives = 3;
+        this.maxLives = 3;
         this.currentVisitorIndex = 0;
         this.visitors = [];
         this.isPlaying = false;
@@ -90,6 +95,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.timerActive = false;
         this.charImageKeys = new Set();
         this.refViewsUsed = 0;
+        this.correctCount = 0;
+        this.abnormalCorrect = 0;
+        this.abnormalTotal = 0;
     }
 
     preload() {
@@ -1344,7 +1352,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
     protected handleCorrect() {
         this.score += 100;
-        // Score text removed in strict mode
+        this.correctCount++;
+
+        // Track abnormal identification
+        const visitor = this.visitors[this.currentVisitorIndex];
+        if (visitor.isAbnormal) {
+            this.abnormalCorrect++;
+        }
 
         // Play success sound
         if (this.soundSuccess) {
@@ -1479,9 +1493,10 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     // ============ GAME END ============
 
     private calculateStars(): number {
-        // Strict mode logic: If you pass, you get 3 stars
-        // (Since 1 mistake = fail, passing implies perfection)
-        return 3;
+        const mistakes = this.maxLives - this.lives;
+        if (mistakes === 0) return 3;
+        if (mistakes === 1) return 2;
+        return 1; // 2 mistakes but still completed
     }
 
     private onLevelComplete() {
@@ -1489,6 +1504,23 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.timerActive = false;
 
         const stars = this.calculateStars();
+
+        // Count total abnormal visitors
+        this.abnormalTotal = this.visitors.filter(v => v.isAbnormal).length;
+
+        // Calculate Stats (0-100 scale)
+        // Focus: overall accuracy
+        const totalDecisions = this.visitors.length;
+        const stat_focus = totalDecisions > 0
+            ? Math.round((this.correctCount / totalDecisions) * 100)
+            : 0;
+
+        // Visual: ability to spot abnormal characters
+        const stat_visual = this.abnormalTotal > 0
+            ? Math.round(60 + (this.abnormalCorrect / this.abnormalTotal) * 40)
+            : 100; // If no abnormals, full marks
+
+        console.log(`DoorGuardian Stats — Focus: ${stat_focus}, Visual: ${stat_visual}, Correct: ${this.correctCount}/${totalDecisions}, Abnormal: ${this.abnormalCorrect}/${this.abnormalTotal}`);
 
         // Emit game over data to system
         this.time.delayedCall(500, () => {
@@ -1504,9 +1536,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
                     level: this.levelConfig.level,
                     stars: stars,
                     score: this.score,
-                    livesRemaining: this.lives,
-                    totalVisitors: this.visitors.length,
-                    correctDecisions: this.visitors.length - (this.maxLives - this.lives),
+                    stat_focus,
+                    stat_visual,
+                    stat_memory: null,
+                    stat_speed: null,
+                    stat_planning: null,
+                    stat_emotion: null,
                 });
             }
         });
@@ -1515,6 +1550,20 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     private onGameOver() {
         this.isPlaying = false;
         this.timerActive = false;
+
+        // Count total abnormal visitors
+        this.abnormalTotal = this.visitors.filter(v => v.isAbnormal).length;
+
+        // Calculate Stats even on fail
+        const totalDecisions = this.currentVisitorIndex + 1; // Include the failed one
+        const stat_focus = totalDecisions > 0
+            ? Math.round((this.correctCount / totalDecisions) * 100)
+            : 0;
+        const stat_visual = this.abnormalTotal > 0
+            ? Math.round(60 + (this.abnormalCorrect / this.abnormalTotal) * 40)
+            : 100;
+
+        console.log(`DoorGuardian Stats (fail) — Focus: ${stat_focus}, Visual: ${stat_visual}, Correct: ${this.correctCount}/${totalDecisions}, Abnormal: ${this.abnormalCorrect}/${this.abnormalTotal}`);
 
         this.time.delayedCall(500, () => {
             // Play fail sound
@@ -1529,9 +1578,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
                     level: this.levelConfig.level,
                     score: this.score,
                     stars: 0,
-                    livesRemaining: 0,
-                    totalVisitors: this.visitors.length,
-                    correctDecisions: this.currentVisitorIndex - (this.maxLives - this.lives),
+                    stat_focus,
+                    stat_visual,
+                    stat_memory: null,
+                    stat_speed: null,
+                    stat_planning: null,
+                    stat_emotion: null,
                 });
             }
         });
