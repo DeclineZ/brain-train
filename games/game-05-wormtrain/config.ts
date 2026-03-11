@@ -4,10 +4,10 @@ export const WormGameConstants = {
   JAM_SHAKE_INTENSITY: 2,
 
   // Visuals (scaled up for mobile)
-  WORM_HEAD_RADIUS: 16,
-  WORM_BODY_RADIUS: 13,
-  PATH_WIDTH_NORMAL: 30,
-  PATH_WIDTH_NARROW: 12,
+  WORM_HEAD_RADIUS: 22,
+  WORM_BODY_RADIUS: 18,
+  PATH_WIDTH_NORMAL: 42,
+  PATH_WIDTH_NARROW: 18,
 
   // Colors (Hex strings)
   COLORS: {

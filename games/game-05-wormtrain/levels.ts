@@ -20,13 +20,13 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Tutorial', rating: 1 },
     colors: ['#5170ff', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 160 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
       { id: 'j1', type: 'JUNCTION', x: 400, y: 420 },
       { id: 'hB', type: 'HOLE', x: 280, y: 820, color: '#5170ff' },
       { id: 'hO', type: 'HOLE', x: 520, y: 820, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 160), p(400, 420)], length: 260, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 420)], length: 520, widthClass: 'normal' },
       { id: 'e2', from: 'j1', to: 'hB', path: [p(400, 420), p(280, 620), p(280, 820)], length: 420, widthClass: 'normal' },
       { id: 'e3', from: 'j1', to: 'hO', path: [p(400, 420), p(520, 620), p(520, 820)], length: 420, widthClass: 'normal' },
     ],
@@ -50,13 +50,13 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'First Split', rating: 1 },
     colors: ['#5170ff', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 160 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
       { id: 'j1', type: 'JUNCTION', x: 400, y: 500 },
       { id: 'hB', type: 'HOLE', x: 250, y: 850, color: '#5170ff' },
       { id: 'hO', type: 'HOLE', x: 550, y: 850, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 160), p(400, 500)], length: 340, widthClass: 'normal' }, // Long start
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 500)], length: 600, widthClass: 'normal' }, // Long start
       { id: 'e2', from: 'j1', to: 'hB', path: [p(400, 500), p(250, 650), p(250, 850)], length: 450, widthClass: 'normal' },
       { id: 'e3', from: 'j1', to: 'hO', path: [p(400, 500), p(550, 650), p(550, 850)], length: 450, widthClass: 'normal' },
     ],
@@ -77,14 +77,14 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'The Crossing', rating: 1 },
     colors: ['#5170ff', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 300, y: 150 },
+      { id: 's', type: 'SPAWN', x: 300, y: -100 },
       { id: 'j1', type: 'JUNCTION', x: 300, y: 450 },
       { id: 'j2', type: 'JUNCTION', x: 500, y: 600 },
       { id: 'hB', type: 'HOLE', x: 300, y: 850, color: '#5170ff' },
       { id: 'hO', type: 'HOLE', x: 600, y: 850, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(300, 150), p(300, 450)], length: 300, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(300, -100), p(300, 450)], length: 550, widthClass: 'normal' },
       { id: 'e2', from: 'j1', to: 'hB', path: [p(300, 450), p(300, 850)], length: 400, widthClass: 'normal' },
       { id: 'e3', from: 'j1', to: 'j2', path: [p(300, 450), p(400, 525), p(500, 600)], length: 300, widthClass: 'normal' },
 
@@ -112,25 +112,25 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Zig Zag', rating: 2 },
     colors: ['#5170ff', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 120 },
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 350 },
-      { id: 'j2', type: 'JUNCTION', x: 250, y: 550 },
-      { id: 'j3', type: 'JUNCTION', x: 550, y: 550 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 250, y: 600 },
+      { id: 'j3', type: 'JUNCTION', x: 550, y: 600 },
 
-      { id: 'hB', type: 'HOLE', x: 250, y: 850, color: '#5170ff' },
-      { id: 'hO', type: 'HOLE', x: 550, y: 850, color: '#ff914d' },
+      { id: 'hB', type: 'HOLE', x: 250, y: 900, color: '#5170ff' },
+      { id: 'hO', type: 'HOLE', x: 550, y: 900, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 120), p(400, 350)], length: 230, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 400)], length: 500, widthClass: 'normal' },
 
-      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 350), p(250, 450), p(250, 550)], length: 300, widthClass: 'normal' },
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 350), p(550, 450), p(550, 550)], length: 300, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 400), p(250, 500), p(250, 600)], length: 300, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 400), p(550, 500), p(550, 600)], length: 300, widthClass: 'normal' },
 
-      { id: 'e4', from: 'j2', to: 'hB', path: [p(250, 550), p(250, 850)], length: 300, widthClass: 'normal' },
-      { id: 'e5', from: 'j2', to: 'hO', path: [p(250, 550), p(400, 700), p(550, 850)], length: 400, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'hB', path: [p(250, 600), p(250, 900)], length: 300, widthClass: 'normal' },
+      { id: 'e5', from: 'j2', to: 'hO', path: [p(250, 600), p(400, 750), p(550, 900)], length: 400, widthClass: 'normal' },
 
-      { id: 'e6', from: 'j3', to: 'hO', path: [p(550, 550), p(550, 850)], length: 300, widthClass: 'normal' },
-      { id: 'e7', from: 'j3', to: 'hB', path: [p(550, 550), p(400, 700), p(250, 850)], length: 400, widthClass: 'normal' },
+      { id: 'e6', from: 'j3', to: 'hO', path: [p(550, 600), p(550, 900)], length: 300, widthClass: 'normal' },
+      { id: 'e7', from: 'j3', to: 'hB', path: [p(550, 600), p(400, 750), p(250, 900)], length: 400, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e2', 'e3'], defaultIndex: 0 },
@@ -168,17 +168,17 @@ export const LEVELS: LevelData[] = [
     },
     colors: ['#5170ff', '#58CC02', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 150 },
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 380 },
-      { id: 'hB', type: 'HOLE', x: 200, y: 850, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 400, y: 850, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 600, y: 850, color: '#ff914d' },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 430 },
+      { id: 'hB', type: 'HOLE', x: 200, y: 900, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 400, y: 900, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 600, y: 900, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 150), p(400, 380)], length: 230, widthClass: 'normal' },
-      { id: 'e2', from: 'j1', to: 'hB', path: [p(400, 380), p(200, 500), p(200, 850)], length: 470, widthClass: 'normal' },
-      { id: 'e3', from: 'j1', to: 'hG', path: [p(400, 380), p(400, 850)], length: 470, widthClass: 'normal' },
-      { id: 'e4', from: 'j1', to: 'hO', path: [p(400, 380), p(600, 500), p(600, 850)], length: 470, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 430)], length: 530, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'hB', path: [p(400, 430), p(200, 550), p(200, 900)], length: 470, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'hG', path: [p(400, 430), p(400, 900)], length: 470, widthClass: 'normal' },
+      { id: 'e4', from: 'j1', to: 'hO', path: [p(400, 430), p(600, 550), p(600, 900)], length: 470, widthClass: 'normal' },
     ],
     junctions: [{ id: 'j1', outEdges: ['e2', 'e3', 'e4'], defaultIndex: 1 }],
     traps: [],
@@ -199,32 +199,32 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Roundabout', rating: 2 },
     colors: ['#5170ff', '#58CC02', '#ff914d'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 100 },
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 250 },
+      { id: 's', type: 'SPAWN', x: 400, y: -150 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 350 },
 
-      { id: 'j2', type: 'JUNCTION', x: 250, y: 400 }, // Left
-      { id: 'j3', type: 'JUNCTION', x: 550, y: 400 }, // Right
+      { id: 'j2', type: 'JUNCTION', x: 250, y: 500 }, // Left
+      { id: 'j3', type: 'JUNCTION', x: 550, y: 500 }, // Right
 
-      { id: 'j4', type: 'JUNCTION', x: 400, y: 550 }, // Bottom center
+      { id: 'j4', type: 'JUNCTION', x: 400, y: 650 }, // Bottom center
 
-      { id: 'hB', type: 'HOLE', x: 200, y: 850, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 400, y: 850, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 600, y: 850, color: '#ff914d' },
+      { id: 'hB', type: 'HOLE', x: 200, y: 950, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 400, y: 950, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 600, y: 950, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 100), p(400, 250)], length: 150, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -150), p(400, 350)], length: 500, widthClass: 'normal' },
 
       // Ring
-      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 250), p(250, 400)], length: 220, widthClass: 'normal' },
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 250), p(550, 400)], length: 220, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 350), p(250, 500)], length: 220, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 350), p(550, 500)], length: 220, widthClass: 'normal' },
 
-      { id: 'e4', from: 'j2', to: 'j4', path: [p(250, 400), p(400, 550)], length: 220, widthClass: 'normal' },
-      { id: 'e5', from: 'j3', to: 'j4', path: [p(550, 400), p(400, 550)], length: 220, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j4', path: [p(250, 500), p(400, 650)], length: 220, widthClass: 'normal' },
+      { id: 'e5', from: 'j3', to: 'j4', path: [p(550, 500), p(400, 650)], length: 220, widthClass: 'normal' },
 
       // Exits from Ring nodes
-      { id: 'e6', from: 'j2', to: 'hB', path: [p(250, 400), p(200, 600), p(200, 850)], length: 450, widthClass: 'normal' },
-      { id: 'e7', from: 'j3', to: 'hO', path: [p(550, 400), p(600, 600), p(600, 850)], length: 450, widthClass: 'normal' },
-      { id: 'e8', from: 'j4', to: 'hG', path: [p(400, 550), p(400, 850)], length: 300, widthClass: 'normal' },
+      { id: 'e6', from: 'j2', to: 'hB', path: [p(250, 500), p(200, 700), p(200, 950)], length: 450, widthClass: 'normal' },
+      { id: 'e7', from: 'j3', to: 'hO', path: [p(550, 500), p(600, 700), p(600, 950)], length: 450, widthClass: 'normal' },
+      { id: 'e8', from: 'j4', to: 'hG', path: [p(400, 650), p(400, 950)], length: 300, widthClass: 'normal' },
 
       // Back to top? (Optional loop, excluded for simplicity now)
     ],
@@ -257,21 +257,21 @@ export const LEVELS: LevelData[] = [
     },
     colors: ['#5170ff', '#58CC02', '#ff914d'],
     nodes: [
-      { id: 's1', type: 'SPAWN', x: 250, y: 120 },
-      { id: 's2', type: 'SPAWN', x: 550, y: 120 },
+      { id: 's1', type: 'SPAWN', x: 250, y: -100 },
+      { id: 's2', type: 'SPAWN', x: 550, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 250, y: 350 },
-      { id: 'j2', type: 'JUNCTION', x: 550, y: 350 },
+      { id: 'j1', type: 'JUNCTION', x: 250, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 550, y: 400 },
 
-      { id: 'j3', type: 'JUNCTION', x: 400, y: 550 }, // Central Hub
+      { id: 'j3', type: 'JUNCTION', x: 400, y: 600 }, // Central Hub
 
-      { id: 'hB', type: 'HOLE', x: 200, y: 850, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 400, y: 850, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 600, y: 850, color: '#ff914d' },
+      { id: 'hB', type: 'HOLE', x: 200, y: 900, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 400, y: 900, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 600, y: 900, color: '#ff914d' },
     ],
     edges: [
-      { id: 'e1', from: 's1', to: 'j1', path: [p(250, 120), p(250, 350)], length: 230, widthClass: 'normal' },
-      { id: 'e2', from: 's2', to: 'j2', path: [p(550, 120), p(550, 350)], length: 230, widthClass: 'normal' },
+      { id: 'e1', from: 's1', to: 'j1', path: [p(250, -100), p(250, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 's2', to: 'j2', path: [p(550, -100), p(550, 400)], length: 500, widthClass: 'normal' },
 
       // Side paths (Direct)
       { id: 'e3', from: 'j1', to: 'hB', path: [p(250, 350), p(200, 600), p(200, 850)], length: 500, widthClass: 'normal' },
@@ -319,16 +319,16 @@ export const LEVELS: LevelData[] = [
     },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63'],
     nodes: [
-      { id: 's1', type: 'SPAWN', x: 250, y: 120 },
-      { id: 's2', type: 'SPAWN', x: 550, y: 120 },
+      { id: 's1', type: 'SPAWN', x: 250, y: -100 },
+      { id: 's2', type: 'SPAWN', x: 550, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 250, y: 300 },
-      { id: 'j2', type: 'JUNCTION', x: 550, y: 300 },
+      { id: 'j1', type: 'JUNCTION', x: 250, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 550, y: 400 },
 
-      { id: 'j3', type: 'JUNCTION', x: 400, y: 450 }, // Center mix
+      { id: 'j3', type: 'JUNCTION', x: 400, y: 550 }, // Center mix
 
-      { id: 'j4', type: 'JUNCTION', x: 300, y: 650 },
-      { id: 'j5', type: 'JUNCTION', x: 500, y: 650 },
+      { id: 'j4', type: 'JUNCTION', x: 300, y: 700 },
+      { id: 'j5', type: 'JUNCTION', x: 500, y: 700 },
 
       { id: 'hB', type: 'HOLE', x: 150, y: 850, color: '#5170ff' },
       { id: 'hG', type: 'HOLE', x: 300, y: 900, color: '#58CC02' },
@@ -336,23 +336,23 @@ export const LEVELS: LevelData[] = [
       { id: 'hP', type: 'HOLE', x: 650, y: 850, color: '#E91E63' },
     ],
     edges: [
-      { id: 'e1', from: 's1', to: 'j1', path: [p(250, 120), p(250, 300)], length: 180, widthClass: 'normal' },
-      { id: 'e2', from: 's2', to: 'j2', path: [p(550, 120), p(550, 300)], length: 180, widthClass: 'normal' },
+      { id: 'e1', from: 's1', to: 'j1', path: [p(250, -100), p(250, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 's2', to: 'j2', path: [p(550, -100), p(550, 400)], length: 500, widthClass: 'normal' },
 
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(250, 300), p(400, 450)], length: 250, widthClass: 'normal' },
-      { id: 'e4', from: 'j1', to: 'j4', path: [p(250, 300), p(250, 500), p(300, 650)], length: 400, widthClass: 'normal' }, // Long outer
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(250, 400), p(400, 550)], length: 250, widthClass: 'normal' },
+      { id: 'e4', from: 'j1', to: 'j4', path: [p(250, 400), p(250, 550), p(300, 700)], length: 400, widthClass: 'normal' }, // Long outer
 
-      { id: 'e5', from: 'j2', to: 'j3', path: [p(550, 300), p(400, 450)], length: 250, widthClass: 'normal' },
-      { id: 'e6', from: 'j2', to: 'j5', path: [p(550, 300), p(550, 500), p(500, 650)], length: 400, widthClass: 'normal' },
+      { id: 'e5', from: 'j2', to: 'j3', path: [p(550, 400), p(400, 550)], length: 250, widthClass: 'normal' },
+      { id: 'e6', from: 'j2', to: 'j5', path: [p(550, 400), p(550, 550), p(500, 700)], length: 400, widthClass: 'normal' },
 
-      { id: 'e7', from: 'j3', to: 'j4', path: [p(400, 450), p(300, 650)], length: 250, widthClass: 'normal' },
-      { id: 'e8', from: 'j3', to: 'j5', path: [p(400, 450), p(500, 650)], length: 250, widthClass: 'normal' },
+      { id: 'e7', from: 'j3', to: 'j4', path: [p(400, 550), p(300, 700)], length: 250, widthClass: 'normal' },
+      { id: 'e8', from: 'j3', to: 'j5', path: [p(400, 550), p(500, 700)], length: 250, widthClass: 'normal' },
 
-      { id: 'e9', from: 'j4', to: 'hB', path: [p(300, 650), p(200, 750), p(150, 850)], length: 300, widthClass: 'normal' },
-      { id: 'e10', from: 'j4', to: 'hG', path: [p(300, 650), p(300, 900)], length: 250, widthClass: 'normal' },
+      { id: 'e9', from: 'j4', to: 'hB', path: [p(300, 700), p(200, 750), p(150, 850)], length: 300, widthClass: 'normal' },
+      { id: 'e10', from: 'j4', to: 'hG', path: [p(300, 700), p(300, 900)], length: 250, widthClass: 'normal' },
 
-      { id: 'e11', from: 'j5', to: 'hO', path: [p(500, 650), p(500, 900)], length: 250, widthClass: 'normal' },
-      { id: 'e12', from: 'j5', to: 'hP', path: [p(500, 650), p(600, 750), p(650, 850)], length: 300, widthClass: 'normal' },
+      { id: 'e11', from: 'j5', to: 'hO', path: [p(500, 700), p(500, 900)], length: 250, widthClass: 'normal' },
+      { id: 'e12', from: 'j5', to: 'hP', path: [p(500, 700), p(600, 750), p(650, 850)], length: 300, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e3', 'e4'], defaultIndex: 0 },
@@ -380,42 +380,42 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Circuit Board', rating: 3 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 100, y: 150 },
+      { id: 's', type: 'SPAWN', x: 100, y: -50 },
 
-      { id: 'j1', type: 'JUNCTION', x: 250, y: 150 },
-      { id: 'j2', type: 'JUNCTION', x: 450, y: 150 },
-      { id: 'j3', type: 'JUNCTION', x: 650, y: 150 },
+      { id: 'j1', type: 'JUNCTION', x: 250, y: 300 },
+      { id: 'j2', type: 'JUNCTION', x: 450, y: 300 },
+      { id: 'j3', type: 'JUNCTION', x: 650, y: 300 },
 
-      { id: 'j4', type: 'JUNCTION', x: 250, y: 400 },
-      { id: 'j5', type: 'JUNCTION', x: 450, y: 400 },
-      { id: 'j6', type: 'JUNCTION', x: 650, y: 400 },
+      { id: 'j4', type: 'JUNCTION', x: 250, y: 550 },
+      { id: 'j5', type: 'JUNCTION', x: 450, y: 550 },
+      { id: 'j6', type: 'JUNCTION', x: 650, y: 550 },
 
       { id: 'hB', type: 'HOLE', x: 350, y: 850, color: '#5170ff' }, // Center holes
       { id: 'hG', type: 'HOLE', x: 450, y: 850, color: '#58CC02' },
       { id: 'hO', type: 'HOLE', x: 550, y: 850, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 200, y: 650, color: '#E91E63' }, // Side hole
+      { id: 'hP', type: 'HOLE', x: 200, y: 750, color: '#E91E63' }, // Side hole
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(100, 150), p(250, 150)], length: 150, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(100, -50), p(100, 300), p(250, 300)], length: 500, widthClass: 'normal' },
 
       // Top row
-      { id: 'e2', from: 'j1', to: 'j4', path: [p(250, 150), p(250, 400)], length: 250, widthClass: 'normal' },
-      { id: 'e3', from: 'j1', to: 'j2', path: [p(250, 150), p(450, 150)], length: 200, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'j4', path: [p(250, 300), p(250, 550)], length: 250, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j2', path: [p(250, 300), p(450, 300)], length: 200, widthClass: 'normal' },
 
-      { id: 'e4', from: 'j2', to: 'j5', path: [p(450, 150), p(450, 400)], length: 250, widthClass: 'normal' },
-      { id: 'e5', from: 'j2', to: 'j3', path: [p(450, 150), p(650, 150)], length: 200, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j5', path: [p(450, 300), p(450, 550)], length: 250, widthClass: 'normal' },
+      { id: 'e5', from: 'j2', to: 'j3', path: [p(450, 300), p(650, 300)], length: 200, widthClass: 'normal' },
 
-      { id: 'e6', from: 'j3', to: 'j6', path: [p(650, 150), p(650, 400)], length: 250, widthClass: 'normal' },
+      { id: 'e6', from: 'j3', to: 'j6', path: [p(650, 300), p(650, 550)], length: 250, widthClass: 'normal' },
 
       // Middle to Bottom connections
-      { id: 'e7', from: 'j4', to: 'hP', path: [p(250, 400), p(200, 525), p(200, 650)], length: 300, widthClass: 'normal' },
-      { id: 'e8', from: 'j4', to: 'j5', path: [p(250, 400), p(450, 400)], length: 200, widthClass: 'normal' },
+      { id: 'e7', from: 'j4', to: 'hP', path: [p(250, 550), p(200, 650), p(200, 750)], length: 300, widthClass: 'normal' },
+      { id: 'e8', from: 'j4', to: 'j5', path: [p(250, 550), p(450, 550)], length: 200, widthClass: 'normal' },
 
-      { id: 'e9', from: 'j5', to: 'hB', path: [p(450, 400), p(350, 600), p(350, 850)], length: 500, widthClass: 'normal' },
-      { id: 'e10', from: 'j5', to: 'hG', path: [p(450, 400), p(450, 850)], length: 450, widthClass: 'normal' },
+      { id: 'e9', from: 'j5', to: 'hB', path: [p(450, 550), p(350, 700), p(350, 850)], length: 500, widthClass: 'normal' },
+      { id: 'e10', from: 'j5', to: 'hG', path: [p(450, 550), p(450, 850)], length: 450, widthClass: 'normal' },
 
-      { id: 'e11', from: 'j6', to: 'hO', path: [p(650, 400), p(550, 600), p(550, 850)], length: 500, widthClass: 'normal' },
-      { id: 'e12', from: 'j6', to: 'j5', path: [p(650, 400), p(450, 400)], length: 200, widthClass: 'normal' }, // Backwards flow
+      { id: 'e11', from: 'j6', to: 'hO', path: [p(650, 550), p(550, 700), p(550, 850)], length: 500, widthClass: 'normal' },
+      { id: 'e12', from: 'j6', to: 'j5', path: [p(650, 550), p(450, 550)], length: 200, widthClass: 'normal' }, // Backwards flow
     ],
     junctions: [
       { id: 'j1', outEdges: ['e2', 'e3'], defaultIndex: 1 },
@@ -445,41 +445,41 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Double Loops', rating: 4 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 100 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 250 },
-      { id: 'j2', type: 'JUNCTION', x: 200, y: 400 },
-      { id: 'j3', type: 'JUNCTION', x: 600, y: 400 },
-      { id: 'j4', type: 'JUNCTION', x: 400, y: 550 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 200, y: 500 },
+      { id: 'j3', type: 'JUNCTION', x: 600, y: 500 },
+      { id: 'j4', type: 'JUNCTION', x: 400, y: 650 },
 
-      { id: 'j5', type: 'JUNCTION', x: 400, y: 700 }, // Fan out
+      { id: 'j5', type: 'JUNCTION', x: 400, y: 800 }, // Fan out
 
-      { id: 'hB', type: 'HOLE', x: 150, y: 900, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 300, y: 900, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 500, y: 900, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 650, y: 900, color: '#E91E63' },
+      { id: 'hB', type: 'HOLE', x: 150, y: 950, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 300, y: 950, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 500, y: 950, color: '#ff914d' },
+      { id: 'hP', type: 'HOLE', x: 650, y: 950, color: '#E91E63' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 100), p(400, 250)], length: 150, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 400)], length: 500, widthClass: 'normal' },
 
       // Upper Diamond
-      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 250), p(200, 400)], length: 250, widthClass: 'normal' },
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 250), p(600, 400)], length: 250, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 400), p(200, 500)], length: 250, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 400), p(600, 500)], length: 250, widthClass: 'normal' },
 
-      { id: 'e4', from: 'j2', to: 'j4', path: [p(200, 400), p(400, 550)], length: 250, widthClass: 'normal' },
-      { id: 'e5', from: 'j3', to: 'j4', path: [p(600, 400), p(400, 550)], length: 250, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j4', path: [p(200, 500), p(400, 650)], length: 250, widthClass: 'normal' },
+      { id: 'e5', from: 'j3', to: 'j4', path: [p(600, 500), p(400, 650)], length: 250, widthClass: 'normal' },
 
       // Loops
-      { id: 'e6', from: 'j4', to: 'j2', path: [p(400, 550), p(300, 475), p(200, 400)], length: 250, widthClass: 'normal' },
-      { id: 'e7', from: 'j4', to: 'j3', path: [p(400, 550), p(500, 475), p(600, 400)], length: 250, widthClass: 'normal' },
+      { id: 'e6', from: 'j4', to: 'j2', path: [p(400, 650), p(300, 575), p(200, 500)], length: 250, widthClass: 'normal' },
+      { id: 'e7', from: 'j4', to: 'j3', path: [p(400, 650), p(500, 575), p(600, 500)], length: 250, widthClass: 'normal' },
 
-      { id: 'e8', from: 'j4', to: 'j5', path: [p(400, 550), p(400, 700)], length: 150, widthClass: 'normal' },
+      { id: 'e8', from: 'j4', to: 'j5', path: [p(400, 650), p(400, 800)], length: 150, widthClass: 'normal' },
 
       // Bottom fan
-      { id: 'e9', from: 'j5', to: 'hB', path: [p(400, 700), p(150, 900)], length: 300, widthClass: 'normal' },
-      { id: 'e10', from: 'j5', to: 'hG', path: [p(400, 700), p(300, 900)], length: 250, widthClass: 'normal' },
-      { id: 'e11', from: 'j5', to: 'hO', path: [p(400, 700), p(500, 900)], length: 250, widthClass: 'normal' },
-      { id: 'e12', from: 'j5', to: 'hP', path: [p(400, 700), p(650, 900)], length: 300, widthClass: 'normal' },
+      { id: 'e9', from: 'j5', to: 'hB', path: [p(400, 800), p(150, 950)], length: 300, widthClass: 'normal' },
+      { id: 'e10', from: 'j5', to: 'hG', path: [p(400, 800), p(300, 950)], length: 250, widthClass: 'normal' },
+      { id: 'e11', from: 'j5', to: 'hO', path: [p(400, 800), p(500, 950)], length: 250, widthClass: 'normal' },
+      { id: 'e12', from: 'j5', to: 'hP', path: [p(400, 800), p(650, 950)], length: 300, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e2', 'e3'], defaultIndex: 0 },
@@ -508,8 +508,8 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Freeway', rating: 4 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63'],
     nodes: [
-      { id: 's1', type: 'SPAWN', x: 200, y: 150 },
-      { id: 's2', type: 'SPAWN', x: 600, y: 150 },
+      { id: 's1', type: 'SPAWN', x: 200, y: -100 },
+      { id: 's2', type: 'SPAWN', x: 600, y: -100 },
 
       { id: 'j1', type: 'JUNCTION', x: 200, y: 400 },
       { id: 'j2', type: 'JUNCTION', x: 600, y: 400 },
@@ -522,8 +522,8 @@ export const LEVELS: LevelData[] = [
       { id: 'hP', type: 'HOLE', x: 700, y: 850, color: '#E91E63' },
     ],
     edges: [
-      { id: 'e1', from: 's1', to: 'j1', path: [p(200, 150), p(200, 400)], length: 250, widthClass: 'normal' },
-      { id: 'e2', from: 's2', to: 'j2', path: [p(600, 150), p(600, 400)], length: 250, widthClass: 'normal' },
+      { id: 'e1', from: 's1', to: 'j1', path: [p(200, -100), p(200, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 's2', to: 'j2', path: [p(600, -100), p(600, 400)], length: 500, widthClass: 'normal' },
 
       // Cross
       { id: 'e3', from: 'j1', to: 'j3', path: [p(200, 400), p(400, 550)], length: 250, widthClass: 'normal' },
@@ -570,44 +570,44 @@ export const LEVELS: LevelData[] = [
     },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63', '#FFD700'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 100 },
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 240 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 400 },
 
-      { id: 'j2', type: 'JUNCTION', x: 240, y: 380 },
-      { id: 'j3', type: 'JUNCTION', x: 560, y: 380 },
+      { id: 'j2', type: 'JUNCTION', x: 240, y: 480 },
+      { id: 'j3', type: 'JUNCTION', x: 560, y: 480 },
 
-      { id: 'j4', type: 'JUNCTION', x: 240, y: 560 }, // quake target
-      { id: 'j5', type: 'JUNCTION', x: 560, y: 560 },
+      { id: 'j4', type: 'JUNCTION', x: 240, y: 660 }, // quake target
+      { id: 'j5', type: 'JUNCTION', x: 560, y: 660 },
 
-      { id: 'j6', type: 'JUNCTION', x: 400, y: 660 }, // quake target
+      { id: 'j6', type: 'JUNCTION', x: 400, y: 760 }, // quake target
 
-      { id: 'hBS', type: 'HOLE', x: 150, y: 900, color: '#5170ff', size: 'S' },
-      { id: 'hP', type: 'HOLE', x: 280, y: 930, color: '#E91E63' },
-      { id: 'hG', type: 'HOLE', x: 400, y: 940, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 520, y: 930, color: '#ff914d' },
-      { id: 'hY', type: 'HOLE', x: 650, y: 900, color: '#FFD700' },
+      { id: 'hBS', type: 'HOLE', x: 150, y: 950, color: '#5170ff', size: 'S' },
+      { id: 'hP', type: 'HOLE', x: 280, y: 980, color: '#E91E63' },
+      { id: 'hG', type: 'HOLE', x: 400, y: 990, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 520, y: 980, color: '#ff914d' },
+      { id: 'hY', type: 'HOLE', x: 650, y: 950, color: '#FFD700' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 100), p(400, 240)], length: 140, widthClass: 'normal' },
-      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 240), p(240, 240), p(240, 380)], length: 300, widthClass: 'narrow' },
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 240), p(560, 240), p(560, 380)], length: 300, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 400), p(240, 400), p(240, 480)], length: 300, widthClass: 'narrow' },
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(400, 400), p(560, 400), p(560, 480)], length: 300, widthClass: 'normal' },
 
-      { id: 'e4', from: 'j2', to: 'j4', path: [p(240, 380), p(240, 560)], length: 180, widthClass: 'narrow' },
-      { id: 'e5', from: 'j3', to: 'j5', path: [p(560, 380), p(560, 560)], length: 180, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j4', path: [p(240, 480), p(240, 660)], length: 180, widthClass: 'narrow' },
+      { id: 'e5', from: 'j3', to: 'j5', path: [p(560, 480), p(560, 660)], length: 180, widthClass: 'normal' },
 
-      { id: 'e6', from: 'j4', to: 'j6', path: [p(240, 560), p(320, 610), p(400, 660)], length: 220, widthClass: 'narrow' },
-      { id: 'e7', from: 'j5', to: 'j6', path: [p(560, 560), p(480, 610), p(400, 660)], length: 220, widthClass: 'normal' },
+      { id: 'e6', from: 'j4', to: 'j6', path: [p(240, 660), p(320, 710), p(400, 760)], length: 220, widthClass: 'narrow' },
+      { id: 'e7', from: 'j5', to: 'j6', path: [p(560, 660), p(480, 710), p(400, 760)], length: 220, widthClass: 'normal' },
 
       // loop back up to dodge hazards
-      { id: 'e8', from: 'j6', to: 'j4', path: [p(400, 660), p(320, 610), p(240, 560)], length: 220, widthClass: 'narrow' },
-      { id: 'e9', from: 'j6', to: 'j5', path: [p(400, 660), p(480, 610), p(560, 560)], length: 220, widthClass: 'normal' },
+      { id: 'e8', from: 'j6', to: 'j4', path: [p(400, 760), p(320, 710), p(240, 660)], length: 220, widthClass: 'narrow' },
+      { id: 'e9', from: 'j6', to: 'j5', path: [p(400, 760), p(480, 710), p(560, 660)], length: 220, widthClass: 'normal' },
 
       // exits (j6 3-way only)
-      { id: 'e10', from: 'j4', to: 'hBS', path: [p(240, 560), p(150, 740), p(150, 900)], length: 420, widthClass: 'narrow' },
-      { id: 'e11', from: 'j6', to: 'hG', path: [p(400, 660), p(400, 800), p(400, 940)], length: 280, widthClass: 'normal' },
-      { id: 'e12', from: 'j6', to: 'hP', path: [p(400, 660), p(340, 800), p(280, 930)], length: 320, widthClass: 'normal' },
-      { id: 'e13', from: 'j6', to: 'hO', path: [p(400, 660), p(460, 800), p(520, 930)], length: 320, widthClass: 'normal' },
-      { id: 'e14', from: 'j5', to: 'hY', path: [p(560, 560), p(650, 740), p(650, 900)], length: 420, widthClass: 'normal' },
+      { id: 'e10', from: 'j4', to: 'hBS', path: [p(240, 660), p(150, 840), p(150, 950)], length: 420, widthClass: 'narrow' },
+      { id: 'e11', from: 'j6', to: 'hG', path: [p(400, 760), p(400, 900), p(400, 990)], length: 280, widthClass: 'normal' },
+      { id: 'e12', from: 'j6', to: 'hP', path: [p(400, 760), p(340, 900), p(280, 980)], length: 320, widthClass: 'normal' },
+      { id: 'e13', from: 'j6', to: 'hO', path: [p(400, 760), p(460, 900), p(520, 980)], length: 320, widthClass: 'normal' },
+      { id: 'e14', from: 'j5', to: 'hY', path: [p(560, 660), p(650, 840), p(650, 950)], length: 420, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e2', 'e3'], defaultIndex: 1 },
@@ -644,56 +644,56 @@ export const LEVELS: LevelData[] = [
     },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63', '#FFD700'],
     nodes: [
-      { id: 'sL', type: 'SPAWN', x: 200, y: 110 },
-      { id: 'sR', type: 'SPAWN', x: 600, y: 110 },
+      { id: 'sL', type: 'SPAWN', x: 200, y: -100 },
+      { id: 'sR', type: 'SPAWN', x: 600, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 200, y: 260 },
-      { id: 'j2', type: 'JUNCTION', x: 400, y: 260 },
-      { id: 'j3', type: 'JUNCTION', x: 600, y: 260 },
+      { id: 'j1', type: 'JUNCTION', x: 200, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 400, y: 400 },
+      { id: 'j3', type: 'JUNCTION', x: 600, y: 400 },
 
-      { id: 'j4', type: 'JUNCTION', x: 260, y: 450 }, // spider
-      { id: 'j5', type: 'JUNCTION', x: 540, y: 450 }, // spider
+      { id: 'j4', type: 'JUNCTION', x: 260, y: 550 }, // spider
+      { id: 'j5', type: 'JUNCTION', x: 540, y: 550 }, // spider
 
-      { id: 'j6', type: 'JUNCTION', x: 400, y: 610 }, // merge + loop
-      { id: 'j7', type: 'JUNCTION', x: 300, y: 740 },
-      { id: 'j8', type: 'JUNCTION', x: 500, y: 740 },
+      { id: 'j6', type: 'JUNCTION', x: 400, y: 710 }, // merge + loop
+      { id: 'j7', type: 'JUNCTION', x: 300, y: 840 },
+      { id: 'j8', type: 'JUNCTION', x: 500, y: 840 },
 
-      { id: 'hB', type: 'HOLE', x: 140, y: 930, color: '#5170ff', size: 'S' },
-      { id: 'hG', type: 'HOLE', x: 280, y: 950, color: '#58CC02' },
-      { id: 'hY', type: 'HOLE', x: 400, y: 970, color: '#FFD700' },
-      { id: 'hO', type: 'HOLE', x: 520, y: 950, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 660, y: 930, color: '#E91E63', size: 'S' },
+      { id: 'hB', type: 'HOLE', x: 140, y: 1030, color: '#5170ff', size: 'S' },
+      { id: 'hG', type: 'HOLE', x: 280, y: 1050, color: '#58CC02' },
+      { id: 'hY', type: 'HOLE', x: 400, y: 1070, color: '#FFD700' },
+      { id: 'hO', type: 'HOLE', x: 520, y: 1050, color: '#ff914d' },
+      { id: 'hP', type: 'HOLE', x: 660, y: 1030, color: '#E91E63', size: 'S' },
     ],
     edges: [
-      { id: 'e1', from: 'sL', to: 'j1', path: [p(200, 110), p(200, 260)], length: 150, widthClass: 'normal' },
-      { id: 'e2', from: 'sR', to: 'j3', path: [p(600, 110), p(600, 260)], length: 150, widthClass: 'normal' },
+      { id: 'e1', from: 'sL', to: 'j1', path: [p(200, -100), p(200, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 'sR', to: 'j3', path: [p(600, -100), p(600, 400)], length: 500, widthClass: 'normal' },
 
-      { id: 'e3', from: 'j1', to: 'j2', path: [p(200, 260), p(400, 260)], length: 200, widthClass: 'normal' },
-      { id: 'e4', from: 'j2', to: 'j3', path: [p(400, 260), p(600, 260)], length: 200, widthClass: 'normal' },
-      { id: 'e5', from: 'j2', to: 'j4', path: [p(400, 260), p(320, 355), p(260, 450)], length: 240, widthClass: 'normal' },
-      { id: 'e6', from: 'j2', to: 'j5', path: [p(400, 260), p(480, 355), p(540, 450)], length: 240, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j2', path: [p(200, 400), p(400, 400)], length: 200, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j3', path: [p(400, 400), p(600, 400)], length: 200, widthClass: 'normal' },
+      { id: 'e5', from: 'j2', to: 'j4', path: [p(400, 400), p(320, 475), p(260, 550)], length: 240, widthClass: 'normal' },
+      { id: 'e6', from: 'j2', to: 'j5', path: [p(400, 400), p(480, 475), p(540, 550)], length: 240, widthClass: 'normal' },
 
       // trap layer to merge
-      { id: 'e7', from: 'j4', to: 'j6', path: [p(260, 450), p(330, 530), p(400, 610)], length: 230, widthClass: 'normal' },
-      { id: 'e8', from: 'j5', to: 'j6', path: [p(540, 450), p(470, 530), p(400, 610)], length: 230, widthClass: 'normal' },
+      { id: 'e7', from: 'j4', to: 'j6', path: [p(260, 550), p(330, 630), p(400, 710)], length: 230, widthClass: 'normal' },
+      { id: 'e8', from: 'j5', to: 'j6', path: [p(540, 550), p(470, 630), p(400, 710)], length: 230, widthClass: 'normal' },
 
       // loop back up around traps (dodge route)
-      { id: 'e9', from: 'j6', to: 'j4', path: [p(400, 610), p(330, 530), p(260, 450)], length: 230, widthClass: 'normal' },
-      { id: 'e10', from: 'j6', to: 'j5', path: [p(400, 610), p(470, 530), p(540, 450)], length: 230, widthClass: 'normal' },
+      { id: 'e9', from: 'j6', to: 'j4', path: [p(400, 710), p(330, 630), p(260, 550)], length: 230, widthClass: 'normal' },
+      { id: 'e10', from: 'j6', to: 'j5', path: [p(400, 710), p(470, 630), p(540, 550)], length: 230, widthClass: 'normal' },
 
       // down to final switches
-      { id: 'e11', from: 'j6', to: 'j7', path: [p(400, 610), p(340, 675), p(300, 740)], length: 170, widthClass: 'normal' },
-      { id: 'e12', from: 'j6', to: 'j8', path: [p(400, 610), p(460, 675), p(500, 740)], length: 170, widthClass: 'normal' },
+      { id: 'e11', from: 'j6', to: 'j7', path: [p(400, 710), p(340, 775), p(300, 840)], length: 170, widthClass: 'normal' },
+      { id: 'e12', from: 'j6', to: 'j8', path: [p(400, 710), p(460, 775), p(500, 840)], length: 170, widthClass: 'normal' },
 
       // final fan (no 4-way: j7/j8 are 3-way max)
-      { id: 'e13', from: 'j7', to: 'hB', path: [p(300, 740), p(220, 835), p(140, 930)], length: 260, widthClass: 'narrow' },
-      { id: 'e14', from: 'j7', to: 'hG', path: [p(300, 740), p(290, 845), p(280, 950)], length: 210, widthClass: 'normal' },
-      { id: 'e15', from: 'j7', to: 'hY', path: [p(300, 740), p(350, 855), p(400, 970)], length: 270, widthClass: 'normal' },
+      { id: 'e13', from: 'j7', to: 'hB', path: [p(300, 840), p(220, 935), p(140, 1030)], length: 260, widthClass: 'narrow' },
+      { id: 'e14', from: 'j7', to: 'hG', path: [p(300, 840), p(290, 945), p(280, 1050)], length: 210, widthClass: 'normal' },
+      { id: 'e15', from: 'j7', to: 'hY', path: [p(300, 840), p(350, 955), p(400, 1070)], length: 270, widthClass: 'normal' },
 
-      { id: 'e16', from: 'j8', to: 'hP', path: [p(500, 740), p(580, 835), p(660, 930)], length: 260, widthClass: 'narrow' },
-      { id: 'e17', from: 'j8', to: 'hO', path: [p(500, 740), p(510, 845), p(520, 950)], length: 210, widthClass: 'normal' },
-      { id: 'e18', from: 'j8', to: 'hY', path: [p(500, 740), p(450, 855), p(400, 970)], length: 270, widthClass: 'normal' },
-      { id: 'e19', from: 'j3', to: 'j5', path: [p(600, 260), p(570, 355), p(540, 450)], length: 200, widthClass: 'normal' },
+      { id: 'e16', from: 'j8', to: 'hP', path: [p(500, 840), p(580, 935), p(660, 1030)], length: 260, widthClass: 'narrow' },
+      { id: 'e17', from: 'j8', to: 'hO', path: [p(500, 840), p(510, 945), p(520, 1050)], length: 210, widthClass: 'normal' },
+      { id: 'e18', from: 'j8', to: 'hY', path: [p(500, 840), p(450, 955), p(400, 1070)], length: 270, widthClass: 'normal' },
+      { id: 'e19', from: 'j3', to: 'j5', path: [p(600, 400), p(570, 475), p(540, 550)], length: 200, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e3'], defaultIndex: 0 },
@@ -729,38 +729,38 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Quake Spiral', rating: 5 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63', '#FFD700'],
     nodes: [
-      { id: 's', type: 'SPAWN', x: 400, y: 100 },
+      { id: 's', type: 'SPAWN', x: 400, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 400, y: 240 },
-      { id: 'j2', type: 'JUNCTION', x: 560, y: 360 }, // spider
-      { id: 'j3', type: 'JUNCTION', x: 560, y: 540 },
-      { id: 'j4', type: 'JUNCTION', x: 400, y: 660 }, // quake
-      { id: 'j5', type: 'JUNCTION', x: 240, y: 540 },
-      { id: 'j6', type: 'JUNCTION', x: 240, y: 360 },
+      { id: 'j1', type: 'JUNCTION', x: 400, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 560, y: 460 }, // spider
+      { id: 'j3', type: 'JUNCTION', x: 560, y: 640 },
+      { id: 'j4', type: 'JUNCTION', x: 400, y: 760 }, // quake
+      { id: 'j5', type: 'JUNCTION', x: 240, y: 640 },
+      { id: 'j6', type: 'JUNCTION', x: 240, y: 460 },
 
-      { id: 'hB', type: 'HOLE', x: 140, y: 920, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 280, y: 950, color: '#58CC02' },
-      { id: 'hO', type: 'HOLE', x: 520, y: 950, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 660, y: 920, color: '#E91E63' },
-      { id: 'hY', type: 'HOLE', x: 400, y: 970, color: '#FFD700' },
+      { id: 'hB', type: 'HOLE', x: 140, y: 1020, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 280, y: 1050, color: '#58CC02' },
+      { id: 'hO', type: 'HOLE', x: 520, y: 1050, color: '#ff914d' },
+      { id: 'hP', type: 'HOLE', x: 660, y: 1020, color: '#E91E63' },
+      { id: 'hY', type: 'HOLE', x: 400, y: 1070, color: '#FFD700' },
     ],
     edges: [
-      { id: 'e1', from: 's', to: 'j1', path: [p(400, 100), p(400, 240)], length: 140, widthClass: 'normal' },
+      { id: 'e1', from: 's', to: 'j1', path: [p(400, -100), p(400, 400)], length: 500, widthClass: 'normal' },
 
       // spiral clockwise
-      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 240), p(500, 300), p(560, 360)], length: 210, widthClass: 'normal' },
-      { id: 'e3', from: 'j2', to: 'j3', path: [p(560, 360), p(560, 540)], length: 180, widthClass: 'normal' },
-      { id: 'e4', from: 'j3', to: 'j4', path: [p(560, 540), p(480, 600), p(400, 660)], length: 210, widthClass: 'normal' },
-      { id: 'e5', from: 'j4', to: 'j5', path: [p(400, 660), p(320, 600), p(240, 540)], length: 210, widthClass: 'normal' },
-      { id: 'e6', from: 'j5', to: 'j6', path: [p(240, 540), p(240, 360)], length: 180, widthClass: 'normal' },
-      { id: 'e7', from: 'j6', to: 'j1', path: [p(240, 360), p(320, 300), p(400, 240)], length: 210, widthClass: 'normal' }, // completes loop
+      { id: 'e2', from: 'j1', to: 'j2', path: [p(400, 400), p(500, 430), p(560, 460)], length: 210, widthClass: 'normal' },
+      { id: 'e3', from: 'j2', to: 'j3', path: [p(560, 460), p(560, 640)], length: 180, widthClass: 'normal' },
+      { id: 'e4', from: 'j3', to: 'j4', path: [p(560, 640), p(480, 700), p(400, 760)], length: 210, widthClass: 'normal' },
+      { id: 'e5', from: 'j4', to: 'j5', path: [p(400, 760), p(320, 700), p(240, 640)], length: 210, widthClass: 'normal' },
+      { id: 'e6', from: 'j5', to: 'j6', path: [p(240, 640), p(240, 460)], length: 180, widthClass: 'normal' },
+      { id: 'e7', from: 'j6', to: 'j1', path: [p(240, 460), p(320, 430), p(400, 400)], length: 210, widthClass: 'normal' }, // completes loop
 
       // exits to holes (use different spiral nodes so routing matters)
-      { id: 'e8', from: 'j6', to: 'hB', path: [p(240, 360), p(170, 640), p(140, 920)], length: 620, widthClass: 'normal' },
-      { id: 'e9', from: 'j5', to: 'hG', path: [p(240, 540), p(260, 745), p(280, 950)], length: 430, widthClass: 'normal' },
-      { id: 'e10', from: 'j4', to: 'hY', path: [p(400, 660), p(400, 815), p(400, 970)], length: 310, widthClass: 'normal' },
-      { id: 'e11', from: 'j3', to: 'hO', path: [p(560, 540), p(540, 745), p(520, 950)], length: 430, widthClass: 'normal' },
-      { id: 'e12', from: 'j2', to: 'hP', path: [p(560, 360), p(630, 640), p(660, 920)], length: 620, widthClass: 'normal' },
+      { id: 'e8', from: 'j6', to: 'hB', path: [p(240, 460), p(170, 740), p(140, 1020)], length: 620, widthClass: 'normal' },
+      { id: 'e9', from: 'j5', to: 'hG', path: [p(240, 640), p(260, 845), p(280, 1050)], length: 430, widthClass: 'normal' },
+      { id: 'e10', from: 'j4', to: 'hY', path: [p(400, 760), p(400, 915), p(400, 1070)], length: 310, widthClass: 'normal' },
+      { id: 'e11', from: 'j3', to: 'hO', path: [p(560, 640), p(540, 845), p(520, 1050)], length: 430, widthClass: 'normal' },
+      { id: 'e12', from: 'j2', to: 'hP', path: [p(560, 460), p(630, 740), p(660, 1020)], length: 620, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e2'], defaultIndex: 0 },
@@ -792,56 +792,56 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'Panic Router', rating: 5 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63', '#FFD700', '#9C27B0'],
     nodes: [
-      { id: 'sL', type: 'SPAWN', x: 230, y: 110 },
-      { id: 'sR', type: 'SPAWN', x: 570, y: 110 },
+      { id: 'sL', type: 'SPAWN', x: 230, y: -100 },
+      { id: 'sR', type: 'SPAWN', x: 570, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 230, y: 260 },
-      { id: 'j2', type: 'JUNCTION', x: 570, y: 260 },
+      { id: 'j1', type: 'JUNCTION', x: 230, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 570, y: 400 },
 
-      { id: 'j3', type: 'JUNCTION', x: 400, y: 360 }, // quake
-      { id: 'j4', type: 'JUNCTION', x: 260, y: 500 }, // spider
-      { id: 'j5', type: 'JUNCTION', x: 540, y: 500 }, // spider
+      { id: 'j3', type: 'JUNCTION', x: 400, y: 460 }, // quake
+      { id: 'j4', type: 'JUNCTION', x: 260, y: 600 }, // spider
+      { id: 'j5', type: 'JUNCTION', x: 540, y: 600 }, // spider
 
-      { id: 'j6', type: 'JUNCTION', x: 400, y: 620 }, // hub (3-way max)
-      { id: 'j7', type: 'JUNCTION', x: 300, y: 760 },
-      { id: 'j8', type: 'JUNCTION', x: 500, y: 760 },
+      { id: 'j6', type: 'JUNCTION', x: 400, y: 720 }, // hub (3-way max)
+      { id: 'j7', type: 'JUNCTION', x: 300, y: 860 },
+      { id: 'j8', type: 'JUNCTION', x: 500, y: 860 },
 
-      { id: 'hB', type: 'HOLE', x: 130, y: 930, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 250, y: 950, color: '#58CC02' },
-      { id: 'hY', type: 'HOLE', x: 370, y: 970, color: '#FFD700' },
-      { id: 'hO', type: 'HOLE', x: 430, y: 970, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 550, y: 950, color: '#E91E63' },
-      { id: 'hV', type: 'HOLE', x: 670, y: 930, color: '#9C27B0' },
+      { id: 'hB', type: 'HOLE', x: 130, y: 1030, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 250, y: 1050, color: '#58CC02' },
+      { id: 'hY', type: 'HOLE', x: 370, y: 1070, color: '#FFD700' },
+      { id: 'hO', type: 'HOLE', x: 430, y: 1070, color: '#ff914d' },
+      { id: 'hP', type: 'HOLE', x: 550, y: 1050, color: '#E91E63' },
+      { id: 'hV', type: 'HOLE', x: 670, y: 1030, color: '#9C27B0' },
     ],
     edges: [
-      { id: 'e1', from: 'sL', to: 'j1', path: [p(230, 110), p(230, 260)], length: 150, widthClass: 'normal' },
-      { id: 'e2', from: 'sR', to: 'j2', path: [p(570, 110), p(570, 260)], length: 150, widthClass: 'normal' },
+      { id: 'e1', from: 'sL', to: 'j1', path: [p(230, -100), p(230, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 'sR', to: 'j2', path: [p(570, -100), p(570, 400)], length: 500, widthClass: 'normal' },
 
-      { id: 'e3', from: 'j1', to: 'j3', path: [p(230, 260), p(315, 310), p(400, 360)], length: 220, widthClass: 'normal' },
-      { id: 'e4', from: 'j2', to: 'j3', path: [p(570, 260), p(485, 310), p(400, 360)], length: 220, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j3', path: [p(230, 400), p(315, 430), p(400, 460)], length: 220, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j3', path: [p(570, 400), p(485, 430), p(400, 460)], length: 220, widthClass: 'normal' },
 
-      { id: 'e5', from: 'j3', to: 'j4', path: [p(400, 360), p(330, 430), p(260, 500)], length: 220, widthClass: 'normal' },
-      { id: 'e6', from: 'j3', to: 'j5', path: [p(400, 360), p(470, 430), p(540, 500)], length: 220, widthClass: 'normal' },
+      { id: 'e5', from: 'j3', to: 'j4', path: [p(400, 460), p(330, 530), p(260, 600)], length: 220, widthClass: 'normal' },
+      { id: 'e6', from: 'j3', to: 'j5', path: [p(400, 460), p(470, 530), p(540, 600)], length: 220, widthClass: 'normal' },
 
-      { id: 'e7', from: 'j4', to: 'j6', path: [p(260, 500), p(330, 560), p(400, 620)], length: 220, widthClass: 'normal' },
-      { id: 'e8', from: 'j5', to: 'j6', path: [p(540, 500), p(470, 560), p(400, 620)], length: 220, widthClass: 'normal' },
+      { id: 'e7', from: 'j4', to: 'j6', path: [p(260, 600), p(330, 660), p(400, 720)], length: 220, widthClass: 'normal' },
+      { id: 'e8', from: 'j5', to: 'j6', path: [p(540, 600), p(470, 660), p(400, 720)], length: 220, widthClass: 'normal' },
 
       // dodge loops back to trap layer
-      { id: 'e9', from: 'j6', to: 'j4', path: [p(400, 620), p(330, 560), p(260, 500)], length: 220, widthClass: 'normal' },
-      { id: 'e10', from: 'j6', to: 'j5', path: [p(400, 620), p(470, 560), p(540, 500)], length: 220, widthClass: 'normal' },
+      { id: 'e9', from: 'j6', to: 'j4', path: [p(400, 720), p(330, 660), p(260, 600)], length: 220, widthClass: 'normal' },
+      { id: 'e10', from: 'j6', to: 'j5', path: [p(400, 720), p(470, 660), p(540, 600)], length: 220, widthClass: 'normal' },
 
       // final split
-      { id: 'e11', from: 'j6', to: 'j7', path: [p(400, 620), p(350, 690), p(300, 760)], length: 190, widthClass: 'normal' },
-      { id: 'e12', from: 'j6', to: 'j8', path: [p(400, 620), p(450, 690), p(500, 760)], length: 190, widthClass: 'normal' },
+      { id: 'e11', from: 'j6', to: 'j7', path: [p(400, 720), p(350, 790), p(300, 860)], length: 190, widthClass: 'normal' },
+      { id: 'e12', from: 'j6', to: 'j8', path: [p(400, 720), p(450, 790), p(500, 860)], length: 190, widthClass: 'normal' },
 
       // fan to holes (3-way max)
-      { id: 'e13', from: 'j7', to: 'hB', path: [p(300, 760), p(215, 845), p(130, 930)], length: 260, widthClass: 'normal' },
-      { id: 'e14', from: 'j7', to: 'hG', path: [p(300, 760), p(275, 855), p(250, 950)], length: 220, widthClass: 'normal' },
-      { id: 'e15', from: 'j7', to: 'hY', path: [p(300, 760), p(335, 865), p(370, 970)], length: 240, widthClass: 'normal' },
+      { id: 'e13', from: 'j7', to: 'hB', path: [p(300, 860), p(215, 945), p(130, 1030)], length: 260, widthClass: 'normal' },
+      { id: 'e14', from: 'j7', to: 'hG', path: [p(300, 860), p(275, 955), p(250, 1050)], length: 220, widthClass: 'normal' },
+      { id: 'e15', from: 'j7', to: 'hY', path: [p(300, 860), p(335, 965), p(370, 1070)], length: 240, widthClass: 'normal' },
 
-      { id: 'e16', from: 'j8', to: 'hV', path: [p(500, 760), p(585, 845), p(670, 930)], length: 260, widthClass: 'normal' },
-      { id: 'e17', from: 'j8', to: 'hP', path: [p(500, 760), p(525, 855), p(550, 950)], length: 220, widthClass: 'normal' },
-      { id: 'e18', from: 'j8', to: 'hO', path: [p(500, 760), p(465, 865), p(430, 970)], length: 240, widthClass: 'normal' },
+      { id: 'e16', from: 'j8', to: 'hV', path: [p(500, 860), p(585, 945), p(670, 1030)], length: 260, widthClass: 'normal' },
+      { id: 'e17', from: 'j8', to: 'hP', path: [p(500, 860), p(525, 955), p(550, 1050)], length: 220, widthClass: 'normal' },
+      { id: 'e18', from: 'j8', to: 'hO', path: [p(500, 860), p(465, 965), p(430, 1070)], length: 240, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e3'], defaultIndex: 0 },
@@ -876,65 +876,65 @@ export const LEVELS: LevelData[] = [
     metadata: { name: 'The Finale', rating: 5 },
     colors: ['#5170ff', '#58CC02', '#ff914d', '#E91E63', '#FFD700', '#9C27B0'],
     nodes: [
-      { id: 's1', type: 'SPAWN', x: 200, y: 110 },
-      { id: 's2', type: 'SPAWN', x: 600, y: 110 },
+      { id: 's1', type: 'SPAWN', x: 200, y: -100 },
+      { id: 's2', type: 'SPAWN', x: 600, y: -100 },
 
-      { id: 'j1', type: 'JUNCTION', x: 200, y: 250 },
-      { id: 'j2', type: 'JUNCTION', x: 400, y: 250 },
-      { id: 'j3', type: 'JUNCTION', x: 600, y: 250 },
+      { id: 'j1', type: 'JUNCTION', x: 200, y: 400 },
+      { id: 'j2', type: 'JUNCTION', x: 400, y: 400 },
+      { id: 'j3', type: 'JUNCTION', x: 600, y: 400 },
 
-      { id: 'j4', type: 'JUNCTION', x: 200, y: 420 }, // spider
-      { id: 'j5', type: 'JUNCTION', x: 400, y: 420 }, // quake
-      { id: 'j6', type: 'JUNCTION', x: 600, y: 420 }, // spider
+      { id: 'j4', type: 'JUNCTION', x: 200, y: 520 }, // spider
+      { id: 'j5', type: 'JUNCTION', x: 400, y: 520 }, // quake
+      { id: 'j6', type: 'JUNCTION', x: 600, y: 520 }, // spider
 
-      { id: 'j7', type: 'JUNCTION', x: 260, y: 600 },
-      { id: 'j8', type: 'JUNCTION', x: 540, y: 600 },
-      { id: 'j9', type: 'JUNCTION', x: 400, y: 700 }, // merge + loop
+      { id: 'j7', type: 'JUNCTION', x: 260, y: 700 },
+      { id: 'j8', type: 'JUNCTION', x: 540, y: 700 },
+      { id: 'j9', type: 'JUNCTION', x: 400, y: 800 }, // merge + loop
 
-      { id: 'hB', type: 'HOLE', x: 120, y: 930, color: '#5170ff' },
-      { id: 'hG', type: 'HOLE', x: 240, y: 950, color: '#58CC02' },
-      { id: 'hY', type: 'HOLE', x: 360, y: 970, color: '#FFD700' },
-      { id: 'hO', type: 'HOLE', x: 440, y: 970, color: '#ff914d' },
-      { id: 'hP', type: 'HOLE', x: 560, y: 950, color: '#E91E63' },
-      { id: 'hV', type: 'HOLE', x: 680, y: 930, color: '#9C27B0' },
+      { id: 'hB', type: 'HOLE', x: 120, y: 1030, color: '#5170ff' },
+      { id: 'hG', type: 'HOLE', x: 240, y: 1050, color: '#58CC02' },
+      { id: 'hY', type: 'HOLE', x: 360, y: 1070, color: '#FFD700' },
+      { id: 'hO', type: 'HOLE', x: 440, y: 1070, color: '#ff914d' },
+      { id: 'hP', type: 'HOLE', x: 560, y: 1050, color: '#E91E63' },
+      { id: 'hV', type: 'HOLE', x: 680, y: 1030, color: '#9C27B0' },
     ],
     edges: [
-      { id: 'e1', from: 's1', to: 'j1', path: [p(200, 110), p(200, 250)], length: 140, widthClass: 'normal' },
-      { id: 'e2', from: 's2', to: 'j3', path: [p(600, 110), p(600, 250)], length: 140, widthClass: 'normal' },
+      { id: 'e1', from: 's1', to: 'j1', path: [p(200, -100), p(200, 400)], length: 500, widthClass: 'normal' },
+      { id: 'e2', from: 's2', to: 'j3', path: [p(600, -100), p(600, 400)], length: 500, widthClass: 'normal' },
 
       // top routing (j2 only 2 outs, no 4-way)
-      { id: 'e3', from: 'j1', to: 'j2', path: [p(200, 250), p(400, 250)], length: 200, widthClass: 'normal' },
-      { id: 'e4', from: 'j2', to: 'j3', path: [p(400, 250), p(600, 250)], length: 200, widthClass: 'normal' },
-      { id: 'e5', from: 'j2', to: 'j5', path: [p(400, 250), p(400, 420)], length: 170, widthClass: 'normal' },
+      { id: 'e3', from: 'j1', to: 'j2', path: [p(200, 400), p(400, 400)], length: 200, widthClass: 'normal' },
+      { id: 'e4', from: 'j2', to: 'j3', path: [p(400, 400), p(600, 400)], length: 200, widthClass: 'normal' },
+      { id: 'e5', from: 'j2', to: 'j5', path: [p(400, 400), p(400, 520)], length: 120, widthClass: 'normal' },
 
-      { id: 'e6', from: 'j1', to: 'j4', path: [p(200, 250), p(200, 420)], length: 170, widthClass: 'normal' },
-      { id: 'e7', from: 'j3', to: 'j6', path: [p(600, 250), p(600, 420)], length: 170, widthClass: 'normal' },
+      { id: 'e6', from: 'j1', to: 'j4', path: [p(200, 400), p(200, 520)], length: 120, widthClass: 'normal' },
+      { id: 'e7', from: 'j3', to: 'j6', path: [p(600, 400), p(600, 520)], length: 120, widthClass: 'normal' },
 
       // mid links (multiple loops)
-      { id: 'e8', from: 'j4', to: 'j5', path: [p(200, 420), p(400, 420)], length: 200, widthClass: 'normal' },
-      { id: 'e9', from: 'j6', to: 'j5', path: [p(600, 420), p(400, 420)], length: 200, widthClass: 'normal' },
-      { id: 'e10', from: 'j5', to: 'j4', path: [p(400, 420), p(200, 420)], length: 200, widthClass: 'normal' },
-      { id: 'e11', from: 'j5', to: 'j6', path: [p(400, 420), p(600, 420)], length: 200, widthClass: 'normal' },
+      { id: 'e8', from: 'j4', to: 'j5', path: [p(200, 520), p(400, 520)], length: 200, widthClass: 'normal' },
+      { id: 'e9', from: 'j6', to: 'j5', path: [p(600, 520), p(400, 520)], length: 200, widthClass: 'normal' },
+      { id: 'e10', from: 'j5', to: 'j4', path: [p(400, 520), p(200, 520)], length: 200, widthClass: 'normal' },
+      { id: 'e11', from: 'j5', to: 'j6', path: [p(400, 520), p(600, 520)], length: 200, widthClass: 'normal' },
 
       // down layer
-      { id: 'e12', from: 'j4', to: 'j7', path: [p(200, 420), p(230, 520), p(260, 600)], length: 190, widthClass: 'normal' },
-      { id: 'e13', from: 'j6', to: 'j8', path: [p(600, 420), p(570, 520), p(540, 600)], length: 190, widthClass: 'normal' },
-      { id: 'e14', from: 'j5', to: 'j9', path: [p(400, 420), p(400, 560), p(400, 700)], length: 280, widthClass: 'normal' },
+      { id: 'e12', from: 'j4', to: 'j7', path: [p(200, 520), p(230, 620), p(260, 700)], length: 190, widthClass: 'normal' },
+      { id: 'e13', from: 'j6', to: 'j8', path: [p(600, 520), p(570, 620), p(540, 700)], length: 190, widthClass: 'normal' },
+      { id: 'e14', from: 'j5', to: 'j9', path: [p(400, 520), p(400, 660), p(400, 800)], length: 280, widthClass: 'normal' },
 
       // merge / loop at j9 (3-way max)
-      { id: 'e15', from: 'j7', to: 'j9', path: [p(260, 600), p(330, 650), p(400, 700)], length: 190, widthClass: 'normal' },
-      { id: 'e16', from: 'j8', to: 'j9', path: [p(540, 600), p(470, 650), p(400, 700)], length: 190, widthClass: 'normal' },
-      { id: 'e17', from: 'j9', to: 'j7', path: [p(400, 700), p(330, 650), p(260, 600)], length: 190, widthClass: 'normal' },
-      { id: 'e18', from: 'j9', to: 'j8', path: [p(400, 700), p(470, 650), p(540, 600)], length: 190, widthClass: 'normal' },
+      { id: 'e15', from: 'j7', to: 'j9', path: [p(260, 700), p(330, 750), p(400, 800)], length: 190, widthClass: 'normal' },
+      { id: 'e16', from: 'j8', to: 'j9', path: [p(540, 700), p(470, 750), p(400, 800)], length: 190, widthClass: 'normal' },
+      { id: 'e17', from: 'j9', to: 'j7', path: [p(400, 800), p(330, 750), p(260, 700)], length: 190, widthClass: 'normal' },
+      { id: 'e18', from: 'j9', to: 'j8', path: [p(400, 800), p(470, 750), p(540, 700)], length: 190, widthClass: 'normal' },
 
       // final fan to 6 holes via j7/j8 (each 3-way max)
-      { id: 'e19', from: 'j7', to: 'hB', path: [p(260, 600), p(190, 765), p(120, 930)], length: 420, widthClass: 'normal' },
-      { id: 'e20', from: 'j7', to: 'hG', path: [p(260, 600), p(250, 775), p(240, 950)], length: 360, widthClass: 'normal' },
-      { id: 'e21', from: 'j7', to: 'hY', path: [p(260, 600), p(310, 785), p(360, 970)], length: 420, widthClass: 'normal' },
+      { id: 'e19', from: 'j7', to: 'hB', path: [p(260, 700), p(190, 865), p(120, 1030)], length: 420, widthClass: 'normal' },
+      { id: 'e20', from: 'j7', to: 'hG', path: [p(260, 700), p(250, 875), p(240, 1050)], length: 360, widthClass: 'normal' },
+      { id: 'e21', from: 'j7', to: 'hY', path: [p(260, 700), p(310, 885), p(360, 1070)], length: 420, widthClass: 'normal' },
 
-      { id: 'e22', from: 'j8', to: 'hV', path: [p(540, 600), p(610, 765), p(680, 930)], length: 420, widthClass: 'normal' },
-      { id: 'e23', from: 'j8', to: 'hP', path: [p(540, 600), p(550, 775), p(560, 950)], length: 360, widthClass: 'normal' },
-      { id: 'e24', from: 'j8', to: 'hO', path: [p(540, 600), p(490, 785), p(440, 970)], length: 420, widthClass: 'normal' },
+      { id: 'e22', from: 'j8', to: 'hV', path: [p(540, 700), p(610, 865), p(680, 1030)], length: 420, widthClass: 'normal' },
+      { id: 'e23', from: 'j8', to: 'hP', path: [p(540, 700), p(550, 875), p(560, 1050)], length: 360, widthClass: 'normal' },
+      { id: 'e24', from: 'j8', to: 'hO', path: [p(540, 700), p(490, 885), p(440, 1070)], length: 420, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e6', 'e3'], defaultIndex: 0 },
