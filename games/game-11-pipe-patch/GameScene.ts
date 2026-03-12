@@ -1183,7 +1183,7 @@ export class PipePatchGameScene extends Phaser.Scene {
   private calculateStarBreakdown(current: PipePatchPerLevelMetrics): PipePatchStarBreakdown {
     const totalDragAttempts = Math.max(1, current.totalDragAttempts);
     const requiredPieceCount = Math.max(1, current.requiredPieceCount);
-    const firstActionGraceMs = 6000;
+    const firstActionGraceMs = 7000;
 
     // v2: Endpoint-first scoring model for real gameplay behavior.
     const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -1193,34 +1193,32 @@ export class PipePatchGameScene extends Phaser.Scene {
       current.correctPlacementsOnFirstTryCount + current.incorrectPlacementCount
     );
 
-    // Accuracy: reward first-try correctness and penalize incorrect target attempts.
+    // Accuracy: easier mid-tier while still rewarding first-try correctness.
     const firstTryCore = clamp01(current.correctPlacementsOnFirstTryCount / requiredPieceCount);
-    const incorrectPressure = current.incorrectPlacementCount / Math.max(1, targetAttempts);
-    const recoveryPenalty = Math.min(0.35, incorrectPressure * 0.7);
-    const accuracyCore = clamp01(firstTryCore - recoveryPenalty);
-    const accuracyScore = this.clampScore(100 * (0.75 * accuracyCore + 0.25 * (1 - incorrectPressure)));
+    const mistakeRate = current.incorrectPlacementCount / Math.max(1, targetAttempts);
+    const accuracyScore = this.clampScore(100 * (0.7 * firstTryCore + 0.3 * (1 - mistakeRate)));
 
-    // Mind-change: count explicit reversals and repeated mistakes.
-    const mindChangeLoad = current.undoCount + current.resetCount + 0.5 * current.repeatedErrorCount;
+    // Mind-change: reduce repeated-error penalty to soften difficulty.
+    const mindChangeLoad = current.undoCount + current.resetCount + 0.3 * current.repeatedErrorCount;
     const mindChangeCore = requiredPieceCount / Math.max(1, requiredPieceCount + mindChangeLoad);
     const mindChangeScore = this.clampScore(100 * mindChangeCore);
 
-    // Precision: account for rejected/invalid drops around tight cell placement.
+    // Precision: keep all major errors but no extra mismatch multiplier.
     const precisionMistakes =
-      current.rejectedDropCount + current.obstacleRejectCount + 1.2 * current.lockedSlotMismatchCount;
+      current.rejectedDropCount + current.obstacleRejectCount + current.lockedSlotMismatchCount;
     const precisionBudget = totalDragAttempts + requiredPieceCount;
     const precisionCore = clamp01(1 - precisionMistakes / Math.max(1, precisionBudget));
     const precisionScore = this.clampScore(100 * precisionCore);
 
-    // Speed: solve-time pace + first-action latency (with grace).
+    // Speed: target-relative completion pace + first-action latency grace.
     const overTimeMs = Math.max(0, current.solveTimeMs - current.parTimeMs);
-    const timeCore = clamp01(1 - overTimeMs / Math.max(1, current.parTimeMs * 1.2));
+    const timeCore = current.parTimeMs / Math.max(current.parTimeMs + overTimeMs, 1);
     const effectiveLatencyMs = Math.max(0, current.firstActionLatencyMs - firstActionGraceMs);
-    const latencyCore = clamp01(1 - effectiveLatencyMs / 8000);
-    const speedScore = this.clampScore(100 * (0.8 * timeCore + 0.2 * latencyCore));
+    const latencyCore = firstActionGraceMs / Math.max(firstActionGraceMs + effectiveLatencyMs, 1);
+    const speedScore = this.clampScore(100 * (0.85 * timeCore + 0.15 * latencyCore));
 
     const starScore = this.clampScore(
-      0.25 * mindChangeScore + 0.3 * accuracyScore + 0.2 * precisionScore + 0.25 * speedScore
+      0.2 * mindChangeScore + 0.35 * accuracyScore + 0.15 * precisionScore + 0.3 * speedScore
     );
 
     return {
@@ -1252,20 +1250,20 @@ export class PipePatchGameScene extends Phaser.Scene {
       && perfectFirstTry
       && current.solveTimeMs <= current.parTimeMs;
 
-    // v4 stricter score thresholds.
-    if (breakdown.starScore >= 88) stars = 3;
-    else if (breakdown.starScore >= 68) stars = 2;
+    // Medium-easy thresholds for broader 2-star outcomes.
+    if (breakdown.starScore >= 82) stars = 3;
+    else if (breakdown.starScore >= 58) stars = 2;
 
     if (stars === 3 && !cleanRunForThree) {
       stars = 2;
     }
 
-    // Hard cap for noisy/slow attempts.
+    // Relaxed hard cap for extreme noisy/slow attempts.
     const heavyMistakeRun =
-      current.incorrectPlacementCount >= 3
-      || mindChanges >= 4
-      || current.rejectedDropCount >= 5
-      || current.solveTimeMs > current.hardTimeMs;
+      current.incorrectPlacementCount >= 5
+      || mindChanges >= 6
+      || current.rejectedDropCount >= 8
+      || current.solveTimeMs > current.hardTimeMs * 1.15;
     if (heavyMistakeRun) {
       stars = 1;
     }
@@ -1279,7 +1277,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     breakdown: PipePatchStarBreakdown
   ): string | null {
     if (stars >= 3) return null;
-    const firstActionGraceMs = 6000;
+    const firstActionGraceMs = 7000;
 
     const weakest = [
       { key: 'mindChange', score: breakdown.mindChangeScore },

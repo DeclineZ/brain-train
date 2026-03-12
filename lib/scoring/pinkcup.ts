@@ -1,10 +1,6 @@
 import type { RoundTelemetry } from '@/games/game-07-pinkcup/types';
 import type { ClinicalStats } from '@/types';
 
-const DIFFICULTY_MIN = 0.8;
-const DIFFICULTY_SPAN = 1.9;
-const DIFFICULTY_MAX_BONUS = 0.12;
-
 export interface PinkCupGameStats {
   telemetry: RoundTelemetry;
   success: boolean;
@@ -20,12 +16,9 @@ const saturatingTargetCore = (actual: number, target: number) => {
   return target / (target + over);
 };
 
-const toPercent = (core: number) => Math.round(100 * core);
-
-const difficultyBonus = (difficultyMultiplier: number) =>
-  DIFFICULTY_MAX_BONUS * ((difficultyMultiplier - DIFFICULTY_MIN) / DIFFICULTY_SPAN);
-
-const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
+const clamp = (value: number) => Math.max(0, Math.min(100, value));
+const toPercentScaled = (core: number, difficultyMultiplier: number) =>
+  clamp(Math.round(100 * core * difficultyMultiplier));
 
 export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
   const { telemetry, difficultyMultiplier, success } = data;
@@ -34,8 +27,6 @@ export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
     return getZeroStats();
   }
 
-  const bonus = difficultyBonus(difficultyMultiplier);
-
   const spatialCore = calculateSpatialCore(telemetry);
   const planningCore = calculatePlanningCore(telemetry);
   const memoryCore = calculateMemoryCore(telemetry, success);
@@ -43,9 +34,9 @@ export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
   const planningBlendCore = 0.6 * spatialCore + 0.4 * planningCore;
 
   return {
-    stat_memory: toPercent(applySoftBonus(memoryCore, bonus)),
-    stat_speed: toPercent(applySoftBonus(speedCore, bonus)),
-    stat_planning: toPercent(applySoftBonus(planningBlendCore, bonus)),
+    stat_memory: toPercentScaled(memoryCore, difficultyMultiplier),
+    stat_speed: toPercentScaled(speedCore, difficultyMultiplier),
+    stat_planning: toPercentScaled(planningBlendCore, difficultyMultiplier),
     stat_visual: null,
     stat_focus: null,
     stat_emotion: null
