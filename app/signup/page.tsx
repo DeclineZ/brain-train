@@ -76,10 +76,10 @@ export default function SignupPage() {
             </section>
 
             {/* Right Pane - Signup Form */}
-            <section className="flex-1 min-h-screen md:min-h-0 relative flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-cream">
+            <section className="flex-1 min-h-[100dvh] md:min-h-0 relative flex flex-col justify-center items-center p-6 md:p-12 lg:p-24 bg-cream">
 
                 {/* Mobile Header */}
-                <div className="md:hidden w-full absolute top-0 left-0 p-6 flex justify-center">
+                <div className="md:hidden w-full flex justify-center mb-8">
                     <LogoHeader variant="mobile" />
                 </div>
 

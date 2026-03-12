@@ -206,6 +206,12 @@ export class FloatingMarketScene extends Phaser.Scene {
     private lastItemContactTime = 0;
     private encounterFirstTiltDirection: number | null = null;
 
+    // Cleanup tracking for window listeners & DOM elements
+    private tiltHandlerRef: ((e: any) => void) | null = null;
+    private tiltEventName: string | null = null;
+    private tapOverlayEl: HTMLElement | null = null;
+    private tapStyleEl: HTMLElement | null = null;
+
     constructor() {
         super({ key: 'FloatingMarketScene' });
     }
@@ -341,6 +347,27 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         // Show "Tap to Start" overlay to ensure valid user gesture for sensor permissions
         this.showTapToStart(width, height);
+
+        // Cleanup on scene shutdown (navigating away, game destroy, etc.)
+        this.events.on('shutdown', () => {
+            // Remove device orientation window listener
+            if (this.tiltHandlerRef && this.tiltEventName) {
+                window.removeEventListener(this.tiltEventName, this.tiltHandlerRef);
+                this.tiltHandlerRef = null;
+                this.tiltEventName = null;
+            }
+            // Remove injected DOM elements
+            if (this.tapOverlayEl && this.tapOverlayEl.parentNode) {
+                this.tapOverlayEl.parentNode.removeChild(this.tapOverlayEl);
+                this.tapOverlayEl = null;
+            }
+            if (this.tapStyleEl && this.tapStyleEl.parentNode) {
+                this.tapStyleEl.parentNode.removeChild(this.tapStyleEl);
+                this.tapStyleEl = null;
+            }
+            // Stop all sounds
+            try { this.sound.stopAll(); } catch (e) { /* ignore */ }
+        });
     }
 
     protected showTapToStart(width: number, height: number) {
@@ -381,6 +408,10 @@ export class FloatingMarketScene extends Phaser.Scene {
         overlay.appendChild(text);
         document.body.appendChild(overlay);
 
+        // Store references for cleanup on scene shutdown
+        this.tapOverlayEl = overlay;
+        this.tapStyleEl = style;
+
         const startHandler = () => {
             overlay.removeEventListener('click', startHandler);
             overlay.removeEventListener('touchend', startHandler);
@@ -392,6 +423,9 @@ export class FloatingMarketScene extends Phaser.Scene {
             if (style.parentNode) {
                 style.parentNode.removeChild(style);
             }
+            // Clear instance refs so shutdown handler won't double-remove
+            this.tapOverlayEl = null;
+            this.tapStyleEl = null;
 
             // iOS 13+ requires requesting permission explicitly on user interaction
             if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
@@ -826,7 +860,8 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         const eventName = isAbsolute ? 'deviceorientationabsolute' : 'deviceorientation';
 
-        window.addEventListener(eventName, (e: any) => {
+        // Store handler reference so it can be removed on shutdown
+        const handler = (e: any) => {
             if (e.gamma !== null && e.beta !== null && e.gamma !== undefined && e.beta !== undefined) {
                 let rawTilt = e.gamma;
                 // Determine screen orientation to use correct axis
@@ -860,7 +895,10 @@ export class FloatingMarketScene extends Phaser.Scene {
 
                 this.tiltGamma = relativeTilt;
             }
-        });
+        };
+        this.tiltHandlerRef = handler;
+        this.tiltEventName = eventName;
+        window.addEventListener(eventName, handler);
         this.setupTouchZones(this.scale.width, this.scale.height);
     }
 
