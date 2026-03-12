@@ -1,5 +1,5 @@
-import { Zap } from "lucide-react";
 import clsx from "clsx";
+import Image from "next/image";
 
 interface LogoHeaderProps {
     className?: string; // Allow absolute positioning overrides
@@ -7,35 +7,28 @@ interface LogoHeaderProps {
 }
 
 export default function LogoHeader({ className, variant }: LogoHeaderProps) {
-    // If variant is 'mobile', we use dark text. If 'desktop', we use white text.
-    // If no variant is passed, we default to the classes passed in className or expect parent to color it.
-    // Given the user request "Use Tailwind responsive classes... to handle the style switching cleanly",
-    // and my plan to instantiate it twice, I will rely on the `variant` to set the base colors.
-
     const isDesktop = variant === "desktop";
 
     return (
-        <div className={clsx("flex items-center gap-3", className)}>
-            {/* Icon Placeholder */}
-            {/* 40x40px circle */}
-            <div
-                className={clsx(
-                    "w-13 h-13 rounded-full flex items-center justify-center shadow-sm",
-                    isDesktop ? "bg-white text-orange-500" : "bg-orange-500 text-white"
-                )}
-            >
-                {/* Using a placeholder icon or Zap for energy/brain connection temporarily */}
-                <Zap className="w-8 h-8 fill-current" />
+        <div className={clsx("flex items-center gap-4 group cursor-pointer", className)}>
+            {/* Native Logo without background container */}
+            <div className="relative w-16 h-16 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105">
+                <Image
+                    src="/logo.webp"
+                    alt="RunJum Logo"
+                    fill
+                    className="object-contain drop-shadow-md"
+                />
             </div>
 
             {/* Brand Name */}
             <span
                 className={clsx(
-                    "font-bold text-4xl tracking-tight font-nunito",
+                    "font-bold text-4xl tracking-tight transition-all duration-300 drop-shadow-sm font-sans",
                     isDesktop ? "text-brown-900" : "text-slate-800"
                 )}
             >
-                NameArai
+                RunJum
             </span>
         </div>
     );

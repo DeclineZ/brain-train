@@ -1,8 +1,9 @@
 "use client";
 
-import { Flame, Star, Coins, Zap } from "lucide-react";
+import { Flame, Star, Coins } from "lucide-react";
 import { useEffect, useState } from "react";
 import TopBarMenu from "./TopBarMenu";
+import Image from "next/image";
 
 export default function TopBar() {
     const [streak, setStreak] = useState(0);
@@ -42,12 +43,21 @@ export default function TopBar() {
         <div className="w-full bg-tan h-16 flex items-center justify-between px-4 sticky top-0 z-50 border-b border-brown-600">
             {/* Left side: Logo (Desktop only) */}
             <div className="flex-1 flex items-center">
-                <div className="hidden md:flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
-                        <Zap className="w-5 h-5 text-[var(--icon-primary-stroke)] fill-[var(--icon-primary-fill)]" />
+                <div className="hidden md:flex items-center gap-2.5 group cursor-pointer transition-transform duration-300 hover:-translate-y-0.5">
+                    {/* Native Logo */}
+                    <div className="relative w-10 h-10 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105">
+                        <Image
+                            src="/logo.webp"
+                            alt="RunJum Logo"
+                            fill
+                            className="object-contain drop-shadow-md"
+                        />
                     </div>
-                    <span className="font-bold text-xl tracking-tight text-[var(--color-topbar-text)] font-sans">
-                        NameArai
+                    {/* Typography */}
+                    <span 
+                        className="font-bold text-[1.35rem] tracking-tight text-[var(--color-topbar-text)] drop-shadow-sm transition-colors duration-300 font-sans"
+                    >
+                        RunJum
                     </span>
                 </div>
             </div>

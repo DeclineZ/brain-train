@@ -233,6 +233,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current.destroy(true);
         gameInstance.current = null;
       }
+      // Ensure no orphaned canvas elements remain in the container
+      // (Phaser's destroy may fail to clean up if React unmounts the parent first)
+      if (gameRef.current) {
+        while (gameRef.current.firstChild) {
+          gameRef.current.removeChild(gameRef.current.firstChild);
+        }
+      }
     };
   }, [gameId, level, mode]); // Removed 'stars' to prevent re-init on async fetch
 
