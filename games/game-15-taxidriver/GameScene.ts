@@ -128,6 +128,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private controlSwapTimer: Phaser.Time.TimerEvent | null = null;
     private swapAlertPopup: Phaser.GameObjects.Container | null = null;
 
+    // Life System
+    private lives = 3;
+    private livesContainer!: Phaser.GameObjects.Container;
+    private lifeIcons: Phaser.GameObjects.Image[] = [];
+
     constructor() {
         super({ key: 'TaxiDriverGameScene' });
     }
@@ -138,6 +143,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.currentLevelConfig = TAXIDRIVER_LEVELS[level] || TAXIDRIVER_LEVELS[1];
 
         // Reset all state
+        this.lives = 3;
         this.path = [];
         this.currentPathIndex = 0;
         this.carHeading = 'N';
@@ -227,7 +233,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Create message text (Floating style)
         this.messageText = this.add.text(width / 2, height * 0.15, '', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: '32px',
+            fontSize: '40px', // Much smaller than default (was probably huge by default elsewhere or relying on CSS)
             color: '#FFFFFF',
             stroke: '#2B2115',
             strokeThickness: 6,
@@ -290,7 +296,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Dynamic layout: map sits between top UI (level header ~15%) and control panel bottom
-        const buttonSize = Math.min(100, width * 0.24);
+        const buttonSize = Math.min(130, width * 0.28);
         const controlPanelHeight = buttonSize + 40;
         const topMargin = height * 0.14;  // Space for level header
         const bottomMargin = controlPanelHeight + 50;  // Space for control panel + gap
@@ -894,8 +900,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Control panel at bottom — larger buttons for accessibility
-        const buttonSize = Math.min(100, width * 0.24);
-        const spacing = Math.min(35, width * 0.06);
+        const buttonSize = Math.min(130, width * 0.28);
+        const spacing = Math.min(20, width * 0.035);
 
         // Fixed distance from bottom to prevent overlap
         const panelY = height - buttonSize * 0.75;
@@ -972,6 +978,150 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             width / 2 + buttonSize + spacing, panelY,
             'right', 'ขวา', buttonSize
         );
+
+        // Create Lives Display (Top Center)
+        this.createLivesDisplay(width);
+    }
+
+    private createLivesDisplay(width: number) {
+        this.livesContainer = this.add.container(width / 2, this.scale.height * 0.08);
+        this.livesContainer.setDepth(200);
+
+        // Scale relative to screen width (base design = 400px wide)
+        const uiScale = Math.max(0.8, Math.min(1.6, width / 400));
+
+        // Background pill
+        const bgWidth = 160 * uiScale;
+        const bgHeight = 50 * uiScale;
+        const bg = this.add.graphics();
+        bg.fillStyle(COLORS.UI_PANEL, 0.9);
+        bg.fillRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25 * uiScale);
+        bg.lineStyle(2, COLORS.UI_STROKE);
+        bg.strokeRoundedRect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight, 25 * uiScale);
+        this.livesContainer.add(bg);
+
+        // 3 Life Icons (Tuktuks)
+        this.lifeIcons = [];
+        const iconW = 35 * uiScale;
+        const iconH = 45 * uiScale;
+        const spacing = 40 * uiScale;
+        const startX = -spacing;
+        
+        for (let i = 0; i < 3; i++) {
+            const icon = this.add.image(startX + (i * spacing), 0, 'tuktuk-body');
+            icon.setDisplaySize(iconW, iconH);
+            icon.setAngle(90); // facing right
+            this.livesContainer.add(icon);
+            this.lifeIcons.push(icon);
+        }
+    }
+
+    private updateLivesDisplay() {
+        for (let i = 0; i < this.lifeIcons.length; i++) {
+            if (i < this.lives) {
+                this.lifeIcons[i].setAlpha(1);
+                this.lifeIcons[i].setTint(0xFFFFFF); // Normal
+            } else {
+                this.lifeIcons[i].setAlpha(0.3);
+                this.lifeIcons[i].setTint(0x555555); // Grayed out
+            }
+        }
+    }
+
+    private deductLife(reason: 'timeout' | 'wrong_direction' | 'brake_timeout') {
+        if (this.lives <= 0 || this.gameOver) return;
+
+        this.lives--;
+        this.updateLivesDisplay();
+
+        // Immediately stop the car
+        this.isMoving = false;
+        this.targetPosition = null;
+
+        // Kill any pending decision timer
+        if (this.decisionTimer) {
+            this.decisionTimer.destroy();
+            this.decisionTimer = null;
+        }
+        
+        // Audio & visual feedback
+        this.playSound('wrong-turn');
+        this.showFeedback('✗', 0xFF4444);
+        this.messageText.setText(reason === 'brake_timeout' ? 'จอดนานเกิน!' : 'ผิดทาง!');
+        this.messageText.setColor('#FF4444');
+        this.messageText.setVisible(true);
+
+        // Camera shake + lives container pulse
+        this.cameras.main.shake(300, 0.008);
+        this.tweens.add({
+            targets: this.livesContainer,
+            scale: 1.3,
+            duration: 200,
+            yoyo: true,
+            ease: 'Cubic.easeOut'
+        });
+
+        // Animate the lost life icon fading out
+        const lostIconIndex = this.lives; // this.lives is already decremented
+        if (lostIconIndex < this.lifeIcons.length) {
+            const lostIcon = this.lifeIcons[lostIconIndex];
+            // Flash red then fade to gray — don't touch scale (setDisplaySize uses it internally)
+            lostIcon.setTint(0xFF4444);
+            this.tweens.add({
+                targets: lostIcon,
+                alpha: 0.25,
+                duration: 500,
+                ease: 'Cubic.easeOut',
+                onComplete: () => {
+                    lostIcon.setTint(0x555555);
+                }
+            });
+        }
+
+        // Map brake_timeout to timeout for endGame
+        const endReason = reason === 'brake_timeout' ? 'timeout' : reason;
+
+        if (this.lives <= 0) {
+            // Out of lives — brief pause then end game
+            this.time.delayedCall(1200, () => {
+                this.endGame(endReason);
+            });
+        } else {
+            // Still have lives — pause, then auto-correct and resume
+            this.time.delayedCall(1800, () => {
+                if (this.gameOver) return;
+
+                this.messageText.setVisible(false);
+                
+                // For brake_timeout: car is already at the right position, just resume
+                // For wrong_direction/timeout: snap car to intersection and correct heading
+                if (reason !== 'brake_timeout') {
+                    const currentSeg = this.path[this.currentPathIndex];
+                    
+                    // Snap car to intersection position
+                    const pos = this.gridToWorld(currentSeg.x, currentSeg.y);
+                    this.car.setPosition(pos.x, pos.y);
+                    this.carGridX = currentSeg.x;
+                    this.carGridY = currentSeg.y;
+                    
+                    // Face the correct direction (next segment's heading)
+                    if (this.currentPathIndex + 1 < this.path.length) {
+                        this.carHeading = this.path[this.currentPathIndex + 1].direction;
+                    }
+                    this.updateCarRotation();
+                }
+
+                // Reset navigation state
+                this.queuedDirection = null;
+                this.isApproachingIntersection = false;
+                this.upcomingIntersectionIndex = -1;
+                
+                // Find next intersection and resume movement
+                this.findNextIntersection();
+                this.highlightButtons(true);
+                this.moveToNextSegment();
+            });
+        }
     }
 
     private createDirectionButton(x: number, y: number, direction: Direction, symbol: string, size: number): Phaser.GameObjects.Container {
@@ -1330,6 +1480,18 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                             this.messageText.setVisible(false);
                             this.messageText.setAlpha(1);
                             this.messageText.setScale(1);
+                            // Reset font style from countdown (80px) to game size
+                            this.messageText.setStyle({
+                                fontFamily: 'Sarabun, sans-serif',
+                                fontSize: '40px',
+                                color: '#FFFFFF',
+                                stroke: '#2B2115',
+                                strokeThickness: 6,
+                                fontStyle: 'bold',
+                                align: 'center',
+                                shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true, fill: true },
+                                padding: { x: 10, y: 10 }
+                            });
                             this.launchGameAfterCountdown();
                         });
                     }
@@ -1658,7 +1820,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isBrakeStopped = false;
         this.messageText.setVisible(false);
         this.highlightForwardButton(false);
-        this.handleTimeout();
+
+        // Deduct a life but DON'T snap the car — it's already at the correct segment
+        // Just penalize and resume from where we are
+        this.deductLife('brake_timeout');
     }
 
     private handleForwardPress() {
@@ -2377,6 +2542,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 if (this.queuedDirection) {
                     // Process the queued direction
                     this.processQueuedDirection();
+                    // If wrong turn was detected, deductLife stopped the car — don't continue
+                    if (!this.isMoving) return;
                 } else {
                     // No input provided - FAIL
                     this.isMoving = false;
@@ -2466,15 +2633,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleTimeout() {
-        this.isApproachingIntersection = false;
-        this.brakeStopsRemaining = 0;
-        this.isBrakeStopped = false;
-        this.brakeStopSegments = [];
-        this.queuedDirection = null;
-        this.highlightButtons(false);
-        this.alertIndicator.setVisible(false);
-
-        // Record failed turn
+        // Record failed turn data
         const currentSeg = this.path[this.currentPathIndex];
         this.turnData.push({
             carHeading: this.carHeading,
@@ -2486,24 +2645,21 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             distanceToIntersection: 0,
             wasCorrect: false
         });
+        this.hasSuddenChangeOccurred = false;
 
-        // Play honk and fail
-        this.playSound('car-honk');
-        this.time.delayedCall(500, () => {
-            this.endGame('timeout');
-        });
+        // Clean up intersection state
+        this.isApproachingIntersection = false;
+        this.queuedDirection = null;
+        this.highlightButtons(false);
+        this.alertIndicator.setVisible(false);
+
+        // Deduct a life (handles stopping, feedback, and auto-correct)
+        this.deductLife('timeout');
     }
 
     private handleWrongDirection() {
-        this.playSound('wrong-turn');
-        this.showFeedback('✗', 0xFF4444);
-
-        this.time.delayedCall(500, () => {
-            this.playSound('car-honk');
-            this.time.delayedCall(500, () => {
-                this.endGame('wrong_direction');
-            });
-        });
+        // Deduct a life (handles stopping, feedback, and auto-correct)
+        this.deductLife('wrong_direction');
     }
 
     private handleVictory() {
@@ -2543,8 +2699,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 this.objectiveProgressText.setText(`จุดหมาย ${this.currentObjective}/${this.totalObjectives}`);
             }
 
-            // Show next objective message
             this.messageText.setText('จุดหมายถัดไป!');
+            this.messageText.setFontSize('40px'); // Explicitly scale it down
             this.messageText.setColor('#4285F4');
 
             // Setup next objective from current position (no reset!)
@@ -2686,6 +2842,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Calculate stats
         const stats = this.calculateGameStats(reason, totalTimeMs, stars);
 
+        // Generate star hint
+        const starHint = this.getStarHint(stars, reason);
+
         // Show end message
         if (reason === 'completed') {
             this.playSound('level-pass');
@@ -2693,7 +2852,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.messageText.setColor('#58CC02');
         } else {
             this.playSound('level-fail');
-            this.messageText.setText(reason === 'timeout' ? 'หมดเวลา!' : 'ผิดทาง!');
+            this.messageText.setText('พลังชีวิตหมด!');
             this.messageText.setColor('#FF4444');
         }
         this.messageText.setVisible(true);
@@ -2702,24 +2861,33 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.time.delayedCall(1500, () => {
             const onGameOver = this.registry.get('onGameOver');
             if (onGameOver) {
-                onGameOver(stats);
+                onGameOver({ ...stats, starHint });
             }
         });
+    }
+
+    private getStarHint(stars: number, reason: string): string | null {
+        if (reason !== 'completed') return null;
+        if (stars >= 3) return null;
+
+        const livesLost = 3 - this.lives;
+        if (livesLost === 1) {
+            return 'เกือบสมบูรณ์แบบ! ระวังทางแยกให้มากขึ้นเพื่อ 3 ดาว';
+        } else if (livesLost === 2) {
+            return 'ลองสังเกตเส้นทางให้ดี\nกดทิศทางก่อนถึงทางแยกเพื่อรักษาพลังชีวิต';
+        }
+        return 'พยายามรักษาพลังชีวิตให้ได้มากที่สุด!';
     }
 
     private calculateStars(reason: 'timeout' | 'wrong_direction' | 'completed'): number {
         if (reason !== 'completed') return 0;
 
-        const correctTurns = this.turnData.filter(t => t.wasCorrect).length;
-        const totalTurns = this.turnData.length;
+        // Based on life system: 3 lives = 3 stars, 2 lives = 2 stars, 1 life = 1 star
+        if (this.lives >= 3) return 3;
+        if (this.lives === 2) return 2;
+        if (this.lives === 1) return 1;
 
-        if (totalTurns === 0) return 3;
-
-        const accuracy = correctTurns / totalTurns;
-
-        if (accuracy >= 1.0) return 3;
-        if (accuracy >= 0.8) return 2;
-        return 1;
+        return 0; // Should not reach here if completed
     }
 
     private calculateGameStats(
@@ -2787,6 +2955,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             suddenChangeReactionTimes,
             preTurnDistances,
 
+            livesRemaining: this.lives,
             totalTurns: this.turnData.length,
             correctTurns: this.turnData.filter(t => t.wasCorrect).length,
             stars,

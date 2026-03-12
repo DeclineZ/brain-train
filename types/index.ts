@@ -188,6 +188,7 @@ export interface TaxiDriverGameStats {
   preTurnDistances: number[];
 
   // General stats
+  livesRemaining: number;
   totalTurns: number;
   correctTurns: number;
   stars: number;

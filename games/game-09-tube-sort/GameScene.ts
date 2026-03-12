@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { TUBE_SORT_LEVELS, getTubeSortLevel, TUBE_SORT_COLORS } from './levels';
 import { calculateTubeSortStars } from '@/lib/scoring/tubeSort';
+import { calculateTubeSortLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 
 type TubeSortStats = {
   levelPlayed: number;
@@ -1648,12 +1649,14 @@ export class TubeSortGameScene extends Phaser.Scene {
     };
 
     const stars = success ? calculateTubeSortStars(stats) : 0;
+    const score = calculateTubeSortLevelScore(stats, success);
     const starHint = success ? this.getStarHint(stats, stars) : null;
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({
         ...stats,
+        score,
         stars,
         starHint,
         success

@@ -5,6 +5,7 @@ import { WaterPhysics } from "./utils/WaterPhysics";
 import { BallSpawner } from "./utils/BallSpawner";
 import { FloatboatController } from "./utils/Floatboat";
 import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
+import { calculateFloatingBallMathLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import type {
   FloatingBall,
   Equation,
@@ -1193,10 +1194,12 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     } as any;
 
     const onGameOver = this.registry.get("onGameOver");
+    const score = calculateFloatingBallMathLevelScore(gameStats, false);
     
     if (onGameOver) {
       const finalData = {
         success: false, // Failed - score dropped below 0
+        score,
         stars: 0, // 0 stars for losing
         ...gameStats,
       };
@@ -2368,12 +2371,14 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
     const onGameOver = this.registry.get("onGameOver");
     console.log("[FloatingBallMathGameScene] onGameOver callback from registry:", !!onGameOver);
+    const score = calculateFloatingBallMathLevelScore(gameStats, true);
 
     if (onGameOver) {
       const starHint = this.generateStarHint(stars, totalTime);
       
       const finalData = {
         success: true,
+        score,
         stars,
         starHint,
         ...gameStats,

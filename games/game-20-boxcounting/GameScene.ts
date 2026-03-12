@@ -27,6 +27,7 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
     // Current puzzle data
     private currentAnswer = 0;
+    private currentOptions: number[] = [];
 
     // Timer
     private timerEvent?: Phaser.Time.TimerEvent;
@@ -103,6 +104,8 @@ export class BoxCountingGameScene extends Phaser.Scene {
     }
 
     private handleResize() {
+        // Don't re-render during feedback/transition — it would destroy the delayed timer
+        if (this.isInputLocked) return;
         this.renderScene();
     }
 
@@ -120,6 +123,9 @@ export class BoxCountingGameScene extends Phaser.Scene {
         } else {
             this.currentAnswer = (puzzle as Puzzle2D).answer;
         }
+
+        // Generate options ONCE per question (sorted, stable)
+        this.currentOptions = this.generateOptions(this.currentAnswer);
 
         this.renderScene();
         this.startTimer();
@@ -479,7 +485,7 @@ export class BoxCountingGameScene extends Phaser.Scene {
     // ==========================================
 
     private drawOptions(w: number, startY: number, h: number) {
-        const options = this.generateOptions(this.currentAnswer);
+        const options = this.currentOptions;
 
         const buttonW = Math.min(w * 0.35, 140);
         const buttonH = Math.min(h * 0.08, 56);
@@ -541,13 +547,13 @@ export class BoxCountingGameScene extends Phaser.Scene {
         const options = new Set<number>();
         options.add(correct);
 
+        // Pick closest distractors: ±1, ±2, ±3
         const distractors = [
-            correct + 1, correct - 1,
-            correct + 2, correct - 2,
-            correct + 3, correct - 3,
+            correct - 1, correct + 1,
+            correct - 2, correct + 2,
+            correct - 3, correct + 3,
         ].filter(d => d > 0);
 
-        Phaser.Utils.Array.Shuffle(distractors);
         for (const d of distractors) {
             if (options.size >= 4) break;
             options.add(d);
@@ -559,8 +565,9 @@ export class BoxCountingGameScene extends Phaser.Scene {
             fb++;
         }
 
+        // Sort numerically — stable, no jumping
         const arr = Array.from(options);
-        Phaser.Utils.Array.Shuffle(arr);
+        arr.sort((a, b) => a - b);
         return arr;
     }
 

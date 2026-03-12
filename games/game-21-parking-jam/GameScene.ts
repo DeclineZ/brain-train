@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { calculateParkingJamStats } from '@/lib/scoring/parking-jam';
+import { calculateParkingJamLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { getParkingJamLevel } from './levels';
 import { canParkingJamCarExit } from './solver';
 import {
@@ -535,6 +536,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     const size = this.level.gridSize;
     const boardSize = this.cellSize * size;
+    const blockedCells = new Set(this.level.blockedCells.map((cell) => `${cell.row},${cell.col}`));
 
     this.levelGraphics.fillStyle(0xffffff, 1);
     this.levelGraphics.fillRoundedRect(this.gridOriginX - 12, this.gridOriginY - 12, boardSize + 24, boardSize + 24, 20);
@@ -558,6 +560,10 @@ export class ParkingJamGameScene extends Phaser.Scene {
           this.cellSize,
           this.cellSize
         );
+
+        if (blockedCells.has(`${row},${col}`)) {
+          this.drawConeInCell(row, col);
+        }
       }
     }
 
@@ -635,6 +641,45 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.levelGraphics.moveTo(centerX + lockHalf, centerY - lockHalf);
     this.levelGraphics.lineTo(centerX - lockHalf, centerY + lockHalf);
     this.levelGraphics.strokePath();
+  }
+
+  private drawConeInCell(row: number, col: number) {
+    const x = this.gridOriginX + col * this.cellSize;
+    const y = this.gridOriginY + row * this.cellSize;
+    const centerX = x + this.cellSize * 0.5;
+    const centerY = y + this.cellSize * 0.52;
+    const coneH = Math.max(16, this.cellSize * 0.56);
+    const coneBaseW = Math.max(12, this.cellSize * 0.42);
+    const coneTopW = coneBaseW * 0.42;
+
+    this.levelGraphics.fillStyle(0xf97316, 0.98);
+    this.levelGraphics.beginPath();
+    this.levelGraphics.moveTo(centerX - coneBaseW * 0.5, centerY + coneH * 0.5);
+    this.levelGraphics.lineTo(centerX - coneTopW * 0.5, centerY - coneH * 0.5);
+    this.levelGraphics.lineTo(centerX + coneTopW * 0.5, centerY - coneH * 0.5);
+    this.levelGraphics.lineTo(centerX + coneBaseW * 0.5, centerY + coneH * 0.5);
+    this.levelGraphics.closePath();
+    this.levelGraphics.fillPath();
+
+    this.levelGraphics.fillStyle(0xffedd5, 0.96);
+    const stripeH = Math.max(3, coneH * 0.15);
+    this.levelGraphics.fillRoundedRect(
+      centerX - coneBaseW * 0.34,
+      centerY - coneH * 0.05,
+      coneBaseW * 0.68,
+      stripeH,
+      2
+    );
+    this.levelGraphics.fillRoundedRect(
+      centerX - coneBaseW * 0.28,
+      centerY + coneH * 0.2,
+      coneBaseW * 0.56,
+      stripeH,
+      2
+    );
+
+    this.levelGraphics.fillStyle(0x7c2d12, 0.28);
+    this.levelGraphics.fillEllipse(centerX, centerY + coneH * 0.56, coneBaseW * 0.9, Math.max(4, coneH * 0.16));
   }
 
   private positionCars() {
@@ -748,16 +793,20 @@ export class ParkingJamGameScene extends Phaser.Scene {
       g.fillRoundedRect(-widthPx * 0.18, -heightPx * 0.18, widthPx * 0.36, heightPx * 0.36, 6);
     }
 
-    const lightThickness = Math.max(4, Math.floor(Math.min(widthPx, heightPx) * 0.12));
+    const lightThickness = Math.max(6, Math.floor(Math.min(widthPx, heightPx) * 0.18));
+    const horizontalLightY = -heightPx * 0.33;
+    const horizontalLightHeight = heightPx * 0.31;
+    const verticalLightX = -widthPx * 0.33;
+    const verticalLightWidth = widthPx * 0.31;
     if (isTwoWay) {
       g.fillStyle(0xe0f2fe, 0.82);
       if (axis === 'h') {
         const leftX = -widthPx / 2 + 1;
         const rightX = widthPx / 2 - lightThickness - 1;
-        g.fillRoundedRect(leftX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
-        g.fillRoundedRect(leftX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
-        g.fillRoundedRect(rightX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
-        g.fillRoundedRect(rightX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
+        g.fillRoundedRect(leftX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+        g.fillRoundedRect(leftX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
+        g.fillRoundedRect(rightX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+        g.fillRoundedRect(rightX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
         if (density !== 'compact') {
           g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
           g.beginPath();
@@ -768,10 +817,10 @@ export class ParkingJamGameScene extends Phaser.Scene {
       } else {
         const topY = -heightPx / 2 + 1;
         const bottomY = heightPx / 2 - lightThickness - 1;
-        g.fillRoundedRect(-widthPx * 0.26, topY, widthPx * 0.22, lightThickness, 3);
-        g.fillRoundedRect(widthPx * 0.04, topY, widthPx * 0.22, lightThickness, 3);
-        g.fillRoundedRect(-widthPx * 0.26, bottomY, widthPx * 0.22, lightThickness, 3);
-        g.fillRoundedRect(widthPx * 0.04, bottomY, widthPx * 0.22, lightThickness, 3);
+        g.fillRoundedRect(verticalLightX, topY, verticalLightWidth, lightThickness, 4);
+        g.fillRoundedRect(-verticalLightX - verticalLightWidth, topY, verticalLightWidth, lightThickness, 4);
+        g.fillRoundedRect(verticalLightX, bottomY, verticalLightWidth, lightThickness, 4);
+        g.fillRoundedRect(-verticalLightX - verticalLightWidth, bottomY, verticalLightWidth, lightThickness, 4);
         if (density !== 'compact') {
           g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
           g.beginPath();
@@ -785,35 +834,35 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const frontX = frontOnRight ? widthPx / 2 - lightThickness - 1 : -widthPx / 2 + 1;
       const rearX = frontOnRight ? -widthPx / 2 + 1 : widthPx / 2 - lightThickness - 1;
       g.fillStyle(0xfef08a, 0.95);
-      g.fillRoundedRect(frontX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
-      g.fillRoundedRect(frontX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
-      const whiteCoreW = Math.max(2, lightThickness - 2);
-      const whiteCoreH = Math.max(2, Math.floor(heightPx * 0.1));
+      g.fillRoundedRect(frontX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+      g.fillRoundedRect(frontX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
+      const whiteCoreW = Math.max(3, lightThickness - 1);
+      const whiteCoreH = Math.max(3, Math.floor(heightPx * 0.12));
       const whiteCoreX = frontX + Math.max(0, Math.floor((lightThickness - whiteCoreW) * 0.5));
       g.fillStyle(0xffffff, 0.92);
-      g.fillRoundedRect(whiteCoreX, -heightPx * 0.22, whiteCoreW, whiteCoreH, 2);
-      g.fillRoundedRect(whiteCoreX, heightPx * 0.08, whiteCoreW, whiteCoreH, 2);
+      g.fillRoundedRect(whiteCoreX, horizontalLightY + 2, whiteCoreW, whiteCoreH, 2);
+      g.fillRoundedRect(whiteCoreX, -horizontalLightY - whiteCoreH - 2, whiteCoreW, whiteCoreH, 2);
       g.fillStyle(0xfda4af, 0.9);
-      g.fillRoundedRect(rearX, -heightPx * 0.26, lightThickness, heightPx * 0.22, 3);
-      g.fillRoundedRect(rearX, heightPx * 0.04, lightThickness, heightPx * 0.22, 3);
+      g.fillRoundedRect(rearX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+      g.fillRoundedRect(rearX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
     } else {
       const frontOnBottom = forwardDirection === 'down';
       const frontY = frontOnBottom ? heightPx / 2 - lightThickness - 1 : -heightPx / 2 + 1;
       const rearY = frontOnBottom ? -heightPx / 2 + 1 : heightPx / 2 - lightThickness - 1;
       g.fillStyle(0xfef08a, 0.95);
-      g.fillRoundedRect(-widthPx * 0.26, frontY, widthPx * 0.22, lightThickness, 3);
-      g.fillRoundedRect(widthPx * 0.04, frontY, widthPx * 0.22, lightThickness, 3);
-      const whiteCoreW = Math.max(2, Math.floor(widthPx * 0.1));
-      const whiteCoreH = Math.max(2, lightThickness - 2);
-      const leftCoreX = -widthPx * 0.26 + Math.max(0, Math.floor((widthPx * 0.22 - whiteCoreW) * 0.5));
-      const rightCoreX = widthPx * 0.04 + Math.max(0, Math.floor((widthPx * 0.22 - whiteCoreW) * 0.5));
+      g.fillRoundedRect(verticalLightX, frontY, verticalLightWidth, lightThickness, 4);
+      g.fillRoundedRect(-verticalLightX - verticalLightWidth, frontY, verticalLightWidth, lightThickness, 4);
+      const whiteCoreW = Math.max(3, Math.floor(widthPx * 0.12));
+      const whiteCoreH = Math.max(3, lightThickness - 1);
+      const leftCoreX = verticalLightX + Math.max(0, Math.floor((verticalLightWidth - whiteCoreW) * 0.5));
+      const rightCoreX = -verticalLightX - verticalLightWidth + Math.max(0, Math.floor((verticalLightWidth - whiteCoreW) * 0.5));
       const coreY = frontY + Math.max(0, Math.floor((lightThickness - whiteCoreH) * 0.5));
       g.fillStyle(0xffffff, 0.92);
       g.fillRoundedRect(leftCoreX, coreY, whiteCoreW, whiteCoreH, 2);
       g.fillRoundedRect(rightCoreX, coreY, whiteCoreW, whiteCoreH, 2);
       g.fillStyle(0xfda4af, 0.9);
-      g.fillRoundedRect(-widthPx * 0.26, rearY, widthPx * 0.22, lightThickness, 3);
-      g.fillRoundedRect(widthPx * 0.04, rearY, widthPx * 0.22, lightThickness, 3);
+      g.fillRoundedRect(verticalLightX, rearY, verticalLightWidth, lightThickness, 4);
+      g.fillRoundedRect(-verticalLightX - verticalLightWidth, rearY, verticalLightWidth, lightThickness, 4);
     }
 
     g.fillStyle(0xdbeafe, 0.72);
@@ -970,12 +1019,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const allowed = allowedExitDirections.includes(direction);
       const color = allowed ? 0x16a34a : 0x94a3b8;
       const alpha = allowed ? 0.95 : 0.5;
-      const marker = Math.max(density === 'compact' ? 5 : 6, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.13 : 0.16)));
+      const marker = Math.max(density === 'compact' ? 8 : 10, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.2 : 0.25)));
 
       g.fillStyle(color, alpha);
-      g.lineStyle(density === 'compact' ? 1.5 : 2, 0xffffff, allowed ? 0.9 : 0.55);
+      g.lineStyle(density === 'compact' ? 2.2 : 3, 0xffffff, allowed ? 0.9 : 0.55);
 
-      const inset = density === 'compact' ? 6: 8;
+      const inset = density === 'compact' ? 5 : 7;
       if (direction === 'left') {
         g.beginPath();
         g.moveTo(-widthPx / 2 + inset, 0);
@@ -1011,7 +1060,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
 
       if (allowed) return;
-      g.lineStyle(density === 'compact' ? 1.5 : 2, 0x7f1d1d, 0.8);
+      g.lineStyle(density === 'compact' ? 2.2 : 3, 0x7f1d1d, 0.9);
       if (direction === 'left') {
         g.beginPath();
         g.moveTo(-widthPx / 2 + marker * 0.2, -marker * 0.5);
@@ -1241,6 +1290,9 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
   private getOccupiedSet(skipCarId?: string) {
     const occupied = new Set<string>();
+    this.level.blockedCells.forEach((cell) => {
+      occupied.add(`${cell.row},${cell.col}`);
+    });
     this.cars.forEach((car) => {
       if (car.runtime.removed) return;
       if (skipCarId && car.config.id === skipCarId) return;
@@ -1424,7 +1476,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     const clinicalStats = calculateParkingJamStats(sessionStats);
 
     const stars = this.calculateStars(result, levelAttempt);
-    const score = this.calculateScore(result, levelAttempt, stars);
+    const score = this.calculateScore(result, levelAttempt);
     const starHint = this.getStarHint(result, levelAttempt, stars);
 
     const payload: ParkingJamOnGameOverPayload = {
@@ -1474,27 +1526,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
   private calculateScore(
     result: { solved: boolean; failedTimeout: boolean; skipped: boolean },
-    attempt: ParkingJamLevelAttemptStats,
-    stars: 0 | 1 | 2 | 3
+    attempt: ParkingJamLevelAttemptStats
   ) {
-    if (result.failedTimeout || result.skipped) {
-      return Math.max(30, 120 - this.invalidMoveCount * 8 - this.blockedExitAttemptCount * 10);
-    }
-
-    if (!result.solved) return 0;
-
-    const moveFactor = this.level.parMoves / Math.max(1, attempt.moveCount);
-    const timeFactor = this.level.parTimeMs / Math.max(1, attempt.levelTimeMs);
-    const base = 240 + stars * 130;
-    const score = Math.round(
-      base +
-      moveFactor * 260 +
-      timeFactor * 220 -
-      this.undoCount * 22 -
-      this.invalidMoveCount * 10 -
-      this.collisionCount * 12
-    );
-    return Math.max(1, score);
+    return calculateParkingJamLevelScore({
+      attempt,
+      solved: result.solved && !result.failedTimeout && !result.skipped,
+    });
   }
 
   private getStarHint(
@@ -1647,7 +1684,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
 
       g.fillStyle(available ? 0x0f766e : 0x64748b, 0.95);
-      const offset = Math.max(density === 'compact' ? 14 : 18, Math.min(widthPx, heightPx) * (density === 'compact' ? 0.2 : 0.24));
+      const offset = Math.max(density === 'compact' ? 18 : 22, Math.min(widthPx, heightPx) * (density === 'compact' ? 0.24 : 0.3));
       const arrowX = direction === 'left'
         ? centerX - offset
         : direction === 'right'
@@ -1658,7 +1695,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
         : direction === 'down'
           ? centerY + offset
           : centerY;
-      this.drawSelectionArrow(g, arrowX, arrowY, direction, Math.max(density === 'compact' ? 9 : 11, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.14 : 0.16))));
+      this.drawSelectionArrow(g, arrowX, arrowY, direction, Math.max(density === 'compact' ? 12 : 15, Math.floor(Math.min(widthPx, heightPx) * (density === 'compact' ? 0.21 : 0.25))));
     });
 
     g.lineStyle(density === 'compact' ? 1.5 : 2, 0xffffff, 0.8);

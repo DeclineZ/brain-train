@@ -1,4 +1,5 @@
 import type {
+  ParkingJamBlockedCell,
   ParkingJamCarConfig,
   ParkingJamCarType,
   ParkingJamDirection,
@@ -615,34 +616,36 @@ type ParkingJamLevelMeta = {
 // Solver metadata is authored-time data and kept static to avoid heavy runtime precomputation.
 const PRECOMPUTED_LEVEL_META: Record<number, ParkingJamLevelMeta> = {
   0: { parMoves: 3, relevantCarSet: ['A', 'B', 'C'] },
-  1: { parMoves: 4, relevantCarSet: ['A', 'B', 'C', 'D'] },
-  2: { parMoves: 5, relevantCarSet: ['A', 'B', 'C', 'D', 'E'] },
-  3: { parMoves: 6, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F'] },
+  1: { parMoves: 3, relevantCarSet: ['A', 'B', 'C', 'D'] },
+  2: { parMoves: 3, relevantCarSet: ['A', 'B', 'C', 'D', 'E'] },
+  3: { parMoves: 3, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F'] },
   4: { parMoves: 7, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] },
   5: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] },
-  6: { parMoves: 1, relevantCarSet: ['X'] },
-  7: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  6: { parMoves: 7, relevantCarSet: ['X'] },
+  7: { parMoves: 11, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
   8: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
   9: { parMoves: 8, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] },
-  10: { parMoves: 3, relevantCarSet: ['B', 'H', 'X'] },
-  11: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
-  12: { parMoves: 4, relevantCarSet: ['B', 'G', 'H', 'J'] },
+  10: { parMoves: 9, relevantCarSet: ['B', 'H', 'X'] },
+  11: { parMoves: 11, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  12: { parMoves: 9, relevantCarSet: ['B', 'G', 'H', 'J'] },
   13: { parMoves: 8, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] },
   14: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
-  15: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
-  16: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
-  17: { parMoves: 9, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
-  18: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  19: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  20: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  21: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  22: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  23: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
-  24: { parMoves: 10, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  15: { parMoves: 11, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  16: { parMoves: 11, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  17: { parMoves: 11, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] },
+  18: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  19: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  20: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  21: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  22: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  23: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
+  24: { parMoves: 13, relevantCarSet: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] },
 };
 
 const deriveParTimeMs = (parMoves: number, difficulty: number) =>
   Math.max(3000, Math.round(2200 + parMoves * 1700 + difficulty * 350));
+
+const cellKey = (row: number, col: number) => `${row},${col}`;
 
 const carCells = (car: ParkingJamCarConfig) => {
   const cells: string[] = [];
@@ -701,6 +704,71 @@ const capBlockedGateSegments = (raw: ParkingJamRawLevelConfig) => {
   return ordered.slice(0, cap);
 };
 
+const buildCarOccupiedSet = (cars: ParkingJamCarConfig[]) => {
+  const occupied = new Set<string>();
+  cars.forEach((car) => {
+    carCells(car).forEach((cell) => occupied.add(cell));
+  });
+  return occupied;
+};
+
+const capBlockedCells = (raw: ParkingJamRawLevelConfig, cars: ParkingJamCarConfig[]) => {
+  if (raw.level < 5) return [];
+
+  const occupied = buildCarOccupiedSet(cars);
+  const unique = new Map<string, ParkingJamBlockedCell>();
+  (raw.blockedCells ?? []).forEach((cell) => {
+    if (cell.row <= 0 || cell.col <= 0) return;
+    if (cell.row >= raw.gridSize - 1 || cell.col >= raw.gridSize - 1) return;
+    if (occupied.has(cellKey(cell.row, cell.col))) return;
+    unique.set(cellKey(cell.row, cell.col), { row: cell.row, col: cell.col });
+  });
+  if (unique.size > 0) {
+    return [...unique.values()].slice(0, 2);
+  }
+
+  const horizontalRows = new Set(cars.filter((car) => car.axis === 'h').map((car) => car.row));
+  const verticalCols = new Set(cars.filter((car) => car.axis === 'v').map((car) => car.col));
+  const twoWayRows = new Set(
+    cars.filter((car) => car.axis === 'h' && car.allowedExitDirections.length > 1).map((car) => car.row)
+  );
+  const twoWayCols = new Set(
+    cars.filter((car) => car.axis === 'v' && car.allowedExitDirections.length > 1).map((car) => car.col)
+  );
+  const oneWayRows = new Set(
+    cars.filter((car) => car.axis === 'h' && car.allowedExitDirections.length === 1).map((car) => car.row)
+  );
+  const oneWayCols = new Set(
+    cars.filter((car) => car.axis === 'v' && car.allowedExitDirections.length === 1).map((car) => car.col)
+  );
+
+  const twoWayLane: ParkingJamBlockedCell[] = [];
+  const nonOneWayLane: ParkingJamBlockedCell[] = [];
+
+  for (let row = 1; row < raw.gridSize - 1; row += 1) {
+    for (let col = 1; col < raw.gridSize - 1; col += 1) {
+      if (occupied.has(cellKey(row, col))) continue;
+      const blocksTwoWayWithoutOneWay =
+        (twoWayRows.has(row) && !oneWayRows.has(row)) ||
+        (twoWayCols.has(col) && !oneWayCols.has(col));
+      if (blocksTwoWayWithoutOneWay) {
+        twoWayLane.push({ row, col });
+        continue;
+      }
+      const notInOneWayLane = !oneWayRows.has(row) && !oneWayCols.has(col);
+      if (notInOneWayLane) {
+        nonOneWayLane.push({ row, col });
+      }
+    }
+  }
+
+  const targetCount = raw.level >= 16 ? 2 : 1;
+  const merged = [...twoWayLane, ...nonOneWayLane];
+  const uniqueCandidates = new Map<string, ParkingJamBlockedCell>();
+  merged.forEach((cell) => uniqueCandidates.set(cellKey(cell.row, cell.col), cell));
+  return [...uniqueCandidates.values()].slice(0, targetCount);
+};
+
 const preferredOneWayDirection = (car: ParkingJamCarConfig, gridSize: number): ParkingJamDirection => {
   // fallback heuristic if no gate information is used
   if (car.axis === 'h') {
@@ -755,11 +823,13 @@ const normalizeCarsForProgression = (raw: ParkingJamRawLevelConfig): ParkingJamR
   const oneWayRatio = cars.length > 0 ? oneWayCount / cars.length : 1;
   const gatingProfile: ParkingJamRawLevelConfig['gatingProfile'] =
     blockedGateSegments.length === 0 ? 'none' : raw.level >= 16 ? 'partial' : raw.gatingProfile;
+  const blockedCells = capBlockedCells(raw, cars);
 
   return {
     ...normalizedRaw,
     cars,
     blockedGateSegments,
+    blockedCells,
     gatingProfile,
     targetCarId,
     objectiveType,
@@ -790,6 +860,7 @@ const buildLevelConfig = (raw: ParkingJamRawLevelConfig): ParkingJamLevelConfig 
 
   return {
     ...tuned,
+    blockedCells: tuned.blockedCells ?? [],
     parMoves: calibratedParMoves,
     parTimeMs,
     relevantCarSet: relevantCarSet.length > 0 ? relevantCarSet : tuned.cars.map((car) => car.id),

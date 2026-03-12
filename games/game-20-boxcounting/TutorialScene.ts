@@ -67,9 +67,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         if (!this.cache.audio.exists('bc-complete')) {
             this.load.audio('bc-complete', `${soundBase}/success.mp3`);
         }
-        if (!this.cache.audio.exists('bc-bgm')) {
-            this.load.audio('bc-bgm', '/assets/game-20-boxcounting/bgm.mp3');
-        }
+        // BGM loaded lazily in create() to avoid blocking scene start
     }
 
     create() {
@@ -77,13 +75,29 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         this.currentPuzzleIndex = 0;
         this.isInputLocked = false;
 
-        // Start BGM
-        try {
-            const bgm = this.sound.add('bc-bgm', { volume: 0.25, loop: true });
-            bgm.play();
-        } catch (e) { /* ignore */ }
+        // Load and start BGM lazily (non-blocking)
+        this.loadAndPlayBGM();
 
         this.showWelcome();
+    }
+
+    private loadAndPlayBGM() {
+        if (this.cache.audio.exists('bc-bgm')) {
+            try {
+                const bgm = this.sound.add('bc-bgm', { volume: 0.25, loop: true });
+                bgm.play();
+            } catch (e) { /* ignore */ }
+            return;
+        }
+        // Load in the background without blocking
+        this.load.audio('bc-bgm', '/assets/game-20-boxcounting/bgm.mp3');
+        this.load.once('complete', () => {
+            try {
+                const bgm = this.sound.add('bc-bgm', { volume: 0.25, loop: true });
+                bgm.play();
+            } catch (e) { /* ignore */ }
+        });
+        this.load.start();
     }
 
     // ==========================================
@@ -105,30 +119,37 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
 
         // Card
         const cardW = w * 0.85;
-        const cardH = h * 0.45;
+        const cardH = h * 0.52;
         const cardX = (w - cardW) / 2;
         const cardY = (h - cardH) / 2.5;
 
         const card = this.add.graphics();
+        // Vibrant border
+        card.fillStyle(0x58CC02, 1);
+        card.fillRoundedRect(cardX - 3, cardY - 3, cardW + 6, cardH + 6, 26);
         card.fillStyle(COLORS.WHITE, 1);
         card.fillRoundedRect(cardX, cardY, cardW, cardH, 24);
 
-        // Emoji
-        this.add.text(w / 2, cardY + cardH * 0.15, '🧊', thaiStyle({
-            fontSize: '56px',
-        })).setOrigin(0.5);
+        // Draw actual isometric blocks instead of emoji
+        const blockCenterX = w / 2;
+        const blockCenterY = cardY + cardH * 0.18;
+        const demoBlocks: Block3D[] = [
+            { x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 2, y: 0, z: 0 },
+            { x: 0, y: 0, z: 1 },
+        ];
+        this.drawIsometricScene(blockCenterX, blockCenterY, h * 0.18, demoBlocks, 3);
 
         // Title
-        this.add.text(w / 2, cardY + cardH * 0.38, 'นับลูกบาศก์', thaiStyle({
-            fontSize: `${Math.min(28, w * 0.06)}px`,
+        this.add.text(w / 2, cardY + cardH * 0.42, 'นับลูกบาศก์', thaiStyle({
+            fontSize: `${Math.min(30, w * 0.07)}px`,
             fontStyle: 'bold',
             color: '#333333',
         })).setOrigin(0.5);
 
         // Description
         this.add.text(w / 2, cardY + cardH * 0.58, 'สังเกตภาพดีๆ\nลองนับดูว่ามีลูกบาศก์กี่อัน\nแล้วเลือกคำตอบที่ถูกต้อง', thaiStyle({
-            fontSize: `${Math.min(18, w * 0.04)}px`,
-            color: '#666666',
+            fontSize: `${Math.min(20, w * 0.045)}px`,
+            color: '#555555',
             lineSpacing: 8,
         })).setOrigin(0.5);
 
@@ -182,8 +203,8 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         bg.fillStyle(COLORS.BG, 1);
         bg.fillRect(0, 0, w, h);
 
-        // Instruction text above question
-        const instrFontSize = Math.min(16, w * 0.035);
+        // Instruction text above question — larger for mobile
+        const instrFontSize = Math.min(20, w * 0.045);
         if (puzzleIndex === 0) {
             this.add.text(w / 2, h * 0.08, '👀 สังเกตดีๆ นับกล่องให้ครบ!', thaiStyle({
                 fontSize: `${instrFontSize}px`,
@@ -199,7 +220,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         }
 
         // Question text
-        const fontSize = Math.min(24, w * 0.05);
+        const fontSize = Math.min(26, w * 0.055);
         this.add.text(w / 2, h * 0.14, 'มีลูกบาศก์อยู่ในภาพกี่อัน?', thaiStyle({
             fontSize: `${fontSize}px`,
             fontStyle: 'bold',
@@ -207,7 +228,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
 
         // Question counter
         this.add.text(w / 2, h * 0.19, `ข้อ ${puzzleIndex + 1} / 2`, thaiStyle({
-            fontSize: `${Math.min(14, w * 0.03)}px`,
+            fontSize: `${Math.min(16, w * 0.035)}px`,
             color: '#999999',
         })).setOrigin(0.5, 0);
 
@@ -418,7 +439,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
     private generateOptions(correct: number): number[] {
         const options = new Set<number>();
         options.add(correct);
-        [correct + 1, correct - 1, correct + 2, correct - 2].filter(d => d > 0).forEach(d => {
+        [correct - 1, correct + 1, correct - 2, correct + 2].filter(d => d > 0).forEach(d => {
             if (options.size < 4) options.add(d);
         });
         let fb = 1;
@@ -426,8 +447,9 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
             if (!options.has(fb)) options.add(fb);
             fb++;
         }
+        // Sort numerically — stable, no jumping
         const arr = Array.from(options);
-        Phaser.Utils.Array.Shuffle(arr);
+        arr.sort((a, b) => a - b);
         return arr;
     }
 

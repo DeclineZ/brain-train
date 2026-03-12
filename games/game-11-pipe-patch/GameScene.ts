@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
 import { PIPE_PATCH_LEVELS, getPipePatchLevel } from './levels';
+import { calculatePipePatchLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
+import { calculateUnifiedLevelScore, mapDifficultyFromScale } from '@/lib/scoring/engine/unifiedLevelScore';
 import {
   DIR,
   DIR_VECTORS,
@@ -68,6 +70,14 @@ interface EvalResult {
     correctPlacements: number;
     incorrectPlacements: number;
   }>;
+}
+
+interface PipePatchStarBreakdown {
+  mindChangeScore: number;
+  accuracyScore: number;
+  precisionScore: number;
+  speedScore: number;
+  starScore: number;
 }
 
 type NetworkTraversalMode = 'gameplay' | 'visual';
@@ -933,6 +943,8 @@ export class PipePatchGameScene extends Phaser.Scene {
     if (existing && existing.pieceId !== piece.pieceId) {
       const existingVisual = this.placedVisuals.get(existing.pieceId);
       if (existingVisual) {
+        this.levelMetrics.undoCount += 1;
+        this.countTargetPlacementRemovalAsIncorrect(existingVisual.currentCellKey ?? key);
         this.returnPieceToTray(existingVisual);
       }
       this.logEvent('piece_swapped', { incomingPieceId: piece.pieceId, outgoingPieceId: existing.pieceId, cellId: key });
@@ -950,6 +962,8 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     // If a placed piece is moved to another cell, clear its old occupancy first.
     if (previousCellKey && previousCellKey !== key) {
+      this.levelMetrics.undoCount += 1;
+      this.countTargetPlacementRemovalAsIncorrect(previousCellKey);
       this.placed.delete(previousCellKey);
     }
 
@@ -962,18 +976,21 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const req = this.activeRequiredPlacements.find((r) => r.position.x === cell.x && r.position.y === cell.y);
     const isEndpointTarget = this.isEndpointCell(cell.x, cell.y);
-    const isCorrectCell = (!!req && req.pieceType === activePiece.pieceType)
-      || this.isEndpointPlacementValid(cell.x, cell.y, activePiece.pieceType);
-    if (isCorrectCell && !this.cellHadWrongAttempt.has(key)) {
+    const isTargetCell = this.isAccuracyTargetCell(cell.x, cell.y);
+    const isCorrectTargetPlacement = this.isCorrectAccuracyTargetPlacement(cell.x, cell.y, activePiece.pieceType);
+    if (isTargetCell && isCorrectTargetPlacement && !this.cellHadWrongAttempt.has(key)) {
       this.levelMetrics.correctPlacementsOnFirstTryCount += 1;
     }
-    if (!isCorrectCell) this.levelMetrics.incorrectPlacementCount += 1;
+    if (isTargetCell && !isCorrectTargetPlacement) {
+      this.levelMetrics.incorrectPlacementCount += 1;
+      this.cellHadWrongAttempt.add(key);
+    }
     this.levelMetrics.validPlacementsCount += 1;
 
     this.logEvent('piece_placed', {
       pieceId: activePiece.pieceId,
       cellId: key,
-      isCorrectCell,
+      isCorrectCell: isTargetCell ? isCorrectTargetPlacement : true,
       isRequiredCell: !!req || isEndpointTarget,
     });
     this.updateAllPieceColors();
@@ -1022,12 +1039,44 @@ export class PipePatchGameScene extends Phaser.Scene {
     if (!piece.currentCellKey) return;
     this.pushUndoSnapshot();
     const cellKey = piece.currentCellKey;
+    this.levelMetrics.undoCount += 1;
+    this.countTargetPlacementRemovalAsIncorrect(cellKey);
     this.placed.delete(cellKey);
     this.returnPieceToTray(piece);
     this.levelMetrics.validPlacementsCount = Math.max(0, this.levelMetrics.validPlacementsCount - 1);
     this.logEvent('piece_removed', { pieceId: piece.pieceId, cellId: cellKey });
     this.updateAllPieceColors();
     this.runBoardEval();
+  }
+
+  private isAccuracyTargetCell(x: number, y: number): boolean {
+    // Most authored levels currently have no requiredPlacements,
+    // so accuracy targeting must fall back to endpoint cells.
+    if (this.activeRequiredPlacements.length === 0) {
+      return this.isEndpointCell(x, y);
+    }
+    return this.activeRequiredPlacements.some((r) => r.position.x === x && r.position.y === y)
+      || this.isEndpointCell(x, y);
+  }
+
+  private isCorrectAccuracyTargetPlacement(x: number, y: number, pieceType: PipePieceType): boolean {
+    const req = this.activeRequiredPlacements.find((r) => r.position.x === x && r.position.y === y);
+    const isEndpointTarget = this.isEndpointCell(x, y);
+    return (!!req && req.pieceType === pieceType)
+      || (isEndpointTarget && this.isEndpointPlacementValid(x, y, pieceType));
+  }
+
+  private countTargetPlacementRemovalAsIncorrect(cellKey: string | undefined) {
+    if (!cellKey) return;
+    const [xRaw, yRaw] = cellKey.split(',');
+    const x = Number(xRaw);
+    const y = Number(yRaw);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    if (!this.isAccuracyTargetCell(x, y)) return;
+
+    this.levelMetrics.incorrectPlacementCount += 1;
+    this.cellHadWrongAttempt.add(cellKey);
   }
 
   private returnPieceToTray(piece: PieceVisual) {
@@ -1093,12 +1142,15 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.cleanupAudio();
 
     const current = this.perLevel[this.perLevel.length - 1] ?? this.levelMetrics;
-    const stars = current.solveTimeMs <= current.parTimeMs ? 3 : current.solveTimeMs <= current.hardTimeMs ? 2 : 1;
-    const starHint = stars < 3 ? this.getStarHint(current, stars) : null;
-    const levelScore = Math.max(
-      1,
-      Math.round(current.requiredPieceCount * 12 - current.rejectedDropCount * 2 - current.incorrectPlacementCount)
-    );
+    const starBreakdown = this.calculateStarBreakdown(current);
+    const stars = this.calculateStarsByBreakdown(current, starBreakdown);
+    const starHint = this.getStarHint(current, stars, starBreakdown);
+    const levelScore = calculatePipePatchLevelScore({
+      level: current.levelId,
+      difficultyWeight: current.difficultyWeight,
+      success: true,
+      breakdown: starBreakdown,
+    });
 
     const summary: PipePatchGameStats = {
       sessionDurationMs: current.activeTimeMs,
@@ -1124,26 +1176,162 @@ export class PipePatchGameScene extends Phaser.Scene {
     }
   }
 
-  private getStarHint(current: PipePatchPerLevelMetrics, stars: number): string | null {
-    const mistakeCount = current.rejectedDropCount + current.incorrectPlacementCount + current.repeatedErrorCount;
-    const highMistakeThreshold = Math.max(2, Math.ceil(current.requiredPieceCount * 0.8));
+  private clampScore(value: number): number {
+    return Math.max(0, Math.min(100, value));
+  }
 
-    if (mistakeCount >= highMistakeThreshold) {
-      return 'ลดการวางผิดช่องและการปล่อยชิ้นส่วนผิดตำแหน่ง แล้วจะได้ดาวเพิ่มง่ายขึ้น';
+  private calculateStarBreakdown(current: PipePatchPerLevelMetrics): PipePatchStarBreakdown {
+    const totalDragAttempts = Math.max(1, current.totalDragAttempts);
+    const requiredPieceCount = Math.max(1, current.requiredPieceCount);
+    const firstActionGraceMs = 6000;
+
+    // v2: Endpoint-first scoring model for real gameplay behavior.
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+    const targetAttempts = Math.max(
+      requiredPieceCount,
+      current.correctPlacementsOnFirstTryCount + current.incorrectPlacementCount
+    );
+
+    // Accuracy: reward first-try correctness and penalize incorrect target attempts.
+    const firstTryCore = clamp01(current.correctPlacementsOnFirstTryCount / requiredPieceCount);
+    const incorrectPressure = current.incorrectPlacementCount / Math.max(1, targetAttempts);
+    const recoveryPenalty = Math.min(0.35, incorrectPressure * 0.7);
+    const accuracyCore = clamp01(firstTryCore - recoveryPenalty);
+    const accuracyScore = this.clampScore(100 * (0.75 * accuracyCore + 0.25 * (1 - incorrectPressure)));
+
+    // Mind-change: count explicit reversals and repeated mistakes.
+    const mindChangeLoad = current.undoCount + current.resetCount + 0.5 * current.repeatedErrorCount;
+    const mindChangeCore = requiredPieceCount / Math.max(1, requiredPieceCount + mindChangeLoad);
+    const mindChangeScore = this.clampScore(100 * mindChangeCore);
+
+    // Precision: account for rejected/invalid drops around tight cell placement.
+    const precisionMistakes =
+      current.rejectedDropCount + current.obstacleRejectCount + 1.2 * current.lockedSlotMismatchCount;
+    const precisionBudget = totalDragAttempts + requiredPieceCount;
+    const precisionCore = clamp01(1 - precisionMistakes / Math.max(1, precisionBudget));
+    const precisionScore = this.clampScore(100 * precisionCore);
+
+    // Speed: solve-time pace + first-action latency (with grace).
+    const overTimeMs = Math.max(0, current.solveTimeMs - current.parTimeMs);
+    const timeCore = clamp01(1 - overTimeMs / Math.max(1, current.parTimeMs * 1.2));
+    const effectiveLatencyMs = Math.max(0, current.firstActionLatencyMs - firstActionGraceMs);
+    const latencyCore = clamp01(1 - effectiveLatencyMs / 8000);
+    const speedScore = this.clampScore(100 * (0.8 * timeCore + 0.2 * latencyCore));
+
+    const starScore = this.clampScore(
+      0.25 * mindChangeScore + 0.3 * accuracyScore + 0.2 * precisionScore + 0.25 * speedScore
+    );
+
+    return {
+      mindChangeScore,
+      accuracyScore,
+      precisionScore,
+      speedScore,
+      starScore,
+    };
+  }
+
+  private calculateStarsByBreakdown(
+    current: PipePatchPerLevelMetrics,
+    breakdown: PipePatchStarBreakdown
+  ): 1 | 2 | 3 {
+    let stars: 1 | 2 | 3 = 1;
+
+    const mindChanges = current.undoCount + current.resetCount;
+    const firstTryTarget = Math.max(1, current.requiredPieceCount);
+    const perfectFirstTry = current.correctPlacementsOnFirstTryCount >= firstTryTarget;
+    const perfectPrecision =
+      current.rejectedDropCount === 0
+      && current.obstacleRejectCount === 0
+      && current.lockedSlotMismatchCount === 0;
+    const cleanRunForThree =
+      current.incorrectPlacementCount === 0
+      && mindChanges === 0
+      && perfectPrecision
+      && perfectFirstTry
+      && current.solveTimeMs <= current.parTimeMs;
+
+    // v4 stricter score thresholds.
+    if (breakdown.starScore >= 88) stars = 3;
+    else if (breakdown.starScore >= 68) stars = 2;
+
+    if (stars === 3 && !cleanRunForThree) {
+      stars = 2;
     }
 
-    if (current.solveTimeMs > current.parTimeMs) {
-      if (stars <= 1 || current.solveTimeMs > current.hardTimeMs) {
-        return 'ลองวางชิ้นส่วนหลักให้ต่อเนื่องเร็วขึ้น เพื่อเก็บเวลาและเพิ่มดาว';
-      }
-      return 'อีกนิดเดียว! ถ้าต่อท่อให้เร็วขึ้นอีกหน่อยจะได้ 3 ดาว';
+    // Hard cap for noisy/slow attempts.
+    const heavyMistakeRun =
+      current.incorrectPlacementCount >= 3
+      || mindChanges >= 4
+      || current.rejectedDropCount >= 5
+      || current.solveTimeMs > current.hardTimeMs;
+    if (heavyMistakeRun) {
+      stars = 1;
     }
 
+    return stars;
+  }
+
+  private getStarHint(
+    current: PipePatchPerLevelMetrics,
+    stars: number,
+    breakdown: PipePatchStarBreakdown
+  ): string | null {
+    if (stars >= 3) return null;
+    const firstActionGraceMs = 6000;
+
+    const weakest = [
+      { key: 'mindChange', score: breakdown.mindChangeScore },
+      { key: 'accuracy', score: breakdown.accuracyScore },
+      { key: 'precision', score: breakdown.precisionScore },
+      { key: 'speed', score: breakdown.speedScore },
+    ].sort((a, b) => a.score - b.score)[0];
+
+    const shouldPreferSpeedHint =
+      current.firstActionLatencyMs > firstActionGraceMs
+      && breakdown.speedScore <= breakdown.accuracyScore + 5;
+
+    if (shouldPreferSpeedHint) {
+      return 'ทำ flow ให้ต่อเนื่องขึ้นอีกนิด โดยเฉพาะช่วงต้นด่าน จะช่วยดันดาวได้';
+    }
+
+    // Align hint with hard star gates first.
+    if (current.incorrectPlacementCount > 0) {
+      return 'ลองวางให้ตรงช่องมากขึ้น เพื่อลดจำนวนวางผิดและเพิ่มดาว';
+    }
     if (current.undoCount + current.resetCount > 0) {
-      return 'วางแผนเส้นทางก่อนลากท่อ จะช่วยลดการย้อนและเพิ่มโอกาสได้ดาวสูง';
+      return 'ลดการ undo/reset ระหว่างจัดวาง จะช่วยเพิ่มดาวได้เร็วที่สุด';
+    }
+    if (current.rejectedDropCount > 1) {
+      return 'ลดจังหวะลาก/ปล่อยที่ไม่ลงช่องให้พอดี จะช่วยเพิ่มดาวได้';
+    }
+    if (current.correctPlacementsOnFirstTryCount < Math.max(1, current.requiredPieceCount)) {
+      return 'ลองวางให้ถูกตั้งแต่ครั้งแรกให้ครบทุกจุดเป้าหมาย เพื่อปลดล็อก 3 ดาว';
+    }
+    if (current.solveTimeMs > current.parTimeMs) {
+      return 'จบด่านให้เร็วขึ้นจะช่วยได้ 3 ดาว';
     }
 
-    return 'ลองเชื่อมเส้นทางให้ลื่นไหลและลดจังหวะลังเล เพื่อทำดาวให้สูงขึ้น';
+    if (weakest.key === 'mindChange') {
+      if (current.repeatedErrorCount > 0) {
+        return 'ลดการ undo/reset และหลีกเลี่ยงการลองซ้ำจุดเดิม จะช่วยเพิ่มดาวได้เร็วที่สุด';
+      }
+      return 'ลดการ undo/reset ระหว่างจัดวาง จะช่วยเพิ่มดาวได้เร็วที่สุด';
+    }
+    if (weakest.key === 'accuracy') {
+      if (current.incorrectPlacementCount > 0) {
+        return 'ลองวางให้ตรงช่องมากขึ้น เพื่อลดจำนวนวางผิดและเพิ่มดาว';
+      }
+      return 'ลองเพิ่มความแม่นยำแบบวางถูกตั้งแต่ครั้งแรกให้มากขึ้น จะช่วยดันดาวได้';
+    }
+    if (weakest.key === 'precision') {
+      if (current.rejectedDropCount > 0 || current.obstacleRejectCount > 0 || current.lockedSlotMismatchCount > 0) {
+        return 'ลดจังหวะลาก/ปล่อยที่ไม่ลงช่องให้พอดี จะช่วยเพิ่มดาวได้';
+      }
+      return 'เล่นได้ดีแล้ว ลองคงจังหวะให้นิ่งต่อเนื่องเพื่อดันดาวให้สูงขึ้น';
+    }
+    return 'ทำ flow ให้ต่อเนื่องขึ้นอีกนิด โดยเฉพาะช่วงต้นด่าน จะช่วยดันดาวได้';
   }
 
   private evaluateBoardState(): EvalResult {
@@ -1404,11 +1592,20 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
+      const success = reason !== 'timeout';
+      const rawCore = summary.levelsSolved / Math.max(1, summary.levelsAttempted);
+      const score = calculateUnifiedLevelScore({
+        rawCore,
+        level: this.levelIndex,
+        maxLevel: 30,
+        difficultyMultiplier: mapDifficultyFromScale(this.level.difficultyWeight, 1, 10),
+        success,
+      });
       onGameOver({
         ...summary,
-        score: summary.levelsSolved,
+        score,
         stars: 0,
-        success: reason !== 'timeout',
+        success,
       });
     }
   }

@@ -960,9 +960,34 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.sound.stopByKey('bgm');
         this.sound.play('sfx-explosion', { volume: 0.6 });
 
+        const finalScore = Math.floor(this.score);
+
+        // Calculate Stats (0-100 scale)
+        // Speed: how far you got relative to benchmark (3000 = Sector 4)
+        const SCORE_BENCHMARK = 3000;
+        const speedRatio = Math.min(1, finalScore / SCORE_BENCHMARK);
+        const stat_speed = Math.round(60 + speedRatio * 40);
+
+        // Focus: sector progression (25 per sector) + coin bonus
+        const sectorScore = Math.min(100, this.currentSector * 25);
+        const coinBonus = Math.min(20, this.coins * 2);
+        const stat_focus = Math.round(Math.min(100, sectorScore + coinBonus));
+
+        console.log(`RunForYourLife Stats — Speed: ${stat_speed}, Focus: ${stat_focus}, Score: ${finalScore}, Sector: ${this.currentSector}, Coins: ${this.coins}`);
+
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
-            onGameOver({ success: true, score: Math.floor(this.score), stars: 0 });
+            onGameOver({
+                success: true,
+                score: finalScore,
+                stars: 0,
+                stat_speed,
+                stat_focus,
+                stat_memory: null,
+                stat_visual: null,
+                stat_planning: null,
+                stat_emotion: null,
+            });
         }
     }
 }

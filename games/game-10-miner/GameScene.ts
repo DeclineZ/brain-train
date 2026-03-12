@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { MINER_LEVELS } from './levels';
 import { calculateMinerStars } from '@/lib/scoring/miner';
+import { calculateMinerLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig, MinerObjectType } from './levels';
 import { createSeededRandom } from '@/lib/seededRandom';
 
@@ -58,9 +59,13 @@ export class MinerGameScene extends Phaser.Scene {
   private ropeGraphics!: Phaser.GameObjects.Graphics;
   private hookPivot!: Phaser.GameObjects.Arc;
   private hookHead!: Phaser.GameObjects.Rectangle;
-  private hookTip!: Phaser.GameObjects.Triangle;
-  private hookJawLeft!: Phaser.GameObjects.Rectangle;
-  private hookJawRight!: Phaser.GameObjects.Rectangle;
+  private hookTip!: Phaser.GameObjects.Rectangle;
+  private hookJawLeft!: Phaser.GameObjects.Container;
+  private hookJawRight!: Phaser.GameObjects.Container;
+  private hookJawLeftCore!: Phaser.GameObjects.Rectangle;
+  private hookJawRightCore!: Phaser.GameObjects.Rectangle;
+  private hookJawLeftTip!: Phaser.GameObjects.Rectangle;
+  private hookJawRightTip!: Phaser.GameObjects.Rectangle;
   private hookBreakLeft?: Phaser.GameObjects.Rectangle;
   private hookBreakRight?: Phaser.GameObjects.Rectangle;
   private hookDamageCrack?: Phaser.GameObjects.Line;
@@ -142,9 +147,10 @@ export class MinerGameScene extends Phaser.Scene {
   private eventBanner?: Phaser.GameObjects.Text;
   private scheduledEvents: ScheduledDynamicEvent[] = [];
   private quakeWarningActive = false;
-  private quakeOverlay?: Phaser.GameObjects.Rectangle;
+  private quakeWarningBar?: Phaser.GameObjects.Rectangle;
   private warningIcon?: Phaser.GameObjects.Text;
   private warningTween?: Phaser.Tweens.Tween;
+  private activeQuakeTweens = new Map<number, Phaser.Tweens.Tween>();
   private valueLabelChance = 0.35;
   private quakeBand = { minY: 0, maxY: 0 };
   private valueStats = { minValue: 0, maxValue: 1, highValueThreshold: 1 };
@@ -186,6 +192,8 @@ export class MinerGameScene extends Phaser.Scene {
     this.activeVeinTweens.clear();
     this.activeRollTweens.forEach((tween) => tween.stop());
     this.activeRollTweens.clear();
+    this.activeQuakeTweens.forEach((tween) => tween.stop());
+    this.activeQuakeTweens.clear();
     this.hookAngle = Phaser.Math.DegToRad(-28);
     this.hookLockedAngle = this.hookAngle;
     this.hookAngularVelocity = this.hookSwingSpeed;
@@ -307,6 +315,8 @@ export class MinerGameScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.sound.getAll('timer-warning').forEach(sound => sound.stop());
+      this.activeQuakeTweens.forEach((tween) => tween.stop());
+      this.activeQuakeTweens.clear();
       this.stopBackgroundMusic();
     });
   }
@@ -320,30 +330,52 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookPivot.setStrokeStyle(2, 0x1f1f1f, 0.8);
 
     this.hookContainer = this.add.container(0, 0).setDepth(13);
-    this.hookHead = this.add.rectangle(0, 0, 30, 14, 0x5f5f5f).setOrigin(0.5, 0.5);
-    this.hookHead.setStrokeStyle(2, 0x1f1f1f, 0.8);
-    const plate = this.add.rectangle(0, -8, 22, 6, 0x2f2f2f).setOrigin(0.5);
-    plate.setStrokeStyle(1.5, 0x191919, 0.8);
-    this.hookTip = this.add.triangle(0, 14, 0, 0, 14, 22, -14, 22, 0x3d3d3d).setOrigin(0.5, 0);
-    this.hookTip.setStrokeStyle(1.5, 0x1f1f1f, 0.8);
-
-    this.hookJawLeft = this.add.rectangle(-11, 18, 7, 16, 0x3a3a3a).setOrigin(0.5, 0);
-    this.hookJawRight = this.add.rectangle(11, 18, 7, 16, 0x3a3a3a).setOrigin(0.5, 0);
-    this.hookJawLeft.setStrokeStyle(1.5, 0x161616, 0.8);
-    this.hookJawRight.setStrokeStyle(1.5, 0x161616, 0.8);
-
     const ring = this.add.circle(0, -12, 7, 0x6a6a6a, 0.95);
     ring.setStrokeStyle(2, 0x2a2a2a, 0.8);
-    const bolt = this.add.circle(0, -12, 2.5, 0x1f1f1f, 0.9);
+    const shackle = this.add.rectangle(0, -4, 7, 14, 0x686868).setOrigin(0.5);
+    shackle.setStrokeStyle(1.6, 0x2a2a2a, 0.75);
+    const ringPin = this.add.circle(0, -12, 2.5, 0x1f1f1f, 0.9);
+    const collar = this.add.rectangle(0, 3, 19, 7, 0x393939).setOrigin(0.5);
+    collar.setStrokeStyle(1.4, 0x1a1a1a, 0.8);
 
-    this.hookContainer.add([ring, bolt, plate, this.hookHead, this.hookTip, this.hookJawLeft, this.hookJawRight]);
+    this.hookHead = this.add.rectangle(0, 11, 26, 14, 0x5f5f5f).setOrigin(0.5);
+    this.hookHead.setStrokeStyle(2, 0x1f1f1f, 0.82);
+    this.hookTip = this.add.rectangle(0, 20, 8, 6, 0x3d3d3d).setOrigin(0.5);
+    this.hookTip.setStrokeStyle(1.2, 0x1f1f1f, 0.8);
+
+    const hingeLeft = this.add.circle(-8, 14, 2.6, 0x252525, 0.95);
+    const hingeRight = this.add.circle(8, 14, 2.6, 0x252525, 0.95);
+
+    this.hookJawLeftCore = this.add.rectangle(0, 0, 5, 14, 0x3a3a3a).setOrigin(0.5, 0);
+    this.hookJawLeftCore.setStrokeStyle(1.2, 0x171717, 0.9);
+    this.hookJawLeftTip = this.add.rectangle(1.8, 14, 4, 8, 0x343434).setOrigin(0.5, 0);
+    this.hookJawLeftTip.setRotation(Phaser.Math.DegToRad(50));
+    this.hookJawLeftTip.setStrokeStyle(1.1, 0x1a1a1a, 0.9);
+    this.hookJawLeft = this.add.container(-8, 14, [this.hookJawLeftCore, this.hookJawLeftTip]);
+
+    this.hookJawRightCore = this.add.rectangle(0, 0, 5, 14, 0x3a3a3a).setOrigin(0.5, 0);
+    this.hookJawRightCore.setStrokeStyle(1.2, 0x171717, 0.9);
+    this.hookJawRightTip = this.add.rectangle(-1.8, 14, 4, 8, 0x343434).setOrigin(0.5, 0);
+    this.hookJawRightTip.setRotation(Phaser.Math.DegToRad(-50));
+    this.hookJawRightTip.setStrokeStyle(1.1, 0x1a1a1a, 0.9);
+    this.hookJawRight = this.add.container(8, 14, [this.hookJawRightCore, this.hookJawRightTip]);
+
+    this.hookContainer.add([
+      ring,
+      ringPin,
+      shackle,
+      collar,
+      this.hookHead,
+      this.hookTip,
+      hingeLeft,
+      hingeRight,
+      this.hookJawLeft,
+      this.hookJawRight
+    ]);
     this.createHookDamageOverlays();
     this.updateHookJaw(this.hookOpenProgress);
 
-    const end = this.getHookEndPosition(ropeLength, this.hookAngle);
-    this.hookContainer.setPosition(end.x, end.y);
-    this.hookContainer.setRotation(this.hookAngle);
-    this.drawRope(ropeLength, this.hookAngle, 0.3);
+    this.updateHookVisual(ropeLength, this.hookAngle, 0.3);
   }
 
   private createInfoPanel() {
@@ -609,9 +641,11 @@ export class MinerGameScene extends Phaser.Scene {
 
   getColorForType(type: MinerObjectConfig['type']) {
     if (type.startsWith('copper')) return 0xcd7f32;
-    if (type.startsWith('iron')) return 0x6f7b82;
-    if (type.startsWith('silver')) return 0xcfd2d6;
+    if (type.startsWith('iron')) return 0x8ea4b2;
+    if (type.startsWith('silver')) return 0xe4ebf0;
     if (type.startsWith('diamond')) return 0xb9f2ff;
+    if (type === 'ruby_tiny') return 0xff4f87;
+    if (type === 'vein_core') return 0x43d6ff;
     if (type === 'fake_diamond') return 0x9bb8c9;
     if (type === 'gem') return COLORS.gem;
     if (type === 'rock') return COLORS.rock;
@@ -674,6 +708,19 @@ export class MinerGameScene extends Phaser.Scene {
         -size * 0.32, -size * 0.1
       ], 0xffffff, type === 'fake_diamond' ? 0.18 : 0.35);
       container.add([outer, facet]);
+      return;
+    }
+    if (type === 'ruby_tiny' || type === 'vein_core') {
+      const outer = this.add.polygon(0, 0, [
+        0, -size * 1.15,
+        size * 0.75, -size * 0.3,
+        size * 0.4, size * 1.02,
+        -size * 0.4, size * 1.02,
+        -size * 0.75, -size * 0.3
+      ], color, 1);
+      outer.setStrokeStyle(2, 0xffffff, 0.82);
+      const core = this.add.circle(0, 0, size * 0.34, 0xffffff, 0.3);
+      container.add([outer, core]);
       return;
     }
 
@@ -1262,13 +1309,17 @@ export class MinerGameScene extends Phaser.Scene {
     if (isDamaged) {
       this.hookHead.setFillStyle(0x4a2b24, 1);
       this.hookTip.setFillStyle(0x2f1d16, 1);
-      this.hookJawLeft.setFillStyle(0x2f1d16, 1);
-      this.hookJawRight.setFillStyle(0x2f1d16, 1);
+      this.hookJawLeftCore.setFillStyle(0x2f1d16, 1);
+      this.hookJawRightCore.setFillStyle(0x2f1d16, 1);
+      this.hookJawLeftTip.setFillStyle(0x291811, 1);
+      this.hookJawRightTip.setFillStyle(0x291811, 1);
     } else {
       this.hookHead.setFillStyle(0x5f5f5f, 1);
       this.hookTip.setFillStyle(0x3d3d3d, 1);
-      this.hookJawLeft.setFillStyle(0x3a3a3a, 1);
-      this.hookJawRight.setFillStyle(0x3a3a3a, 1);
+      this.hookJawLeftCore.setFillStyle(0x3a3a3a, 1);
+      this.hookJawRightCore.setFillStyle(0x3a3a3a, 1);
+      this.hookJawLeftTip.setFillStyle(0x343434, 1);
+      this.hookJawRightTip.setFillStyle(0x343434, 1);
     }
   }
 
@@ -1301,6 +1352,8 @@ export class MinerGameScene extends Phaser.Scene {
     this.activeVeinTweens.clear();
     this.activeRollTweens.forEach((tween) => tween.stop());
     this.activeRollTweens.clear();
+    this.activeQuakeTweens.forEach((tween) => tween.stop());
+    this.activeQuakeTweens.clear();
     this.sound.getAll('timer-warning').forEach(sound => sound.stop());
     this.stopBackgroundMusic();
 
@@ -1332,10 +1385,12 @@ export class MinerGameScene extends Phaser.Scene {
         mistakes: adjustedMistakes
       };
       const stars = success ? calculateMinerStars(starPayload) : 0;
+      const score = calculateMinerLevelScore(payload, success);
       const starHint = stars < 3 ? this.getStarHint(starPayload) : null;
 
       onGameOver({
         ...payload,
+        score,
         stars,
         starHint
       });
@@ -1359,6 +1414,12 @@ export class MinerGameScene extends Phaser.Scene {
     this.drawGoalBar();
     if (this.eventBanner) {
       this.eventBanner.setPosition(this.scale.width / 2, height * 0.24);
+    }
+    if (this.quakeWarningBar) {
+      this.quakeWarningBar.setPosition(this.scale.width / 2, height * 0.11);
+    }
+    if (this.warningIcon) {
+      this.warningIcon.setPosition(this.scale.width / 2, height * 0.11);
     }
     if (this.infoPanel) {
       this.infoPanel.setPosition(this.scale.width / 2, height * 0.165);
@@ -1436,7 +1497,7 @@ export class MinerGameScene extends Phaser.Scene {
     );
     this.hookSwingMaxAngle = Phaser.Math.Clamp(
       requiredAngle + angleBuffer + swingBuffer,
-      Phaser.Math.DegToRad(22),
+      Phaser.Math.DegToRad(50),
       maxSwingCap
     );
     this.hookAngle = Phaser.Math.Clamp(this.hookAngle, -this.hookSwingMaxAngle, this.hookSwingMaxAngle);
@@ -1606,11 +1667,11 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   private updateHookVisual(ropeLength: number, angle: number, tension: number) {
-    const end = this.getHookEndPosition(ropeLength, angle);
-    this.drawRope(ropeLength, angle, tension);
-    this.hookContainer.setPosition(end.x, end.y);
-    this.hookContainer.setRotation(angle);
-    return end;
+    const rope = this.getRopeGeometry(ropeLength, angle, tension);
+    this.drawRope(rope, ropeLength);
+    this.hookContainer.setPosition(rope.end.x, rope.end.y);
+    this.hookContainer.setRotation(this.getRopeEndTangentAngle(rope));
+    return rope.end;
   }
 
   private updateGrabbedTargetPosition(x: number, y: number) {
@@ -1627,9 +1688,9 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   private updateHookJaw(progress: number) {
-    const openAngle = Phaser.Math.DegToRad(18 + progress * 20);
-    this.hookJawLeft.setRotation(-openAngle);
-    this.hookJawRight.setRotation(openAngle);
+    const openAngle = Phaser.Math.DegToRad(10 + progress * 18);
+    this.hookJawLeft.setRotation(openAngle);
+    this.hookJawRight.setRotation(-openAngle);
   }
 
   private animateHookOpen(target: number, duration = 140) {
@@ -1642,25 +1703,18 @@ export class MinerGameScene extends Phaser.Scene {
     });
   }
 
-  private drawRope(length: number, angle: number, tension: number) {
+  private drawRope(
+    rope: { start: { x: number; y: number }; control: { x: number; y: number }; end: { x: number; y: number } },
+    length: number
+  ) {
     if (!this.ropeGraphics) return;
-    const start = { x: this.hookCenterX, y: this.hookBaseY };
-    const end = this.getHookEndPosition(length, angle);
-    const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-    const perp = { x: Math.cos(angle), y: -Math.sin(angle) };
-    const curveAmount = (1 - tension) * Math.sin(angle) * length * 0.12;
-    const control = {
-      x: mid.x + perp.x * curveAmount,
-      y: mid.y + perp.y * curveAmount
-    };
-
     this.ropeGraphics.clear();
     this.ropeGraphics.lineStyle(3, 0x6b4725, 0.9);
     this.ropeGraphics.beginPath();
     const samples = 20;
     for (let i = 0; i <= samples; i++) {
       const t = i / samples;
-      const point = this.getQuadraticPoint(t, start, control, end);
+      const point = this.getQuadraticPoint(t, rope.start, rope.control, rope.end);
       if (i === 0) {
         this.ropeGraphics.moveTo(point.x, point.y);
       } else {
@@ -1672,12 +1726,31 @@ export class MinerGameScene extends Phaser.Scene {
     const linkCount = Math.max(7, Math.round(length / 16));
     for (let i = 0; i <= linkCount; i++) {
       const t = i / linkCount;
-      const point = this.getQuadraticPoint(t, start, control, end);
+      const point = this.getQuadraticPoint(t, rope.start, rope.control, rope.end);
       this.ropeGraphics.fillStyle(0x7a4b23, 0.95);
       this.ropeGraphics.fillRoundedRect(point.x - 3, point.y - 2.5, 6, 5, 2);
       this.ropeGraphics.fillStyle(0x3b2512, 0.6);
       this.ropeGraphics.fillRoundedRect(point.x - 1.5, point.y - 1.5, 3, 3, 1.2);
     }
+  }
+
+  private getRopeGeometry(length: number, angle: number, tension: number) {
+    const start = { x: this.hookCenterX, y: this.hookBaseY };
+    const end = this.getHookEndPosition(length, angle);
+    const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    const perp = { x: Math.cos(angle), y: -Math.sin(angle) };
+    const curveAmount = (1 - tension) * Math.sin(angle) * length * 0.12;
+    const control = {
+      x: mid.x + perp.x * curveAmount,
+      y: mid.y + perp.y * curveAmount
+    };
+    return { start, control, end };
+  }
+
+  private getRopeEndTangentAngle(rope: { control: { x: number; y: number }; end: { x: number; y: number } }) {
+    const tangentX = rope.end.x - rope.control.x;
+    const tangentY = rope.end.y - rope.control.y;
+    return -Math.atan2(tangentX, tangentY);
   }
 
   private getQuadraticPoint(t: number, p0: { x: number; y: number }, p1: { x: number; y: number }, p2: { x: number; y: number }) {
@@ -1711,6 +1784,7 @@ export class MinerGameScene extends Phaser.Scene {
     const baseColor = this.getColorForType(config.type);
     const sprite = this.add.container(x, y).setDepth(5);
     const shadow = this.add.circle(0, 0, config.size + 4, 0x1c1412, 0.22);
+    const oreOffset = config.size * 0.82;
     sprite.add(shadow);
 
     const irregularPoints = (radius: number, points = 7, variance = 0.3) => {
@@ -1770,6 +1844,36 @@ export class MinerGameScene extends Phaser.Scene {
       ], 0xd9e3e8, 0.22);
       const smudge = this.add.circle(-config.size * 0.18, config.size * 0.18, config.size * 0.24, 0x5d6c73, 0.18);
       sprite.add([outer, facet, smudge]);
+    } else if (config.type === 'ruby_tiny') {
+      const core = this.add.polygon(oreOffset, oreOffset, [
+        0, -config.size * 1.18,
+        config.size * 0.9, -config.size * 0.3,
+        config.size * 0.4, config.size * 1.04,
+        -config.size * 0.4, config.size * 1.04,
+        -config.size * 0.9, -config.size * 0.3
+      ], baseColor, 1);
+      addHighlight(core, 0xffffff, 0.92);
+      const light = this.add.circle(oreOffset - config.size * 0.16, oreOffset - config.size * 0.24, config.size * 0.34, 0xffffff, 0.42);
+      sprite.add([core, light]);
+    } else if (config.type === 'vein_core') {
+      const shell = this.add.polygon(
+        oreOffset,
+        oreOffset,
+        irregularPoints(config.size * 1.16, 8, 0.3),
+        0x665d52,
+        1
+      );
+      shell.setStrokeStyle(2, 0x3b342e, 0.82);
+      const crystal = this.add.polygon(oreOffset, oreOffset, [
+        0, -config.size * 0.9,
+        config.size * 0.7, -config.size * 0.18,
+        config.size * 0.3, config.size * 0.88,
+        -config.size * 0.3, config.size * 0.88,
+        -config.size * 0.7, -config.size * 0.18
+      ], baseColor, 1);
+      crystal.setStrokeStyle(2, 0xe8f9ff, 0.88);
+      const glow = this.add.circle(oreOffset, oreOffset, config.size * 0.34, 0xffffff, 0.34);
+      sprite.add([shell, crystal, glow]);
     } else if (config.type.startsWith('silver')) {
       const body = this.add.polygon(
         config.size * 0.82,
@@ -1778,9 +1882,9 @@ export class MinerGameScene extends Phaser.Scene {
         baseColor,
         1
       );
-      addHighlight(body, 0xcfd8dc, 0.7);
+      addHighlight(body, 0xf9fdff, 0.9);
       const shine = this.add.ellipse(-config.size * 0.2, -config.size * 0.3, config.size * 0.9, config.size * 0.5, 0xffffff, 0.35);
-      const tarnish = this.add.circle(config.size * 0.3, config.size * 0.2, config.size * 0.3, 0xa6aeb4, 0.4);
+      const tarnish = this.add.circle(config.size * 0.3, config.size * 0.2, config.size * 0.3, 0xc4cdd6, 0.45);
       sprite.add([body, tarnish, shine]);
     } else if (config.type.startsWith('copper')) {
       const body = this.add.polygon(
@@ -1804,12 +1908,12 @@ export class MinerGameScene extends Phaser.Scene {
         -config.size * 0.8, config.size * 0.15,
         -config.size * 0.5, -config.size * 0.6
       ], baseColor, 1);
-      addHighlight(body, 0xd5dbe0, 0.65);
+      addHighlight(body, 0xeef6fc, 0.92);
       const band = this.add.rectangle(0, -config.size * 0.12, config.size * 1.1, config.size * 0.22, 0xffffff, 0.22);
       band.setRotation(Phaser.Math.DegToRad(-18));
       const sheen = this.add.rectangle(config.size * 0.18, -config.size * 0.35, config.size * 0.65, config.size * 0.18, 0xf6f8fb, 0.35);
       sheen.setRotation(Phaser.Math.DegToRad(-28));
-      const rivet = this.add.circle(-config.size * 0.25, config.size * 0.1, config.size * 0.12, 0x2a2f33, 0.75);
+      const rivet = this.add.circle(-config.size * 0.25, config.size * 0.1, config.size * 0.12, 0x4a5f6f, 0.75);
       const scratch = this.add.rectangle(config.size * 0.18, config.size * 0.28, config.size * 0.9, 2, 0x1a1f23, 0.55);
       scratch.setRotation(Phaser.Math.DegToRad(12));
       sprite.add([body, band, sheen, rivet, scratch]);
@@ -1912,11 +2016,11 @@ export class MinerGameScene extends Phaser.Scene {
     }
 
     if (showValueLabel) {
-      const labelRadius = Math.max(8, config.size * 0.32);
+      const labelRadius = Math.max(11, config.size * 0.44);
       const labelBg = this.add.circle(0, 0, labelRadius, 0x2f1b0c, 0.75);
       const label = this.add.text(0, 0, `${config.value}`, {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: `${Math.max(9, config.size * 0.3)}px`,
+        fontSize: `${Math.max(13, config.size * 0.42)}px`,
         color: '#f7e2a1',
         fontStyle: '700'
       }).setOrigin(0.5);
@@ -2070,35 +2174,61 @@ export class MinerGameScene extends Phaser.Scene {
     if (this.quakeWarningActive) return;
     this.quakeWarningActive = true;
     const { width, height } = this.scale;
-    if (!this.quakeOverlay) {
-      this.quakeOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x4b2f1f, 0.18).setDepth(18);
+    if (!this.quakeWarningBar) {
+      this.quakeWarningBar = this.add
+        .rectangle(width / 2, height * 0.11, Math.min(460, width * 0.82), 40, 0x4b2f1f, 0.9)
+        .setDepth(18);
     }
     if (!this.warningIcon) {
-      this.warningIcon = this.add.text(width / 2, height * 0.22, '⚠️ แผ่นดินกำลังสั่น! ⚠️', {
+      this.warningIcon = this.add.text(width / 2, height * 0.11, 'แจ้งเตือน: แผ่นดินไหว แร่กำลังขยับ', {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '20px',
-        color: '#f5e2c8',
-        backgroundColor: 'rgba(74, 50, 32, 0.8)',
-        padding: { x: 14, y: 6 }
+        fontSize: '19px',
+        color: '#fdf2df',
+        fontStyle: '700'
       }).setOrigin(0.5).setDepth(19);
     }
 
     this.warningTween?.stop();
     this.warningTween = this.tweens.add({
-      targets: [this.quakeOverlay, this.warningIcon],
-      alpha: { from: 0.2, to: 0.6 },
-      duration: 300,
+      targets: [this.quakeWarningBar, this.warningIcon],
+      alpha: { from: 0.55, to: 1 },
+      duration: 220,
       yoyo: true,
-      repeat: Math.floor((durationSec * 1000) / 300)
+      repeat: Math.floor((durationSec * 1000) / 220)
     });
 
     this.sound.play('miner-earthquake', { volume: 0.3 });
-    this.cameras.main.shake(durationSec * 1000, 0.004);
+    this.shakeOresInBand(durationSec);
 
     this.time.delayedCall(durationSec * 1000, () => {
       this.quakeWarningActive = false;
-      if (this.quakeOverlay) this.quakeOverlay.setAlpha(0);
+      if (this.quakeWarningBar) this.quakeWarningBar.setAlpha(0);
       if (this.warningIcon) this.warningIcon.setAlpha(0);
+    });
+  }
+
+  private shakeOresInBand(durationSec: number) {
+    const yTop = this.quakeBand.minY || this.spawnArea.top;
+    const yBottom = this.quakeBand.maxY || this.spawnArea.bottom;
+    this.activeQuakeTweens.forEach((tween) => tween.stop());
+    this.activeQuakeTweens.clear();
+
+    this.minerObjects.forEach((obj) => {
+      if (obj.grabbed || obj.y < yTop || obj.y > yBottom) return;
+      const originalX = obj.sprite.x;
+      const amplitude = Phaser.Math.FloatBetween(3.2, 6.2);
+      const tween = this.tweens.add({
+        targets: obj.sprite,
+        x: { from: originalX - amplitude, to: originalX + amplitude },
+        duration: 58,
+        yoyo: true,
+        repeat: Math.floor((durationSec * 1000) / 58),
+        onComplete: () => {
+          obj.sprite.x = obj.x;
+          this.activeQuakeTweens.delete(obj.id);
+        }
+      });
+      this.activeQuakeTweens.set(obj.id, tween);
     });
   }
 
