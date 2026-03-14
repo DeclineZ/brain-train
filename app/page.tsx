@@ -2,10 +2,12 @@ import { getGames } from "@/lib/api";
 import { createClient } from "@/utils/supabase/server";
 import { getDailyMissions } from "@/lib/dailyMissions";
 import { getMultipleGameTotalStars } from "@/lib/stars";
+import { getTodayStatGains } from "@/lib/server/dashboardStats";
 import TopCard from "@/components/TopCard";
 import MainGameCard from "@/components/MainGameCard";
 import BottomNav from "@/components/BottomNav";
 import ModernDashboard from "@/components/ModernDashboard";
+import StatRadarCard from "@/components/StatRadarCard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import QuestNotificationManager from "@/components/QuestNotificationManager";
@@ -19,9 +21,10 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const [games, missions] = await Promise.all([
+  const [games, missions, stats] = await Promise.all([
     getGames(user.id),
     getDailyMissions(user.id),
+    getTodayStatGains(user.id),
   ]);
 
   // Filter games that are part of today's missions
@@ -44,60 +47,66 @@ export default async function Home() {
 
   return (
     <div className="bg-cream overflow-hidden">
-      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
+      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6">
         <QuestNotificationManager />
         {/* TopCard */}
         <TopCard />
 
-        <ModernDashboard
-          title={isAllComplete ? "ภารกิจวันนี้สำเร็จ!" : currentMission ? `ภารกิจ: ${currentMission.label}` : "ภารกิจวันนี้"}
-          totalGames={3}
-          completedGames={completedCount}
-          action={
-            isAllComplete ? (
-              <div className="flex flex-col items-start gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-[6fr_4fr] items-stretch gap-6 md:gap-4 lg:gap-6 mt-8 pb-20 md:pb-8">
+          {/* Dashboard / Missions */}
+          <ModernDashboard
+            title={isAllComplete ? "ภารกิจวันนี้สำเร็จ!" : currentMission ? `ภารกิจ: ${currentMission.label}` : "ภารกิจวันนี้"}
+            totalGames={3}
+            completedGames={completedCount}
+            action={
+              isAllComplete ? (
+                <div className="flex flex-col items-start gap-2">
+                  <Link
+                    href="/allgames"
+                    className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    <Grid3X3 className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
+                    <span className="drop-shadow-sm relative z-10">ไปที่คลังเกม</span>
+                  </Link>
+                </div>
+              ) : (
                 <Link
-                  href="/allgames"
-                  className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
+                  href={currentMission ? `/play/${currentMission.game_id}` : "#"}
+                  className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                  <Grid3X3 className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
-                  <span className="drop-shadow-sm relative z-10">ไปที่คลังเกม</span>
+                  <span>เริ่มภารกิจ</span>
                 </Link>
-              </div>
-            ) : (
-              <Link
-                href={currentMission ? `/play/${currentMission.game_id}` : "#"}
-                className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
-              >
-                <span>เริ่มภารกิจ</span>
-              </Link>
-            )
-          }
-        >
-          {/* Game Cards Grid */}
-          <div className="grid gap-6 grid-cols-1">
-            {dailyQuestGames.map((game, index) => {
-              const mission = missions.find(m => m.game_id === game.gameId);
-              const isCompleted = mission ? mission.completed : false;
+              )
+            }
+          >
+            {/* Game Cards Grid */}
+            <div className="grid gap-6 grid-cols-1">
+              {dailyQuestGames.map((game, index) => {
+                const mission = missions.find(m => m.game_id === game.gameId);
+                const isCompleted = mission ? mission.completed : false;
 
-              return (
-                <MainGameCard
-                  key={game.id}
-                  gameName={game.title}
-                  image={game.image!}
-                  index={index}
-                  durationMin={game.durationMin}
-                  gameId={game.gameId}
-                  currentLevel={game.currentLevel}
-                  haveLevel={game.have_level}
-                  totalStars={game.have_level ? dailyQuestGameStars[game.gameId] : undefined}
-                  isCompleted={isCompleted}
-                />
-              );
-            })}
-          </div>
-        </ModernDashboard>
+                return (
+                  <MainGameCard
+                    key={game.id}
+                    gameName={game.title}
+                    image={game.image!}
+                    index={index}
+                    durationMin={game.durationMin}
+                    gameId={game.gameId}
+                    currentLevel={game.currentLevel}
+                    haveLevel={game.have_level}
+                    totalStars={game.have_level ? dailyQuestGameStars[game.gameId] : undefined}
+                    isCompleted={isCompleted}
+                  />
+                );
+              })}
+            </div>
+          </ModernDashboard>
+
+          {/* Radar Chart */}
+          <StatRadarCard data={stats} />
+        </div>
       </div>
 
       {/* Bottom Navigation */}
@@ -105,3 +114,4 @@ export default async function Home() {
     </div >
   );
 }
+
