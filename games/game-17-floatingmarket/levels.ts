@@ -312,10 +312,10 @@ export const FLOATING_MARKET_LEVELS: Record<number, FloatingMarketLevelConfig> =
         itemSpawnRate: 1.8,
         itemPoolCategories: ['fruit', 'dessert', 'fish'],
         rule: {
-            instructionThai: 'เก็บปลา 1 ตัว สับปะรด 2 ผล และแตงโม 2 ผล',
-            collectFilter: ['fish', 'pineapple', 'watermelon'],
+            instructionThai: 'เก็บปลา 1 ตัว และแตงโม 2 ผล',
+            collectFilter: ['fish', 'watermelon'],
             filterByItemId: true,
-            targetQuantities: { 'fish': 1, 'pineapple': 2, 'watermelon': 2 }
+            targetQuantities: { 'fish': 1, 'watermelon': 2 }
         },
         memoryCapacity: 0,
         coinFrequency: 3,

@@ -20,13 +20,11 @@ const clamp = (value: number) => Math.min(100, Math.max(0, value));
 
 const getEffectiveAttempts = (stats: MinerGameStats) => Math.max(1, stats.attempts - stats.crack_attempts);
 
-const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
-
-const levelDifficultyBonus = (levelPlayed: number) =>
-  DIFFICULTY_MAX_BONUS * ((levelPlayed - LEVEL_MIN) / LEVEL_SPAN);
+const levelDifficultyMultiplier = (levelPlayed: number) =>
+  1 + DIFFICULTY_MAX_BONUS * ((levelPlayed - LEVEL_MIN) / LEVEL_SPAN);
 
 export function calculateMinerStats(stats: MinerGameStats) {
-  const bonus = levelDifficultyBonus(stats.levelPlayed);
+  const difficultyMultiplier = levelDifficultyMultiplier(stats.levelPlayed);
 
   const remainingGoal = Math.max(stats.goal_amount - stats.total_value, 0);
   const valueGoalCore = stats.total_value / Math.max(stats.total_value + remainingGoal, 1);
@@ -41,10 +39,10 @@ export function calculateMinerStats(stats: MinerGameStats) {
   const speedCore = stats.target_decision_time_ms / Math.max(stats.target_decision_time_ms + overDecisionMs, 1);
 
   return {
-    stat_planning: Math.round(100 * applySoftBonus(planningCore, bonus)),
-    stat_visual: Math.round(100 * applySoftBonus(efficiencyCore, bonus)),
-    stat_focus: Math.round(100 * applySoftBonus(focusCore, bonus)),
-    stat_speed: Math.round(100 * applySoftBonus(speedCore, bonus)),
+    stat_planning: clamp(Math.round(100 * planningCore * difficultyMultiplier)),
+    stat_visual: clamp(Math.round(100 * efficiencyCore * difficultyMultiplier)),
+    stat_focus: clamp(Math.round(100 * focusCore * difficultyMultiplier)),
+    stat_speed: clamp(Math.round(100 * speedCore * difficultyMultiplier)),
     stat_memory: null,
     stat_emotion: null
   };

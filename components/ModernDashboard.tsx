@@ -14,11 +14,11 @@ export default function ModernDashboard({ title, totalGames, completedGames, act
     const progress = Math.round((completedGames / totalGames) * 100) || 0;
 
     return (
-        <div className="relative mt-8 px-1">
+        <div className="relative flex-1 flex flex-col h-full w-full">
             {/* Brown Backboard / Frame */}
-            <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0 mx-auto">
+            <div className="bg-brown-light rounded-3xl pb-2 pt-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0 mx-auto w-full flex-1 flex flex-col px-1">
                 {/* Inner Clean Board */}
-                <div className="bg-cream rounded-[20px] p-5 relative z-10 h-full">
+                <div className="bg-cream rounded-[20px] p-5 relative z-10 flex-1 flex flex-col">
 
                     {/* Header Section */}
                     <div className="flex justify-between items-start mb-4 pb-4 border-b-2 border-line border-gray-medium">

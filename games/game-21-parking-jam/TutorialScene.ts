@@ -930,6 +930,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
     if (!this.tutorialOpen) return;
+    const point = this.getPointerWorldPoint(pointer);
 
     const step = TUTORIAL_STEPS[this.tutorialIndex];
     if (!step) return;
@@ -940,7 +941,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
       return;
     }
 
-    const car = this.getCarAtPointer(pointer);
+    const car = this.getCarAtPointer(point);
     if (!car || !step.carId) {
       this.clearSelectedCar();
       return;
@@ -963,7 +964,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
         return;
       }
 
-      const zone = this.getTapZoneForPointer(car, pointer);
+      const zone = this.getTapZoneForPointer(car, point);
       if (zone !== step.direction) {
         this.flashHint(car, step.direction);
         return;
@@ -984,7 +985,15 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     }
   }
 
-  private getCarAtPointer(pointer: Phaser.Input.Pointer): TutorialCar | null {
+  private getPointerWorldPoint(pointer: Phaser.Input.Pointer) {
+    const world = pointer.positionToCamera(this.cameras.main) as { x: number; y: number } | null;
+    if (world) {
+      return new Phaser.Math.Vector2(world.x, world.y);
+    }
+    return new Phaser.Math.Vector2(pointer.x, pointer.y);
+  }
+
+  private getCarAtPointer(point: Phaser.Math.Vector2): TutorialCar | null {
     for (const car of this.cars.values()) {
       if (car.runtime.removed || !car.container.visible) continue;
 
@@ -992,7 +1001,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
       const left = car.container.x - widthPx / 2;
       const top = car.container.y - heightPx / 2;
 
-      if (new Phaser.Geom.Rectangle(left, top, widthPx, heightPx).contains(pointer.x, pointer.y)) {
+      if (new Phaser.Geom.Rectangle(left, top, widthPx, heightPx).contains(point.x, point.y)) {
         return car;
       }
     }
@@ -1104,10 +1113,10 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     graphics.fillPath();
   }
 
-  private getTapZoneForPointer(car: TutorialCar, pointer: Phaser.Input.Pointer): TapZone {
+  private getTapZoneForPointer(car: TutorialCar, point: Phaser.Math.Vector2): TapZone {
     const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-    const localX = pointer.x - car.container.x;
-    const localY = pointer.y - car.container.y;
+    const localX = point.x - car.container.x;
+    const localY = point.y - car.container.y;
 
     if (car.config.axis === 'h') {
       const deadHalfWidth = Math.max(10, widthPx * 0.075);

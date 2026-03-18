@@ -1,17 +1,10 @@
 import type { FloatingBallMathGameStats, ClinicalStats } from '@/types';
 
-const DIFFICULTY_MIN = 0.8;
-const DIFFICULTY_SPAN = 1.9;
-const DIFFICULTY_MAX_BONUS = 0.12;
-
-const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
-
-const toPercent = (core: number) => Math.round(100 * core);
+const clamp = (value: number) => Math.max(0, Math.min(100, value));
+const toPercentScaled = (core: number, difficultyMultiplier: number, penaltyFactor: number) =>
+  clamp(Math.round(100 * core * penaltyFactor * difficultyMultiplier));
 
 const safeRate = (numerator: number, denominator: number) => (denominator > 0 ? numerator / denominator : 0);
-
-const getDifficultyBonus = (difficultyMultiplier: number) =>
-  DIFFICULTY_MAX_BONUS * ((difficultyMultiplier - DIFFICULTY_MIN) / DIFFICULTY_SPAN);
 
 export function calculateFloatingBallMathStats(
   stats: FloatingBallMathGameStats
@@ -28,8 +21,6 @@ export function calculateFloatingBallMathStats(
     bombHits,
     consecutiveErrors
   } = stats;
-
-  const difficultyBonus = getDifficultyBonus(difficultyMultiplier);
 
   const focusCore = calculateFocusCore(
     thiefEvents,
@@ -54,17 +45,13 @@ export function calculateFloatingBallMathStats(
     decisionFailCount,
   );
 
-  const focusBoosted = applySoftBonus(focusCore * penaltyFactor, difficultyBonus);
-  const speedBoosted = applySoftBonus(speedCore * penaltyFactor, difficultyBonus);
-  const emotionBoosted = applySoftBonus(emotionCore * penaltyFactor, difficultyBonus);
-
   return {
     stat_memory: null,
-    stat_speed: toPercent(speedBoosted),
+    stat_speed: toPercentScaled(speedCore, difficultyMultiplier, penaltyFactor),
     stat_visual: null,
-    stat_focus: toPercent(focusBoosted),
+    stat_focus: toPercentScaled(focusCore, difficultyMultiplier, penaltyFactor),
     stat_planning: null,
-    stat_emotion: toPercent(emotionBoosted),
+    stat_emotion: toPercentScaled(emotionCore, difficultyMultiplier, penaltyFactor),
   };
 }
 

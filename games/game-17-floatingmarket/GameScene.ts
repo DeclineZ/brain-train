@@ -286,7 +286,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             mango: 'item_mango', morningglory: 'item_morningglory',
             orange: 'item_orange', papaya: 'item_pappaya', pumpkin: 'item_pumpkin',
             shrimp: 'item_shrimp', squid: 'item_squid', thongyod: 'item_thongyod',
-            watermelon: 'item_watermelon',
+            watermelon: 'item_watermelon'
         };
         for (const [itemId, filename] of Object.entries(itemSpriteMap)) {
             this.load.image(`item_${itemId}`, `/assets/game-17-floatingmarket/${filename}.png`);

@@ -362,30 +362,39 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
   private onScenePointerDown(pointer: Phaser.Input.Pointer) {
     if (this.sceneState !== 'playing') return;
-    if (this.isPointerOnControl(pointer)) return;
+    const point = this.getPointerWorldPoint(pointer);
+    if (this.isPointerOnControl(point)) return;
 
-    const car = this.getCarAtPointer(pointer);
+    const car = this.getCarAtPointer(point);
     if (!car) {
       this.clearSelectedCar();
       return;
     }
 
     if (this.selectedCarId === car.config.id && this.isTwoWayCar(car)) {
-      this.handleSelectedCarTap(car, pointer);
+      this.handleSelectedCarTap(car, point);
       return;
     }
 
-    this.handleCarTap(car.config.id, pointer);
+    this.handleCarTap(car.config.id, point);
   }
 
-  private isPointerOnControl(pointer: Phaser.Input.Pointer) {
+  private getPointerWorldPoint(pointer: Phaser.Input.Pointer) {
+    const world = pointer.positionToCamera(this.cameras.main) as { x: number; y: number } | null;
+    if (world) {
+      return new Phaser.Math.Vector2(world.x, world.y);
+    }
+    return new Phaser.Math.Vector2(pointer.x, pointer.y);
+  }
+
+  private isPointerOnControl(point: Phaser.Math.Vector2) {
     return Object.values(this.controls).some((control) => {
       const bounds = control.getBounds();
-      return bounds.contains(pointer.x, pointer.y);
+      return bounds.contains(point.x, point.y);
     });
   }
 
-  private getCarAtPointer(pointer: Phaser.Input.Pointer): CarVisual | null {
+  private getCarAtPointer(point: Phaser.Math.Vector2): CarVisual | null {
     const candidates: Array<{ car: CarVisual; area: number }> = [];
     this.cars.forEach((car) => {
       if (car.runtime.removed || !car.container.visible) return;
@@ -394,7 +403,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const left = car.container.x - widthPx / 2;
       const top = car.container.y - heightPx / 2;
       const hit = new Phaser.Geom.Rectangle(left, top, widthPx, heightPx);
-      if (!hit.contains(pointer.x, pointer.y)) return;
+      if (!hit.contains(point.x, point.y)) return;
       candidates.push({ car, area: widthPx * heightPx });
     });
 
@@ -1093,7 +1102,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     });
   }
 
-  private handleCarTap(carId: string, pointer: Phaser.Input.Pointer) {
+  private handleCarTap(carId: string, point: Phaser.Math.Vector2) {
     if (this.sceneState !== 'playing') return;
     const car = this.cars.get(carId);
     if (!car || car.runtime.removed) return;
@@ -1105,14 +1114,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
     }
 
     this.selectCar(car.config.id);
-    if (this.getTapZoneForPointer(car, pointer) === 'center') {
+    if (this.getTapZoneForPointer(car, point) === 'center') {
       this.toast(car.config.axis === 'h' ? 'แตะซ้ายหรือขวาของรถคันนี้' : 'แตะบนหรือล่างของรถคันนี้', false);
     }
   }
 
-  private handleSelectedCarTap(car: CarVisual, pointer: Phaser.Input.Pointer) {
+  private handleSelectedCarTap(car: CarVisual, point: Phaser.Math.Vector2) {
     this.markInput();
-    const zone = this.getTapZoneForPointer(car, pointer);
+    const zone = this.getTapZoneForPointer(car, point);
     if (zone === 'center') {
       this.toast(car.config.axis === 'h' ? 'แตะครึ่งซ้ายหรือขวาเพื่อเลือกทิศ' : 'แตะครึ่งบนหรือล่างเพื่อเลือกทิศ', true);
       return;
@@ -1741,10 +1750,10 @@ export class ParkingJamGameScene extends Phaser.Scene {
     graphics.fillPath();
   }
 
-  private getTapZoneForPointer(car: CarVisual, pointer: Phaser.Input.Pointer): TapZone {
+  private getTapZoneForPointer(car: CarVisual, point: Phaser.Math.Vector2): TapZone {
     const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-    const localX = pointer.x - car.container.x;
-    const localY = pointer.y - car.container.y;
+    const localX = point.x - car.container.x;
+    const localY = point.y - car.container.y;
 
     if (car.config.axis === 'h') {
       const deadHalfWidth = Math.max(10, widthPx * 0.075);

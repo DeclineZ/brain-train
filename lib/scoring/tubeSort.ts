@@ -12,19 +12,11 @@ export type TubeSortRawStats = {
   targetTimeMs: number;
 };
 
-const DIFFICULTY_MIN = 0.8;
-const DIFFICULTY_SPAN = 1.9;
-const DIFFICULTY_MAX_BONUS = 0.12;
-
-const applySoftBonus = (core: number, bonus: number) => core + (1 - core) * bonus;
-const toPercent = (core: number) => Math.round(100 * core);
-
-const difficultyBonus = (difficultyMultiplier: number) =>
-  DIFFICULTY_MAX_BONUS * ((difficultyMultiplier - DIFFICULTY_MIN) / DIFFICULTY_SPAN);
+const clamp = (value: number) => Math.max(0, Math.min(100, value));
+const toPercentScaled = (core: number, difficultyMultiplier: number) =>
+  clamp(Math.round(100 * core * difficultyMultiplier));
 
 export function calculateTubeSortStats(stats: TubeSortRawStats) {
-  const bonus = difficultyBonus(stats.difficultyMultiplier);
-
   const extraMoves = Math.max(0, stats.playerMoves - stats.optimalMoves);
   const moveEfficiency = stats.optimalMoves / Math.max(stats.optimalMoves + extraMoves, 1);
   const errorActions = stats.illegalPourAttempts + stats.redundantMoves;
@@ -40,10 +32,10 @@ export function calculateTubeSortStats(stats: TubeSortRawStats) {
   const speedCore = stats.targetTimeMs / Math.max(stats.targetTimeMs + overTimeMs, 1);
 
   return {
-    stat_planning: toPercent(applySoftBonus(planningCore, bonus)),
-    stat_visual: toPercent(applySoftBonus(visualCore, bonus)),
-    stat_focus: toPercent(applySoftBonus(focusCore, bonus)),
-    stat_speed: toPercent(applySoftBonus(speedCore, bonus)),
+    stat_planning: toPercentScaled(planningCore, stats.difficultyMultiplier),
+    stat_visual: toPercentScaled(visualCore, stats.difficultyMultiplier),
+    stat_focus: toPercentScaled(focusCore, stats.difficultyMultiplier),
+    stat_speed: toPercentScaled(speedCore, stats.difficultyMultiplier),
     stat_memory: null,
     stat_emotion: null
   };
