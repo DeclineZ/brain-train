@@ -396,9 +396,18 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const buttonSize = Math.min(130, width * 0.28);
         const spacing = Math.min(20, width * 0.035);
-        const panelY = height - (buttonSize + 40) - (height * 0.05);
+        
+        // Consistent positioning with GameScene
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
+        
+        const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
+        const idealY = gridBottom + 30 + (panelHeight / 2);
+        
+        // Move panel up closer to the grid for better ergonomics on tall displays,
+        // but never lower than the safe bottom margin on small displays
+        const maxBottomY = height - (panelHeight / 2) - 15;
+        const panelY = Math.min(idealY, maxBottomY);
 
         // Panel background
         const panelBg = this.add.graphics();
@@ -530,16 +539,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.instructionOverlay = this.add.container(0, 0);
         this.instructionOverlay.setDepth(400);
 
-        // Position panel between grid bottom and button panel
-        const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
-        const buttonSize = Math.min(130, width * 0.28);
-        const buttonPanelY = height - (buttonSize + 40) - (height * 0.05);
-        const gapCenter = (gridBottom + buttonPanelY) / 2;
-
         const panelWidth = Math.min(width * 0.95, 500);
-        const panelHeight = Math.min(120, (buttonPanelY - gridBottom) * 0.85);
+        const panelHeight = 140; // Fixed height to not squish text
         const panelX = width / 2 - panelWidth / 2;
-        const panelY = gapCenter - panelHeight / 2;
+        // Position on top of the screen
+        const panelY = Math.max(height * 0.03, 20);
 
         this.instructionPanel = this.add.graphics();
         this.instructionPanel.fillStyle(0x000000, 0.85);
@@ -547,10 +551,9 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.instructionPanel.lineStyle(3, 0x4285F4, 1);
         this.instructionPanel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
 
-        const fontSize = Math.min(22, Math.max(16, panelHeight * 0.16));
         this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', {
             fontFamily: 'Sarabun, sans-serif',
-            fontSize: `${fontSize}px`,
+            fontSize: `22px`,
             color: '#FFFFFF',
             align: 'center',
             wordWrap: { width: panelWidth - 40 },

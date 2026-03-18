@@ -688,9 +688,7 @@ export class CashierTutorialScene extends Phaser.Scene {
             const py = 560;
             const itemImg = this.add.image(beltX, py, item.key).setOrigin(0.5).setScale(2.2).setDepth(2);
             itemImg.setInteractive({
-                useHandCursor: true,
-                hitArea: new Phaser.Geom.Rectangle(0, 0, itemImg.width, itemImg.height),
-                hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+                useHandCursor: true
             });
 
             const shadow = this.add.image(beltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(2.2).setDepth(1);

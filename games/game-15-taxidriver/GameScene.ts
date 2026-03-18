@@ -903,13 +903,19 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const buttonSize = Math.min(130, width * 0.28);
         const spacing = Math.min(20, width * 0.035);
 
-        // Fixed distance from bottom to prevent overlap
-        const panelY = height - buttonSize * 0.75;
-        this.controlPanelY = panelY;
-
         // Panel background (floating pill shape)
         const panelWidth = buttonSize * 3 + spacing * 4;
         const panelHeight = buttonSize + 30;
+
+        const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
+        const spaceBelowGrid = this.totalObjectives > 1 ? 60 : 30; 
+        const idealY = gridBottom + spaceBelowGrid + panelHeight / 2;
+        
+        // Move panel up closer to the grid for better ergonomics on tall displays,
+        // but never lower than the safe bottom margin on small displays
+        const maxBottomY = height - (panelHeight / 2) - 15;
+        const panelY = Math.min(idealY, maxBottomY);
+        this.controlPanelY = panelY;
 
         // Create objective progress indicator (Floating Pill)
         if (this.totalObjectives > 1) {
@@ -917,7 +923,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             const pillH = 44;
             const pillX = width / 2 - pillW / 2;
             // Position between map bottom and control panel top
-            const gridBottom = this.gridOffsetY + this.GRID_SIZE * this.cellSize;
             const panelTop = panelY - panelHeight / 2;
             const pillY = gridBottom + (panelTop - gridBottom - pillH) / 2;
 
