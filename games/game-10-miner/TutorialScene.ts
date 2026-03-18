@@ -55,6 +55,7 @@ export class MinerTutorialScene extends Phaser.Scene {
   private hookPullSpeed = 0.8;
   private hookTarget: TutorialMinerObject | null = null;
   private hookLastDropEnd: { x: number; y: number } | null = null;
+  private readonly hookTipLocalY = 20;
 
   private ropeGraphics!: Phaser.GameObjects.Graphics;
   private hookContainer!: Phaser.GameObjects.Container;
@@ -130,10 +131,11 @@ export class MinerTutorialScene extends Phaser.Scene {
       this.hookDropVelocity += 0.003 * dt;
       this.hookDropDistance = Math.min(this.hookFullLength, this.hookDropDistance + this.hookDropVelocity * dt);
 
-      const prevEnd = this.hookLastDropEnd ?? this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle);
+      const prevEnd = this.hookLastDropEnd ?? this.getHookTipWorldPosition(this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle));
       const end = this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle);
-      this.checkDropGrabSegment(prevEnd, end);
-      this.hookLastDropEnd = end;
+      const tip = this.getHookTipWorldPosition(end);
+      this.checkDropGrabSegment(prevEnd, tip);
+      this.hookLastDropEnd = tip;
 
       if (this.hookDropDistance >= this.hookFullLength && this.hookState === 'dropping') {
         this.startPull();
@@ -144,8 +146,9 @@ export class MinerTutorialScene extends Phaser.Scene {
     if (this.hookState === 'pulling') {
       this.hookDropDistance = Math.max(this.hookSwingLength, this.hookDropDistance - this.hookPullSpeed * dt);
       const end = this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle);
+      const tip = this.getHookTipWorldPosition(end);
       if (this.hookTarget) {
-        this.hookTarget.sprite.setPosition(end.x, end.y + 18);
+        this.hookTarget.sprite.setPosition(tip.x, tip.y);
       }
 
       if (this.hookDropDistance <= this.hookSwingLength + 1) {
@@ -638,7 +641,7 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hookDropVelocity = 0;
     this.hookLockedAngle = this.hookAngle;
     this.animateHookOpen(1, 120);
-    this.hookLastDropEnd = this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle);
+    this.hookLastDropEnd = this.getHookTipWorldPosition(this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle));
 
     if (this.freeHooksRemaining > 0) {
       this.freeHooksRemaining -= 1;
@@ -741,12 +744,16 @@ export class MinerTutorialScene extends Phaser.Scene {
     });
     let closest: TutorialMinerObject | null = null;
     let minDistance = Number.POSITIVE_INFINITY;
+    let closestT = Number.POSITIVE_INFINITY;
 
     for (const obj of activeObjects) {
-      const { distance } = this.getPointToSegmentDistance({ x: obj.x, y: obj.y }, start, end);
-      if (distance < obj.size + 8 && distance < minDistance) {
-        closest = obj;
-        minDistance = distance;
+      const { distance, t } = this.getPointToSegmentDistance({ x: obj.x, y: obj.y }, start, end);
+      if (distance < obj.size + 8) {
+        if (t < closestT || (Math.abs(t - closestT) < 0.0001 && distance < minDistance)) {
+          closest = obj;
+          minDistance = distance;
+          closestT = t;
+        }
       }
     }
 
@@ -986,6 +993,16 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hookContainer.setPosition(rope.end.x, rope.end.y);
     this.hookContainer.setRotation(this.getRopeEndTangentAngle(rope));
     return rope.end;
+  }
+
+  private getHookTipWorldPosition(basePoint?: { x: number; y: number }) {
+    const x = basePoint?.x ?? this.hookContainer.x;
+    const y = basePoint?.y ?? this.hookContainer.y;
+    const rotation = this.hookContainer.rotation;
+    return {
+      x: x - Math.sin(rotation) * this.hookTipLocalY,
+      y: y + Math.cos(rotation) * this.hookTipLocalY
+    };
   }
 
   private drawRope(rope: { start: { x: number; y: number }; end: { x: number; y: number } }) {

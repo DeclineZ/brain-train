@@ -60,6 +60,7 @@ export class MinerGameScene extends Phaser.Scene {
   private hookPivot!: Phaser.GameObjects.Arc;
   private hookHead!: Phaser.GameObjects.Rectangle;
   private hookTip!: Phaser.GameObjects.Rectangle;
+  private readonly hookTipLocalY = 20;
   private hookJawLeft!: Phaser.GameObjects.Container;
   private hookJawRight!: Phaser.GameObjects.Container;
   private hookJawLeftCore!: Phaser.GameObjects.Rectangle;
@@ -941,11 +942,12 @@ export class MinerGameScene extends Phaser.Scene {
         this.hookDropDistance + this.hookDropVelocity * dt
       );
 
-      const prevEnd = this.hookLastDropEnd ?? this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle);
+      const prevEnd = this.hookLastDropEnd ?? this.getHookTipWorldPosition(this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle));
       const end = this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle, 1);
-      this.updateGrabbedTargetPosition(end.x, end.y);
-      this.checkDropGrabSegment(prevEnd, end);
-      this.hookLastDropEnd = end;
+      const tip = this.getHookTipWorldPosition(end);
+      this.updateGrabbedTargetPosition(tip.x, tip.y);
+      this.checkDropGrabSegment(prevEnd, tip);
+      this.hookLastDropEnd = tip;
 
       if (this.hookDropDistance >= this.hookRopeFullLength) {
         this.resolveGrab();
@@ -959,7 +961,8 @@ export class MinerGameScene extends Phaser.Scene {
         this.hookDropDistance - this.hookPullSpeed * dt
       );
       const end = this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle, 1);
-      this.updateGrabbedTargetPosition(end.x, end.y);
+      const tip = this.getHookTipWorldPosition(end);
+      this.updateGrabbedTargetPosition(tip.x, tip.y);
 
       if (this.hookDropDistance <= this.hookRopeSwingLength + 1) {
         this.finishPull();
@@ -1005,8 +1008,8 @@ export class MinerGameScene extends Phaser.Scene {
     this.hookDropVelocity = 0;
     this.hookDropDistance = this.hookRopeSwingLength;
     this.hookLockedAngle = this.hookAngle;
-    this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle, 1);
-    this.hookLastDropEnd = this.getHookEndPosition(this.hookDropDistance, this.hookLockedAngle);
+    const end = this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle, 1);
+    this.hookLastDropEnd = this.getHookTipWorldPosition(end);
 
     const decisionTime = Date.now() - this.decisionStartTime;
     this.stats.decisionTimes.push(decisionTime);
@@ -1676,8 +1679,18 @@ export class MinerGameScene extends Phaser.Scene {
 
   private updateGrabbedTargetPosition(x: number, y: number) {
     if (this.hookTarget) {
-      this.hookTarget.sprite.setPosition(x, y + 18);
+      this.hookTarget.sprite.setPosition(x, y);
     }
+  }
+
+  private getHookTipWorldPosition(basePoint?: { x: number; y: number }) {
+    const x = basePoint?.x ?? this.hookContainer.x;
+    const y = basePoint?.y ?? this.hookContainer.y;
+    const rotation = this.hookContainer.rotation;
+    return {
+      x: x - Math.sin(rotation) * this.hookTipLocalY,
+      y: y + Math.cos(rotation) * this.hookTipLocalY
+    };
   }
 
   private getHookEndPosition(length: number, angle: number) {
