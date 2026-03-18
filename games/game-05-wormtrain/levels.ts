@@ -536,11 +536,13 @@ export const LEVELS: LevelData[] = [
       // Center out
       { id: 'e7', from: 'j3', to: 'hG', path: [p(400, 550), p(300, 900)], length: 350, widthClass: 'normal' },
       { id: 'e8', from: 'j3', to: 'hO', path: [p(400, 550), p(500, 900)], length: 350, widthClass: 'normal' },
+      { id: 'e9', from: 'j3', to: 'hB', path: [p(400, 550), p(250, 700), p(100, 850)], length: 450, widthClass: 'normal' },
+      { id: 'e10', from: 'j3', to: 'hP', path: [p(400, 550), p(550, 700), p(700, 850)], length: 450, widthClass: 'normal' },
     ],
     junctions: [
       { id: 'j1', outEdges: ['e5', 'e3'], defaultIndex: 0 },
       { id: 'j2', outEdges: ['e6', 'e4'], defaultIndex: 0 },
-      { id: 'j3', outEdges: ['e7', 'e8'], defaultIndex: 0 },
+      { id: 'j3', outEdges: ['e9', 'e7', 'e8', 'e10'], defaultIndex: 1 },
     ],
     traps: [],
     worms: [
