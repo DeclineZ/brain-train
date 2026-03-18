@@ -675,7 +675,7 @@ export class CashierGameScene extends Phaser.Scene {
         const promptText = this.add.text(monitorCenterX, monitorCenterY, "แตะสินค้า\nเพื่อดูราคา", { fontSize: '38px', color: '#053305', align: 'center', fontStyle: 'bold' }).setOrigin(0.5);
         this.phase1MonitorGroup.add(promptText);
 
-        let currentBeltX = Math.max(100, 400 - 250);
+        let currentBeltX = 100;
 
         let deskNoteStr = "";
         const hasLimitTrick = this.config.tallyLimitRule;
@@ -712,11 +712,7 @@ export class CashierGameScene extends Phaser.Scene {
 
                 const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(2.2);
                 itemImg.setInteractive({
-                    useHandCursor: true,
-                    // The origin is 0.5, but hitArea local coordinates define 0,0 at top-left of the original unscaled image. 
-                    // No negative offsets or scaling padding needed because Phaser.Geom.Rectangle.Contains scales inherently with the game object bounds.
-                    hitArea: new Phaser.Geom.Rectangle(0, 0, itemImg.width, itemImg.height),
-                    hitAreaCallback: Phaser.Geom.Rectangle.Contains
+                    useHandCursor: true
                 });
 
                 // Add simple box shadow
@@ -751,8 +747,8 @@ export class CashierGameScene extends Phaser.Scene {
                     this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
                 });
 
-                currentBeltX += 80; // More spacing for larger items
-                if (currentBeltX > 400 + 350) currentBeltX = Math.max(100, 400 - 320); // Wrap around if too many
+                currentBeltX += 130; // More spacing for larger items
+                if (currentBeltX > 720) currentBeltX = 100; // Wrap around if too many
             }
         }
 
