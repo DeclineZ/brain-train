@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addItemToInventory } from '@/lib/server/shopAction';
 import { createClient } from '@/utils/supabase/server';
-import { generateUniqueFriendCode } from '@/lib/server/friendActions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,12 +71,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate friend code BEFORE upsert to avoid NOT NULL violation
+    let friendCode: string | undefined;
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('friend_code')
+      .eq('user_id', user.id)
+      .single();
+
+    if (existingProfile?.friend_code) {
+      friendCode = existingProfile.friend_code;
+    } else {
+      const CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      for (let attempt = 0; attempt < 100; attempt++) {
+        let code = '';
+        for (let i = 0; i < 4; i++) {
+          code += CHARS[Math.floor(Math.random() * CHARS.length)];
+        }
+        const { data: conflict } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('friend_code', code)
+          .single();
+        if (!conflict) {
+          friendCode = code;
+          break;
+        }
+      }
+    }
+
     // Set as user's avatar and mark free avatar as claimed
     const { error: updateError } = await supabase
       .from('user_profiles')
       .upsert({
         user_id: user.id,
         avatar_url: avatarId,
+        friend_code: friendCode,
         dob: dob || null,
         gender: gender || null,
         claimed_free_avatar: true,
@@ -93,11 +122,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Generate unique friend code for new user
-    await generateUniqueFriendCode(user.id).catch(err => {
-      console.error('Friend code generation error (non-fatal):', err);
-    });
 
     return NextResponse.json({
       ok: true,
