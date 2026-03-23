@@ -39,6 +39,14 @@ type ScheduledDynamicEvent = MinerDynamicEvent & {
   eventIndex: number;
 };
 
+type SpawnPriority = 'high' | 'low';
+type LaneConflictClass = 'high' | 'neutral_low' | 'blocking_low';
+
+type SpawnValidationOptions = {
+  margin: number;
+  relaxLowPriorityLane?: boolean;
+};
+
 const COLORS = {
   gold: 0xf7c948,
   gem: 0x6c63ff,
@@ -564,41 +572,76 @@ export class MinerGameScene extends Phaser.Scene {
     margin: number,
     fallbackToGrid: boolean
   ) {
-    let attempts = 0;
-    let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-    let y = this.getSpawnYForValue(config.value, rng);
-    const maxAttempts = 200;
-    while (!this.isSpawnPositionValid(x, y, config.size, margin) && attempts < maxAttempts) {
-      x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-      y = this.getSpawnYForValue(config.value, rng);
-      attempts += 1;
+    const spawnPriority = this.getSpawnPriority(config);
+    const validationPhases: SpawnValidationOptions[] = [
+      { margin },
+      { margin: Math.max(18, margin - 18) }
+    ];
+
+    if (spawnPriority === 'low') {
+      validationPhases.push({
+        margin: Math.max(18, margin - 18),
+        relaxLowPriorityLane: true
+      });
     }
 
-    if (this.isSpawnPositionValid(x, y, config.size, margin)) {
-      return { x, y };
+    for (const options of validationPhases) {
+      const candidate = this.findRandomSpawnCandidate(config, rng, options);
+      if (candidate) {
+        return candidate;
+      }
     }
 
     if (!fallbackToGrid) {
       return null;
     }
 
-    return this.findDeterministicSpawnPosition(config.size, margin, config.type);
+    for (const options of validationPhases) {
+      const candidate = this.findDeterministicSpawnPosition(config, options);
+      if (candidate) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
-  private findDeterministicSpawnPosition(size: number, margin: number, targetType?: MinerObjectType) {
+  private findRandomSpawnCandidate(
+    config: MinerObjectConfig,
+    rng: ReturnType<typeof createSeededRandom>,
+    options: SpawnValidationOptions
+  ) {
+    const maxAttempts = options.relaxLowPriorityLane ? 90 : 120;
+    for (let attempts = 0; attempts < maxAttempts; attempts += 1) {
+      const x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
+      const y = this.getSpawnYForValue(config.value, rng);
+      if (this.isSpawnPositionValid(x, y, config, options)) {
+        return { x, y };
+      }
+    }
+
+    return null;
+  }
+
+  private findDeterministicSpawnPosition(config: MinerObjectConfig, options: SpawnValidationOptions) {
+    const { size, type } = config;
     const left = Math.ceil(this.spawnArea.left + size * 0.5);
     const right = Math.floor(this.spawnArea.right - size * 0.5);
     const top = Math.ceil(this.spawnArea.top + size * 0.5);
     const bottom = Math.floor(this.spawnArea.bottom - size * 0.5);
     const step = Math.max(12, Math.floor(size * 0.7));
-    const objectiveBias = targetType === this.currentLevelConfig.objective.targetType ? 0.18 : 0;
+    const objectiveBias = type === this.currentLevelConfig.objective.targetType ? 0.18 : 0;
     const preferredCenterY = Phaser.Math.Linear(top, bottom, 0.55 + objectiveBias);
     let bestCandidate: { x: number; y: number; score: number } | null = null;
 
     for (let y = top; y <= bottom; y += step) {
       for (let x = left; x <= right; x += step) {
-        if (!this.isSpawnPositionValid(x, y, size, margin)) continue;
-        const score = Math.abs(y - preferredCenterY) + Math.abs(x - this.hookCenterX) * 0.15;
+        if (!this.isSpawnPositionValid(x, y, config, options)) continue;
+        const laneMetrics = this.getHookLaneMetrics(x, y);
+        const score =
+          Math.abs(y - preferredCenterY) +
+          Math.abs(x - this.hookCenterX) * 0.15 +
+          laneMetrics.lanePenalty;
         if (!bestCandidate || score < bestCandidate.score) {
           bestCandidate = { x, y, score };
         }
@@ -608,12 +651,142 @@ export class MinerGameScene extends Phaser.Scene {
     return bestCandidate ? { x: bestCandidate.x, y: bestCandidate.y } : null;
   }
 
-  private isSpawnPositionValid(x: number, y: number, size: number, margin: number) {
+  private isSpawnPositionValid(
+    x: number,
+    y: number,
+    config: Pick<MinerObjectConfig, 'size' | 'type' | 'value' | 'isHazard' | 'isDecoy'>,
+    options: SpawnValidationOptions
+  ) {
     return this.minerObjects.every((obj) => {
-      const distance = Phaser.Math.Distance.Between(x, y, obj.x, obj.y);
-      const minDistance = (size + obj.size) * 0.5 + margin;
-      return distance >= minDistance;
+      if (!this.isSpawnDistanceValid(x, y, config.size, obj, options.margin)) {
+        return false;
+      }
+
+      return this.isSpawnLaneValid({ x, y, config }, obj, options);
     });
+  }
+
+  private isSpawnDistanceValid(x: number, y: number, size: number, existing: MinerObject, margin: number) {
+    const distance = Phaser.Math.Distance.Between(x, y, existing.x, existing.y);
+    const minDistance = (size + existing.size) * 0.5 + margin;
+    return distance >= minDistance;
+  }
+
+  private getSpawnPriority(
+    config: Pick<MinerObjectConfig, 'type' | 'value' | 'isHazard' | 'isDecoy'>
+  ): SpawnPriority {
+    if (config.isHazard || config.isDecoy || config.value <= 0) {
+      return 'low';
+    }
+
+    if (config.type === this.currentLevelConfig.objective.targetType) {
+      return 'high';
+    }
+
+    if (
+      config.type === 'gem' ||
+      config.type === 'money_bag' ||
+      config.type === 'ruby_tiny' ||
+      config.type === 'vein_core' ||
+      config.type.startsWith('diamond')
+    ) {
+      return 'high';
+    }
+
+    return config.value >= this.valueStats.highValueThreshold ? 'high' : 'low';
+  }
+
+  private getLaneConflictClass(
+    config: Pick<MinerObjectConfig, 'type' | 'value' | 'isHazard' | 'isDecoy'>
+  ): LaneConflictClass {
+    const spawnPriority = this.getSpawnPriority(config);
+    if (spawnPriority === 'high') {
+      return 'high';
+    }
+
+    if (config.type.startsWith('bomb') || config.value < 0) {
+      return 'blocking_low';
+    }
+
+    return 'neutral_low';
+  }
+
+  private getHookLaneMetrics(x: number, y: number) {
+    const dx = x - this.hookCenterX;
+    const dy = Math.max(1, y - this.hookBaseY);
+    const angle = Math.atan2(dx, dy);
+    const depth = Math.sqrt(dx * dx + dy * dy);
+    const lanePenalty = Math.abs(angle) * 12;
+    return { angle, depth, lanePenalty };
+  }
+
+  private isSpawnLaneValid(
+    candidate: {
+      x: number;
+      y: number;
+      config: Pick<MinerObjectConfig, 'size' | 'type' | 'value' | 'isHazard' | 'isDecoy'>;
+    },
+    existing: MinerObject,
+    options: SpawnValidationOptions
+  ) {
+    const candidateMetrics = this.getHookLaneMetrics(candidate.x, candidate.y);
+    const existingMetrics = this.getHookLaneMetrics(existing.x, existing.y);
+    const candidatePriority = this.getSpawnPriority(candidate.config);
+    const existingPriority = this.getSpawnPriority(existing);
+    const candidateLaneClass = this.getLaneConflictClass(candidate.config);
+    const existingLaneClass = this.getLaneConflictClass(existing);
+    const angleDiff = Math.abs(candidateMetrics.angle - existingMetrics.angle);
+    const combinedSize = candidate.config.size + existing.size;
+    const closeDepthThreshold = Math.max(34, combinedSize * 0.9);
+    const stackedDepthThreshold = Math.max(68, combinedSize * 1.55);
+    const lowPriorityAngleThreshold =
+      options.relaxLowPriorityLane &&
+      candidateLaneClass === 'neutral_low' &&
+      existingLaneClass === 'neutral_low'
+        ? Phaser.Math.DegToRad(2.6)
+        : Phaser.Math.DegToRad(2.1);
+    const baseAngleThreshold =
+      candidatePriority === 'high' || existingPriority === 'high'
+        ? Phaser.Math.DegToRad(4.2)
+        : lowPriorityAngleThreshold;
+    const depthGap = candidateMetrics.depth - existingMetrics.depth;
+    const absoluteDepthGap = Math.abs(depthGap);
+
+    if (angleDiff <= baseAngleThreshold && absoluteDepthGap <= closeDepthThreshold) {
+      return false;
+    }
+
+    if (angleDiff > baseAngleThreshold) {
+      return true;
+    }
+
+    if (candidatePriority === 'high' && existingPriority === 'high') {
+      return false;
+    }
+
+    const candidateBehind = depthGap > stackedDepthThreshold;
+    const candidateInFront = depthGap < -closeDepthThreshold;
+    const hasBlockingLowConflict =
+      (candidateLaneClass === 'high' && existingLaneClass === 'blocking_low') ||
+      (candidateLaneClass === 'blocking_low' && existingLaneClass === 'high');
+
+    if (hasBlockingLowConflict) {
+      return false;
+    }
+
+    if (existingLaneClass === 'high' && candidateLaneClass === 'neutral_low') {
+      return candidateBehind;
+    }
+
+    if (candidateLaneClass === 'high' && existingLaneClass === 'neutral_low') {
+      return candidateInFront;
+    }
+
+    if (candidateLaneClass === 'neutral_low' && existingLaneClass === 'neutral_low') {
+      return candidateBehind || candidateInFront;
+    }
+
+    return false;
   }
 
   private computeValueStats() {
@@ -1491,7 +1664,18 @@ export class MinerGameScene extends Phaser.Scene {
     const requiredAngle = Math.max(Math.atan2(dxLeft, dy), Math.atan2(dxRight, dy));
     const angleBuffer = Phaser.Math.DegToRad(14);
     const swingBuffer = Phaser.Math.DegToRad(8);
-    const maxSwingCap = Phaser.Math.DegToRad(60);
+    const reachHeadroom = requiredAngle * 0.05;
+    const aspectAllowance = Phaser.Math.Clamp(
+      ((this.scale.width / Math.max(this.scale.height, 1)) - 0.7) * Phaser.Math.DegToRad(6),
+      0,
+      Phaser.Math.DegToRad(6)
+    );
+    const desiredMaxAngle = requiredAngle + reachHeadroom + angleBuffer + swingBuffer + aspectAllowance;
+    const maxSwingCap = Phaser.Math.Clamp(
+      desiredMaxAngle,
+      Phaser.Math.DegToRad(60),
+      Phaser.Math.DegToRad(75)
+    );
     this.hookRopeSwingLength = Phaser.Math.Clamp(baseLength * 0.35, 90, 150);
     this.hookRopeFullLength = Math.max(
       baseLength * 1.85,
@@ -1499,7 +1683,7 @@ export class MinerGameScene extends Phaser.Scene {
       farthestDistance + 24
     );
     this.hookSwingMaxAngle = Phaser.Math.Clamp(
-      requiredAngle + angleBuffer + swingBuffer,
+      requiredAngle + reachHeadroom + angleBuffer + swingBuffer,
       Phaser.Math.DegToRad(50),
       maxSwingCap
     );
@@ -2476,14 +2660,6 @@ export class MinerGameScene extends Phaser.Scene {
     const seed = this.currentLevelConfig.spawn_seed + eventIndex * 1337;
     const rng = createSeededRandom(seed);
     const margin = 24;
-    let attempts = 0;
-    let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-    let y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
-    while (!this.isSpawnPositionValid(x, y, 22, margin) && attempts < 80) {
-      x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
-      y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
-      attempts += 1;
-    }
     const config: MinerObjectConfig = {
       type: 'cursed',
       count: 1,
@@ -2493,6 +2669,14 @@ export class MinerGameScene extends Phaser.Scene {
       isHazard: false,
       isCursed: true
     };
+    let attempts = 0;
+    let x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
+    let y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
+    while (!this.isSpawnPositionValid(x, y, config, { margin }) && attempts < 80) {
+      x = rng.nextInt(this.spawnArea.left, this.spawnArea.right);
+      y = rng.nextInt(this.spawnArea.top, this.spawnArea.bottom);
+      attempts += 1;
+    }
 
     const showValueLabel = rng.next() < this.valueLabelChance && config.value !== 0;
     const sprite = this.createMinerSprite(x, y, config, showValueLabel);

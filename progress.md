@@ -28,3 +28,20 @@ Original prompt: เกมแก ้ รถติด
   - `/play/game-21-parking-jam` (touch alignment and tap-zone direction)
   - `/play/game-10-miner` (hook captures first touched ore with stacked objects)
 - If automated runtime tests are required, install `playwright` for the skill client or enable MCP browser tool calls.
+
+## 2026-03-23 - Miner spawn lane update
+- Updated Miner `GameScene` spawn validation to protect high-priority ores from sharing the same hook-drop lane.
+- Added lane-aware spawn priority rules:
+  - high-priority ores cannot align on the same drop angle
+  - low-priority ores may spawn behind a stronger ore on a reused angle
+  - low-priority ores cannot spawn in front of a high-priority ore on the same lane
+- Random and deterministic fallback spawning now share the same staged validation:
+  - strict margin + strict lane rules
+  - reduced margin
+  - reduced margin + slightly relaxed low-priority lane reuse only
+
+## 2026-03-23 - Miner blocker lane rule
+- Refined Miner lane validation to split low-priority spawns into:
+  - `neutral_low`: reusable filler such as rock / non-negative clutter
+  - `blocking_low`: bombs and any negative-value ore
+- High-priority ores and the objective ore can no longer share nearly the same hook-drop angle with `blocking_low` objects, even when the blocker is deeper on the lane.
