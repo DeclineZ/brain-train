@@ -1446,11 +1446,130 @@ export class BilliardsGameScene extends Phaser.Scene {
         // 3. Create Cue Ball
         this.createCueBall(ballRadius * 0.75);
 
+        // 4. Adjust ball positions to avoid overlapping with equations, obstacles, and cue ball
+        this.adjustBallPositions();
+
         console.log("[BilliardsGameScene] Level layout created", {
             balls: this.balls.length,
             obstacles: this.obstacles.list.length,
             hazards: this.balls.filter(b => b.isHazard).length
         });
+    }
+
+    /**
+     * Validates and adjusts ball positions so they don't overlap with:
+     * - Equation slot zone (top of table)
+     * - Obstacles (walls, boxes)
+     * - Other balls
+     * - Cue ball zone (bottom of table)
+     */
+    private adjustBallPositions() {
+        const ballRadius = PHYSICS_CONFIG.ballRadius;
+        const minBallDist = ballRadius * 2.5; // Minimum distance between ball centers
+        const padding = 8;
+
+        // Equation zone: slots are at tableBounds.top + 80 with radius ~40 (including glow)
+        // The entire equation strip extends from top of table to ~130px below top
+        const equationZoneBottom = this.tableBounds.top + 80 + 45 + ballRadius;
+
+        // Cue ball exclusion zone at the bottom
+        const cueBallSafeY = this.cueBall
+            ? this.cueBall.y - ballRadius * 3
+            : this.tableBounds.bottom - ballRadius * 5;
+
+        const isPositionSafe = (x: number, y: number, excludeIndex: number): boolean => {
+            // Check table bounds with margin
+            const margin = ballRadius + padding;
+            if (x < this.tableBounds.left + margin || x > this.tableBounds.right - margin) return false;
+            if (y < this.tableBounds.top + margin || y > this.tableBounds.bottom - margin) return false;
+
+            // Check equation zone (horizontal strip at top of table)
+            if (y < equationZoneBottom) return false;
+
+            // Check cue ball zone (bottom of table)
+            if (y > cueBallSafeY) return false;
+
+            // Check obstacles with expanded bounds
+            for (const body of this.obstacles.bodies) {
+                const expandedX = body.x - ballRadius - padding;
+                const expandedY = body.y - ballRadius - padding;
+                const expandedW = body.width + (ballRadius + padding) * 2;
+                const expandedH = body.height + (ballRadius + padding) * 2;
+                if (x >= expandedX && x <= expandedX + expandedW &&
+                    y >= expandedY && y <= expandedY + expandedH) {
+                    return false;
+                }
+            }
+
+            // Check other balls
+            for (let i = 0; i < this.balls.length; i++) {
+                if (i === excludeIndex) continue;
+                const other = this.balls[i];
+                const dist = Math.sqrt((x - other.x) ** 2 + (y - other.y) ** 2);
+                if (dist < minBallDist) return false;
+            }
+
+            // Check cue ball
+            if (this.cueBall) {
+                const dist = Math.sqrt((x - this.cueBall.x) ** 2 + (y - this.cueBall.y) ** 2);
+                if (dist < minBallDist) return false;
+            }
+
+            return true;
+        };
+
+        // Check and adjust each ball
+        const tableWidth = this.tableBounds.right - this.tableBounds.left;
+        const tableHeight = this.tableBounds.bottom - this.tableBounds.top;
+
+        for (let i = 0; i < this.balls.length; i++) {
+            const ball = this.balls[i];
+            if (isPositionSafe(ball.x, ball.y, i)) continue;
+
+            console.log(`[BilliardsGameScene] Adjusting ball ${i} (value: ${ball.value}) from (${ball.x.toFixed(0)}, ${ball.y.toFixed(0)})`);
+
+            // Find nearest safe position using directional search
+            // Prioritize downward movement (away from equation zone)
+            let found = false;
+            const searchAngles = [
+                Math.PI / 2,        // Down
+                Math.PI / 3,        // Down-right (60°)
+                2 * Math.PI / 3,    // Down-left (120°)
+                Math.PI / 4,        // Down-right (45°)
+                3 * Math.PI / 4,    // Down-left (135°)
+                Math.PI / 6,        // Down-right (30°)
+                5 * Math.PI / 6,    // Down-left (150°)
+                0,                  // Right
+                Math.PI,            // Left
+                -Math.PI / 6,       // Up-right (last resort)
+                -5 * Math.PI / 6,   // Up-left (last resort)
+                -Math.PI / 4,       // Up-right
+                -3 * Math.PI / 4,   // Up-left
+                -Math.PI / 2,       // Up (absolute last resort)
+            ];
+
+            for (let r = 10; r < Math.max(tableWidth, tableHeight); r += 10) {
+                for (const angle of searchAngles) {
+                    const newX = ball.x + Math.cos(angle) * r;
+                    const newY = ball.y + Math.sin(angle) * r;
+                    if (isPositionSafe(newX, newY, i)) {
+                        ball.x = newX;
+                        ball.y = newY;
+                        ball.originalX = newX;
+                        ball.originalY = newY;
+                        if (ball.container) ball.container.setPosition(newX, newY);
+                        found = true;
+                        console.log(`  -> Moved to (${newX.toFixed(0)}, ${newY.toFixed(0)})`);
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+
+            if (!found) {
+                console.warn(`[BilliardsGameScene] Could not find safe position for ball ${i} (value: ${ball.value})`);
+            }
+        }
     }
 
     createCueBall(radius: number) {
