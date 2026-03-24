@@ -64,7 +64,7 @@ export function calculateFloatingMarketStats(data: FloatingMarketGameStats): Cli
     // === STAT_FOCUS: Inhibition / Sustained Attention ===
     // Based on Mode A performance — avoiding incorrect collections
     let stat_focus: number | null = null;
-    if (data.mode === 'modeA' || data.mode === 'hybrid' || data.mode === 'tutorial') {
+    if (data.mode === 'modeA' || data.mode === 'hybrid' || data.mode === 'tutorial' || data.mode === 'quantityMode') {
         const totalAttempted = data.correctCollections + data.incorrectCollections;
         if (totalAttempted > 0) {
             const inhibitionRate = 1 - (data.incorrectCollections / totalAttempted);
