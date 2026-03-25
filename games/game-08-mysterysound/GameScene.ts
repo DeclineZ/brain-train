@@ -57,6 +57,22 @@ export class MysterySoundScene extends Phaser.Scene {
         this.totalReplaysUsed = 0;
         this.selectedAnswers = [];
         this.requiredSelections = this.currentQuestion.correctAnswers.length;
+
+        // Validate level config to catch mismatches early
+        this.validateLevelConfig();
+    }
+
+    private validateLevelConfig() {
+        this.currentLevelConfig.questions.forEach((q, qIndex) => {
+            const optionIds = q.options.map(o => o.id);
+            q.correctAnswers.forEach(answer => {
+                if (!q.isHybrid && !optionIds.includes(answer)) {
+                    console.error(
+                        `[MysterySound] Level ${this.level} Q${qIndex + 1}: correct answer "${answer}" is NOT in options [${optionIds.join(', ')}]`
+                    );
+                }
+            });
+        });
     }
 
     preload() {
