@@ -92,6 +92,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.isPlaying = false;
         this.isInputLocked = false;
         this.isAnimating = false;
+        this.isDoorOpen = false;
         this.timerActive = false;
         this.charImageKeys = new Set();
         this.refViewsUsed = 0;
@@ -127,6 +128,10 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     }
 
     create() {
+        // Clean up any lingering tweens/timers from previous run
+        this.tweens?.killAll();
+        this.time?.removeAllEvents();
+
         const { width, height } = this.scale;
 
         // Track which images loaded successfully
@@ -1283,7 +1288,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             return;
         }
 
+        // Safety: kill any lingering door tweens to prevent stuck state
+        if (this.doorContainer) {
+            this.tweens.killTweensOf(this.doorContainer);
+        }
+
         this.isInputLocked = true;
+        this.isAnimating = false;
         this.timerActive = false;
 
         const visitor = this.visitors[this.currentVisitorIndex];
@@ -1451,7 +1462,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         });
     }
 
-    private showFeedback(isCorrect: boolean) {
+    protected showFeedback(isCorrect: boolean) {
         const { width, height } = this.scale;
 
         const overlay = this.add.rectangle(width / 2, height / 2, width, height,
