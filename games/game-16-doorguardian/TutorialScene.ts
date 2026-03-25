@@ -186,13 +186,20 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
     }
 
     // Override handleDecision to enforce tutorial logic
+    // IMPORTANT: We do NOT call super.handleDecision() because it auto-advances
+    // to the next visitor via handleCorrect/handleWrong, which races with the
+    // tutorial's own manual flow control (startRejectPractice, startFinalTest, etc.)
     protected handleDecision(allowIn: boolean) {
-        if (!this.isPlaying || this.isInputLocked) return;
+        if (!this.isPlaying || this.isInputLocked || this.isAnimating) return;
 
         if (this.tutorialStep === 'ALLOW_PRACTICE') {
             if (allowIn) {
-                // Correct
-                super.handleDecision(allowIn);
+                // Correct — play feedback without auto-advancing
+                this.isInputLocked = true;
+                this.score += 100;
+                this.correctCount++;
+                if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
+                this.showFeedback(true);
                 this.time.delayedCall(1000, () => this.startRejectPractice());
             } else {
                 // Wrong - Shake head or ignore
@@ -203,8 +210,12 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
 
         if (this.tutorialStep === 'REJECT_PRACTICE') {
             if (!allowIn) {
-                // Correct
-                super.handleDecision(allowIn);
+                // Correct — play feedback without auto-advancing
+                this.isInputLocked = true;
+                this.score += 100;
+                this.correctCount++;
+                if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
+                this.showFeedback(true);
                 this.time.delayedCall(1000, () => this.startFinalTest());
             } else {
                 // Wrong
@@ -219,14 +230,17 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
             const isCorrect = allowIn === visitor.isAllowed;
 
             if (isCorrect) {
-                super.handleDecision(allowIn); // Will trigger handleCorrect -> score etc.
+                this.isInputLocked = true;
+                this.score += 100;
+                this.correctCount++;
+                if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
+                this.showFeedback(true);
                 this.time.delayedCall(1000, () => this.finishTutorial());
             } else {
-                // Wrong - DO NOT CALL SUPER (saves life)
-                // Just shake and warn
+                // Wrong - DO NOT end game, just shake and warn
                 this.cameras.main.shake(200, 0.02);
                 this.setInstruction('ผิดครับ! ลองสังเกตใหม่นะ');
-                this.sound.play('match-fail');
+                try { this.sound.play('match-fail'); } catch (e) { /* ignore */ }
             }
             return;
         }

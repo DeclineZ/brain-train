@@ -272,8 +272,7 @@ export const LEVELS: DoorGuardianLevelConfig[] = [
         name: 'สัตว์มาแล้ว!',
         totalVisitors: 4,
         allowedCharacters: ['woman', 'man', 'dog'],
-        characterPool: ['woman', 'man', 'kid', 'dog', 'trash'], // Note: 'trash' not in keys, removing trash. Keeping pool consistent.
-        // wait, I made a mistake in pool, let me correct it in the content below
+        characterPool: ['woman', 'man', 'kid', 'dog', 'cat'],
         abnormalChance: 0.4,
         guaranteedAbnormal: 1,
         description: 'น้องหมามาด้วย!',
