@@ -81,13 +81,7 @@ export default class GameScene extends Phaser.Scene {
     this.currentLevel = this.game.registry.get('level') ?? 1;
     console.log('Worm Train Game Started - Level', this.currentLevel);
 
-    // Add tiled background (before everything else so it's at the bottom)
-    if (this.textures.exists('bgdirt')) {
-      // Create a large tiling sprite to cover the game world
-      const bgTile = this.add.tileSprite(0, 0, 4000, 4000, 'bgdirt');
-      bgTile.setOrigin(0.5, 0.5);
-      bgTile.setDepth(WormGameConstants.DEPTH.GROUND - 1);
-    }
+    // Clean solid background (no dirt texture — Lumosity-style)
 
     // Initialize Systems - Order Matters
     this.levelLoader = new LevelLoader();

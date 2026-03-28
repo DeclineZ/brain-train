@@ -82,7 +82,7 @@ export default function OnboardingPage() {
     };
 
     return (
-        <main className="h-screen bg-cream md:bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-hidden relative">
+        <main className="h-screen bg-cream md:bg-cream flex flex-col items-center justify-start md:justify-center p-0 md:p-6 text-brown-900 font-sans overflow-y-auto md:overflow-hidden relative">
             {/* Clean Background - No Animations */}
 
             {/* Desktop Logo */}
@@ -136,7 +136,7 @@ export default function OnboardingPage() {
             </div>
 
             {/* --- Desktop Layout Container --- */}
-            <div className="w-full flex-1 md:flex-none md:h-auto md:max-w-2xl relative flex flex-col items-center justify-center z-10">
+            <div className="w-full flex-1 md:flex-none md:h-auto md:max-w-2xl relative flex flex-col items-center justify-center z-10 overflow-y-auto md:overflow-visible">
 
 
 
@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 pb-10 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <h2 className="text-3xl md:text-4xl font-bold text-brown-900 mb-4 text-center">
                                 วันเกิดของคุณ
@@ -260,7 +260,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 pb-10 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
@@ -327,7 +327,7 @@ export default function OnboardingPage() {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: -50, opacity: 0 }}
                             transition={{ duration: 0.4 }}
-                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
+                            className="bg-transparent md:bg-white/90 md:backdrop-blur-xl w-full md:w-[600px] md:h-[75vh] md:max-h-[800px] overflow-y-auto p-6 md:p-10 lg:p-16 pb-10 rounded-none md:rounded-3xl shadow-none md:shadow-lg md:mt-16 border-none md:border md:border-white/50 flex flex-col justify-start md:justify-center relative"
                         >
                             <button
                                 onClick={handleBack}
