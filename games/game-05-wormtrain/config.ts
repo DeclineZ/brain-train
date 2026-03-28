@@ -50,7 +50,7 @@ import GameScene from './GameScene';
 export const WormGameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  backgroundColor: '#4a7c4e', // Organic green background (Lumosity-style)
+  backgroundColor: '#2d5a3f', // Deep green background (Lumosity-style)
   scale: {
     mode: Phaser.Scale.RESIZE, // Dynamic resize with camera zoom
     autoCenter: Phaser.Scale.CENTER_BOTH,
