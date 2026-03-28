@@ -27,8 +27,8 @@ export class GraphVisual {
         // Configurable styles
         // Configurable styles
         const style = levelData.tunnelStyle || {
-            innerColor: 0xC4A484, // Light brown (tan) - was 0xD2B48C (Tan) but slightly desaturated
-            outerColor: 0x5C4033, // Dark brown - was 0x8B4513
+            innerColor: 0x6B7B8D, // Medium grey-blue (railroad track)
+            outerColor: 0x3A4A5C, // Dark slate (track border)
             innerAlpha: 1,
             outerAlpha: 1,
             widthMultiplier: 1
