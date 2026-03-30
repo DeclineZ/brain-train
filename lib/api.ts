@@ -1,6 +1,7 @@
 import type { Game } from "@/types/game";
 import { createClient } from "@/utils/supabase/server";
 import { getUserStars, getGameStars } from "@/lib/stars";
+import { getGameMaxLevel } from "@/lib/gameLevels";
 
 export interface GameLevel {
   level: number;
@@ -95,7 +96,7 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     let user = null;
 
     // Determine total levels based on gameId
-    const totalLevels = getDefaultLevelCount(gameId);
+    const totalLevels = getGameMaxLevel(gameId);
 
     if (!currentUserId) {
       // Get current user
@@ -136,7 +137,7 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
     const userStars = await getGameStars(currentUserId, gameId);
 
     // Get the correct number of levels for this game
-    const levelCount = getDefaultLevelCount(gameId);
+    const levelCount = getGameMaxLevel(gameId);
 
     // Generate levels with real star data
     const levels: GameLevel[] = Array.from({ length: totalLevels }, (_, i) => {
@@ -159,37 +160,13 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
   } catch (error) {
     console.error("Game levels API error:", error);
     // Return default levels as fallback
-    const totalLevels = gameId === 'game-01-cardmatch' ? 30 : 12;
+    const totalLevels = getGameMaxLevel(gameId);
     return Array.from({ length: totalLevels }, (_, i) => ({
       level: i + 1,
       unlocked: i === 0, // Only first level unlocked
       stars: 0,
       completed: false
     }));
-  }
-}
-
-// Helper function to get default level count based on game
-function getDefaultLevelCount(gameId: string): number {
-  switch (gameId) {
-    case 'game-03-billiards-math':
-      return 60; // Billiards has 60 levels
-    case 'game-04-floating-ball-math':
-      return 50; // Floating Pool Balls has 50 levels
-    case 'game-06-dreamdirect':
-      return 40;
-    case 'game-07-pinkcup':
-      return 30; // Pinkcup has 30 levels
-    case 'game-09-tube-sort':
-      return 30; // Tube Sort has 30 levels
-    case 'game-10-miner':
-      return 30; // DeepHook Metrics has 30 levels
-    case 'game-17-floatingmarket':
-      return 30; // Floating Market has 30 levels
-    case 'game-21-parking-jam':
-      return 24; // Parking Jam has 24 levels
-    default:
-      return 12; // Default for other games
   }
 }
 

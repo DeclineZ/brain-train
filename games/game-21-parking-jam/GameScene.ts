@@ -211,7 +211,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.onScenePointerDown, this);
     this.scale.on('resize', this.handleResize, this);
 
-    this.maybeShowNoArrowGuide();
+    this.maybeShowDirectionGuide();
     this.toast('เริ่มด่านนี้เลย!', false);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -807,8 +807,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
     const horizontalLightHeight = heightPx * 0.31;
     const verticalLightX = -widthPx * 0.33;
     const verticalLightWidth = widthPx * 0.31;
+    const brightHeadlight = 0xfef08a;
+    const deepHeadlight = 0xfef08a;
+    const headlightCore = 0xffffff;
+    const deepTaillight = 0xfda4af;
     if (isTwoWay) {
-      g.fillStyle(0xe0f2fe, 0.82);
+      g.fillStyle(deepHeadlight, 0.96);
       if (axis === 'h') {
         const leftX = -widthPx / 2 + 1;
         const rightX = widthPx / 2 - lightThickness - 1;
@@ -816,6 +820,15 @@ export class ParkingJamGameScene extends Phaser.Scene {
         g.fillRoundedRect(leftX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
         g.fillRoundedRect(rightX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
         g.fillRoundedRect(rightX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
+        const coreWidth = Math.max(3, lightThickness - 2);
+        const coreHeight = Math.max(3, Math.floor(heightPx * 0.1));
+        const leftCoreX = leftX + Math.max(0, Math.floor((lightThickness - coreWidth) * 0.5));
+        const rightCoreX = rightX + Math.max(0, Math.floor((lightThickness - coreWidth) * 0.5));
+        g.fillStyle(headlightCore, 0.9);
+        g.fillRoundedRect(leftCoreX, horizontalLightY + 2, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(leftCoreX, -horizontalLightY - coreHeight - 2, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(rightCoreX, horizontalLightY + 2, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(rightCoreX, -horizontalLightY - coreHeight - 2, coreWidth, coreHeight, 2);
         if (density !== 'compact') {
           g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
           g.beginPath();
@@ -830,6 +843,17 @@ export class ParkingJamGameScene extends Phaser.Scene {
         g.fillRoundedRect(-verticalLightX - verticalLightWidth, topY, verticalLightWidth, lightThickness, 4);
         g.fillRoundedRect(verticalLightX, bottomY, verticalLightWidth, lightThickness, 4);
         g.fillRoundedRect(-verticalLightX - verticalLightWidth, bottomY, verticalLightWidth, lightThickness, 4);
+        const coreWidth = Math.max(3, Math.floor(widthPx * 0.1));
+        const coreHeight = Math.max(3, lightThickness - 2);
+        const leftCoreX = verticalLightX + Math.max(0, Math.floor((verticalLightWidth - coreWidth) * 0.5));
+        const rightCoreX = -verticalLightX - verticalLightWidth + Math.max(0, Math.floor((verticalLightWidth - coreWidth) * 0.5));
+        const topCoreY = topY + Math.max(0, Math.floor((lightThickness - coreHeight) * 0.5));
+        const bottomCoreY = bottomY + Math.max(0, Math.floor((lightThickness - coreHeight) * 0.5));
+        g.fillStyle(headlightCore, 0.9);
+        g.fillRoundedRect(leftCoreX, topCoreY, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(rightCoreX, topCoreY, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(leftCoreX, bottomCoreY, coreWidth, coreHeight, 2);
+        g.fillRoundedRect(rightCoreX, bottomCoreY, coreWidth, coreHeight, 2);
         if (density !== 'compact') {
           g.lineStyle(density === 'medium' ? 1.5 : 2, 0xffffff, 0.55);
           g.beginPath();
@@ -842,23 +866,23 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const frontOnRight = forwardDirection === 'right';
       const frontX = frontOnRight ? widthPx / 2 - lightThickness - 1 : -widthPx / 2 + 1;
       const rearX = frontOnRight ? -widthPx / 2 + 1 : widthPx / 2 - lightThickness - 1;
-      g.fillStyle(0xfef08a, 0.95);
+      g.fillStyle(brightHeadlight, 0.98);
       g.fillRoundedRect(frontX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
       g.fillRoundedRect(frontX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
       const whiteCoreW = Math.max(3, lightThickness - 1);
       const whiteCoreH = Math.max(3, Math.floor(heightPx * 0.12));
       const whiteCoreX = frontX + Math.max(0, Math.floor((lightThickness - whiteCoreW) * 0.5));
-      g.fillStyle(0xffffff, 0.92);
+      g.fillStyle(headlightCore, 0.96);
       g.fillRoundedRect(whiteCoreX, horizontalLightY + 2, whiteCoreW, whiteCoreH, 2);
       g.fillRoundedRect(whiteCoreX, -horizontalLightY - whiteCoreH - 2, whiteCoreW, whiteCoreH, 2);
-      g.fillStyle(0xfda4af, 0.9);
+      g.fillStyle(deepTaillight, 0.96);
       g.fillRoundedRect(rearX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
       g.fillRoundedRect(rearX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
     } else {
       const frontOnBottom = forwardDirection === 'down';
       const frontY = frontOnBottom ? heightPx / 2 - lightThickness - 1 : -heightPx / 2 + 1;
       const rearY = frontOnBottom ? -heightPx / 2 + 1 : heightPx / 2 - lightThickness - 1;
-      g.fillStyle(0xfef08a, 0.95);
+      g.fillStyle(brightHeadlight, 0.98);
       g.fillRoundedRect(verticalLightX, frontY, verticalLightWidth, lightThickness, 4);
       g.fillRoundedRect(-verticalLightX - verticalLightWidth, frontY, verticalLightWidth, lightThickness, 4);
       const whiteCoreW = Math.max(3, Math.floor(widthPx * 0.12));
@@ -866,10 +890,10 @@ export class ParkingJamGameScene extends Phaser.Scene {
       const leftCoreX = verticalLightX + Math.max(0, Math.floor((verticalLightWidth - whiteCoreW) * 0.5));
       const rightCoreX = -verticalLightX - verticalLightWidth + Math.max(0, Math.floor((verticalLightWidth - whiteCoreW) * 0.5));
       const coreY = frontY + Math.max(0, Math.floor((lightThickness - whiteCoreH) * 0.5));
-      g.fillStyle(0xffffff, 0.92);
+      g.fillStyle(headlightCore, 0.96);
       g.fillRoundedRect(leftCoreX, coreY, whiteCoreW, whiteCoreH, 2);
       g.fillRoundedRect(rightCoreX, coreY, whiteCoreW, whiteCoreH, 2);
-      g.fillStyle(0xfda4af, 0.9);
+      g.fillStyle(deepTaillight, 0.96);
       g.fillRoundedRect(verticalLightX, rearY, verticalLightWidth, lightThickness, 4);
       g.fillRoundedRect(-verticalLightX - verticalLightWidth, rearY, verticalLightWidth, lightThickness, 4);
     }
@@ -1693,7 +1717,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
 
       g.fillStyle(available ? 0x0f766e : 0x64748b, 0.95);
-      const offset = Math.max(density === 'compact' ? 18 : 22, Math.min(widthPx, heightPx) * (density === 'compact' ? 0.24 : 0.3));
+      const offset = Math.max(density === 'compact' ? 15 : 19, Math.min(widthPx, heightPx) * (density === 'compact' ? 0.2 : 0.26));
       const arrowX = direction === 'left'
         ? centerX - offset
         : direction === 'right'
@@ -1928,7 +1952,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     if (this.noArrowGuideOverlay) {
       this.noArrowGuideOverlay.destroy();
       this.noArrowGuideOverlay = undefined;
-      this.showNoArrowGuidePopup();
+      this.showDirectionGuidePopup();
     }
   }
 
@@ -1936,31 +1960,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
     return this.level.level <= 15;
   }
 
-  private maybeShowNoArrowGuide() {
-    if (this.level.level <= 15) return;
-    if (this.hasSeenNoArrowGuide()) return;
-    this.showNoArrowGuidePopup();
+  private maybeShowDirectionGuide() {
+    if (this.level.level < 1 || this.level.level > 5) return;
+    this.showDirectionGuidePopup();
   }
 
-  private hasSeenNoArrowGuide() {
-    try {
-      if (typeof window === 'undefined') return false;
-      return window.localStorage.getItem('parking_jam_no_arrow_guide_seen') === '1';
-    } catch {
-      return false;
-    }
-  }
-
-  private setNoArrowGuideSeen() {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem('parking_jam_no_arrow_guide_seen', '1');
-    } catch {
-      // ignore persistence errors
-    }
-  }
-
-  private showNoArrowGuidePopup() {
+  private showDirectionGuidePopup() {
     this.sceneState = 'paused';
     const { width, height } = this.scale;
 
@@ -1970,11 +1975,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
       .setInteractive();
 
     const panelWidth = Math.min(520, Math.max(320, width * 0.88));
-    const panelHeight = Math.min(320, Math.max(230, height * 0.42));
+    const panelHeight = Math.min(380, Math.max(270, height * 0.5));
     const panel = this.add.rectangle(width / 2, height / 2, panelWidth, panelHeight, 0xffffff, 1)
       .setStrokeStyle(3, 0xb9cad6, 1);
+    const panelTapZone = this.add.zone(width / 2, height / 2, panelWidth, panelHeight)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
-    const title = this.add.text(width / 2, height / 2 - panelHeight * 0.33, 'ด่านท้าทาย: ไม่มีลูกศร', {
+    const title = this.add.text(width / 2, height / 2 - panelHeight * 0.38, 'จำทิศรถให้แม่นก่อนเริ่ม', {
       fontSize: '28px',
       color: '#0f172a',
       fontStyle: '700',
@@ -1986,8 +1994,8 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     const body = this.add.text(
       width / 2,
-      height / 2 - panelHeight * 0.1,
-      'จากด่านนี้ไป ให้ดูทิศจากตัวรถเอง\nไฟหน้า (เหลือง) = ด้านหน้า\nไฟท้าย (แดง) = ด้านหลัง\nแนวหลังคาเอียงช่วยบอกกระจกหน้า',
+      height / 2 + panelHeight * 0.01,
+      'จากด่านนี้ไป ให้ดูทิศจากตัวรถเอง\nไฟหน้า (เหลือง) = ด้านหน้า\nไฟท้าย (แดง) = ด้านหลัง',
       {
         fontSize: '20px',
         color: '#334155',
@@ -2000,19 +2008,18 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5, 0);
 
-    const button = this.add.rectangle(width / 2, height / 2 + panelHeight * 0.34, 170, 56, 0x0f172a, 1)
-      .setStrokeStyle(2, 0x111827, 1)
-      .setInteractive({ useHandCursor: true });
-    const buttonLabel = this.add.text(width / 2, button.y, 'เข้าใจแล้ว', {
-      fontSize: '22px',
-      color: '#ffffff',
+    const example = this.createDirectionGuideExample(width / 2, height / 2 - panelHeight * 0.14);
+    const tapHint = this.add.text(width / 2, height / 2 + panelHeight * 0.35, 'แตะตรงไหนก็ได้เพื่อเล่นต่อ', {
+      fontSize: '19px',
+      color: '#475569',
       fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
       fontStyle: '700',
-      padding: { left: 6, right: 6, top: 3, bottom: 3 },
-    }).setOrigin(0.5);
+      align: 'center',
+      padding: { left: 8, right: 8, top: 5, bottom: 5 },
+      backgroundColor: '#e2e8f0',
+    }).setOrigin(0.5).setAlpha(0.96);
 
     const close = () => {
-      this.setNoArrowGuideSeen();
       overlay.destroy();
       this.noArrowGuideOverlay = undefined;
       if (this.sceneState !== 'complete') {
@@ -2020,12 +2027,92 @@ export class ParkingJamGameScene extends Phaser.Scene {
       }
     };
 
-    button.on('pointerdown', close);
-    button.on('pointerover', () => button.setFillStyle(0x1f2937, 1));
-    button.on('pointerout', () => button.setFillStyle(0x0f172a, 1));
+    scrim.on('pointerdown', close);
+    panelTapZone.on('pointerdown', close);
 
-    overlay.add([scrim, panel, title, body, button, buttonLabel]);
+    this.tweens.add({
+      targets: tapHint,
+      alpha: 0.55,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+
+    overlay.add([scrim, panel, panelTapZone, title, example, body, tapHint]);
     this.noArrowGuideOverlay = overlay;
+  }
+
+  private createDirectionGuideExample(centerX: number, centerY: number) {
+    const container = this.add.container(centerX, centerY);
+    const car = this.add.graphics();
+
+    const widthPx = 148;
+    const heightPx = 54;
+    const cornerRadius = 18;
+    const roofX = -28;
+    const roofY = -19;
+    const roofWidth = 66;
+    const roofHeight = 26;
+    const lightThickness = 10;
+    const horizontalLightY = -heightPx * 0.26;
+    const horizontalLightHeight = heightPx * 0.24;
+    const frontX = widthPx / 2 - lightThickness - 2;
+    const rearX = -widthPx / 2 + 2;
+    const windshieldX = 18;
+    const windshieldY = -14;
+    const windshieldWidth = 18;
+    const windshieldHeight = 28;
+
+    car.fillStyle(0x60a5fa, 1);
+    car.fillRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, cornerRadius);
+    car.lineStyle(2, 0x0f172a, 0.28);
+    car.strokeRoundedRect(-widthPx / 2, -heightPx / 2, widthPx, heightPx, cornerRadius);
+
+    car.fillStyle(0xffffff, 0.3);
+    car.fillRoundedRect(roofX, roofY, roofWidth, roofHeight, 8);
+
+    car.fillStyle(0xfef08a, 0.95);
+    car.fillRoundedRect(frontX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+    car.fillRoundedRect(frontX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
+    car.fillStyle(0xffffff, 0.92);
+    car.fillRoundedRect(frontX + 2, horizontalLightY + 2, 7, 7, 2);
+    car.fillRoundedRect(frontX + 2, -horizontalLightY - 9, 7, 7, 2);
+
+    car.fillStyle(0xfda4af, 0.9);
+    car.fillRoundedRect(rearX, horizontalLightY, lightThickness, horizontalLightHeight, 4);
+    car.fillRoundedRect(rearX, -horizontalLightY - horizontalLightHeight, lightThickness, horizontalLightHeight, 4);
+
+    car.fillStyle(0xdbeafe, 0.72);
+    car.lineStyle(1.4, 0xffffff, 0.6);
+    car.fillRoundedRect(windshieldX, windshieldY, windshieldWidth, windshieldHeight, 3);
+    car.beginPath();
+    car.moveTo(windshieldX + 1, windshieldY + 1);
+    car.lineTo(windshieldX + windshieldWidth - 1, windshieldY + 4);
+    car.strokePath();
+
+    car.fillStyle(0x0f172a, 0.5);
+    car.fillRoundedRect(-54, -heightPx / 2 + 2, 12, 4, 1);
+    car.fillRoundedRect(40, -heightPx / 2 + 2, 12, 4, 1);
+    car.fillRoundedRect(-54, heightPx / 2 - 6, 12, 4, 1);
+    car.fillRoundedRect(40, heightPx / 2 - 6, 12, 4, 1);
+
+    const frontLabel = this.add.text(102, 0, 'หน้ารถ', {
+      fontSize: '18px',
+      color: '#0f172a',
+      fontStyle: '700',
+      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
+    }).setOrigin(0, 0.5);
+
+    const backLabel = this.add.text(-102, 0, 'ท้ายรถ', {
+      fontSize: '18px',
+      color: '#0f172a',
+      fontStyle: '700',
+      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
+    }).setOrigin(1, 0.5);
+
+    container.add([car, frontLabel, backLabel]);
+    return container;
   }
 
   private readReduceMotion() {

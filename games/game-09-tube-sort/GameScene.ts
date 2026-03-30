@@ -393,7 +393,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       ? Math.min(allBallIds.length, moveLimitFeature.maxBallsWithLimit)
       : 0;
     const limitedIds = moveLimitFeature.enabled
-      ? Phaser.Utils.Array.Shuffle([...allBallIds]).slice(0, limitedCount)
+      ? this.shuffleNumbersWithSeed([...allBallIds], this.currentLevelConfig.seed + 131).slice(0, limitedCount)
       : [];
 
     allBallIds.forEach(id => {
@@ -414,7 +414,7 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   private isBallExhausted(ballState?: BallState) {
     if (!ballState || !ballState.hasMoveLimit) return false;
-    return (ballState.remainingMoves ?? 0) <= 0;
+    return (ballState.remainingMoves ?? 0) < 0;
   }
 
   private getMoveLimitStatusText() {
@@ -483,6 +483,25 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   private shuffleTubeOrder(state: number[][], seed: number) {
     const shuffled = state.map(tube => [...tube]);
+    let rng = seed;
+
+    const randomIndex = (max: number) => {
+      rng = (rng * 9301 + 49297) % 233280;
+      return Math.floor((rng / 233280) * max);
+    };
+
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = randomIndex(i + 1);
+      const temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+
+    return shuffled;
+  }
+
+  private shuffleNumbersWithSeed(values: number[], seed: number) {
+    const shuffled = [...values];
     let rng = seed;
 
     const randomIndex = (max: number) => {
@@ -769,13 +788,16 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.correctPours++;
     this.tubeState = result.state;
     this.tubeBallIds = result.ids;
-    this.applyMoveLimit(result.movedBallId);
+    const exhaustedMoveLimit = this.applyMoveLimit(result.movedBallId);
     this.trackRedundantMove(from, to, prevState);
     this.moveHistory.push({ from, to, fromState: prevState });
     this.selectedTubeIndex = null;
     this.updateMoveText();
     this.updateProgressUI();
     this.renderTubes();
+    if (exhaustedMoveLimit) {
+      return;
+    }
     this.animateMove(from, to);
     this.animatePour(from, to, prevState, result.state, true, result.movedBallId);
     this.sound.play(this.soundKeys.ballPour, { volume: 0.65 });
@@ -793,14 +815,16 @@ export class TubeSortGameScene extends Phaser.Scene {
   private applyMoveLimit(ballId?: number) {
     if (ballId === undefined) return;
     const ballState = this.ballStates.get(ballId);
-    if (!ballState?.hasMoveLimit || ballState.remainingMoves === null) return;
-    ballState.remainingMoves = Math.max(0, ballState.remainingMoves - 1);
-    if (ballState.remainingMoves === 0 && !this.isGameOver) {
+    if (!ballState?.hasMoveLimit || ballState.remainingMoves === null) return false;
+    ballState.remainingMoves -= 1;
+    if (ballState.remainingMoves < 0 && !this.isGameOver) {
       if (!this.isPuzzleComplete()) {
         this.flashMessage('หมดจำนวนครั้งแล้ว', true);
         this.endGame(false);
+        return true;
       }
     }
+    return false;
   }
 
   private checkWin() {

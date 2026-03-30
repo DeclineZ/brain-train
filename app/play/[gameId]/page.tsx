@@ -4,6 +4,7 @@ import { use, useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
+import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels";
 // import GameCanvas from '@/components/game/GameCanvas';
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
@@ -72,24 +73,13 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize' || gameId === 'game-18-runforyourlife';
+    const isEndless = isEndlessGame(gameId);
     // Determine max level based on game
-    const maxLevel = gameId === 'game-01-cardmatch' ? 30
-        : gameId === 'game-05-wormtrain' ? 15
-            : gameId === 'game-06-dreamdirect' ? 40
-                : gameId === 'game-08-mysterysound' ? 20
-                    : gameId === 'game-15-taxidriver' ? 35
-                        : gameId === 'game-10-miner' ? 30
-                            : gameId === 'game-17-floatingmarket' ? 30
-                                : gameId === 'game-19-cashier' ? 30
-                                    : gameId === 'game-20-boxcounting' ? 30
-                                        : gameId === 'game-21-parking-jam' ? 24
-                                        : gameId === 'game-11-pipe-patch' ? 30
-                                        : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+    const maxLevel = getGameMaxLevel(gameId);
 
     const safeParamLevel =
         hasValidParamLevel && parsedParamLevel !== null
-            ? Math.min(parsedParamLevel, maxLevel)
+            ? clampGameLevel(gameId, parsedParamLevel)
             : null;
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
@@ -142,8 +132,7 @@ export default function GamePage({ params }: PageProps) {
                 let nextLevel = 1;
                 if (data && data.current_played) {
                     // Prevent going beyond max level
-                    nextLevel = data.current_played + 1;
-                    if (nextLevel > maxLevel) nextLevel = maxLevel;
+                    nextLevel = clampGameLevel(gameId, data.current_played + 1);
                 }
 
                 if (gameId === 'game-14-wordrecognize') {
@@ -491,7 +480,7 @@ export default function GamePage({ params }: PageProps) {
             // Force reload by pushing new URL or just state update?
             // Since GameCanvas uses 'key={activeLevel}', state update works.
             // But we prefer URL for shareability.
-            router.push(`/play/${gameId}?level=${activeLevel + 1}`);
+            router.push(`/play/${gameId}?level=${clampGameLevel(gameId, activeLevel + 1)}`);
         }
     };
 

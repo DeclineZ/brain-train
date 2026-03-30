@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { PINKCUP_LEVELS, getPinkCupLevel } from './levels';
+import { getPinkCupLevel } from './levels';
 import { upsertLevelStars } from '@/lib/stars';
 import { createSeededRandom, shuffleWithSeed, SeededRandom } from '@/lib/seededRandom';
 import { calculatePinkCupLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
@@ -81,7 +81,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     console.log(`[PinkCupGameScene] init data=${JSON.stringify(data)} registry=${regLevel}`);
     
     const level = data.level || regLevel || 1;
-    this.currentLevelConfig = PINKCUP_LEVELS[level] || PINKCUP_LEVELS[1];
+    this.currentLevelConfig = getPinkCupLevel(level);
     this.isTutorialComplete = data.isTutorialComplete || false;
     this.rng = createSeededRandom(7000 + this.currentLevelConfig.level * 977);
 
@@ -1009,9 +1009,8 @@ export class PinkCupGameScene extends Phaser.Scene {
   showMemoryProbe() {
     console.log('[ShowMemoryProbe] Starting memory probe...');
     const level = this.currentLevelConfig.level;
-    
-    // Determine number of questions based on difficulty
-    // Use probeCount from level config if available, otherwise calculate based on level
+
+    // Use probeCount from level config if available, otherwise calculate based on level.
     let numQuestions = this.currentLevelConfig.probeCount || 1;
     if (!this.currentLevelConfig.probeCount) {
       if (level <= 5) {

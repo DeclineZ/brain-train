@@ -1,5 +1,7 @@
 import type { PinkCupLevelConfig } from './types';
 
+export const PINKCUP_MAX_LEVEL = 30;
+
 /**
  * Find the Pink Cup - Level Configurations
  * Scalable system with extensible parameters
@@ -325,7 +327,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1500,
+    revealDurationMs: 2000,
     timeLimitSeconds: 140,
     parTimeSeconds: 70,
     memoryType: 'number',
@@ -340,7 +342,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1400,
+    revealDurationMs: 1900,
     timeLimitSeconds: 130,
     parTimeSeconds: 65,
     memoryType: 'number',
@@ -355,7 +357,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1300,
+    revealDurationMs: 1800,
     timeLimitSeconds: 120,
     parTimeSeconds: 60,
     memoryType: 'number',
@@ -370,7 +372,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1200,
+    revealDurationMs: 1700,
     timeLimitSeconds: 110,
     parTimeSeconds: 55,
     memoryType: 'number',
@@ -385,7 +387,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1100,
+    revealDurationMs: 1600,
     timeLimitSeconds: 100,
     parTimeSeconds: 50,
     memoryType: 'number',
@@ -403,7 +405,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 1000,
+    revealDurationMs: 1500,
     timeLimitSeconds: 90,
     parTimeSeconds: 45,
     memoryType: 'number',
@@ -418,7 +420,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 950,
+    revealDurationMs: 1450,
     timeLimitSeconds: 80,
     parTimeSeconds: 40,
     memoryType: 'number',
@@ -433,7 +435,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 900,
+    revealDurationMs: 1400,
     timeLimitSeconds: 70,
     parTimeSeconds: 35,
     memoryType: 'number',
@@ -448,7 +450,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 850,
+    revealDurationMs: 1350,
     timeLimitSeconds: 60,
     parTimeSeconds: 30,
     memoryType: 'number',
@@ -463,7 +465,7 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
     gridCols: 5,
     gridRows: 5,
     numberedTilesCount: 5,
-    revealDurationMs: 800,
+    revealDurationMs: 1300,
     timeLimitSeconds: 50,
     parTimeSeconds: 25,
     memoryType: 'number',
@@ -479,5 +481,6 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
  * Helper function to get level config with fallback
  */
 export function getPinkCupLevel(level: number): PinkCupLevelConfig {
-  return PINKCUP_LEVELS[level] || PINKCUP_LEVELS[1];
+  const boundedLevel = Math.max(1, Math.min(level, PINKCUP_MAX_LEVEL));
+  return PINKCUP_LEVELS[boundedLevel];
 }
