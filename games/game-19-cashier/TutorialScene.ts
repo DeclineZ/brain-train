@@ -687,7 +687,14 @@ export class CashierTutorialScene extends Phaser.Scene {
 
             const py = 560;
             const itemImg = this.add.image(beltX, py, item.key).setOrigin(0.5).setScale(2.2).setDepth(2);
+            
+            // Create a precise, smaller circular hitbox to prevent transparent edges from overlapping
+            const hitRadius = Math.min(itemImg.width, itemImg.height) * 0.40;
+            const hitArea = new Phaser.Geom.Circle(itemImg.width / 2, itemImg.height / 2, hitRadius);
+            
             itemImg.setInteractive({
+                hitArea: hitArea,
+                hitAreaCallback: Phaser.Geom.Circle.Contains,
                 useHandCursor: true
             });
 

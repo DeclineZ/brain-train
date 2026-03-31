@@ -9,6 +9,9 @@ export const DreamDirectGameConfig: Phaser.Types.Core.GameConfig = {
         width: 800,
         height: 600,
     },
+    input: {
+        activePointers: 4, // Enable multi-touch for simultaneous button presses (chords, hold+tap)
+    },
     physics: {
         default: 'arcade',
         arcade: {
