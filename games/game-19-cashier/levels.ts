@@ -46,7 +46,7 @@ for (let i = 1; i <= 30; i++) {
         config.tallyItemsCount = 4;
         config.tallyDistractors = i >= 6 ? 1 : 0;
         if (i >= 8) config.tallyDistractors = 2;
-        config.tallyLimitRule = i >= 10;
+        config.tallyLimitRule = false; // Fixed: was leaking into level 10 causing difficulty spike
         config.patienceDurationMs = 110000;
     } else if (i <= 15) {
         // Tier 3: Task Switching
