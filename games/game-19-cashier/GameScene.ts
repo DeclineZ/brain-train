@@ -757,27 +757,7 @@ export class CashierGameScene extends Phaser.Scene {
                     const effectivePrice = isLimitTrick ? price * 3 : price;
                     this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
 
-                    // User Feedback: Animation explaining the Limit Rule mechanic when they tap the limited items
-                    if (isLimitTrick) {
-                        const warnText = this.add.text(monitorCenterX, monitorCenterY + 160, "💡 เครื่องสแกนเกินไป 1 ชิ้น!\n(ป้ายจำกัดแค่ 2 ชิ้นนะจ๊ะ)", {
-                            fontSize: '26px',
-                            color: '#e11d48',
-                            align: 'center',
-                            stroke: '#ffffff',
-                            strokeThickness: 5,
-                            fontStyle: 'bold'
-                        }).setOrigin(0.5);
-                        this.phase1MonitorGroup.add(warnText);
-
-                        this.tweens.add({
-                            targets: warnText,
-                            scaleX: 1.1,
-                            scaleY: 1.1,
-                            yoyo: true,
-                            repeat: -1,
-                            duration: 500
-                        });
-                    }
+                    // Removed the explicit warning text/animation for Limit Rule here per user request
                 });
 
                 currentBeltX += 130; 
