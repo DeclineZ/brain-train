@@ -40,8 +40,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load background
-    this.load.image('bgdirt', '/games/game-05-wormtrain/bgdirt.webp');
+    // Load background (new seamless texture)
+    this.load.image('bgdirt', '/games/game-05-wormtrain/newbgdirt.png');
 
     // Load game assets (WebP for faster loading)
     this.load.image('hole', '/games/game-05-wormtrain/hole.webp');
@@ -81,7 +81,12 @@ export default class GameScene extends Phaser.Scene {
     this.currentLevel = this.game.registry.get('level') ?? 1;
     console.log('Worm Train Game Started - Level', this.currentLevel);
 
-    // Clean solid background (no dirt texture — Lumosity-style)
+    // Add tiled dirt background for earthy look
+    if (this.textures.exists('bgdirt')) {
+      const bgTile = this.add.tileSprite(0, 0, 4000, 4000, 'bgdirt');
+      bgTile.setOrigin(0.5, 0.5);
+      bgTile.setDepth(WormGameConstants.DEPTH.GROUND - 1);
+    }
 
     // Initialize Systems - Order Matters
     this.levelLoader = new LevelLoader();
@@ -155,10 +160,10 @@ export default class GameScene extends Phaser.Scene {
       const textColor = success ? '#44ff44' : '#ff4444';
 
       const label = this.add.text(x, y - 60, textStr, { // Start higher
-        fontSize: '32px',
+        fontSize: '56px',
         color: textColor,
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: 8,
         fontFamily: 'Arial',
         fontStyle: 'bold'
       }).setOrigin(0.5).setDepth(200); // Ensure on top

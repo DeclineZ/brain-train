@@ -94,19 +94,23 @@ export class WinLoseSystem {
         this.gameOver = true;
         this.scene.gameOver = true;
 
-        // Calculate score
+        // Calculate score & penalty stars
         const scoreResult = this.scene.scoringSystem.calculateScore();
-        console.log(`Level Finished. Arrived: ${this.arrivedCount}, Lost: ${this.lostCount}, Stars: ${scoreResult.stars}`);
+        
+        // Let the player pass the level but with reduced stars (No Game Over)
+        const isSuccess = true;
+        const finalStars = scoreResult.stars;
 
-        this.scene.events.emit('GAME_WIN', { arrived: this.arrivedCount, lost: this.lostCount });
+        console.log(`Level Finished. Arrived: ${this.arrivedCount}, Lost: ${this.lostCount}, isSuccess: ${isSuccess}, Stars: ${finalStars}`);
+
+        this.scene.events.emit('GAME_WIN', { arrived: this.arrivedCount, lost: this.lostCount, success: isSuccess });
 
         const onGameOver = this.scene.game.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
-                success: true, // Always "Success" in terms of completion? Or depend on Stars?
-                // Let's assume completion = success. Stars determine quality.
+                success: isSuccess,
                 level: this.scene.game.registry.get('level') || 1,
-                stars: scoreResult.stars,
+                stars: finalStars,
                 score: scoreResult.score,
                 stat_planning: scoreResult.score,
                 stat_memory: null,
@@ -114,7 +118,7 @@ export class WinLoseSystem {
                 stat_focus: null,
                 stat_visual: null,
                 stat_emotion: null,
-                starHint: this.getStarHint(scoreResult.stars)
+                starHint: this.getStarHint(finalStars)
             });
         }
     }

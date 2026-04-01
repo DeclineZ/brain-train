@@ -66,10 +66,17 @@ export class ScoringSystem {
         const finalScore = (W.PLANNING * planning) + (W.EFFICIENCY * efficiency) + (W.ACCURACY * accuracy);
         const roundedScore = Math.round(finalScore);
 
-        // Stars
+        // Calculate Base Stars
         let stars = 1;
         if (roundedScore >= WormGameConfig.STARS.THREE) stars = 3;
         else if (roundedScore >= WormGameConfig.STARS.TWO) stars = 2;
+
+        // HARSH PENALTY: Limit stars based on mistakes so players don't get 3 stars if they fail
+        if (this.mistakeCount === 1) {
+            stars = Math.min(stars, 2); // Max 2 stars if 1 mistake
+        } else if (this.mistakeCount > 1) {
+            stars = 1; // 1 star max if 2+ mistakes
+        }
 
         return { score: roundedScore, stars };
     }
