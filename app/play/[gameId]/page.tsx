@@ -21,7 +21,7 @@ import TimeoutPopup from "@/components/game/TimeoutPopup";
 import PlayLevelBadge from "@/components/game/PlayLevelBadge";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Home, Coins } from "lucide-react";
+import { Home, Coins, Volume2, VolumeX } from "lucide-react";
 
 interface PageProps {
     params: Promise<{ gameId: string }>;
@@ -44,6 +44,24 @@ export default function GamePage({ params }: PageProps) {
 
     // Add isSaving state to block UI while saving
     const [isSaving, setIsSaving] = useState(false);
+
+    // Global Mute State
+    const [isMuted, setIsMuted] = useState(false);
+
+    useEffect(() => {
+        const storedMute = localStorage.getItem("game_global_mute");
+        if (storedMute === "true") {
+            setIsMuted(true);
+        }
+    }, []);
+
+    const toggleMute = () => {
+        setIsMuted(prev => {
+            const newValue = !prev;
+            localStorage.setItem("game_global_mute", String(newValue));
+            return newValue;
+        });
+    };
 
     // Optimistic Stats State
     const [userProfileStats, setUserProfileStats] = useState<any>(null);
@@ -504,13 +522,23 @@ export default function GamePage({ params }: PageProps) {
 
     return (
         <div className="w-full h-screen relative bg-game-bg overflow-hidden">
-            {/* Header with Back Button */}
-            <div className="absolute top-4 left-4 z-10 transition-transform hover:scale-105 active:scale-95">
+            {/* Header with Buttons */}
+            <div className="absolute top-4 left-4 z-10 flex gap-2">
                 <button
                     onClick={handleHomeClick}
-                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center"
+                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
                 >
                     <Home className="w-6 h-6 text-brown-primary" />
+                </button>
+                <button
+                    onClick={toggleMute}
+                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                >
+                    {isMuted ? (
+                        <VolumeX className="w-6 h-6 text-brown-primary" />
+                    ) : (
+                        <Volume2 className="w-6 h-6 text-brown-primary" />
+                    )}
                 </button>
             </div>
 
@@ -528,6 +556,7 @@ export default function GamePage({ params }: PageProps) {
                 mode={activeLevel === 0 ? "tutorial" : "normal"}
                 level={activeLevel}
                 stars={gameStars}
+                isMuted={isMuted}
             />
 
             {/* TIMEOUT POPUP */}
