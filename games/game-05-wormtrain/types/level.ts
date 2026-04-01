@@ -16,6 +16,9 @@ export interface Node {
   y: number;
   color?: string; // For HOLE (match worm color)
   size?: HoleSize; // For HOLE (match worm size)
+  rotation?: number; // Rotation in degrees (e.g. 90 for side-facing holes)
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 export interface Edge {

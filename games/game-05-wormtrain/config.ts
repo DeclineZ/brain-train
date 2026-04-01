@@ -3,11 +3,11 @@ export const WormGameConstants = {
   DEFAULT_SPEED: 80,
   JAM_SHAKE_INTENSITY: 2,
 
-  // Visuals (scaled up for mobile)
-  WORM_HEAD_RADIUS: 22,
-  WORM_BODY_RADIUS: 18,
-  PATH_WIDTH_NORMAL: 42,
-  PATH_WIDTH_NARROW: 18,
+  // Visuals (scaled up for mobile — bigger worms & wider tracks)
+  WORM_HEAD_RADIUS: 30,
+  WORM_BODY_RADIUS: 24,
+  PATH_WIDTH_NORMAL: 55,
+  PATH_WIDTH_NARROW: 24,
 
   // Colors (Hex strings)
   COLORS: {
@@ -50,7 +50,7 @@ import GameScene from './GameScene';
 export const WormGameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game-container',
-  backgroundColor: '#2d5a3f', // Deep green background (Lumosity-style)
+  backgroundColor: '#5C3D2E', // Warm earth/dirt background
   scale: {
     mode: Phaser.Scale.RESIZE, // Dynamic resize with camera zoom
     autoCenter: Phaser.Scale.CENTER_BOTH,

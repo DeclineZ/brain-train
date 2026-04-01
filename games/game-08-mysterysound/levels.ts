@@ -429,12 +429,12 @@ export const MYSTERY_SOUND_LEVELS: Record<number, MysterySoundLevelConfig> = {
             {
                 sounds: ['cat', 'boat', 'train'],
                 correctAnswers: ['cat', 'boat', 'train'],
-                options: [ANIMALS.cat, EVERYDAY_SOUNDS.boat, EVERYDAY_SOUNDS.train, ANIMALS.parrot, EVERYDAY_SOUNDS.rain, EVERYDAY_SOUNDS.door, ANIMALS.dog],
+                options: [ANIMALS.cat, EVERYDAY_SOUNDS.boat, EVERYDAY_SOUNDS.train, ANIMALS.parrot, EVERYDAY_SOUNDS.rain, EVERYDAY_SOUNDS.door],
             },
             {
                 sounds: ['dog', 'bell', 'aircon'],
                 correctAnswers: ['dog', 'bell', 'aircon'],
-                options: [ANIMALS.dog, EVERYDAY_SOUNDS.bell, EVERYDAY_SOUNDS.aircon, ANIMALS.cow, EVERYDAY_SOUNDS.paper, EVERYDAY_SOUNDS.laugh, ANIMALS.frog],
+                options: [ANIMALS.dog, EVERYDAY_SOUNDS.bell, EVERYDAY_SOUNDS.aircon, ANIMALS.cow, EVERYDAY_SOUNDS.paper, EVERYDAY_SOUNDS.laugh],
             },
         ],
         maxReplays: 1,
@@ -449,12 +449,12 @@ export const MYSTERY_SOUND_LEVELS: Record<number, MysterySoundLevelConfig> = {
             {
                 sounds: ['rain', 'pig', 'chicken'],
                 correctAnswers: ['rain', 'pig', 'chicken'],
-                options: [EVERYDAY_SOUNDS.rain, ANIMALS.pig, ANIMALS.chicken, EVERYDAY_SOUNDS.waterfall, ANIMALS.bear, EVERYDAY_SOUNDS.nailclipper, ANIMALS.snake],
+                options: [EVERYDAY_SOUNDS.rain, ANIMALS.pig, ANIMALS.chicken, EVERYDAY_SOUNDS.waterfall, ANIMALS.bear, EVERYDAY_SOUNDS.nailclipper],
             },
             {
                 sounds: ['waterfall', 'frog', 'parrot'],
                 correctAnswers: ['waterfall', 'frog', 'parrot'],
-                options: [EVERYDAY_SOUNDS.waterfall, ANIMALS.frog, ANIMALS.parrot, EVERYDAY_SOUNDS.boat, ANIMALS.fly, EVERYDAY_SOUNDS.door, ANIMALS.cow],
+                options: [EVERYDAY_SOUNDS.waterfall, ANIMALS.frog, ANIMALS.parrot, EVERYDAY_SOUNDS.boat, ANIMALS.fly, EVERYDAY_SOUNDS.door],
             },
         ],
         maxReplays: 1,
@@ -469,12 +469,12 @@ export const MYSTERY_SOUND_LEVELS: Record<number, MysterySoundLevelConfig> = {
             {
                 sounds: ['laugh', 'bear', 'snake'],
                 correctAnswers: ['laugh', 'bear', 'snake'],
-                options: [EVERYDAY_SOUNDS.laugh, ANIMALS.bear, ANIMALS.snake, EVERYDAY_SOUNDS.train, ANIMALS.cow, EVERYDAY_SOUNDS.bell, ANIMALS.fly],
+                options: [EVERYDAY_SOUNDS.laugh, ANIMALS.bear, ANIMALS.snake, EVERYDAY_SOUNDS.train, ANIMALS.cow, EVERYDAY_SOUNDS.bell],
             },
             {
                 sounds: ['door', 'cow', 'fly'],
                 correctAnswers: ['door', 'cow', 'fly'],
-                options: [EVERYDAY_SOUNDS.door, ANIMALS.cow, ANIMALS.fly, EVERYDAY_SOUNDS.paper, ANIMALS.chicken, EVERYDAY_SOUNDS.aircon, ANIMALS.parrot],
+                options: [EVERYDAY_SOUNDS.door, ANIMALS.cow, ANIMALS.fly, EVERYDAY_SOUNDS.paper, ANIMALS.chicken, EVERYDAY_SOUNDS.aircon],
             },
         ],
         maxReplays: 1,

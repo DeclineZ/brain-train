@@ -971,171 +971,223 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     }
 
     // ============ REFERENCE CARD PANEL ============
+    protected refModalContainer!: Phaser.GameObjects.Container;
+    protected isRefModalOpen = false;
 
     protected createReferencePanel() {
         const { width, height } = this.scale;
 
-        const panelW = 230;
-        const panelH = 260;
+        const panelW = 160;
+        const panelH = 50;
         const panelX = width - panelW / 2 - 10;
-        const panelY = height - 220;
+        const panelY = height - 120; // Lower than hearts, higher than buttons
         this.cardPanelContainer = this.add.container(panelX, panelY);
         this.cardPanelContainer.setDepth(60);
 
         this.allowedCharacterIds = [...this.levelConfig.allowedCharacters];
-        this.cardIndex = 0;
+        
+        // Draw the main button
+        const bg = this.add.graphics();
+        bg.fillStyle(0xFFFFFF, 0.95);
+        bg.lineStyle(2, 0x6c5ce7, 1);
+        bg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 12);
+        bg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 12);
+        this.cardPanelContainer.add(bg);
 
-        this.drawReferenceCard();
+        // Icon + Text
+        const btnText = this.add.text(0, 0, '📋 ดูรายชื่อเข้าได้', {
+            fontFamily: '"Mali", "Sarabun", sans-serif',
+            fontSize: '18px',
+            color: '#6c5ce7',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setPadding({ top: 8, bottom: 8 });
+        this.cardPanelContainer.add(btnText);
 
-        // Make it clickable
-        const hitArea = this.add.rectangle(0, 0, panelW + 10, panelH + 10, 0x000000, 0)
+        const hitArea = this.add.rectangle(0, 0, panelW, panelH, 0x000000, 0)
             .setInteractive({ useHandCursor: true });
         this.cardPanelContainer.add(hitArea);
 
         hitArea.on('pointerdown', () => {
+            if (this.isRefModalOpen || this.isInputLocked) return;
+
             const maxViews = this.levelConfig.maxRefViews;
             if (maxViews !== undefined && this.refViewsUsed >= maxViews) {
-                // Cannot view anymore
-                // Shake the panel
+                // Shake if locked
                 this.tweens.add({
-                    targets: this.cardPanelContainer,
-                    x: panelX + 5,
-                    duration: 50,
-                    yoyo: true,
-                    repeat: 3,
+                    targets: this.cardPanelContainer, x: panelX + 5, duration: 50, yoyo: true, repeat: 3
                 });
                 return;
             }
 
-            this.refViewsUsed++;
-            this.cardIndex = (this.cardIndex + 1) % this.allowedCharacterIds.length;
-            this.drawReferenceCard();
+            this.showReferenceModal();
+        });
+        
+        // Update limits text initially
+        this.updateRefButtonText();
+    }
 
-            // Slide animation
+    private updateRefButtonText() {
+        const maxViews = this.levelConfig.maxRefViews;
+        if (maxViews === undefined) return;
+        
+        // Find existing limit text or create it
+        let limitText = this.cardPanelContainer.getByName('limitText') as Phaser.GameObjects.Text;
+        if (!limitText) {
+            limitText = this.add.text(0, -35, '', {
+                fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '14px', color: '#FF6B6B', fontStyle: 'bold'
+            }).setOrigin(0.5).setPadding({ top: 5, bottom: 5 }).setName('limitText');
+            this.cardPanelContainer.add(limitText);
+        }
+        
+        const remaining = maxViews - this.refViewsUsed;
+        if (remaining <= 0) {
+            limitText.setText('ใช้โควต้าดูครบแล้ว');
+            // Gray out button
+            const bg = this.cardPanelContainer.first as Phaser.GameObjects.Graphics;
+            bg.clear();
+            bg.fillStyle(0xEEEEEE, 0.95);
+            bg.lineStyle(2, 0xAAAAAA, 1);
+            bg.fillRoundedRect(-80, -25, 160, 50, 12);
+            bg.strokeRoundedRect(-80, -25, 160, 50, 12);
+            const text = this.cardPanelContainer.list[1] as Phaser.GameObjects.Text;
+            text.setColor('#AAAAAA');
+        } else {
+            limitText.setText(`ดูได้อีก ${remaining} ครั้ง`);
+        }
+    }
+
+    private showReferenceModal() {
+        this.isRefModalOpen = true;
+        const { width, height } = this.scale;
+
+        this.refModalContainer = this.add.container(width / 2, height / 2);
+        this.refModalContainer.setDepth(150);
+
+        // Dark overlay
+        const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.6)
+            .setInteractive(); // Blocks hits
+        this.refModalContainer.add(overlay);
+
+        // Dynamic cols
+        const maxChars = this.allowedCharacterIds.length;
+        const charsPerRow = Math.min(maxChars, 3);
+        const numRows = Math.ceil(maxChars / charsPerRow);
+
+        // Modal Box
+        const modalW = Math.min(width * 0.9, 450);
+        const modalH = 200 + (numRows * 130);
+
+        const bgGroup = this.add.container(0, 0);
+        
+        // Shadow
+        const shadow = this.add.graphics();
+        shadow.fillStyle(0x000000, 0.2);
+        shadow.fillRoundedRect(-modalW / 2 + 5, -modalH / 2 + 5, modalW, modalH, 20);
+        bgGroup.add(shadow);
+        
+        // Background
+        const bg = this.add.graphics();
+        bg.fillStyle(0xFFFFFF, 1);
+        bg.lineStyle(4, 0x6c5ce7, 1); // Purple border
+        bg.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 20);
+        bg.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 20);
+        bgGroup.add(bg);
+        
+        this.refModalContainer.add(bgGroup);
+
+        // Title
+        const titleText = this.add.text(0, -modalH / 2 + 40, 'ผู้ที่ได้รับอนุญาตให้เข้าวันนี้', {
+            fontFamily: '"Mali", "Sarabun", sans-serif',
+            fontSize: '26px', color: '#333333', fontStyle: 'bold'
+        }).setOrigin(0.5).setPadding({ top: 15, bottom: 15 });
+        this.refModalContainer.add(titleText);
+
+        // Draw Characters Grid
+        const startY = -modalH / 2 + 150;
+        const colWidth = modalW / charsPerRow;
+
+        for (let i = 0; i < maxChars; i++) {
+            const charId = this.allowedCharacterIds[i] as CharacterId;
+            const char = CHARACTERS[charId];
+            
+            const row = Math.floor(i / charsPerRow);
+            const charsInThisRow = (row === numRows - 1) ? (maxChars - row * charsPerRow) : charsPerRow;
+            
+            // Calculate X start to dynamically center the row
+            const rowStartX = -(charsInThisRow * colWidth) / 2 + (colWidth / 2);
+            const col = i % charsPerRow;
+
+            const cx = rowStartX + col * colWidth;
+            const cy = startY + row * 130;
+
+            const spriteKey = char.normalSprite;
+            if (this.charImageKeys.has(spriteKey)) {
+                const img = this.add.image(cx, cy - 25, spriteKey);
+                const s = Math.min(85 / img.width, 85 / img.height);
+                img.setScale(s);
+                this.refModalContainer.add(img);
+            } else {
+                 const fallback = this.add.circle(cx, cy - 25, 30, 0xcccccc);
+                 this.refModalContainer.add(fallback);
+            }
+
+            const name = this.add.text(cx, cy + 30, char.name, {
+                fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '18px', color: '#555555', fontStyle: 'bold'
+            }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+            this.refModalContainer.add(name);
+        }
+
+        // Close Button
+        const closeBtnW = 180;
+        const closeBtnH = 50;
+        const btnContainer = this.add.container(0, modalH / 2 - 45);
+        
+        const btnBg = this.add.graphics();
+        btnBg.fillStyle(0x6c5ce7, 1);
+        btnBg.fillRoundedRect(-closeBtnW / 2, -closeBtnH / 2, closeBtnW, closeBtnH, 14);
+        btnContainer.add(btnBg);
+
+        const closeText = this.add.text(0, 0, 'จำได้แล้ว (ปิด)', {
+            fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '20px', color: '#FFFFFF', fontStyle: 'bold'
+        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+        btnContainer.add(closeText);
+
+        const closeHit = this.add.rectangle(0, 0, closeBtnW, closeBtnH, 0x000000, 0)
+            .setInteractive({ useHandCursor: true });
+        btnContainer.add(closeHit);
+
+        // Button press animation
+        closeHit.on('pointerdown', () => {
+            closeHit.disableInteractive();
             this.tweens.add({
-                targets: this.cardPanelContainer,
-                x: panelX + 5,
-                duration: 80,
+                targets: btnContainer,
+                scale: 0.95,
+                duration: 50,
                 yoyo: true,
-                ease: 'Sine.easeInOut',
+                onComplete: () => this.closeReferenceModal()
             });
+        });
+
+        this.refModalContainer.add(btnContainer);
+
+        // Entrance Animation
+        this.refModalContainer.setScale(0);
+        this.tweens.add({
+            targets: this.refModalContainer, scale: 1, duration: 300, ease: 'Back.out'
         });
     }
 
-    private drawReferenceCard() {
-        // Remove old card graphics (keep the hitArea)
-        const children = this.cardPanelContainer.getAll();
-        children.forEach((child: any) => {
-            if (child.type !== 'Rectangle') child.destroy();
-        });
-
-        const cardW = 210;
-        const cardH = 230;
-
-        // Check view limit
-        const maxViews = this.levelConfig.maxRefViews;
-        if (maxViews !== undefined && this.refViewsUsed >= maxViews) {
-            // Show "Locked" state
-            const bg = this.add.graphics();
-            bg.fillStyle(0xEEEEEE, 0.95);
-            bg.lineStyle(3, 0x888888, 1);
-            bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-            bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-            this.cardPanelContainer.add(bg);
-
-            const lockText = this.add.text(0, 0, 'จำไว้ให้ดีนะ!', {
-                fontFamily: '"Mali", "Sarabun", sans-serif',
-                fontSize: '24px',
-                color: '#555555',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-            this.cardPanelContainer.add(lockText);
-
-            const subText = this.add.text(0, 40, '(ดูครบโควต้าแล้ว)', {
-                fontFamily: '"Mali", "Sarabun", sans-serif',
-                fontSize: '18px',
-                color: '#888888',
-            }).setOrigin(0.5);
-            this.cardPanelContainer.add(subText);
-            return;
-        }
-
-        const charId = this.allowedCharacterIds[this.cardIndex] as CharacterId;
-        const char = CHARACTERS[charId];
-
-        // Card background
-        const bg = this.add.graphics();
-        bg.fillStyle(0xFFFFFF, 0.95);
-        bg.lineStyle(3, 0xDDDDDD, 1);
-        bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-        bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-        this.cardPanelContainer.add(bg);
-
-        // Character image (use normal sprite)
-        const spriteKey = char.normalSprite;
-        if (this.charImageKeys.has(spriteKey)) {
-            const img = this.add.image(0, -30, spriteKey); // Moved up
-            const s = Math.min(180 / img.width, 150 / img.height); // Reduced max height
-            img.setScale(s);
-            this.cardPanelContainer.add(img);
-        } else {
-            // Mini procedural character
-            const miniG = this.add.graphics();
-            miniG.setScale(1.0);
-            this.cardPanelContainer.add(miniG);
-
-            // Simple mini avatar
-            const palette: Record<string, number> = {
-                woman: 0xD2B48C, man: 0x6495ED, kid: 0xFFD700,
-                dog: 0xD2B48C, cat: 0xFF8C00, rabbit: 0xFFFFFF,
-                bear: 0x8B4513, fox: 0xFF8C00,
-                alien: 0x32CD32, monster: 0x1E90FF, ghost: 0xE6E6FA, robot: 0xC0C0C0
-            };
-            const col = palette[charId] || 0xCCCCCC;
-            miniG.fillStyle(col, 1);
-            miniG.fillCircle(0, -30, 20);
-            miniG.fillRoundedRect(-18, -5, 36, 35, 8);
-        }
-
-        // Name
-        const nameText = this.add.text(0, cardH / 2 - 25, char.name, { // Moved down slightly
-            fontFamily: '"Mali", "Sarabun", sans-serif',
-            fontSize: '22px',
-            fontStyle: 'bold',
-            color: '#555555',
-        }).setOrigin(0.5).setPadding({ top: 10, bottom: 5, left: 5, right: 5 });
-        this.cardPanelContainer.add(nameText);
-
-        // Dots indicator
-        const totalDots = this.allowedCharacterIds.length;
-        const dotStartX = -(totalDots - 1) * 8;
-        for (let i = 0; i < totalDots; i++) {
-            const dot = this.add.circle(dotStartX + i * 16, cardH / 2 - 5, 5,
-                i === this.cardIndex ? 0x6c5ce7 : 0xCCCCCC);
-            this.cardPanelContainer.add(dot);
-        }
-
-        // Swipe arrow hint OR views remaining
-        if (maxViews !== undefined) {
-            const remaining = maxViews - this.refViewsUsed;
-            const limitText = this.add.text(cardW / 2 - 5, -cardH / 2 + 15, `${remaining}`, {
-                fontSize: '16px', color: '#FF6B6B', fontStyle: 'bold'
-            }).setOrigin(1, 0);
-            this.cardPanelContainer.add(limitText);
-        }
-
-        const arrow = this.add.text(cardW / 2 + 5, -10, '↔', {
-            fontSize: '18px', color: '#AAAAAA',
-        }).setOrigin(0.5);
-        this.cardPanelContainer.add(arrow);
-
-        // Pulse the arrow
+    private closeReferenceModal() {
         this.tweens.add({
-            targets: arrow,
-            alpha: 0.3,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
+            targets: this.refModalContainer, scale: 0, duration: 200, ease: 'Back.in',
+            onComplete: () => {
+                this.refModalContainer.destroy();
+                this.isRefModalOpen = false;
+                
+                // Increment view and update UI
+                this.refViewsUsed++;
+                this.updateRefButtonText();
+            }
         });
     }
 
@@ -1195,69 +1247,84 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     // ============ GAME LOGIC ============
 
     protected generateVisitors() {
-        this.visitors = [];
         const config = this.levelConfig;
         const pool = config.characterPool as CharacterId[];
-        const allowedSet = new Set(config.allowedCharacters);
+        const allowedPool = config.allowedCharacters as CharacterId[];
+        const notAllowedPool = pool.filter(id => !allowedPool.includes(id));
 
-        // Count how many guaranteed abnormals
-        let abnormalCount = config.guaranteedAbnormal || 0;
-        // Remaining visitors
-        let remaining = config.totalVisitors - abnormalCount;
-        if (remaining < 0) { abnormalCount = config.totalVisitors; remaining = 0; }
-
+        const targetTotal = config.totalVisitors;
         const generated: Visitor[] = [];
-        let previousCharId: CharacterId | null = null;
 
-        // Helper to get random char that isn't previous (reduce repetition)
-        const getChar = () => {
+        // Determine targets for balance: ~40-45% allowed
+        let targetAllowed = Math.floor(targetTotal * 0.45);
+        if (targetAllowed === 0 && targetTotal > 0) targetAllowed = 1;
+        
+        let targetAbnormal = config.guaranteedAbnormal || 0;
+        // Ensure we don't exceed total with guaranteed
+        if (targetAbnormal + targetAllowed > targetTotal) {
+            targetAbnormal = targetTotal - targetAllowed;
+        }
+
+        const typeList: number[] = []; // 1: Allowed, 2: Abnormal, 3: Normal NotAllowed
+        for (let i = 0; i < targetAllowed; i++) typeList.push(1);
+        for (let i = 0; i < targetAbnormal; i++) typeList.push(2);
+
+        // Fill the rest randomly
+        while (typeList.length < targetTotal) {
+            const isAbnormal = Math.random() < (config.abnormalChance || 0);
+            if (isAbnormal) {
+                typeList.push(2);
+            } else {
+                if (notAllowedPool.length > 0 && Math.random() < 0.5) {
+                    typeList.push(3);
+                } else {
+                    typeList.push(1);
+                }
+            }
+        }
+
+        // Shuffle the types
+        Phaser.Utils.Array.Shuffle(typeList);
+
+        let previousCharId: CharacterId | null = null;
+        const getCharFromPool = (srcPool: CharacterId[]) => {
+            if (srcPool.length === 0) return pool[Math.floor(Math.random() * pool.length)];
             let charId: CharacterId;
             let attempts = 0;
             do {
-                charId = pool[Math.floor(Math.random() * pool.length)];
+                charId = srcPool[Math.floor(Math.random() * srcPool.length)];
                 attempts++;
-            } while (charId === previousCharId && attempts < 10);
+            } while (charId === previousCharId && attempts < 10 && srcPool.length > 1);
             previousCharId = charId;
             return charId;
         };
 
-        // 1. Generate guaranteed abnormals
-        for (let i = 0; i < abnormalCount; i++) {
-            const charId = getChar();
+        for (const type of typeList) {
+            let charId: CharacterId;
+            let isAbnormal = false;
+            let isAllowed = false;
+
+            if (type === 1) { // Allowed
+                charId = getCharFromPool(allowedPool);
+                isAbnormal = false;
+                isAllowed = true;
+            } else if (type === 2) { // Abnormal
+                charId = getCharFromPool(pool);
+                isAbnormal = true;
+                isAllowed = false;
+            } else { // Normal NotAllowed
+                charId = getCharFromPool(notAllowedPool);
+                isAbnormal = false;
+                isAllowed = false;
+            }
+
             const character = CHARACTERS[charId];
-            // Abnormal guaranteed
-            // Use abnormal dialogue
-            const dialogues = character.abnormalDialogue;
-            const dialogue = dialogues[Math.floor(Math.random() * dialogues.length)];
-
-            generated.push({
-                character,
-                isAbnormal: true,
-                isAllowed: false, // Abnormal is ALWAYS not allowed 
-                dialogue
-            });
-        }
-
-        // 2. Generate remaining (mix of normal allowed/not allowed + chance of extra abnormal)
-        for (let i = 0; i < remaining; i++) {
-            const charId = getChar();
-            const character = CHARACTERS[charId];
-            const isInAllowed = allowedSet.has(charId);
-
-            // Chance for extra abnormal?
-            const isAbnormal = Math.random() < (config.abnormalChance || 0);
-
-            // Final decision: Allowed ONLY if In Allowed List AND Normal
-            const isAllowed = isInAllowed && !isAbnormal;
-
             const dialogues = isAbnormal ? character.abnormalDialogue : character.normalDialogue;
             const dialogue = dialogues[Math.floor(Math.random() * dialogues.length)];
 
             generated.push({ character, isAbnormal, isAllowed, dialogue });
         }
 
-        // Shuffle the visitors
-        Phaser.Utils.Array.Shuffle(generated);
         this.visitors = generated;
     }
 

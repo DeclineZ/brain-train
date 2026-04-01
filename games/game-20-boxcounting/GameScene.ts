@@ -192,10 +192,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
     // 3D ISOMETRIC RENDERER
     // ==========================================
 
-    private drawIsometricScene(centerX: number, centerY: number, maxSize: number, blocks: Block3D[]) {
-        if (this.levelConfig.mode !== '3d') return;
+    private drawIsometricScene(centerX: number, centerY: number, maxSize: number, blocks: Block3D[], overrideGridSize?: number, forceColorIdx?: number) {
+        if (this.levelConfig.mode !== '3d' && overrideGridSize === undefined) return;
 
-        const gridSize = this.levelConfig.gridSize;
+        const gridSize: number = overrideGridSize ?? (this.levelConfig as any).gridSize ?? 3;
+
         const cellSize = maxSize / (gridSize * 1.4);
         const halfCell = cellSize / 2;
 
@@ -240,7 +241,7 @@ export class BoxCountingGameScene extends Phaser.Scene {
             const isoX = toIsoX(block.x + 0.5, block.y + 0.5) + offsetX;
             const isoY = toIsoY(block.x + 0.5, block.y + 0.5, block.z) + offsetY;
 
-            const colorIdx = Math.min(block.z, CUBE_COLORS.length - 1);
+            const colorIdx = forceColorIdx !== undefined ? forceColorIdx : Math.min(block.z, CUBE_COLORS.length - 1);
             const colors = CUBE_COLORS[colorIdx];
             this.drawIsometricBox(isoX, isoY, cellSize, halfCell, colors);
         }
@@ -389,6 +390,9 @@ export class BoxCountingGameScene extends Phaser.Scene {
         const topStartY = viewStartY;
 
         this.drawGridView(topStartX, topStartY, topView, cellSize);
+
+        const isTutorialMode = this.levelConfig.mode === '2d' && this.levelConfig.level >= 16 && this.levelConfig.level <= 20;
+
         this.add.text(topStartX + topGridW / 2, topStartY - labelFontSize - 4, 'ด้านบน', {
             fontFamily: FONT_FAMILY,
             fontSize: `${labelFontSize}px`,
@@ -396,6 +400,41 @@ export class BoxCountingGameScene extends Phaser.Scene {
             fontStyle: 'bold',
             padding: { top: 4, bottom: 2 },
         }).setOrigin(0.5, 0);
+
+        // Add 3D helper hint for early levels
+        if (isTutorialMode) {
+            const blocks: Block3D[] = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    for (let z = 0; z < hm[r][c]; z++) {
+                        blocks.push({ x: c, y: r, z });
+                    }
+                }
+            }
+
+            const hintSize = Math.min(w * 0.22, 100);
+            let hintX = topStartX + topGridW + hintSize * 0.6;
+            hintX = Math.min(hintX, w - hintSize * 0.5 - 10);
+            
+            if (topStartX + topGridW > w * 0.8) {
+                // If top view is wide, place hint to the left
+                hintX = Math.max(hintSize * 0.6 + 10, topStartX - hintSize * 0.6);
+            }
+
+            const hintY = topStartY + topGridH / 2;
+            const hintGridSize = Math.max(rows, cols);
+            
+            // Pass forceColorIdx = 0 to make all blocks green
+            this.drawIsometricScene(hintX, hintY, hintSize, blocks, hintGridSize, 0);
+
+            // Add subtitle text for the hint
+            this.add.text(hintX, hintY + hintSize * 0.45, 'ตัวช่วย 3 มิติ', {
+                fontFamily: FONT_FAMILY,
+                fontSize: `${Math.min(14, w * 0.035)}px`,
+                color: '#888888',
+                align: 'center'
+            }).setOrigin(0.5, 0);
+        }
 
         // --- Front View ---
         const bottomRowTotalW = (frontViewW + sideViewW) * cellSize + cellSize * 1.5;
@@ -565,9 +604,9 @@ export class BoxCountingGameScene extends Phaser.Scene {
             fb++;
         }
 
-        // Sort numerically — stable, no jumping
+        // Shuffle randomly
         const arr = Array.from(options);
-        arr.sort((a, b) => a - b);
+        Phaser.Math.RND.shuffle(arr);
         return arr;
     }
 
