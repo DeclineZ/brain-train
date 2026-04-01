@@ -4,6 +4,7 @@ import { use, useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
+import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels";
 // import GameCanvas from '@/components/game/GameCanvas';
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
@@ -20,7 +21,7 @@ import TimeoutPopup from "@/components/game/TimeoutPopup";
 import PlayLevelBadge from "@/components/game/PlayLevelBadge";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Home, Coins } from "lucide-react";
+import { Home, Coins, Volume2, VolumeX } from "lucide-react";
 
 interface PageProps {
     params: Promise<{ gameId: string }>;
@@ -43,6 +44,24 @@ export default function GamePage({ params }: PageProps) {
 
     // Add isSaving state to block UI while saving
     const [isSaving, setIsSaving] = useState(false);
+
+    // Global Mute State
+    const [isMuted, setIsMuted] = useState(false);
+
+    useEffect(() => {
+        const storedMute = localStorage.getItem("game_global_mute");
+        if (storedMute === "true") {
+            setIsMuted(true);
+        }
+    }, []);
+
+    const toggleMute = () => {
+        setIsMuted(prev => {
+            const newValue = !prev;
+            localStorage.setItem("game_global_mute", String(newValue));
+            return newValue;
+        });
+    };
 
     // Optimistic Stats State
     const [userProfileStats, setUserProfileStats] = useState<any>(null);
@@ -72,24 +91,13 @@ export default function GamePage({ params }: PageProps) {
     };
 
     // Endless Mode Check
-    const isEndless = gameId === 'game-02-sensorlock' || gameId === 'game-12-gridhunter' || gameId === 'game-13-boxpattern' || gameId === 'game-14-wordrecognize' || gameId === 'game-18-runforyourlife';
+    const isEndless = isEndlessGame(gameId);
     // Determine max level based on game
-    const maxLevel = gameId === 'game-01-cardmatch' ? 30
-        : gameId === 'game-05-wormtrain' ? 15
-            : gameId === 'game-06-dreamdirect' ? 40
-                : gameId === 'game-08-mysterysound' ? 20
-                    : gameId === 'game-15-taxidriver' ? 35
-                        : gameId === 'game-10-miner' ? 30
-                            : gameId === 'game-17-floatingmarket' ? 30
-                                : gameId === 'game-19-cashier' ? 30
-                                    : gameId === 'game-20-boxcounting' ? 30
-                                        : gameId === 'game-21-parking-jam' ? 24
-                                        : gameId === 'game-11-pipe-patch' ? 30
-                                        : (gameId === 'game-04-floating-ball-math' ? 50 : 60);
+    const maxLevel = getGameMaxLevel(gameId);
 
     const safeParamLevel =
         hasValidParamLevel && parsedParamLevel !== null
-            ? Math.min(parsedParamLevel, maxLevel)
+            ? clampGameLevel(gameId, parsedParamLevel)
             : null;
 
     const [activeLevel, setActiveLevel] = useState<number>(1);
@@ -142,8 +150,7 @@ export default function GamePage({ params }: PageProps) {
                 let nextLevel = 1;
                 if (data && data.current_played) {
                     // Prevent going beyond max level
-                    nextLevel = data.current_played + 1;
-                    if (nextLevel > maxLevel) nextLevel = maxLevel;
+                    nextLevel = clampGameLevel(gameId, data.current_played + 1);
                 }
 
                 if (gameId === 'game-14-wordrecognize') {
@@ -491,7 +498,7 @@ export default function GamePage({ params }: PageProps) {
             // Force reload by pushing new URL or just state update?
             // Since GameCanvas uses 'key={activeLevel}', state update works.
             // But we prefer URL for shareability.
-            router.push(`/play/${gameId}?level=${activeLevel + 1}`);
+            router.push(`/play/${gameId}?level=${clampGameLevel(gameId, activeLevel + 1)}`);
         }
     };
 
@@ -515,13 +522,23 @@ export default function GamePage({ params }: PageProps) {
 
     return (
         <div className="w-full h-screen relative bg-game-bg overflow-hidden">
-            {/* Header with Back Button */}
-            <div className="absolute top-4 left-4 z-10 transition-transform hover:scale-105 active:scale-95">
+            {/* Header with Buttons */}
+            <div className="absolute top-4 left-4 z-10 flex gap-2">
                 <button
                     onClick={handleHomeClick}
-                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center"
+                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
                 >
                     <Home className="w-6 h-6 text-brown-primary" />
+                </button>
+                <button
+                    onClick={toggleMute}
+                    className="bg-white/90 p-3 rounded-full shadow-lg border-2 border-brown-primary/20 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                >
+                    {isMuted ? (
+                        <VolumeX className="w-6 h-6 text-brown-primary" />
+                    ) : (
+                        <Volume2 className="w-6 h-6 text-brown-primary" />
+                    )}
                 </button>
             </div>
 
@@ -539,6 +556,7 @@ export default function GamePage({ params }: PageProps) {
                 mode={activeLevel === 0 ? "tutorial" : "normal"}
                 level={activeLevel}
                 stars={gameStars}
+                isMuted={isMuted}
             />
 
             {/* TIMEOUT POPUP */}

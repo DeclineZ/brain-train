@@ -507,10 +507,11 @@ export class CashierGameScene extends Phaser.Scene {
         if (this.config.deceptiveCurrency) {
             if (this.config.invertedVisuals) {
                 sizeMult = denom.val <= 5 ? 1.8 : 0.6; // Coins huge, bills tiny
-                if (denom.type === 'coin') {
-                    visualTint = 0x888888; // Make gold coins dull
-                } else {
-                    visualTint = 0xffd700; // Make bills shiny gold
+                if (denom.type === 'bill') {
+                    // Stroop Effect: Mismatched standard colors so it doesn't look like a bug
+                    if (denom.val === 100) visualTint = 0x66ff66; // 100 is normally Red -> now Green
+                    else if (denom.val === 50) visualTint = 0xff6666; // 50 is normally Blue -> now Red
+                    else if (denom.val === 20) visualTint = 0x6666ff; // 20 is normally Green -> now Blue
                 }
             } else {
                 sizeMult = 1.2;
@@ -661,7 +662,8 @@ export class CashierGameScene extends Phaser.Scene {
         this.displayedInput = "";
         this.updateDisplay();
 
-        const numItems = this.config.tallyItemsCount;
+        // Ensure we don't request more items than exist in the shop dict (prevents level 30 crash)
+        const numItems = Math.min(this.config.tallyItemsCount, SHOP_ITEMS.length);
         const availableItems = Phaser.Utils.Array.Shuffle([...SHOP_ITEMS]);
 
         this.validTotal = 0;
@@ -675,7 +677,8 @@ export class CashierGameScene extends Phaser.Scene {
         const promptText = this.add.text(monitorCenterX, monitorCenterY, "แตะสินค้า\nเพื่อดูราคา", { fontSize: '38px', color: '#053305', align: 'center', fontStyle: 'bold' }).setOrigin(0.5);
         this.phase1MonitorGroup.add(promptText);
 
-        let currentBeltX = 100;
+        let currentBeltX = 90;
+        let currentBeltY = 490; // Top row of the conveyor belt
 
         let deskNoteStr = "";
         const hasLimitTrick = this.config.tallyLimitRule;
@@ -708,15 +711,23 @@ export class CashierGameScene extends Phaser.Scene {
 
             // Draw items visually on conveyor belt
             for (let j = 0; j < itemVisualQty; j++) {
-                const py = 560 + Phaser.Math.RND.between(-25, 25); // Restrained random variance
+                const py = currentBeltY + Phaser.Math.RND.between(-10, 10); // Slight variance
 
-                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(2.2);
+                const itemImg = this.add.image(currentBeltX, py, item.key).setOrigin(0.5).setScale(1.8);
+                
+                // Create a precise, smaller circular hitbox to prevent transparent edges from overlapping
+                // Using 40% of the image size ensures we only click the core of the item
+                const hitRadius = Math.min(itemImg.width, itemImg.height) * 0.40;
+                const hitArea = new Phaser.Geom.Circle(itemImg.width / 2, itemImg.height / 2, hitRadius);
+                
                 itemImg.setInteractive({
+                    hitArea: hitArea,
+                    hitAreaCallback: Phaser.Geom.Circle.Contains,
                     useHandCursor: true
                 });
 
                 // Add simple box shadow
-                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(2.2);
+                const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.8);
 
                 this.dynamicItemsGroup.add(shadow);
                 this.dynamicItemsGroup.add(itemImg);
@@ -726,10 +737,10 @@ export class CashierGameScene extends Phaser.Scene {
                     this.sound.play('sfx-pop', { volume: 0.5 });
                     // Visual Tap Feedback
                     itemImg.setY(itemImg.y - 10);
-                    itemImg.setScale(2.0);
+                    itemImg.setScale(1.6);
                     this.time.delayedCall(100, () => {
                         itemImg.setY(itemImg.y + 10);
-                        itemImg.setScale(2.2);
+                        itemImg.setScale(1.8);
                     });
 
                     // Clear previous item from monitor completely
@@ -745,10 +756,15 @@ export class CashierGameScene extends Phaser.Scene {
                     const effectiveQty = isLimitTrick ? 3 : 1;
                     const effectivePrice = isLimitTrick ? price * 3 : price;
                     this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
+
+                    // Removed the explicit warning text/animation for Limit Rule here per user request
                 });
 
-                currentBeltX += 130; // More spacing for larger items
-                if (currentBeltX > 720) currentBeltX = 100; // Wrap around if too many
+                currentBeltX += 130; 
+                if (currentBeltX > 740) {
+                    currentBeltX = 90; // Wrap around to start
+                    currentBeltY += 120; // Move down to bottom row
+                }
             }
         }
 

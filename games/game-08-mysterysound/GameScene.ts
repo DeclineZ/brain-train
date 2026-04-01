@@ -410,30 +410,51 @@ export class MysterySoundScene extends Phaser.Scene {
         // Shuffle options to randomize positions each game
         const options = this.shuffleArray([...this.currentQuestion.options]);
 
-        const maxButtonSize = 110;
-        const availableWidth = width - 50;
-        const buttonSize = Math.min(maxButtonSize, availableWidth / 2.5);
-        const gapX = 20;
-        const gapY = 15;
-
-        const gridWidth = buttonSize * 2 + gapX;
-        const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
-
-        // Calculate startY relative to previous elements or minimum height
-        let referenceY = height * 0.48;
-        if (this.selectionHint && this.selectionHint.active) {
-            referenceY = Math.max(referenceY, this.selectionHint.y + 50);
-        } else if (this.speakerContainer) {
-            referenceY = Math.max(referenceY, this.speakerContainer.y + 110);
+        // Dynamically choose columns based on options and screen size
+        let cols = 2;
+        if (options.length >= 7 || (options.length >= 5 && height < 750)) {
+            cols = 3;
         }
 
-        const startY = referenceY;
+        const rows = Math.ceil(options.length / cols);
+        
+        // Find safe area boundaries
+        let topY = height * 0.48;
+        if (this.selectionHint && this.selectionHint.active) {
+            topY = Math.max(topY, this.selectionHint.y + 40);
+        } else if (this.speakerContainer) {
+            topY = Math.max(topY, this.speakerContainer.y + 110);
+        }
+        
+        const bottomY = this.requiredSelections > 1 ? height * 0.86 : height - 20;
+        const availableHeight = bottomY - topY;
+        const availableWidth = width - 40;
+
+        // Initial values based on columns
+        const maxInitialSize = cols === 3 ? 90 : 110;
+        const gapX = cols === 3 ? 10 : 20;
+        const gapY = cols === 3 ? 10 : 15;
+
+        // We need to fit `cols` columns into `availableWidth`
+        const widthLimitSize = (availableWidth - (cols - 1) * gapX) / cols;
+
+        // We need to fit `rows` rows into `availableHeight`
+        const constantHeight = 40 + 45 * (rows - 1) + gapY * (rows - 1);
+        let heightLimitSize = maxInitialSize;
+        if (rows > 0) {
+            heightLimitSize = Math.max(60, (availableHeight - constantHeight) / rows);
+        }
+
+        const buttonSize = Math.min(maxInitialSize, widthLimitSize, heightLimitSize);
+
+        const gridWidth = buttonSize * cols + gapX * (cols - 1);
+        const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
 
         options.forEach((opt: MysterySoundOption, index: number) => {
-            const col = index % 2;
-            const row = Math.floor(index / 2);
+            const col = index % cols;
+            const row = Math.floor(index / cols);
             const x = startX + col * (buttonSize + gapX);
-            const y = startY + row * (buttonSize + 45 + gapY);
+            const y = topY + buttonSize / 2 + row * (buttonSize + 45 + gapY);
 
             const button = this.createOptionButton(x, y, opt, buttonSize);
             this.optionButtons.push(button);
@@ -478,8 +499,6 @@ export class MysterySoundScene extends Phaser.Scene {
         borderOverlay.setAlpha(0);
 
         // Show label for learning levels:
-        // - Levels 1-3: Animal sounds introduction
-        // - Levels 6-7: Everyday sounds introduction
         const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
 
         // Center image vertically when no label is shown
@@ -496,6 +515,11 @@ export class MysterySoundScene extends Phaser.Scene {
                 chicken: '🐔', cow: '🐄',
                 cat_parrot: '🐱🦜', dog_frog: '🐕🐸',
                 pig_chicken: '🐷🐔', cow_bear: '🐄🐻',
+                boat: '🚤', rain: '🌧️', train: '🚂', waterfall: '🌊',
+                door: '🚪', bell: '🔔', aircon: '💨', nailclipper: '✂️',
+                paper: '📄', laugh: '😆',
+                boat_train: '🚤🚂', rain_waterfall: '🌧️🌊',
+                bell_aircon: '🔔💨', laugh_door: '😆🚪',
             };
             image = this.add.text(0, imageY, emojis[id] || '❓', {
                 fontSize: `${size * 0.4}px`,
@@ -507,8 +531,9 @@ export class MysterySoundScene extends Phaser.Scene {
         labelBg.fillRoundedRect(-size / 2 + 6, size / 2 - 10, size - 12, 36, 8);
         labelBg.setVisible(showLabel);
 
+        const fontSize = Math.max(12, Math.min(18, size * 0.22));
         const labelText = this.add.text(0, size / 2 + 6, label, {
-            fontSize: '18px',
+            fontSize: `${fontSize}px`,
             fontFamily: 'Sarabun, sans-serif',
             color: '#374151',
             fontStyle: 'bold',
@@ -516,8 +541,9 @@ export class MysterySoundScene extends Phaser.Scene {
         }).setOrigin(0.5);
         labelText.setVisible(showLabel);
 
+        const iconSize = Math.max(30, size * 0.55);
         const checkmark = this.add.text(0, -5, '✓', {
-            fontSize: '60px',
+            fontSize: `${iconSize}px`,
             color: '#16a34a',
             fontStyle: 'bold',
             stroke: '#ffffff',
@@ -525,7 +551,7 @@ export class MysterySoundScene extends Phaser.Scene {
         }).setOrigin(0.5).setAlpha(0).setName('checkmark');
 
         const xmark = this.add.text(0, -5, '✕', {
-            fontSize: '60px',
+            fontSize: `${iconSize}px`,
             color: '#dc2626',
             fontStyle: 'bold',
             stroke: '#ffffff',

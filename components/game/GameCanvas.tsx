@@ -13,9 +13,10 @@ interface GameCanvasProps {
   onTimeout?: (data: any) => void;
   onTutorialComplete?: () => void;
   mode?: 'normal' | 'tutorial';
+  isMuted?: boolean;
 }
 
-const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, stars = {}, onGameOver, onTimeout, onTutorialComplete, mode = 'normal' }, ref) => {
+const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, stars = {}, onGameOver, onTimeout, onTutorialComplete, mode = 'normal', isMuted = false }, ref) => {
   const gameRef = useRef<HTMLDivElement>(null);
   const gameInstance = useRef<any>(null);
 
@@ -162,6 +163,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         },
         callbacks: {
           preBoot: (game: Game) => {
+            if (game.sound) {
+                game.sound.mute = isMuted;
+            }
             // 1. Pass a STABLE wrapper to the Registry
             // This allows onGameOverRef to update without needing to set registry again
             game.registry.set('onGameOver', (data: any) => {
@@ -249,6 +253,13 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       gameInstance.current.registry.set('stars', stars);
     }
   }, [stars]);
+
+  // Sync Global Mute State
+  useEffect(() => {
+    if (gameInstance.current && gameInstance.current.sound) {
+      gameInstance.current.sound.mute = isMuted;
+    }
+  }, [isMuted]);
 
   const renderTimer = () => {
     if (typeof timerData === 'number') {

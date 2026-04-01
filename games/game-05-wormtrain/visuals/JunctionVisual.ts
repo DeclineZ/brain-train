@@ -54,10 +54,10 @@ export class JunctionVisual {
             const btnContainer = this.scene.add.container(node.x, node.y);
 
             // Border circle (dark green outline)
-            const borderCircle = this.scene.add.circle(0, 0, 30, this.BORDER_COLOR);
+            const borderCircle = this.scene.add.circle(0, 0, 38, this.BORDER_COLOR);
 
             // Background circle (light green fill)
-            const bgCircle = this.scene.add.circle(0, 0, 26, this.BG_COLOR);
+            const bgCircle = this.scene.add.circle(0, 0, 34, this.BG_COLOR);
 
             // Track graphics - will show the curved/straight path inside
             const trackGraphics = this.scene.add.graphics();

@@ -627,12 +627,30 @@ export class DreamDirectGameScene extends Phaser.Scene {
             container.setSize(buttonSize, buttonSize);
             container.setDepth(200);
 
-            // Make interactive
+            // Make interactive (multi-touch aware)
             bg.setInteractive({ useHandCursor: true });
-            bg.setInteractive({ useHandCursor: true });
-            bg.on('pointerdown', () => this.handleInput(dir));
-            bg.on('pointerup', () => this.handleRelease(dir));
-            bg.on('pointerout', () => this.handleRelease(dir));
+            // Track which pointers are actively pressing this button
+            bg.setData('activePointers', new Set<number>());
+            bg.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+                const activePointers = bg.getData('activePointers') as Set<number>;
+                if (activePointers.has(pointer.id)) return; // Already tracking this pointer
+                activePointers.add(pointer.id);
+                this.handleInput(dir);
+            });
+            bg.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+                const activePointers = bg.getData('activePointers') as Set<number>;
+                activePointers.delete(pointer.id);
+                if (activePointers.size === 0) {
+                    this.handleRelease(dir);
+                }
+            });
+            bg.on('pointerout', (pointer: Phaser.Input.Pointer) => {
+                const activePointers = bg.getData('activePointers') as Set<number>;
+                activePointers.delete(pointer.id);
+                if (activePointers.size === 0) {
+                    this.handleRelease(dir);
+                }
+            });
 
             this.buttons.set(dir, container);
         });

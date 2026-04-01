@@ -27,8 +27,8 @@ export class GraphVisual {
         // Configurable styles
         // Configurable styles
         const style = levelData.tunnelStyle || {
-            innerColor: 0x6B7B8D, // Medium grey-blue (railroad track)
-            outerColor: 0x3A4A5C, // Dark slate (track border)
+            innerColor: 0xE8A84C, // Sandy golden (inner track)
+            outerColor: 0xC27B2A, // Darker golden-brown (track border)
             innerAlpha: 1,
             outerAlpha: 1,
             widthMultiplier: 1
@@ -98,12 +98,20 @@ export class GraphVisual {
 
                 const sizeMultiplier = node.size === 'S' ? 2.8 : 4.5;
 
-                // Draw shadow under hole (ellipse offset down)
+                // Draw shadow under hole (rotated to match opening)
                 const shadowOffsetY = node.size === 'S' ? 12 : 18;
                 const shadowWidth = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier * 0.9;
                 const shadowHeight = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier * 0.4;
-                this.graphics.fillStyle(0x000000, 0.35);
-                this.graphics.fillEllipse(node.x, node.y + shadowOffsetY, shadowWidth, shadowHeight);
+
+                const angleRad = (node.rotation || 0) * Math.PI / 180;
+                const dx = -Math.sin(angleRad) * shadowOffsetY;
+                const dy = Math.cos(angleRad) * shadowOffsetY;
+
+                const shadow = this.scene.add.ellipse(node.x + dx, node.y + dy, shadowWidth, shadowHeight, 0x000000, 0.35);
+                if (node.rotation) {
+                    shadow.setAngle(node.rotation);
+                }
+                this.nodeSprites.add(shadow);
 
                 // Use color-specific hole sprite if available
                 if (this.scene.textures.exists(holeTextureKey)) {
@@ -111,6 +119,10 @@ export class GraphVisual {
                     const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * sizeMultiplier;
                     const textureWidth = holeSprite.width || 512;
                     holeSprite.setScale(targetSize / textureWidth);
+                    // Apply rotation for edge-facing holes
+                    if (node.rotation) {
+                        holeSprite.setAngle(node.rotation);
+                    }
                     this.nodeSprites.add(holeSprite);
 
                 } else if (this.scene.textures.exists('hole')) {
@@ -138,7 +150,20 @@ export class GraphVisual {
                     // Scale to be larger than tunnel width (~192px diameter)
                     const targetSize = WormGameConfig.PATH_WIDTH_NORMAL * 8;
                     const textureWidth = spawnSprite.width || 512;
-                    spawnSprite.setScale(targetSize / textureWidth);
+                    const scale = targetSize / textureWidth;
+                    
+                    // Set scale using standard positive values
+                    spawnSprite.setScale(scale);
+                    
+                    // Apply flip flags
+                    spawnSprite.setFlip(!!node.flipX, !!node.flipY);
+                    
+                    if (node.rotation) {
+                         spawnSprite.angle = node.rotation;
+                    }
+                    
+                    // Move the sprite UP so the path aligns with the hole entrance near the bottom
+                    spawnSprite.y -= spawnSprite.height * scale * 0.1;
                     this.nodeSprites.add(spawnSprite);
                 } else {
                     // Fallback: dirt mound circle

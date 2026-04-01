@@ -33,7 +33,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // === TUTORIAL (Level 0) ===
     0: {
         level: 0,
-        carSpeed: 60,
+        carSpeed: 35,
         mapRotation: 0,
         pathLength: 3,
         decisionTimeMs: 5000,
@@ -55,7 +55,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // Bottom to top, simple paths
     1: {
         level: 1,
-        carSpeed: 40,  // Reduced from 70 for mobile playability
+        carSpeed: 30,  // Slow start for comfortable learning
         mapRotation: 0,
         pathLength: 4,
         decisionTimeMs: 4000,
@@ -73,7 +73,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     2: {
         level: 2,
-        carSpeed: 45,  // Reduced from 80
+        carSpeed: 34,  // Gentle progression
         mapRotation: 0,
         pathLength: 5,
         decisionTimeMs: 3800,
@@ -91,7 +91,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     3: {
         level: 3,
-        carSpeed: 50,  // Reduced from 90
+        carSpeed: 38,  // Still comfortable
         mapRotation: 0,
         pathLength: 6,
         decisionTimeMs: 3500,
@@ -112,7 +112,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // Different starting positions/rotations
     4: {
         level: 4,
-        carSpeed: 50,  // Reduced from 85
+        carSpeed: 35,  // Rotation introduced, keep slow
         mapRotation: 90,
         pathLength: 5,
         decisionTimeMs: 3500,
@@ -130,7 +130,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     5: {
         level: 5,
-        carSpeed: 55,  // Reduced from 90
+        carSpeed: 38,  // Gradual increase
         mapRotation: 180,
         pathLength: 6,
         decisionTimeMs: 3300,
@@ -148,7 +148,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     6: {
         level: 6,
-        carSpeed: 95,
+        carSpeed: 42,
         mapRotation: 270,
         pathLength: 6,
         decisionTimeMs: 3200,
@@ -166,7 +166,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     7: {
         level: 7,
-        carSpeed: 100,
+        carSpeed: 45,
         mapRotation: 90,
         pathLength: 7,
         decisionTimeMs: 3000,
@@ -187,7 +187,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // Back to bottom-top but path fades temporarily
     8: {
         level: 8,
-        carSpeed: 85,
+        carSpeed: 40,
         mapRotation: 0,
         pathLength: 5,
         decisionTimeMs: 3500,
@@ -205,7 +205,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     9: {
         level: 9,
-        carSpeed: 90,
+        carSpeed: 44,
         mapRotation: 0,
         pathLength: 6,
         decisionTimeMs: 3200,
@@ -223,7 +223,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     10: {
         level: 10,
-        carSpeed: 95,
+        carSpeed: 48,
         mapRotation: 0,
         pathLength: 7,
         decisionTimeMs: 3000,
@@ -243,7 +243,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // === CHAPTER 4: FADE + ROTATION (Levels 11-15) ===
     11: {
         level: 11,
-        carSpeed: 90,
+        carSpeed: 45,
         mapRotation: 90,
         pathLength: 6,
         decisionTimeMs: 3200,
@@ -261,7 +261,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     12: {
         level: 12,
-        carSpeed: 95,
+        carSpeed: 48,
         mapRotation: 180,
         pathLength: 6,
         decisionTimeMs: 3000,
@@ -279,7 +279,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     13: {
         level: 13,
-        carSpeed: 100,
+        carSpeed: 50,
         mapRotation: 270,
         pathLength: 7,
         decisionTimeMs: 2800,
@@ -297,7 +297,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     14: {
         level: 14,
-        carSpeed: 105,
+        carSpeed: 52,
         mapRotation: 90,
         pathLength: 7,
         decisionTimeMs: 2700,
@@ -315,7 +315,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     15: {
         level: 15,
-        carSpeed: 110,
+        carSpeed: 55,
         mapRotation: 180,
         pathLength: 8,
         decisionTimeMs: 2500,
@@ -336,7 +336,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // Bottom to top, with dynamic route changes
     16: {
         level: 16,
-        carSpeed: 90,
+        carSpeed: 48,
         mapRotation: 0,
         pathLength: 15,
         decisionTimeMs: 3500,
@@ -355,7 +355,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     17: {
         level: 17,
-        carSpeed: 95,
+        carSpeed: 50,
         mapRotation: 0,
         pathLength: 16,
         decisionTimeMs: 3200,
@@ -374,7 +374,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     18: {
         level: 18,
-        carSpeed: 100,
+        carSpeed: 52,
         mapRotation: 0,
         pathLength: 16,
         decisionTimeMs: 3000,
@@ -393,7 +393,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     19: {
         level: 19,
-        carSpeed: 105,
+        carSpeed: 55,
         mapRotation: 0,
         pathLength: 14,
         decisionTimeMs: 2800,
@@ -412,7 +412,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     20: {
         level: 20,
-        carSpeed: 110,
+        carSpeed: 58,
         mapRotation: 0,
         pathLength: 14,
         decisionTimeMs: 2600,
@@ -433,7 +433,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // === CHAPTER 6: COMBINED MECHANICS (Levels 21-28) ===
     21: {
         level: 21,
-        carSpeed: 100,
+        carSpeed: 52,
         mapRotation: 90,
         pathLength: 16,
         decisionTimeMs: 3000,
@@ -452,7 +452,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     22: {
         level: 22,
-        carSpeed: 105,
+        carSpeed: 55,
         mapRotation: 180,
         pathLength: 16,
         decisionTimeMs: 2800,
@@ -471,7 +471,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     23: {
         level: 23,
-        carSpeed: 110,
+        carSpeed: 58,
         mapRotation: 270,
         pathLength: 14,
         decisionTimeMs: 2700,
@@ -490,7 +490,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     24: {
         level: 24,
-        carSpeed: 115,
+        carSpeed: 60,
         mapRotation: 90,
         pathLength: 14,
         decisionTimeMs: 2600,
@@ -509,7 +509,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     25: {
         level: 25,
-        carSpeed: 120,
+        carSpeed: 62,
         mapRotation: 180,
         pathLength: 15,
         decisionTimeMs: 2500,
@@ -528,7 +528,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     26: {
         level: 26,
-        carSpeed: 125,
+        carSpeed: 64,
         mapRotation: 270,
         pathLength: 15,
         decisionTimeMs: 2400,
@@ -547,7 +547,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     27: {
         level: 27,
-        carSpeed: 130,
+        carSpeed: 66,
         mapRotation: 90,
         pathLength: 15,
         decisionTimeMs: 2300,
@@ -566,7 +566,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     28: {
         level: 28,
-        carSpeed: 135,
+        carSpeed: 68,
         mapRotation: 180,
         pathLength: 16,
         decisionTimeMs: 2200,
@@ -587,7 +587,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     // === CHAPTER 7: MASTERY (Levels 29-35) ===
     29: {
         level: 29,
-        carSpeed: 140,
+        carSpeed: 68,
         mapRotation: 270,
         pathLength: 16,
         decisionTimeMs: 2200,
@@ -606,7 +606,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     30: {
         level: 30,
-        carSpeed: 145,
+        carSpeed: 70,
         mapRotation: 90,
         pathLength: 16,
         decisionTimeMs: 2100,
@@ -625,7 +625,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     31: {
         level: 31,
-        carSpeed: 150,
+        carSpeed: 72,
         mapRotation: 180,
         pathLength: 14,
         decisionTimeMs: 2000,
@@ -644,7 +644,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     32: {
         level: 32,
-        carSpeed: 155,
+        carSpeed: 75,
         mapRotation: 270,
         pathLength: 14,
         decisionTimeMs: 2000,
@@ -663,7 +663,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     33: {
         level: 33,
-        carSpeed: 160,
+        carSpeed: 78,
         mapRotation: 90,
         pathLength: 15,
         decisionTimeMs: 1900,
@@ -682,7 +682,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     34: {
         level: 34,
-        carSpeed: 165,
+        carSpeed: 80,
         mapRotation: 180,
         pathLength: 15,
         decisionTimeMs: 1800,
@@ -701,7 +701,7 @@ export const TAXIDRIVER_LEVELS: { [key: number]: TaxiDriverLevelConfig } = {
     },
     35: {
         level: 35,
-        carSpeed: 170,
+        carSpeed: 85,
         mapRotation: 270,
         pathLength: 16,
         decisionTimeMs: 1700,
