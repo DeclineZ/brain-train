@@ -27,6 +27,7 @@ type TubeSortTheme = {
   tubeFill: number;
   tubeHighlight: number;
   accent: number;
+  guideAccent: number;
   text: string;
   softText: string;
 };
@@ -62,6 +63,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     tubeFill: 0xFFFFFF,
     tubeHighlight: 0xFFFFFF,
     accent: 0x38BDF8,
+    guideAccent: 0xF59E0B,
     text: '#1E293B',
     softText: '#64748B'
   };
@@ -92,6 +94,8 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   private skipButton!: Phaser.GameObjects.Text;
   private arrowGraphic!: Phaser.GameObjects.Graphics;
   private highlightRing!: Phaser.GameObjects.Graphics;
+  private highlightPulseTween?: Phaser.Tweens.Tween;
+  private highlightPulseState = { expansion: 0, alpha: 0.95 };
   private ballHighlight?: Phaser.GameObjects.Graphics;
   private overlay!: Phaser.GameObjects.Rectangle;
   private readonly soundKeys = {
@@ -106,10 +110,10 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   private frozenBallId?: number;
 
   private tutorialState: number[][] = [
-    [0, 0, 1, 1],
+    [0, 0, 0, 1],
     [1, 1, 1],
     [],
-    [0, 0, 0]
+    [0]
   ];
 
   private readonly tutorialSteps = [
@@ -764,7 +768,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     this.tutorialText.setText(this.tutorialSteps[this.tutorialStep] ?? '');
     this.stepText.setText(`ขั้นตอน ${this.tutorialStep + 1}/${this.tutorialSteps.length}`);
     this.arrowGraphic.clear();
-    this.highlightRing.clear();
+    this.clearTubeHighlight();
     this.ballHighlight?.clear();
     this.continueText.setVisible(!this.isInteractiveStep);
     this.overlay.setInteractive(!this.isInteractiveStep);
@@ -859,20 +863,49 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     this.showTutorialStep();
   }
 
-  private highlightTube(index: number, color = this.theme.accent) {
+  private highlightTube(index: number, color = this.theme.guideAccent) {
     const tube = this.tubes[index];
     if (!tube) return;
     const { tubeWidth, tubeHeight } = this.tubeLayout;
-    this.highlightRing.clear();
-    this.highlightRing.lineStyle(4, color, 0.9);
-    this.highlightRing.strokeRoundedRect(
-      tube.container.x - tubeWidth / 2 - 10,
-      tube.container.y - tubeHeight / 2 - 10,
-      tubeWidth + 20,
-      tubeHeight + 20,
-      24
-    );
+    this.highlightPulseTween?.stop();
+    this.highlightPulseTween = undefined;
+    this.highlightPulseState.expansion = 0;
+    this.highlightPulseState.alpha = 0.95;
+
+    const drawHighlight = () => {
+      const inset = 10 + this.highlightPulseState.expansion;
+      this.highlightRing.clear();
+      this.highlightRing.lineStyle(4, color, this.highlightPulseState.alpha);
+      this.highlightRing.strokeRoundedRect(
+        tube.container.x - tubeWidth / 2 - inset,
+        tube.container.y - tubeHeight / 2 - inset,
+        tubeWidth + inset * 2,
+        tubeHeight + inset * 2,
+        24 + this.highlightPulseState.expansion * 0.4
+      );
+      this.highlightRing.setDepth(214);
+    };
+
+    drawHighlight();
     this.highlightRing.setDepth(214);
+    this.highlightPulseTween = this.tweens.add({
+      targets: this.highlightPulseState,
+      expansion: 8,
+      alpha: 0.45,
+      duration: 850,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+      onUpdate: drawHighlight,
+    });
+  }
+
+  private clearTubeHighlight() {
+    this.highlightPulseTween?.stop();
+    this.highlightPulseTween = undefined;
+    this.highlightPulseState.expansion = 0;
+    this.highlightPulseState.alpha = 0.95;
+    this.highlightRing.clear();
   }
 
   private highlightBallById(ballId: number, color: number) {
@@ -898,7 +931,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     const tube = this.tubes[index];
     if (!tube) return;
 
-    const arrowColor = 0x38BDF8;
+    const arrowColor = this.theme.guideAccent;
     const size = 30;
     const { tubeHeight } = this.tubeLayout;
     const startX = tube.container.x;

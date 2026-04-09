@@ -138,11 +138,21 @@ export class MinerGameScene extends Phaser.Scene {
   private objectiveBadgeBg?: Phaser.GameObjects.Arc;
   private objectiveIconContainer?: Phaser.GameObjects.Container;
   private objectivePanelX = 0;
+  private objectiveCardWidth = 144;
+  private objectiveCardHeight = 56;
+  private objectiveTitleY = -22;
+  private objectiveRowY = 4;
+  private objectiveHintY = 22;
+  private objectiveIconOffsetX = -8;
+  private objectiveProgressOffsetX = 22;
+  private objectiveBadgeOffsetX = 56;
+  private objectiveHintMaxWidth = 96;
   private goalBar!: Phaser.GameObjects.Graphics;
   private objectiveCollectedCount = 0;
   private objectiveComplete = false;
   private minerCharacter?: Phaser.GameObjects.Container;
   private hookCostBubble?: Phaser.GameObjects.Container;
+  private hookCostBubbleBg?: Phaser.GameObjects.Graphics;
   private hookCostText?: Phaser.GameObjects.Text;
   private sparkleEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -154,6 +164,7 @@ export class MinerGameScene extends Phaser.Scene {
   private activeVeinTweens = new Map<number, Phaser.Tweens.Tween>();
   private activeRollTweens = new Map<number, Phaser.Tweens.Tween>();
   private eventBanner?: Phaser.GameObjects.Text;
+  private lastEventBannerMessage = '';
   private scheduledEvents: ScheduledDynamicEvent[] = [];
   private quakeWarningActive = false;
   private quakeWarningBar?: Phaser.GameObjects.Rectangle;
@@ -258,6 +269,47 @@ export class MinerGameScene extends Phaser.Scene {
     }));
   }
 
+  private isCompactPhone() {
+    return this.scale.width <= 430;
+  }
+
+  private getHudMetrics() {
+    const compact = this.isCompactPhone();
+    const panelWidth = Math.min(compact ? this.scale.width * 0.92 : 450, this.scale.width * (compact ? 0.92 : 0.74));
+    const panelHeight = compact ? 84 : 70;
+    const sectionWidth = panelWidth / 2;
+    const objectiveCardWidth = sectionWidth - (compact ? 12 : 18);
+    const objectiveCardHeight = compact ? 64 : 56;
+    return {
+      compact,
+      panelWidth,
+      panelHeight,
+      sectionWidth,
+      scoreLabelFont: compact ? 11 : 12,
+      scoreValueFont: compact ? 16 : 17,
+      scoreLabelY: compact ? -20 : -15,
+      scoreValueY: compact ? 12 : 11,
+      objectiveLabelFont: compact ? 11 : 12,
+      objectiveProgressFont: compact ? 16 : 18,
+      objectiveHintFont: compact ? 10 : 11,
+      objectiveBadgeFont: compact ? 13 : 14,
+      objectiveCardWidth,
+      objectiveCardHeight,
+      objectiveTitleY: -objectiveCardHeight / 2 + 11,
+      objectiveRowY: compact ? -1 : 4,
+      objectiveHintY: objectiveCardHeight / 2 - 10,
+      objectiveIconOffsetX: -objectiveCardWidth * 0.24,
+      objectiveProgressOffsetX: objectiveCardWidth * 0.06,
+      objectiveBadgeOffsetX: objectiveCardWidth * 0.32,
+      objectiveHintMaxWidth: objectiveCardWidth - (compact ? 24 : 28),
+      eventBannerFont: compact ? 14 : 16,
+      eventBannerWrapWidth: Math.min(this.scale.width * (compact ? 0.82 : 0.72), compact ? 320 : 520),
+      hookCostFont: compact ? 13 : 14,
+      hookCostWrapWidth: compact ? Math.min(136, this.scale.width * 0.32) : 188,
+      hookCostOffsetY: compact ? 106 : 94
+    };
+  }
+
   create() {
     const { width, height } = this.scale;
     this.hookCenterX = width / 2;
@@ -283,14 +335,17 @@ export class MinerGameScene extends Phaser.Scene {
     this.eventBanner = this.add
       .text(width / 2, height * 0.24, '', {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '16px',
+        fontSize: `${this.getHudMetrics().eventBannerFont}px`,
         color: '#4a3b2a',
         backgroundColor: 'rgba(244, 230, 196, 0.9)',
+        align: 'center',
+        wordWrap: { width: this.getHudMetrics().eventBannerWrapWidth, useAdvancedWrap: true },
         padding: { x: 12, y: 6 }
       })
       .setOrigin(0.5)
       .setDepth(7)
       .setAlpha(0);
+    this.configureEventBannerLayout();
 
     this.goalBar = this.add.graphics().setDepth(6);
 
@@ -390,10 +445,11 @@ export class MinerGameScene extends Phaser.Scene {
   private createInfoPanel() {
     if (this.infoPanel) this.infoPanel.destroy();
     const { width, height } = this.scale;
+    const metrics = this.getHudMetrics();
     const panelY = height * 0.165;
-    const panelWidth = Math.min(450, width * 0.74);
-    const panelHeight = 70;
-    const sectionWidth = panelWidth / 2;
+    const panelWidth = metrics.panelWidth;
+    const panelHeight = metrics.panelHeight;
+    const sectionWidth = metrics.sectionWidth;
 
     const panel = this.add.container(width / 2, panelY).setDepth(6);
     const panelBg = this.add.graphics();
@@ -411,44 +467,56 @@ export class MinerGameScene extends Phaser.Scene {
 
     const labelStyle = {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: `${metrics.scoreLabelFont}px`,
       color: '#7b5b3e',
       fontStyle: '600'
     };
     const valueStyle = {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '20px',
+      fontSize: `${metrics.scoreValueFont}px`,
       color: '#d17300',
       fontStyle: '700'
     };
     const scoreX = -sectionWidth / 2;
     const objectiveX = sectionWidth / 2;
     this.objectivePanelX = objectiveX;
+    this.objectiveCardWidth = metrics.objectiveCardWidth;
+    this.objectiveCardHeight = metrics.objectiveCardHeight;
+    this.objectiveTitleY = metrics.objectiveTitleY;
+    this.objectiveRowY = metrics.objectiveRowY;
+    this.objectiveHintY = metrics.objectiveHintY;
+    this.objectiveIconOffsetX = metrics.objectiveIconOffsetX;
+    this.objectiveProgressOffsetX = metrics.objectiveProgressOffsetX;
+    this.objectiveBadgeOffsetX = metrics.objectiveBadgeOffsetX;
+    this.objectiveHintMaxWidth = metrics.objectiveHintMaxWidth;
 
-    const scoreLabel = this.add.text(scoreX, -15, 'คะแนนสะสม', labelStyle).setOrigin(0.5, 0.5);
+    const scoreLabel = this.add.text(scoreX, metrics.scoreLabelY, 'คะแนนสะสม', labelStyle).setOrigin(0.5, 0.5);
     const scoreValue = this.add.text(scoreX, 11, '0/0', {
       ...valueStyle,
-      fontSize: '17px'
+      fontSize: `${metrics.scoreValueFont}px`
     }).setOrigin(0.5, 0.5);
+    scoreValue.setY(metrics.scoreValueY);
 
-    const objectiveLabel = this.add.text(objectiveX, -22, 'เป้าหมายแร่', labelStyle).setOrigin(0.5, 0.5);
-    const objectiveIconContainer = this.add.container(objectiveX - 8, 20);
-    const objectiveProgress = this.add.text(objectiveX + 22, 4, '0/1', {
+    const objectiveLabel = this.add.text(objectiveX, metrics.objectiveTitleY, 'เป้าหมายแร่', labelStyle).setOrigin(0.5, 0.5);
+    const objectiveIconContainer = this.add.container(objectiveX + metrics.objectiveIconOffsetX, metrics.objectiveRowY);
+    const objectiveProgress = this.add.text(objectiveX + metrics.objectiveProgressOffsetX, metrics.objectiveRowY, '0/1', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: `${metrics.objectiveProgressFont}px`,
       color: '#7b5b3e',
       fontStyle: '700'
     }).setOrigin(0.5, 0.5);
-    const objectiveHint = this.add.text(objectiveX + 15, 22, '', {
+    const objectiveHint = this.add.text(objectiveX, metrics.objectiveHintY, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '11px',
+      fontSize: `${metrics.objectiveHintFont}px`,
       color: '#90724d',
-      fontStyle: '600'
+      fontStyle: '600',
+      align: 'center',
+      wordWrap: { width: metrics.objectiveHintMaxWidth, useAdvancedWrap: true }
     }).setOrigin(0.5, 0.5);
-    const objectiveBadgeBg = this.add.circle(objectiveX + 56, 14, 11, 0xf3c94b, 1).setStrokeStyle(2, 0xe0b12e, 0.9);
-    const objectiveBadge = this.add.text(objectiveX + 56, 14, '?', {
+    const objectiveBadgeBg = this.add.circle(objectiveX + metrics.objectiveBadgeOffsetX, metrics.objectiveRowY, metrics.compact ? 10 : 11, 0xf3c94b, 1).setStrokeStyle(2, 0xe0b12e, 0.9);
+    const objectiveBadge = this.add.text(objectiveX + metrics.objectiveBadgeOffsetX, metrics.objectiveRowY, '?', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '14px',
+      fontSize: `${metrics.objectiveBadgeFont}px`,
       color: '#725400',
       fontStyle: '700'
     }).setOrigin(0.5, 0.5);
@@ -848,7 +916,20 @@ export class MinerGameScene extends Phaser.Scene {
     this.objectiveCardBg.clear();
     this.objectiveCardBg.fillStyle(isComplete ? 0xdff5de : 0xf5edd4, 0.95);
     this.objectiveCardBg.lineStyle(1.5, isComplete ? 0x7ac47a : 0xe2c78b, 0.85);
-    this.objectiveCardBg.fillRoundedRect(this.objectivePanelX - 72, -28, 144, 56, 14);
+    this.objectiveCardBg.fillRoundedRect(
+      this.objectivePanelX - this.objectiveCardWidth / 2,
+      -this.objectiveCardHeight / 2,
+      this.objectiveCardWidth,
+      this.objectiveCardHeight,
+      14
+    );
+    this.objectiveCardBg.strokeRoundedRect(
+      this.objectivePanelX - this.objectiveCardWidth / 2,
+      -this.objectiveCardHeight / 2,
+      this.objectiveCardWidth,
+      this.objectiveCardHeight,
+      14
+    );
 
     this.objectiveProgressText.setText(progressText);
     this.objectiveProgressText.setColor(isComplete ? '#3d8f49' : '#7b5b3e');
@@ -864,7 +945,7 @@ export class MinerGameScene extends Phaser.Scene {
 
   private drawObjectiveIcon(container: Phaser.GameObjects.Container, type: MinerObjectConfig['type']) {
     const color = this.getColorForType(type);
-    const size = 12;
+    const size = this.isCompactPhone() ? 10 : 12;
     if (type.startsWith('diamond') || type === 'fake_diamond') {
       const outer = this.add.polygon(0, 0, [
         0, -size * 1.25,
@@ -1406,23 +1487,21 @@ export class MinerGameScene extends Phaser.Scene {
 
     const bubble = this.add.container(baseX, baseY - 94).setDepth(7);
     const bubbleBg = this.add.graphics();
-    bubbleBg.fillStyle(0xfff6df, 0.95);
-    bubbleBg.lineStyle(2, 0xd6b989, 0.8);
-    bubbleBg.fillRoundedRect(-64, -18, 128, 36, 12);
-    bubbleBg.strokeRoundedRect(-64, -18, 128, 36, 12);
-    bubbleBg.fillTriangle(-6, 18, 6, 18, 0, 30);
 
     const bubbleText = this.add.text(0, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '14px',
+      fontSize: `${this.getHudMetrics().hookCostFont}px`,
       color: '#4a3b2a',
-      fontStyle: '700'
+      fontStyle: '700',
+      align: 'center',
+      wordWrap: { width: this.getHudMetrics().hookCostWrapWidth, useAdvancedWrap: true }
     }).setOrigin(0.5);
 
     bubble.add([bubbleBg, bubbleText]);
 
     this.minerCharacter = miner;
     this.hookCostBubble = bubble;
+    this.hookCostBubbleBg = bubbleBg;
     this.hookCostText = bubbleText;
     this.updateHookCostBubble();
   }
@@ -1598,10 +1677,15 @@ export class MinerGameScene extends Phaser.Scene {
       this.warningIcon.setPosition(this.scale.width / 2, height * 0.11);
     }
     if (this.infoPanel) {
-      this.infoPanel.setPosition(this.scale.width / 2, height * 0.165);
+      this.createInfoPanel();
+      this.updateInfoText();
     }
+    this.configureEventBannerLayout();
     if (this.timerBar?.visible) {
       this.drawTimerBar(this.lastTimerPct, this.lastTimerSec);
+    }
+    if (this.bombSlowPullText) {
+      this.bombSlowPullText.setPosition(this.hookCenterX + 38, this.hookBaseY - 16);
     }
     this.layoutMinerUI();
   }
@@ -1629,11 +1713,15 @@ export class MinerGameScene extends Phaser.Scene {
 
   private updateHookCostBubble() {
     if (!this.hookCostText) return;
+    const metrics = this.getHudMetrics();
+    this.hookCostText.setFontSize(metrics.hookCostFont);
+    this.hookCostText.setWordWrapWidth(metrics.hookCostWrapWidth, true);
     if (this.freeHooksRemaining > 0) {
       this.hookCostText.setText(`ดึงฟรี: ${this.freeHooksRemaining}/${this.totalFreeHooks} ครั้ง`);
-      return;
+    } else {
+      this.hookCostText.setText(`💰 ดึง -${this.hookDropCost} ต่อครั้ง`);
     }
-    this.hookCostText.setText(`💰 ดึง -${this.hookDropCost} ต่อครั้ง`);
+    this.layoutHookCostBubble();
   }
 
   private applyHookFee(value: number) {
@@ -1645,10 +1733,12 @@ export class MinerGameScene extends Phaser.Scene {
   private layoutMinerUI() {
     if (!this.minerCharacter || !this.hookCostBubble) return;
     const { width } = this.scale;
+    const metrics = this.getHudMetrics();
     const baseX = this.hookCenterX - Math.min(240, width * 0.28);
     const baseY = this.hookBaseY + 108;
     this.minerCharacter.setPosition(baseX, baseY);
-    this.hookCostBubble.setPosition(baseX, baseY - 94);
+    this.hookCostBubble.setPosition(baseX, baseY - metrics.hookCostOffsetY);
+    this.layoutHookCostBubble();
   }
 
   private updateHookLengths() {
@@ -2699,6 +2789,8 @@ export class MinerGameScene extends Phaser.Scene {
 
   private showEventBanner(message: string) {
     if (!this.eventBanner) return;
+    this.lastEventBannerMessage = message;
+    this.configureEventBannerLayout();
     this.eventBanner.setText(message);
     this.eventBanner.setAlpha(0);
     this.tweens.killTweensOf(this.eventBanner);
@@ -2710,5 +2802,35 @@ export class MinerGameScene extends Phaser.Scene {
       yoyo: true,
       hold: 1100
     });
+  }
+
+  private configureEventBannerLayout() {
+    if (!this.eventBanner) return;
+    const metrics = this.getHudMetrics();
+    this.eventBanner.setFontSize(metrics.eventBannerFont);
+    this.eventBanner.setWordWrapWidth(metrics.eventBannerWrapWidth, true);
+    this.eventBanner.setStyle({
+      align: 'center',
+      padding: { x: metrics.compact ? 10 : 12, y: 6 }
+    });
+    if (this.lastEventBannerMessage) {
+      this.eventBanner.setText(this.lastEventBannerMessage);
+    }
+  }
+
+  private layoutHookCostBubble() {
+    if (!this.hookCostBubbleBg || !this.hookCostText) return;
+    const metrics = this.getHudMetrics();
+    const paddingX = metrics.compact ? 10 : 12;
+    const paddingY = metrics.compact ? 7 : 8;
+    const bubbleWidth = this.hookCostText.width + paddingX * 2;
+    const bubbleHeight = this.hookCostText.height + paddingY * 2;
+
+    this.hookCostBubbleBg.clear();
+    this.hookCostBubbleBg.fillStyle(0xfff6df, 0.95);
+    this.hookCostBubbleBg.lineStyle(2, 0xd6b989, 0.8);
+    this.hookCostBubbleBg.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight / 2, bubbleWidth, bubbleHeight, 12);
+    this.hookCostBubbleBg.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight / 2, bubbleWidth, bubbleHeight, 12);
+    this.hookCostBubbleBg.fillTriangle(-8, bubbleHeight / 2 - 2, 8, bubbleHeight / 2 - 2, 0, bubbleHeight / 2 + 10);
   }
 }
