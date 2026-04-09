@@ -57,16 +57,20 @@ export class PinkCupGameScene extends Phaser.Scene {
   
   // Grid Layout
   private gridMetrics: GridConfig | null = null;
+  private gridStartX = 0;
+  private gridStartY = 0;
 
   // UI Elements
   private messageText!: Phaser.GameObjects.Text;
   private probeUIContainer!: Phaser.GameObjects.Container;
+  private probePanelHeight = 0;
 
   // Timer Events
   private revealTimerEvent!: Phaser.Time.TimerEvent;
   
   // Probe tracking
   private isProbePhase = false;
+  private probeAnswerLocked = false;
   private probeUIGraphics!: Phaser.GameObjects.Graphics;
   private swipeStart: {x: number, y: number} | null = null;
   private activeCup: CupData | null = null;
@@ -161,8 +165,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.createGrid();
     this.createTiles();
     this.createCups();
-    this.layoutGrid();
     this.createUI();
+    this.layoutGrid();
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       this.resolveSwipe(pointer);
     });
@@ -181,6 +185,8 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     // Handle resize
     this.scale.on('resize', () => {
+      this.layoutUI();
+      this.layoutProbeUI();
       this.layoutGrid();
       if (this.customTimerBar.visible) {
         this.drawTimerBar(this.lastTimerPct);
@@ -227,6 +233,10 @@ export class PinkCupGameScene extends Phaser.Scene {
       cellSize: 100,
       gap: 15
     };
+  }
+
+  private isLargeGridLevel() {
+    return this.currentLevelConfig.gridCols >= 5 || this.currentLevelConfig.gridRows >= 5;
   }
 
   createTiles() {
@@ -474,14 +484,24 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const { cols, rows, cellSize, gap } = this.gridMetrics;
+    const isLargeGrid = this.isLargeGridLevel();
 
     // Calculate responsive dimensions
-    const maxCellSize = 120;
+    const maxCellSize = isLargeGrid ? 132 : 120;
     const baseGap = 15;
-    
-    // Use 85% of screen width and 70% of screen height
-    const availableW = width * 0.85;
-    const availableH = height * 0.70;
+
+    const probeBottom = this.probeUIContainer && this.probePanelHeight > 0
+      ? this.probeUIContainer.y + this.probePanelHeight * 0.5
+      : 0;
+    const topInset = Math.max(
+      isLargeGrid ? height * 0.09 : height * 0.14,
+      probeBottom > 0 ? probeBottom + (isLargeGrid ? 16 : 20) : 0
+    );
+    const bottomInset = Math.max(44, height * 0.11);
+
+    // Large grids should use more of the screen width and sit closer to the edges.
+    const availableW = width * (isLargeGrid ? 0.94 : 0.85);
+    const availableH = Math.max(120, height - topInset - bottomInset);
 
     let scaledCellSize = Math.min(maxCellSize, (availableW - (cols - 1) * baseGap) / cols);
     let scaledGap = baseGap * (scaledCellSize / maxCellSize);
@@ -500,15 +520,15 @@ export class PinkCupGameScene extends Phaser.Scene {
     const gridWidth = cols * scaledCellSize + (cols - 1) * scaledGap;
     const gridHeight = rows * scaledCellSize + (rows - 1) * scaledGap;
 
-    const startX = (width - gridWidth) / 2 + scaledCellSize / 2;
-    const startY = (height - gridHeight) / 2 + scaledCellSize / 2;
+    this.gridStartX = (width - gridWidth) / 2 + scaledCellSize / 2;
+    this.gridStartY = topInset + Math.max(0, (availableH - gridHeight) / 2) + scaledCellSize / 2;
 
     // Layout tiles
     this.tiles.forEach((tile, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = startX + col * (scaledCellSize + scaledGap);
-      const y = startY + row * (scaledCellSize + scaledGap);
+      const x = this.gridStartX + col * (scaledCellSize + scaledGap);
+      const y = this.gridStartY + row * (scaledCellSize + scaledGap);
       tile.rectangle.setPosition(x, y);
       tile.rectangle.setSize(scaledCellSize, scaledCellSize);
       
@@ -533,8 +553,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     // Layout cups
     this.cups.forEach((cup) => {
       const { x, y } = cup.position;
-      const posX = startX + x * (scaledCellSize + scaledGap);
-      const posY = startY + y * (scaledCellSize + scaledGap);
+      const posX = this.gridStartX + x * (scaledCellSize + scaledGap);
+      const posY = this.gridStartY + y * (scaledCellSize + scaledGap);
       cup.container.setPosition(posX, posY);
 
       // Scale elements
@@ -542,6 +562,16 @@ export class PinkCupGameScene extends Phaser.Scene {
       cup.container.setScale(scale);
       cup.baseScale = scale;
     });
+  }
+
+  private gridToWorld(gridX: number, gridY: number) {
+    if (!this.gridMetrics) {
+      return { x: 0, y: 0 };
+    }
+    return {
+      x: this.gridStartX + gridX * (this.gridMetrics.cellSize + this.gridMetrics.gap),
+      y: this.gridStartY + gridY * (this.gridMetrics.cellSize + this.gridMetrics.gap)
+    };
   }
 
   createUI() {
@@ -554,11 +584,24 @@ export class PinkCupGameScene extends Phaser.Scene {
       stroke: '#FFFFFF',
       strokeThickness: 6,
       fontStyle: 'bold',
-      align: 'center'
+      align: 'center',
+      wordWrap: { width: width * 0.78, useAdvancedWrap: true }
     })
       .setPadding(14, 10, 14, 12)
       .setOrigin(0.5)
       .setDepth(200);
+
+    this.layoutUI();
+  }
+
+  private layoutUI() {
+    const { width, height } = this.scale;
+    const isLargeGrid = this.isLargeGridLevel();
+    if (!this.messageText) return;
+
+    this.messageText.setPosition(width / 2, height * (isLargeGrid ? 0.11 : 0.17));
+    this.messageText.setFontSize(isLargeGrid ? 28 : 36);
+    this.messageText.setWordWrapWidth(width * (isLargeGrid ? 0.7 : 0.78), true);
   }
 
   // ===== GAME FLOW =====
@@ -639,7 +682,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   }
 
   startGame() {
-    this.messageText.setText('เคลื่อนถ้วยชมพู\nไปยังช่องเป้าหมาย');
+    this.setStatusMessage('เคลื่อนถ้วยชมพู\nไปยังช่องเป้าหมาย', false);
     this.startTime = Date.now();
     this.telemetry.t_start = this.startTime;
     this.startTimer();
@@ -838,20 +881,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   animateMove(cup: CupData, targetPos: {x: number, y: number}, onComplete: () => void) {
     if (!this.gridMetrics) return;
-
-    const { cellSize, gap } = this.gridMetrics;
-    const { width, height } = this.scale;
-
-    // Calculate target position
-    const gridWidth = this.gridMetrics.cols * cellSize + (this.gridMetrics.cols - 1) * gap;
-    const gridHeight = this.gridMetrics.rows * cellSize + (this.gridMetrics.rows - 1) * gap;
-    const startX = (width - gridWidth) / 2 + cellSize / 2;
-    const startY = (height - gridHeight) / 2 + cellSize / 2;
-
-    const target = {
-      x: startX + targetPos.x * (cellSize + gap),
-      y: startY + targetPos.y * (cellSize + gap)
-    };
+    const target = this.gridToWorld(targetPos.x, targetPos.y);
 
     // Play sound
     this.sound.play('cup-move', { volume: 0.6 });
@@ -1030,6 +1060,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.probeQuestions = [];
     this.probeCorrectCount = 0;
     this.isProbePhase = true;
+    this.probeAnswerLocked = false;
 
     // Generate questions from numbered tiles only
     const allPositions: {x: number, y: number}[] = [];
@@ -1134,6 +1165,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     correctAnswer = this.telemetry.reveal.elements[`${question.x},${question.y}`];
     questionText = `เลขที่ ${correctAnswer} อยู่ที่ช่องไหน?`;
     console.log('[ShowProbeQuestion] Number question:', question, 'Answer:', correctAnswer);
+    this.probeAnswerLocked = false;
 
     // Create elegant probe UI panel
     this.createProbeUI(
@@ -1161,8 +1193,15 @@ export class PinkCupGameScene extends Phaser.Scene {
   createProbeUI(title: string, subtitle: string, instruction: string) {
     const { width, height } = this.scale;
 
+    if (this.probeUIContainer?.active) {
+      this.probeUIContainer.destroy();
+    }
+    if (this.probeUIGraphics?.active) {
+      this.probeUIGraphics.destroy();
+    }
+
     // Create probe UI container with lower depth to not block tile clicks
-    this.probeUIContainer = this.add.container(width / 2, height * 0.22).setDepth(250);
+    this.probeUIContainer = this.add.container(width / 2, 0).setDepth(250);
 
     // Semi-transparent background panel
     this.probeUIGraphics = this.add.graphics();
@@ -1171,6 +1210,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     // Calculate panel dimensions
     const panelW = Math.min(width * 0.7, 350);
     const panelH = 160;
+    this.probePanelHeight = panelH;
     
     // Draw rounded panel
     this.probeUIGraphics.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 20);
@@ -1227,6 +1267,9 @@ export class PinkCupGameScene extends Phaser.Scene {
       duration: 400,
       ease: 'Back.out'
     });
+
+    this.layoutProbeUI();
+    this.layoutGrid();
   }
 
   hideProbeUI() {
@@ -1240,9 +1283,19 @@ export class PinkCupGameScene extends Phaser.Scene {
         onComplete: () => {
           this.probeUIContainer.destroy();
           this.probeUIGraphics.destroy();
+          this.probeUIContainer = undefined as unknown as Phaser.GameObjects.Container;
+          this.probeUIGraphics = undefined as unknown as Phaser.GameObjects.Graphics;
+          this.probePanelHeight = 0;
+          this.layoutGrid();
         }
       });
     }
+  }
+
+  private layoutProbeUI() {
+    if (!this.probeUIContainer || !this.probePanelHeight) return;
+    const { width, height } = this.scale;
+    this.probeUIContainer.setPosition(width / 2, height * 0.20);
   }
 
   enableTileForProbe(tile: TileData) {
@@ -1273,12 +1326,15 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   handleTileClick(tile: TileData) {
     if (!this.isProbePhase) return;
+    if (this.probeAnswerLocked) return;
 
     const question = this.probeQuestions[this.currentProbeIndex];
     if (!question) {
       console.warn('[HandleTileClick] No active probe question. Ignoring click.');
       return;
     }
+    this.probeAnswerLocked = true;
+    this.disableTileInteraction();
     const isEmptyQuestion = !this.telemetry.reveal.elements[`${question.x},${question.y}`];
     const isClickedEmpty = this.emptyCellKeys.has(`${tile.position.x},${tile.position.y}`);
     const isCorrect = isEmptyQuestion
@@ -1326,19 +1382,19 @@ export class PinkCupGameScene extends Phaser.Scene {
       this.probeCorrectCount++;
     }
 
-    // Disable further clicks on this tile
-    tile.rectangle.disableInteractive();
-
-    // Stop pulse animations on all tiles
-    this.tiles.forEach(t => {
-      this.tweens.killTweensOf(t.rectangle);
-    });
-
     // Move to next question after delay
     this.time.delayedCall(1000, () => {
       this.resetTileVisuals();
       this.currentProbeIndex++;
       this.showProbeQuestion();
+    });
+  }
+
+  private disableTileInteraction() {
+    this.tiles.forEach(tile => {
+      tile.rectangle.off('pointerdown');
+      tile.rectangle.disableInteractive();
+      this.tweens.killTweensOf(tile.rectangle);
     });
   }
 
@@ -1423,15 +1479,24 @@ export class PinkCupGameScene extends Phaser.Scene {
   }
 
   private generateStarHint(stars: number): string | null {
+    const moveBudgets = this.getMoveStarBudgets();
+    const movesTaken = this.telemetry.moves.length;
+
     if (stars >= 3) {
       return 'เยี่ยมมาก! เก่งมาก!';
     }
 
     if (stars === 2) {
+      if (movesTaken > moveBudgets.threeStarMoves) {
+        return `ขยับเกินเป้าดาว 3 (${moveBudgets.threeStarMoves} ครั้ง)`;
+      }
       return 'เคลื่อนเร็วและตอบถูกทั้งหมด';
     }
 
     if (stars === 1) {
+      if (movesTaken > moveBudgets.twoStarMoves) {
+        return `ขยับเกินเป้าดาว 2 (${moveBudgets.twoStarMoves} ครั้ง)`;
+      }
       return 'ตอบคำถามให้ถูกมากขึ้น';
     }
 
@@ -1446,6 +1511,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     const timeUsed = this.telemetry.t_end - this.telemetry.t_start;
     const parTimeMs = this.currentLevelConfig.parTimeSeconds * 1000;
     const timeRatio = timeUsed / parTimeMs;
+    const movesTaken = this.telemetry.moves.length;
+    const moveBudgets = this.getMoveStarBudgets();
 
     // Calculate memory accuracy from probes
     const totalProbes = this.telemetry.probes.length;
@@ -1454,18 +1521,40 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     console.log('[Stars] Time:', timeUsed, 'Par:', parTimeMs, 'Ratio:', timeRatio.toFixed(2));
     console.log('[Stars] Accuracy:', accuracy.toFixed(2), `(${correctProbes}/${totalProbes})`);
+    console.log('[Stars] Moves:', movesTaken, '3-star budget:', moveBudgets.threeStarMoves, '2-star budget:', moveBudgets.twoStarMoves);
 
     // Star criteria
+    let stars = 1;
     if (timeRatio < 0.8 && accuracy === 1.0) {
-      console.log('[Stars] Awarded: 3 stars (Perfect + Speed)');
-      return 3;
+      stars = 3;
     } else if (accuracy >= 0.5) {
-      console.log('[Stars] Awarded: 2 stars (50%+ Memory)');
-      return 2;
-    } else {
-      console.log('[Stars] Awarded: 1 star (Completion)');
-      return 1;
+      stars = 2;
     }
+
+    if (movesTaken > moveBudgets.threeStarMoves) {
+      stars = Math.min(stars, 2);
+    }
+    if (movesTaken > moveBudgets.twoStarMoves) {
+      stars = Math.min(stars, 1);
+    }
+
+    console.log('[Stars] Final awarded:', stars);
+    return stars;
+  }
+
+  private getMoveStarBudgets() {
+    const optimalMoves =
+      Math.abs(this.telemetry.pinkStart.x - this.telemetry.targetCell.x) +
+      Math.abs(this.telemetry.pinkStart.y - this.telemetry.targetCell.y);
+    const threeStarMoves = optimalMoves + (this.currentLevelConfig.moveStarAllowance ?? 4);
+    const downgradeBuffer =
+      this.currentLevelConfig.gridCols >= 5 ? 3 : this.currentLevelConfig.gridCols >= 4 ? 2 : 1;
+
+    return {
+      optimalMoves,
+      threeStarMoves,
+      twoStarMoves: threeStarMoves + downgradeBuffer
+    };
   }
 
   async saveStars(stars: number) {
@@ -1505,7 +1594,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   // ===== HELPERS =====
 
   showMessage(text: string) {
-    this.messageText.setText(text);
+    this.setStatusMessage(text, false);
     this.messageText.setAlpha(1);
     this.messageText.setScale(0.8);
 
@@ -1516,5 +1605,16 @@ export class PinkCupGameScene extends Phaser.Scene {
       duration: 200,
       ease: 'Quad.out'
     });
+  }
+
+  private setStatusMessage(text: string, animateLayout = true) {
+    this.messageText.setText(text);
+    this.layoutUI();
+    if (this.gridMetrics) {
+      this.layoutGrid();
+    }
+    if (animateLayout) {
+      this.messageText.setAlpha(1);
+    }
   }
 }

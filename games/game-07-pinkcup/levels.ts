@@ -477,10 +477,59 @@ export const PINKCUP_LEVELS: Record<number, PinkCupLevelConfig> = {
   }
 };
 
+const getAdaptiveRevealDurationMs = (config: PinkCupLevelConfig) => {
+  const numberedTilesCount = config.numberedTilesCount ?? Math.max(0, config.gridCols * config.gridRows - 1);
+  if (numberedTilesCount >= 5) {
+    return config.revealDurationMs + 1000;
+  }
+  if (numberedTilesCount === 4) {
+    return config.revealDurationMs + 250;
+  }
+  return config.revealDurationMs;
+};
+
+const MOVE_STAR_ALLOWANCES: Record<number, number> = {
+  1: 4,
+  2: 4,
+  3: 4,
+  4: 4,
+  5: 4,
+  6: 4,
+  7: 4,
+  8: 4,
+  9: 4,
+  10: 4,
+  11: 3,
+  12: 3,
+  13: 3,
+  14: 3,
+  15: 3,
+  16: 4,
+  17: 4,
+  18: 4,
+  19: 4,
+  20: 4,
+  21: 5,
+  22: 5,
+  23: 5,
+  24: 5,
+  25: 5,
+  26: 5,
+  27: 5,
+  28: 5,
+  29: 5,
+  30: 5
+};
+
 /**
  * Helper function to get level config with fallback
  */
 export function getPinkCupLevel(level: number): PinkCupLevelConfig {
   const boundedLevel = Math.max(1, Math.min(level, PINKCUP_MAX_LEVEL));
-  return PINKCUP_LEVELS[boundedLevel];
+  const baseConfig = PINKCUP_LEVELS[boundedLevel];
+  return {
+    ...baseConfig,
+    revealDurationMs: getAdaptiveRevealDurationMs(baseConfig),
+    moveStarAllowance: MOVE_STAR_ALLOWANCES[boundedLevel] ?? 4
+  };
 }

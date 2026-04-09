@@ -75,6 +75,7 @@ export interface PinkCupLevelConfig {
   revealDurationMs: number;
   timeLimitSeconds: number;
   parTimeSeconds: number;
+  moveStarAllowance?: number;
   
   // Memory (extensible)
   memoryType: MemoryElementType;
