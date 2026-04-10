@@ -97,8 +97,9 @@ export class WinLoseSystem {
         // Calculate score & penalty stars
         const scoreResult = this.scene.scoringSystem.calculateScore();
         
-        // Let the player pass the level but with reduced stars (No Game Over)
-        const isSuccess = true;
+        // Check win condition using requiredCount
+        const requiredCount = this.winCondition?.requiredCount || this.totalWorms;
+        const isSuccess = this.arrivedCount >= requiredCount;
         const finalStars = scoreResult.stars;
 
         console.log(`Level Finished. Arrived: ${this.arrivedCount}, Lost: ${this.lostCount}, isSuccess: ${isSuccess}, Stars: ${finalStars}`);
