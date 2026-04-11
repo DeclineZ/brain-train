@@ -22,6 +22,7 @@ type TutorialMinerObject = {
   y: number;
   grabbed: boolean;
   sprite: Phaser.GameObjects.Container;
+  nameLabel?: Phaser.GameObjects.Text;
   durabilityRemaining: number;
   isBroken: boolean;
   hitMarker?: Phaser.GameObjects.Container;
@@ -82,8 +83,12 @@ export class MinerTutorialScene extends Phaser.Scene {
   private hudObjectiveText!: Phaser.GameObjects.Text;
   private hudObjectiveBadge!: Phaser.GameObjects.Text;
   private hookCostText!: Phaser.GameObjects.Text;
+  private hookCostBubble?: Phaser.GameObjects.Container;
+  private hookCostBubbleBg?: Phaser.GameObjects.Graphics;
 
   private tutorialPanel!: Phaser.GameObjects.Container;
+  private tutorialPanelBg?: Phaser.GameObjects.Graphics;
+  private tutorialPanelHeight = 0;
   private tutorialStepText!: Phaser.GameObjects.Text;
   private tutorialInstructionText!: Phaser.GameObjects.Text;
   private tutorialContinueText!: Phaser.GameObjects.Text;
@@ -169,12 +174,47 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.updateHookVisual(this.hookSwingLength, this.hookAngle);
   }
 
+  private isCompactPhone() {
+    return this.scale.width <= 430;
+  }
+
+  private getLayoutMetrics() {
+    const compact = this.isCompactPhone();
+    const { width } = this.scale;
+    return {
+      compact,
+      hudPanelWidth: Math.min(compact ? width * 0.92 : 430, width * (compact ? 0.92 : 0.74)),
+      hudPanelHeight: compact ? 78 : 66,
+      hudLabelFont: compact ? 11 : 12,
+      hudValueFont: compact ? 16 : 17,
+      hudObjectiveFont: compact ? 15 : 18,
+      hudBadgeFont: compact ? 13 : 16,
+      hookCostFont: compact ? 13 : 14,
+      hookCostWrapWidth: compact ? Math.min(138, width * 0.32) : 220,
+      tutorialPanelWidth: Math.min(compact ? width * 0.94 : 570, width * (compact ? 0.94 : 0.93)),
+      tutorialPanelMinHeight: compact ? 160 : 142,
+      tutorialStepFont: compact ? 16 : 18,
+      tutorialInstructionFont: compact ? 17 : 20,
+      tutorialHelperFont: compact ? 13 : 15,
+      tutorialContinueFont: compact ? 14 : 16,
+      tutorialPanelPaddingX: compact ? 16 : 18,
+      tutorialPanelPaddingTop: compact ? 14 : 12,
+      tutorialPanelPaddingBottom: compact ? 14 : 12,
+      tutorialPanelGap: compact ? 8 : 10,
+      oreLabelFont: compact ? 14 : 17,
+      oreLabelPaddingX: compact ? 6 : 8,
+      oreLabelPaddingY: compact ? 2 : 3,
+      oreLabelGap: compact ? 16 : 20
+    };
+  }
+
   private createHUD() {
     const { width, height } = this.scale;
+    const metrics = this.getLayoutMetrics();
     const panel = this.add.container(width / 2, height * 0.165).setDepth(10);
     const bg = this.add.graphics();
-    const panelWidth = Math.min(430, width * 0.74);
-    const panelHeight = 66;
+    const panelWidth = metrics.hudPanelWidth;
+    const panelHeight = metrics.hudPanelHeight;
     const sectionWidth = panelWidth / 2;
     bg.fillStyle(0xfff8ea, 0.93);
     bg.lineStyle(1.5, 0xdcc7a2, 0.75);
@@ -185,16 +225,25 @@ export class MinerTutorialScene extends Phaser.Scene {
 
     const scoreX = -sectionWidth / 2;
     const objectiveX = sectionWidth / 2;
+    const scoreLabelY = -panelHeight / 2 + (metrics.compact ? 16 : 18);
+    const scoreValueY = panelHeight / 2 - (metrics.compact ? 20 : 18);
+    const objectiveCardWidth = sectionWidth - (metrics.compact ? 12 : 18);
+    const objectiveCardHeight = metrics.compact ? 60 : 50;
+    const objectiveCardTop = -objectiveCardHeight / 2;
+    const objectiveRowY = metrics.compact ? 1 : 6;
+    const objectiveBadgeX = objectiveX + objectiveCardWidth * 0.31;
+    const objectiveProgressX = objectiveX + objectiveCardWidth * 0.06;
+    const objectiveIconX = objectiveX - objectiveCardWidth * 0.24;
 
-    const scoreLabel = this.add.text(scoreX, -14, 'คะแนน', {
+    const scoreLabel = this.add.text(scoreX, scoreLabelY, 'คะแนน', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: `${metrics.hudLabelFont}px`,
       color: '#7b5b3e',
       padding: { x: 2, y: 2 }
     }).setOrigin(0.5);
-    this.hudScoreText = this.add.text(scoreX, 12, `${this.score}/${this.goal}`, {
+    this.hudScoreText = this.add.text(scoreX, scoreValueY, `${this.score}/${this.goal}`, {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '17px',
+      fontSize: `${metrics.hudValueFont}px`,
       color: '#d17300',
       fontStyle: '700',
       padding: { x: 2, y: 2 }
@@ -203,15 +252,15 @@ export class MinerTutorialScene extends Phaser.Scene {
     const objectiveCard = this.add.graphics();
     objectiveCard.fillStyle(0xf5edd4, 0.95);
     objectiveCard.lineStyle(1.5, 0xe2c78b, 0.85);
-    objectiveCard.fillRoundedRect(objectiveX - 72, -24, 144, 48, 12);
-    objectiveCard.strokeRoundedRect(objectiveX - 72, -24, 144, 48, 12);
-    const objectiveLabel = this.add.text(objectiveX, -18, 'เป้าหมายแร่', {
+    objectiveCard.fillRoundedRect(objectiveX - objectiveCardWidth / 2, objectiveCardTop, objectiveCardWidth, objectiveCardHeight, 12);
+    objectiveCard.strokeRoundedRect(objectiveX - objectiveCardWidth / 2, objectiveCardTop, objectiveCardWidth, objectiveCardHeight, 12);
+    const objectiveLabel = this.add.text(objectiveX, objectiveCardTop + 11, 'เป้าหมายแร่', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: `${metrics.hudLabelFont}px`,
       color: '#7b5b3e',
       padding: { x: 2, y: 2 }
     }).setOrigin(0.5);
-    const objectiveIcon = this.add.polygon(objectiveX - 24, 6, [
+    const objectiveIcon = this.add.polygon(objectiveIconX, objectiveRowY, [
       0, -16,
       12, -4,
       9, 14,
@@ -220,19 +269,19 @@ export class MinerTutorialScene extends Phaser.Scene {
       -12, -4
     ], COLORS.gold, 1);
     objectiveIcon.setStrokeStyle(2, 0x6d4f1f, 0.7);
-    this.hudObjectiveText = this.add.text(objectiveX + 10, 6, '0/1', {
+    this.hudObjectiveText = this.add.text(objectiveProgressX, objectiveRowY, '0/1', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: `${metrics.hudObjectiveFont}px`,
       color: '#7b5b3e',
       fontStyle: '700'
     }).setOrigin(0.5);
-    this.hudObjectiveBadge = this.add.text(objectiveX + 52, 10, '?', {
+    this.hudObjectiveBadge = this.add.text(objectiveBadgeX, objectiveRowY + 2, '?', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '16px',
+      fontSize: `${metrics.hudBadgeFont}px`,
       color: '#725400',
       fontStyle: '700',
       backgroundColor: '#f3c94b',
-      padding: { x: 6, y: 2 }
+      padding: { x: metrics.compact ? 5 : 6, y: 2 }
     }).setOrigin(0.5);
 
     panel.add([
@@ -247,13 +296,16 @@ export class MinerTutorialScene extends Phaser.Scene {
       this.hudObjectiveBadge
     ]);
 
-    this.hookCostText = this.add.text(width * 0.09, this.hookBaseY + 108, '', {
+    this.hookCostBubble = this.add.container(width * 0.1, this.hookBaseY + 108).setDepth(12);
+    this.hookCostBubbleBg = this.add.graphics();
+    this.hookCostText = this.add.text(0, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '14px',
+      fontSize: `${metrics.hookCostFont}px`,
       color: '#4a3b2a',
-      backgroundColor: 'rgba(255, 246, 223, 0.95)',
-      padding: { x: 10, y: 6 }
-    }).setDepth(12);
+      align: 'center',
+      wordWrap: { width: metrics.hookCostWrapWidth, useAdvancedWrap: true }
+    }).setOrigin(0.5);
+    this.hookCostBubble.add([this.hookCostBubbleBg, this.hookCostText]);
     this.updateHookCostText();
     this.updateObjectiveHUD();
   }
@@ -316,14 +368,18 @@ export class MinerTutorialScene extends Phaser.Scene {
       { type: 'rock', value: -120, weight: 2.8, size: 33, isHazard: true, x: width * 0.26, y: height * 0.72 }
     ];
 
-    this.minerObjects = objects.map((obj, index) => ({
-      ...obj,
-      id: index + 1,
-      grabbed: false,
-      sprite: this.createMinerObjectSprite(obj),
-      durabilityRemaining: obj.type === 'gold_large' ? 1 : 0,
-      isBroken: obj.type !== 'gold_large'
-    }));
+    this.minerObjects = objects.map((obj, index) => {
+      const rendered = this.createMinerObjectSprite(obj);
+      return {
+        ...obj,
+        id: index + 1,
+        grabbed: false,
+        sprite: rendered.sprite,
+        nameLabel: rendered.nameLabel,
+        durabilityRemaining: obj.type === 'gold_large' ? 1 : 0,
+        isBroken: obj.type !== 'gold_large'
+      };
+    });
     this.minerObjects.forEach((obj) => {
       if (obj.type === 'gold_large') {
         obj.hitMarker = this.createHitMarker(obj.size);
@@ -335,7 +391,8 @@ export class MinerTutorialScene extends Phaser.Scene {
     });
   }
 
-  private createMinerObjectSprite(object: Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>) {
+  private createMinerObjectSprite(object: Omit<TutorialMinerObject, 'id' | 'grabbed' | 'sprite' | 'nameLabel' | 'durabilityRemaining' | 'isBroken' | 'hitMarker' | 'crackOverlay'>) {
+    const metrics = this.getLayoutMetrics();
     const sprite = this.add.container(object.x, object.y).setDepth(6);
     const shadow = this.add.circle(0, 0, object.size + 4, 0x1c1412, 0.22);
     const nameMap: Record<TutorialTargetType, string> = {
@@ -361,15 +418,15 @@ export class MinerTutorialScene extends Phaser.Scene {
         color: '#f7e2a1',
         fontStyle: '700'
       }).setOrigin(0.5);
-      const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '17px',
+        fontSize: `${metrics.oreLabelFont}px`,
         color: '#fff2cd',
         backgroundColor: 'rgba(41, 28, 17, 0.72)',
-        padding: { x: 8, y: 3 }
+        padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
       }).setOrigin(0.5);
       sprite.add([body, shine, valueLabel, nameLabel]);
-      return sprite;
+      return { sprite, nameLabel };
     }
 
     if (object.type === 'gem') {
@@ -394,15 +451,15 @@ export class MinerTutorialScene extends Phaser.Scene {
         color: '#f4f8ff',
         fontStyle: '700'
       }).setOrigin(0.5);
-      const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
         fontFamily: 'Sarabun, Arial, sans-serif',
-        fontSize: '17px',
+        fontSize: `${metrics.oreLabelFont}px`,
         color: '#ebe6ff',
         backgroundColor: 'rgba(31, 31, 60, 0.72)',
-        padding: { x: 8, y: 3 }
+        padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
       }).setOrigin(0.5);
       sprite.add([body, facet, valueLabel, nameLabel]);
-      return sprite;
+      return { sprite, nameLabel };
     }
 
     const rock = this.add.polygon(object.size * 0.82, object.size * 0.82, [
@@ -423,61 +480,59 @@ export class MinerTutorialScene extends Phaser.Scene {
       color: '#f0dede',
       fontStyle: '700'
     }).setOrigin(0.5);
-    const nameLabel = this.add.text(0, object.size + 20, nameMap[object.type], {
+    const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '17px',
+      fontSize: `${metrics.oreLabelFont}px`,
       color: '#f5e8d4',
       backgroundColor: 'rgba(36, 28, 20, 0.7)',
-      padding: { x: 8, y: 3 }
+      padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
     }).setOrigin(0.5);
     sprite.add([rock, crack, valueLabel, nameLabel]);
 
-    return sprite;
+    return { sprite, nameLabel };
   }
 
   private createTutorialUI() {
     const { width, height } = this.scale;
-    const panelWidth = Math.min(570, width * 0.93);
-    const panelHeight = 142;
+    const metrics = this.getLayoutMetrics();
+    const panelWidth = metrics.tutorialPanelWidth;
 
-    this.tutorialPanel = this.add.container(width / 2, height - panelHeight / 2 - 10).setDepth(40);
-    const bg = this.add.graphics();
-    bg.fillStyle(0x2f261c, 0.84);
-    bg.lineStyle(2, 0xf3d9a2, 0.6);
-    bg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
-    bg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+    this.tutorialPanel = this.add.container(width / 2, height - metrics.tutorialPanelMinHeight / 2 - 10).setDepth(40);
+    this.tutorialPanelBg = this.add.graphics();
 
-    this.tutorialStepText = this.add.text(-panelWidth / 2 + 18, -panelHeight / 2 + 12, '', {
+    this.tutorialStepText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: `${metrics.tutorialStepFont}px`,
       color: '#ffe8bc',
       fontStyle: '700',
       padding: { x: 4, y: 3 }
-    });
-    this.tutorialInstructionText = this.add.text(-panelWidth / 2 + 18, -12, '', {
+    }).setOrigin(0, 0);
+    this.tutorialInstructionText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '20px',
+      fontSize: `${metrics.tutorialInstructionFont}px`,
       color: '#fff8e9',
-      wordWrap: { width: panelWidth - 36 },
+      wordWrap: { width: panelWidth - metrics.tutorialPanelPaddingX * 2, useAdvancedWrap: true },
       padding: { x: 4, y: 4 }
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0, 0);
 
-    this.tutorialContinueText = this.add.text(0, panelHeight / 2 - 20, 'แตะเพื่อไปต่อ', {
+    this.tutorialContinueText = this.add.text(0, 0, 'แตะเพื่อไปต่อ', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '16px',
+      fontSize: `${metrics.tutorialContinueFont}px`,
       color: '#f6d991',
       padding: { x: 4, y: 3 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 1);
 
-    this.tutorialHelperText = this.add.text(0, panelHeight / 2 - 46, '', {
+    this.tutorialHelperText = this.add.text(0, 0, '', {
       fontFamily: 'Sarabun, Arial, sans-serif',
-      fontSize: '15px',
+      fontSize: `${metrics.tutorialHelperFont}px`,
       color: '#ffd4d4',
+      align: 'center',
+      wordWrap: { width: panelWidth - metrics.tutorialPanelPaddingX * 2, useAdvancedWrap: true },
       padding: { x: 4, y: 3 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 1);
 
     this.tutorialPanel.add([
-      bg,
+      this.tutorialPanelBg,
       this.tutorialStepText,
       this.tutorialInstructionText,
       this.tutorialContinueText,
@@ -493,6 +548,7 @@ export class MinerTutorialScene extends Phaser.Scene {
     });
 
     this.guidanceArrow = this.add.graphics().setDepth(35);
+    this.relayoutTutorialPanel();
   }
 
   private createTutorialSteps() {
@@ -542,10 +598,11 @@ export class MinerTutorialScene extends Phaser.Scene {
     const step = this.tutorialSteps[this.currentStepIndex];
 
     this.clearGuidance();
-    this.setHelperText('');
+    this.tutorialHelperText.setText('');
     this.tutorialStepText.setText(`ขั้นตอน ${this.currentStepIndex + 1}/${this.tutorialSteps.length}`);
     this.tutorialInstructionText.setText(step.instruction);
     this.tutorialContinueText.setVisible(!step.interactive);
+    this.relayoutTutorialPanel();
 
     if (this.currentStepIndex === 1) {
       this.drawArrowTo(this.hookCenterX, this.hookBaseY);
@@ -573,8 +630,9 @@ export class MinerTutorialScene extends Phaser.Scene {
     }
 
     if (this.currentStepIndex === 5) {
-      this.drawArrowTo(this.hookCostText.x + this.hookCostText.width * 0.45, this.hookCostText.y + 12);
-      this.highlightPoint(this.hookCostText.x + this.hookCostText.width * 0.45, this.hookCostText.y + 10, 28);
+      const { x, y, radius } = this.getHookCostHighlight();
+      this.drawArrowTo(x, y);
+      this.highlightPoint(x, y, radius);
       return;
     }
 
@@ -722,11 +780,15 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   private updateHookCostText() {
+    const metrics = this.getLayoutMetrics();
+    this.hookCostText.setFontSize(metrics.hookCostFont);
+    this.hookCostText.setWordWrapWidth(metrics.hookCostWrapWidth, true);
     if (this.freeHooksRemaining > 0) {
       this.hookCostText.setText(`ดึงฟรี ${this.freeHooksRemaining}/${this.totalFreeHooks} ครั้ง`);
-      return;
+    } else {
+      this.hookCostText.setText(`💰 ค่าปล่อยตะขอ -${this.hookDropCost} ต่อครั้ง`);
     }
-    this.hookCostText.setText(`💰 ค่าปล่อยตะขอ -${this.hookDropCost} ต่อครั้ง`);
+    this.layoutHookCostBubble();
   }
 
   private checkDropGrabSegment(start: { x: number; y: number }, end: { x: number; y: number }) {
@@ -873,6 +935,7 @@ export class MinerTutorialScene extends Phaser.Scene {
 
   private setHelperText(text: string) {
     this.tutorialHelperText.setText(text);
+    this.relayoutTutorialPanel();
   }
 
   private updateObjectiveHUD() {
@@ -883,6 +946,120 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.hudObjectiveBadge.setText(complete ? '✓' : '?');
     this.hudObjectiveBadge.setColor(complete ? '#ffffff' : '#725400');
     this.hudObjectiveBadge.setBackgroundColor(complete ? '#4caf50' : '#f3c94b');
+  }
+
+  private layoutHookCostBubble() {
+    if (!this.hookCostBubble || !this.hookCostBubbleBg || !this.hookCostText) return;
+    const metrics = this.getLayoutMetrics();
+    const paddingX = metrics.compact ? 10 : 12;
+    const paddingY = metrics.compact ? 6 : 7;
+    const textWidth = this.hookCostText.width;
+    const textHeight = this.hookCostText.height;
+    const bubbleWidth = textWidth + paddingX * 2;
+    const bubbleHeight = textHeight + paddingY * 2;
+
+    this.hookCostBubbleBg.clear();
+    this.hookCostBubbleBg.fillStyle(0xfff6df, 0.95);
+    this.hookCostBubbleBg.lineStyle(2, 0xd6b989, 0.8);
+    this.hookCostBubbleBg.fillRoundedRect(-bubbleWidth / 2, -bubbleHeight / 2, bubbleWidth, bubbleHeight, 12);
+    this.hookCostBubbleBg.strokeRoundedRect(-bubbleWidth / 2, -bubbleHeight / 2, bubbleWidth, bubbleHeight, 12);
+
+    const minX = bubbleWidth / 2 + 14;
+    const preferredX = this.scale.width * 0.14;
+    this.hookCostBubble.setPosition(Math.max(minX, preferredX), this.hookBaseY + 108);
+  }
+
+  private relayoutTutorialPanel() {
+    if (!this.tutorialPanel || !this.tutorialPanelBg) return;
+    const { width, height } = this.scale;
+    const metrics = this.getLayoutMetrics();
+    const panelWidth = metrics.tutorialPanelWidth;
+    const innerWidth = panelWidth - metrics.tutorialPanelPaddingX * 2;
+
+    this.tutorialStepText.setFontSize(metrics.tutorialStepFont);
+    this.tutorialInstructionText.setFontSize(metrics.tutorialInstructionFont);
+    this.tutorialInstructionText.setWordWrapWidth(innerWidth, true);
+    this.tutorialHelperText.setFontSize(metrics.tutorialHelperFont);
+    this.tutorialHelperText.setWordWrapWidth(innerWidth, true);
+    this.tutorialContinueText.setFontSize(metrics.tutorialContinueFont);
+
+    const stepHeight = this.tutorialStepText.height;
+    const instructionHeight = this.tutorialInstructionText.height;
+    const helperVisible = this.tutorialHelperText.text.length > 0;
+    const helperHeight = helperVisible ? this.tutorialHelperText.height : 0;
+    const continueVisible = this.tutorialContinueText.visible;
+    const continueHeight = continueVisible ? this.tutorialContinueText.height : 0;
+    const footerHeight =
+      (helperVisible ? helperHeight : 0) +
+      (continueVisible ? continueHeight : 0) +
+      (helperVisible && continueVisible ? metrics.tutorialPanelGap : 0);
+    const panelHeight = Math.max(
+      metrics.tutorialPanelMinHeight,
+      metrics.tutorialPanelPaddingTop +
+        stepHeight +
+        metrics.tutorialPanelGap +
+        instructionHeight +
+        metrics.tutorialPanelGap +
+        footerHeight +
+        metrics.tutorialPanelPaddingBottom
+    );
+
+    this.tutorialPanelHeight = panelHeight;
+    this.tutorialPanel.setPosition(width / 2, height - panelHeight / 2 - 10);
+
+    const top = -panelHeight / 2 + metrics.tutorialPanelPaddingTop;
+    const left = -panelWidth / 2 + metrics.tutorialPanelPaddingX;
+    let bottom = panelHeight / 2 - metrics.tutorialPanelPaddingBottom;
+
+    if (continueVisible) {
+      this.tutorialContinueText.setPosition(0, bottom);
+      bottom -= continueHeight + metrics.tutorialPanelGap;
+    }
+
+    if (helperVisible) {
+      this.tutorialHelperText.setVisible(true);
+      this.tutorialHelperText.setPosition(0, bottom);
+      bottom -= helperHeight;
+    } else {
+      this.tutorialHelperText.setVisible(false);
+      this.tutorialHelperText.setPosition(0, bottom);
+    }
+
+    this.tutorialStepText.setPosition(left, top);
+    this.tutorialInstructionText.setPosition(left, top + stepHeight + metrics.tutorialPanelGap);
+
+    this.tutorialPanelBg.clear();
+    this.tutorialPanelBg.fillStyle(0x2f261c, 0.84);
+    this.tutorialPanelBg.lineStyle(2, 0xf3d9a2, 0.6);
+    this.tutorialPanelBg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+    this.tutorialPanelBg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+
+    this.layoutTutorialObjectLabels();
+  }
+
+  private layoutTutorialObjectLabels() {
+    if (!this.tutorialPanelHeight) return;
+    const metrics = this.getLayoutMetrics();
+    const panelTop = this.tutorialPanel.y - this.tutorialPanelHeight / 2;
+    for (const obj of this.minerObjects) {
+      const label = obj.nameLabel;
+      if (!label) continue;
+      const belowY = obj.size + metrics.oreLabelGap;
+      const aboveY = -obj.size - metrics.oreLabelGap;
+      const labelBottomBelow = obj.y + belowY + label.height / 2;
+      label.setY(metrics.compact && labelBottomBelow > panelTop - 10 ? aboveY : belowY);
+    }
+  }
+
+  private getHookCostHighlight() {
+    const bubbleX = this.hookCostBubble?.x ?? this.hookCostText.x;
+    const bubbleY = this.hookCostBubble?.y ?? this.hookCostText.y;
+    const bubbleWidth = this.hookCostText.width + (this.isCompactPhone() ? 20 : 24);
+    return {
+      x: bubbleX,
+      y: bubbleY,
+      radius: Math.max(28, bubbleWidth * 0.32)
+    };
   }
 
   private getObjectByType(type: TutorialTargetType) {

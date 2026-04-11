@@ -345,6 +345,10 @@ const buildObjects = (counts: ObjectCounts, level: number): MinerObjectConfig[] 
 const computeMaxPossibleValue = (objects: MinerObjectConfig[]) =>
   objects.reduce((sum, obj) => sum + Math.max(0, obj.value) * obj.count, 0);
 
+const LEVEL_SPAWN_SEED_OVERRIDES: Partial<Record<number, number>> = {
+  21: 281000
+};
+
 export const getMinerLevel = (level: number): MinerLevelConfig => {
   const bounded = clamp(level, 1, LEVEL_COUNT);
   const counts = getObjectCounts(bounded);
@@ -362,7 +366,7 @@ export const getMinerLevel = (level: number): MinerLevelConfig => {
     rope_length: getRopeLength(bounded),
     pull_speed_base: getPullSpeed(bounded),
     target_decision_time_ms: getTargetDecisionTime(bounded),
-    spawn_seed: 5000 + bounded * 7919,
+    spawn_seed: LEVEL_SPAWN_SEED_OVERRIDES[bounded] ?? (5000 + bounded * 7919),
     objects,
     objective: getLevelObjective(bounded),
     hazards: {

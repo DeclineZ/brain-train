@@ -244,10 +244,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Stage progress indicator moved to createUI to ensure no overlap
 
-        // Handle resize
-        this.scale.on('resize', () => {
+        // Handle resize with proper cleanup
+        const onResize = () => {
             this.calculateGridDimensions();
             this.layoutGame();
+        };
+        this.scale.on('resize', onResize);
+
+        this.events.once('shutdown', () => {
+            this.scale.off('resize', onResize);
         });
 
         // Initialize particle textures
@@ -425,6 +430,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const waterColor = 0xAADAFF;
         const shadowColor = 0xBBBBBB;
 
+        // Custom seeded random to prevent buildings shuffling during resize events
+        let seed = 12345 + (this.currentLevelConfig?.level || 1) * 100 + this.currentObjective;
+        const seededRandom = () => {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        };
+        const getRandomArray = <T>(arr: T[]): T => arr[Math.floor(seededRandom() * arr.length)];
+        const getRandomBetween = (min: number, max: number) => Math.floor(seededRandom() * (max - min + 1)) + min;
+
         // Clear existing buildings
         this.buildingContainers.forEach(b => b.destroy());
         this.buildingContainers = [];
@@ -443,30 +457,21 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         };
 
         // Helper: get center and size for a single block cell
-        // Block (bx, by) sits between grid intersections (bx, by) and (bx+1, by+1)
-        // Its center is at gridToWorld(bx + 0.5, by + 0.5)
         const getBlockCenter = (bx: number, by: number) => {
             return this.gridToWorld(bx + 0.5, by + 0.5);
         };
-        const blockSize = this.cellSize * 0.75;  // Each block stays within its cell
-
-        // Helper: render a single building block within a cell
-        const renderBuildingCell = (container: Phaser.GameObjects.Container, offsetX: number, offsetY: number, color: number, sz: number) => {
-            const s = this.add.rectangle(offsetX + 4, offsetY + 4, sz, sz, shadowColor);
-            const b = this.add.rectangle(offsetX, offsetY, sz, sz, color).setStrokeStyle(1, 0xBBBBBB);
-            container.add([s, b]);
-        };
+        const blockSize = this.cellSize * 0.75; 
 
         // Pass 1: Try to place 2×2 building complexes (4 same-colored blocks)
         for (let bx = 0; bx < blockCols - 1; bx++) {
             for (let by = 0; by < blockRows - 1; by++) {
                 if (claimed[bx][by] || claimed[bx + 1][by] || claimed[bx][by + 1] || claimed[bx + 1][by + 1]) continue;
                 if (getBlockType(bx, by) !== 'building' || getBlockType(bx + 1, by + 1) !== 'building') continue;
-                if (Math.random() > 0.18) continue;
+                if (seededRandom() > 0.18) continue;
 
                 claimed[bx][by] = claimed[bx + 1][by] = claimed[bx][by + 1] = claimed[bx + 1][by + 1] = true;
-                const color = Phaser.Utils.Array.GetRandom(buildingColors);
-                const accent = Phaser.Utils.Array.GetRandom(accentColors);
+                const color = getRandomArray(buildingColors);
+                const accent = getRandomArray(accentColors);
 
                 // Render each of the 4 cells individually
                 const cells = [[bx, by], [bx + 1, by], [bx, by + 1], [bx + 1, by + 1]];
@@ -477,7 +482,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                     const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
                     const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
                     container.add([s, b]);
-                    // Add accent detail to one cell (top-left gets AC, bottom-right gets accent stripe)
                     if (idx === 0) {
                         const ac = this.add.rectangle(blockSize * 0.2, -blockSize * 0.2, blockSize * 0.15, blockSize * 0.12, 0x999999).setStrokeStyle(1, 0x777777);
                         container.add([ac]);
@@ -496,9 +500,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 if (getBlockType(bx, by) !== 'building') continue;
 
                 // Try 2×1 (wide pair)
-                if (bx + 1 < blockCols && !claimed[bx + 1][by] && getBlockType(bx + 1, by) === 'building' && Math.random() < 0.25) {
+                if (bx + 1 < blockCols && !claimed[bx + 1][by] && getBlockType(bx + 1, by) === 'building' && seededRandom() < 0.25) {
                     claimed[bx][by] = claimed[bx + 1][by] = true;
-                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
+                    const color = getRandomArray(buildingColors);
 
                     [[bx, by], [bx + 1, by]].forEach(([cx, cy], idx) => {
                         const pos = getBlockCenter(cx, cy);
@@ -507,7 +511,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                         const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
                         const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
                         container.add([s, b]);
-                        // Add window dots to distinguish as wide building
                         for (let wi = -1; wi <= 1; wi++) {
                             const win = this.add.circle(wi * blockSize * 0.25, 0, blockSize * 0.06, 0xADD8E6).setStrokeStyle(0.5, 0x888888);
                             container.add([win]);
@@ -517,10 +520,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 }
 
                 // Try 1×2 (tall pair)
-                if (by + 1 < blockRows && !claimed[bx][by + 1] && getBlockType(bx, by + 1) === 'building' && Math.random() < 0.25) {
+                if (by + 1 < blockRows && !claimed[bx][by + 1] && getBlockType(bx, by + 1) === 'building' && seededRandom() < 0.25) {
                     claimed[bx][by] = claimed[bx][by + 1] = true;
-                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
-                    const accent = Phaser.Utils.Array.GetRandom(accentColors);
+                    const color = getRandomArray(buildingColors);
+                    const accent = getRandomArray(accentColors);
 
                     [[bx, by], [bx, by + 1]].forEach(([cx, cy], idx) => {
                         const pos = getBlockCenter(cx, cy);
@@ -529,7 +532,6 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                         const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
                         const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1.5, 0xBBBBBB);
                         container.add([s, b]);
-                        // Add antenna to top cell
                         if (idx === 0) {
                             const antenna = this.add.rectangle(blockSize * 0.25, -blockSize / 2 - 4, 2, 10, 0x666666);
                             const dish = this.add.circle(blockSize * 0.25, -blockSize / 2 - 8, 3, accent);
@@ -567,16 +569,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                     container.add([park, t1, t2, t3]);
                 } else {
                     // 1×1 Building — varied shapes
-                    const shapeType = Phaser.Math.Between(0, 4);
-                    const color = Phaser.Utils.Array.GetRandom(buildingColors);
+                    const shapeType = getRandomBetween(0, 4);
+                    const color = getRandomArray(buildingColors);
 
                     if (shapeType <= 1) {
-                        // Full block
                         const s = this.add.rectangle(4, 4, blockSize, blockSize, shadowColor);
                         const b = this.add.rectangle(0, 0, blockSize, blockSize, color).setStrokeStyle(1, 0xBBBBBB);
                         container.add([s, b]);
                     } else if (shapeType === 2) {
-                        // L-shape
                         const wh = blockSize * 0.4;
                         const s1 = this.add.rectangle(-blockSize / 2 + wh / 2 + 3, 3, wh, blockSize, shadowColor);
                         const s2 = this.add.rectangle(3, blockSize / 2 - wh / 2 + 3, blockSize, wh, shadowColor);
@@ -584,11 +584,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                         const b2 = this.add.rectangle(0, blockSize / 2 - wh / 2, blockSize, wh, color).setStrokeStyle(1, 0xBBBBBB);
                         container.add([s1, s2, b1, b2]);
                     } else {
-                        // Two small buildings
                         const sz = blockSize * 0.42;
                         const off = blockSize * 0.24;
-                        const c1 = Phaser.Utils.Array.GetRandom(buildingColors);
-                        const c2 = Phaser.Utils.Array.GetRandom(buildingColors);
+                        const c1 = getRandomArray(buildingColors);
+                        const c2 = getRandomArray(buildingColors);
                         const s1 = this.add.rectangle(-off + 3, -off + 3, sz, sz, shadowColor);
                         const b1 = this.add.rectangle(-off, -off, sz, sz, c1).setStrokeStyle(1, 0xBBBBBB);
                         const s2 = this.add.rectangle(off + 3, off + 3, sz, sz, shadowColor);
@@ -3017,9 +3016,21 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.drawPath();
         this.createBuildings();
 
-        // Reposition car
-        const pos = this.gridToWorld(this.carGridX, this.carGridY);
-        this.car.setPosition(pos.x, pos.y);
+        if (this.isMoving && this.currentPathIndex > 0 && this.currentPathIndex < this.path.length) {
+            // Recompute target position based on new layout geometry
+            const nextSeg = this.path[this.currentPathIndex];
+            this.targetPosition = this.gridToWorld(nextSeg.x, nextSeg.y);
+            
+            // Recompute safe visual anchor points in case of rapid reflow (avoid cross-country teleportations)
+            // Visually snap to previous path segment to restart segment travel locally in terms of gridToWorld coords
+            const prevSeg = this.path[this.currentPathIndex - 1];
+            const prevPos = this.gridToWorld(prevSeg.x, prevSeg.y);
+            this.car.setPosition(prevPos.x, prevPos.y);
+        } else {
+            // Reposition car directly to its known stationary location
+            const pos = this.gridToWorld(this.carGridX, this.carGridY);
+            this.car.setPosition(pos.x, pos.y);
+        }
     }
     private createParticleTextures() {
         // Use unique keys to avoid conflicts with global texture cache

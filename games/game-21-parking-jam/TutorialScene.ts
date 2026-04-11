@@ -38,6 +38,11 @@ interface CarPixelBounds {
   labelInsetY: number;
 }
 
+interface CarInteractionBounds {
+  bodyRect: Phaser.Geom.Rectangle;
+  touchRect: Phaser.Geom.Rectangle;
+}
+
 const COLORS = {
   bg: 0xf3f8fb,
   grid: 0xd9e6ef,
@@ -307,6 +312,52 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
       cornerRadius: density === 'compact' ? 12 : density === 'medium' ? 13 : 14,
       labelInsetX: density === 'compact' ? 8 : density === 'medium' ? 10 : 12,
       labelInsetY: density === 'compact' ? 7 : density === 'medium' ? 9 : 10,
+    };
+  }
+
+  private getCarBodyRect(car: TutorialCar) {
+    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
+    return new Phaser.Geom.Rectangle(
+      car.container.x - widthPx / 2,
+      car.container.y - heightPx / 2,
+      widthPx,
+      heightPx
+    );
+  }
+
+  private getCarOccupiedRect(car: TutorialCar) {
+    const { widthCells, heightCells } = this.getCarPixelBounds(car.config);
+    return new Phaser.Geom.Rectangle(
+      this.gridOriginX + car.runtime.col * this.cellSize,
+      this.gridOriginY + car.runtime.row * this.cellSize,
+      widthCells * this.cellSize,
+      heightCells * this.cellSize
+    );
+  }
+
+  private getCarInteractionBounds(car: TutorialCar): CarInteractionBounds {
+    const bodyRect = this.getCarBodyRect(car);
+    const occupiedRect = this.getCarOccupiedRect(car);
+    const touchPadding = 8;
+    const expandedLeft = bodyRect.x - touchPadding;
+    const expandedTop = bodyRect.y - touchPadding;
+    const expandedRight = bodyRect.x + bodyRect.width + touchPadding;
+    const expandedBottom = bodyRect.y + bodyRect.height + touchPadding;
+    const occupiedRight = occupiedRect.x + occupiedRect.width;
+    const occupiedBottom = occupiedRect.y + occupiedRect.height;
+    const touchLeft = Phaser.Math.Clamp(expandedLeft, occupiedRect.x, occupiedRight);
+    const touchTop = Phaser.Math.Clamp(expandedTop, occupiedRect.y, occupiedBottom);
+    const touchRight = Phaser.Math.Clamp(expandedRight, occupiedRect.x, occupiedRight);
+    const touchBottom = Phaser.Math.Clamp(expandedBottom, occupiedRect.y, occupiedBottom);
+
+    return {
+      bodyRect,
+      touchRect: new Phaser.Geom.Rectangle(
+        touchLeft,
+        touchTop,
+        Math.max(0, touchRight - touchLeft),
+        Math.max(0, touchBottom - touchTop)
+      ),
     };
   }
 
@@ -997,11 +1048,8 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     for (const car of this.cars.values()) {
       if (car.runtime.removed || !car.container.visible) continue;
 
-      const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-      const left = car.container.x - widthPx / 2;
-      const top = car.container.y - heightPx / 2;
-
-      if (new Phaser.Geom.Rectangle(left, top, widthPx, heightPx).contains(point.x, point.y)) {
+      const { touchRect } = this.getCarInteractionBounds(car);
+      if (touchRect.contains(point.x, point.y)) {
         return car;
       }
     }
@@ -1043,11 +1091,13 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     this.selectionGraphics.clear();
 
     const density = this.getCarVisualDensity();
-    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-    const left = car.container.x - widthPx / 2;
-    const top = car.container.y - heightPx / 2;
-    const centerX = car.container.x;
-    const centerY = car.container.y;
+    const { bodyRect } = this.getCarInteractionBounds(car);
+    const widthPx = bodyRect.width;
+    const heightPx = bodyRect.height;
+    const left = bodyRect.x;
+    const top = bodyRect.y;
+    const centerX = bodyRect.x + widthPx / 2;
+    const centerY = bodyRect.y + heightPx / 2;
 
     this.selectionGraphics.lineStyle(density === 'compact' ? 2 : 3, COLORS.accent, 0.9);
     this.selectionGraphics.strokeRoundedRect(left - 4, top - 4, widthPx + 8, heightPx + 8, 16);
@@ -1114,9 +1164,11 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
   }
 
   private getTapZoneForPointer(car: TutorialCar, point: Phaser.Math.Vector2): TapZone {
-    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-    const localX = point.x - car.container.x;
-    const localY = point.y - car.container.y;
+    const { touchRect } = this.getCarInteractionBounds(car);
+    const widthPx = touchRect.width;
+    const heightPx = touchRect.height;
+    const localX = point.x - (touchRect.x + widthPx / 2);
+    const localY = point.y - (touchRect.y + heightPx / 2);
 
     if (car.config.axis === 'h') {
       const deadHalfWidth = Math.max(10, widthPx * 0.075);
@@ -1130,17 +1182,21 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
   }
 
   private showSelectionFeedback(car: TutorialCar, direction: ParkingJamDirection, success: boolean) {
-    const { widthPx, heightPx } = this.getCarPixelBounds(car.config);
-    const left = car.container.x - widthPx / 2;
-    const top = car.container.y - heightPx / 2;
+    const { bodyRect } = this.getCarInteractionBounds(car);
+    const widthPx = bodyRect.width;
+    const heightPx = bodyRect.height;
+    const left = bodyRect.x;
+    const top = bodyRect.y;
+    const centerX = bodyRect.x + widthPx / 2;
+    const centerY = bodyRect.y + heightPx / 2;
 
     const draw = (alpha: number) => {
       this.selectionFeedbackGraphics.clear();
       this.selectionFeedbackGraphics.fillStyle(success ? COLORS.success : COLORS.warning, alpha);
       if (car.config.axis === 'h') {
-        this.selectionFeedbackGraphics.fillRect(direction === 'left' ? left : car.container.x, top, widthPx / 2, heightPx);
+        this.selectionFeedbackGraphics.fillRect(direction === 'left' ? left : centerX, top, widthPx / 2, heightPx);
       } else {
-        this.selectionFeedbackGraphics.fillRect(left, direction === 'up' ? top : car.container.y, widthPx, heightPx / 2);
+        this.selectionFeedbackGraphics.fillRect(left, direction === 'up' ? top : centerY, widthPx, heightPx / 2);
       }
     };
 

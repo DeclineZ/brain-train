@@ -52,8 +52,8 @@ export class ScoringSystem {
     public calculateScore(): { score: number, stars: number } {
         const W = WormGameConfig.SCORE_WEIGHTS;
 
-        // 1. Planning: 100 - (switch * 5) - (reset * 20)
-        let planning = 100 - (this.switchCount * 5) - (this.resetCount * 20);
+        // 1. Planning: 100 - (reset * 20)  (Removed switch penalty as it ruins the score for active gameplay)
+        let planning = 100 - (this.resetCount * 20);
         planning = Math.max(0, planning);
 
         // 2. Efficiency: (optimal / actual) * 100 - Skipping for now, defaulting to 100
