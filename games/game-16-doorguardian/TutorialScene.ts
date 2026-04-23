@@ -97,7 +97,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
         const cardX = this.cardPanelContainer.x;
         const cardY = this.cardPanelContainer.y;
 
-        this.setInstruction('ดูใบรายชื่อตรงนี้\nเพื่อเช็คว่าใครเข้าได้บ้าง');
+        this.setInstruction('กดปุ่ม "ดูรายชื่อเข้าได้" ที่ด้านขวาล่าง\nเพื่อเช็คว่าวันนี้ใครเข้าได้บ้าง');
         this.pulseObject(this.cardPanelContainer);
 
         // Add a one-time click listener to the card panel to progress
