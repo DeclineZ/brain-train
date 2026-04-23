@@ -127,6 +127,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
     private progressText!: Phaser.GameObjects.Text;
     private toastText!: Phaser.GameObjects.Text;
     private noArrowGuideOverlay?: Phaser.GameObjects.Container;
+    private visualViewportCleanup?: () => void;
 
     private controls: Record<string, Phaser.GameObjects.Container> = {};
 
@@ -213,6 +214,9 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.createControls();
         this.createCars();
         this.layoutScene();
+        this.bindVisualViewportSync();
+        this.time.delayedCall(0, () => this.syncViewportBounds());
+        this.time.delayedCall(100, () => this.syncViewportBounds());
 
         this.levelStartMs = Date.now();
 
@@ -225,6 +229,8 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.input.off("pointerdown", this.onScenePointerDown, this);
             this.scale.off("resize", this.handleResize, this);
+            this.visualViewportCleanup?.();
+            this.visualViewportCleanup = undefined;
             this.cleanupAudio();
         });
     }
@@ -426,6 +432,42 @@ export class ParkingJamGameScene extends Phaser.Scene {
             return new Phaser.Math.Vector2(world.x, world.y);
         }
         return new Phaser.Math.Vector2(pointer.x, pointer.y);
+    }
+    private syncViewportBounds() {
+        this.scale.refresh();
+        this.scale.updateBounds();
+        this.layoutScene();
+    }
+
+    private scheduleViewportSync() {
+        this.time.delayedCall(0, () => this.syncViewportBounds());
+    }
+
+    private bindVisualViewportSync() {
+        if (typeof window === "undefined") return;
+
+        const vv = window.visualViewport;
+        if (!vv) return;
+
+        let rafId = 0;
+
+        const sync = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                this.syncViewportBounds();
+            });
+        };
+
+        vv.addEventListener("resize", sync);
+        vv.addEventListener("scroll", sync);
+        window.addEventListener("orientationchange", sync);
+
+        this.visualViewportCleanup = () => {
+            vv.removeEventListener("resize", sync);
+            vv.removeEventListener("scroll", sync);
+            window.removeEventListener("orientationchange", sync);
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }
 
     private isPointerOnControl(point: Phaser.Math.Vector2) {
@@ -2818,6 +2860,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
             this.noArrowGuideOverlay.destroy();
             this.noArrowGuideOverlay = undefined;
             this.showDirectionGuidePopup();
+            this.scheduleViewportSync();
         }
     }
 
