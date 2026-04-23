@@ -25,8 +25,8 @@ export class GridHunterGameScene extends Phaser.Scene {
     // Timing
     private lastTapTime = 0;
     private cardStartTime = 0;
-    private timeLimitPerCard = 10000; // 10s base limit
-    private minTimeLimit = 3000;
+    private timeLimitPerCard = 15000; // 15s base limit
+    private minTimeLimit = 5000;
     private speedupRate = 100;
 
     // Phase tracking
@@ -438,6 +438,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.targetOdd = false;
         this.targetHighest = false;
         this.trapAlertCount = 0;
+        this.timeLimitPerCard = 15000; // Reset time limit
         this.updateInstructionIndicator();
 
         this.nextNumber = 100;
