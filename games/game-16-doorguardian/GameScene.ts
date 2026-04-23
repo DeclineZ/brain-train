@@ -168,6 +168,11 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         // 7. Audio
         this.setupAudio();
+        
+        // Stop sounds if scene shuts down (prevents hanging BGM)
+        this.events.once('shutdown', () => {
+            this.sound.stopAll();
+        });
 
         // 8. Generate visitors for this level
         this.generateVisitors();
@@ -1602,6 +1607,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         // Emit game over data to system
         this.time.delayedCall(500, () => {
+            // Stop BGM to prevent hanging
+            if (this.bgm) { try { this.bgm.stop(); } catch (e) { /* ignore */ } }
+            
             // Play success sound
             if (this.soundSuccess) {
                 try { this.sound.play('level-pass'); } catch (e) { /* ignore */ }
@@ -1644,6 +1652,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         console.log(`DoorGuardian Stats (fail) — Focus: ${stat_focus}, Visual: ${stat_visual}, Correct: ${this.correctCount}/${totalDecisions}, Abnormal: ${this.abnormalCorrect}/${this.abnormalTotal}`);
 
         this.time.delayedCall(500, () => {
+            // Stop BGM to prevent hanging
+            if (this.bgm) { try { this.bgm.stop(); } catch (e) { /* ignore */ } }
+            
             // Play fail sound
             if (this.soundFail) {
                 try { this.sound.play('level-fail'); } catch (e) { /* ignore */ }
