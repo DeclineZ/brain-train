@@ -151,11 +151,29 @@ export class ObstacleManager {
         }
 
         // Rare power-up
+        let powerupSpawned = false;
         if (Phaser.Math.Between(0, 100) > 92) {
             const openLanes = Array.from({ length: this.LANE_COUNT }, (_, i) => i).filter(l => !this.lastOccupiedLanes.has(l));
             if (openLanes.length > 0) {
                 const powerLane = openLanes[Phaser.Math.Between(0, openLanes.length - 1)];
                 this.spawnPowerup(this.laneX(powerLane));
+                this.lastOccupiedLanes.add(powerLane);
+                powerupSpawned = true;
+            }
+        }
+
+        // Calculate ammo spawn chance based on current sector difficulty
+        let ammoChance = 2; // Sector 1 (Easy): 2%
+        if (this.currentSector === 2) ammoChance = 5;
+        else if (this.currentSector === 3) ammoChance = 10;
+        else if (this.currentSector >= 4) ammoChance = 20; // Sector 4 (Hard): 20%
+
+        // Regular Ammo (if no powerup spawned)
+        if (!powerupSpawned && Phaser.Math.Between(0, 100) <= ammoChance) {
+            const openLanes = Array.from({ length: this.LANE_COUNT }, (_, i) => i).filter(l => !this.lastOccupiedLanes.has(l));
+            if (openLanes.length > 0) {
+                const ammoLane = openLanes[Phaser.Math.Between(0, openLanes.length - 1)];
+                this.spawnAmmo(this.laneX(ammoLane));
             }
         }
     }
@@ -192,6 +210,11 @@ export class ObstacleManager {
 
     private updateShooters(time: number) {
         const shootZoneMax = this.CANVAS_H * 0.8;
+        
+        let shootCooldown = 1000;
+        if (this.currentSector === 3) shootCooldown = 600;
+        else if (this.currentSector >= 4) shootCooldown = 300;
+
         this.obstacles.getChildren().forEach((child) => {
             const sprite = child as Phaser.Physics.Arcade.Sprite;
             if (!sprite.getData('isShooter')) return;
@@ -201,7 +224,7 @@ export class ObstacleManager {
 
             const lastShot = sprite.getData('lastShotTime') || 0;
 
-            if (time - lastShot > 300) {
+            if (time - lastShot > shootCooldown) {
                 this.fireLaser(sprite.x, sprite.y + 40);
                 sprite.setData('lastShotTime', time);
             }
@@ -209,9 +232,13 @@ export class ObstacleManager {
     }
 
     private fireLaser(x: number, y: number) {
+        let laserSpeedBonus = 200;
+        if (this.currentSector === 3) laserSpeedBonus = 350;
+        else if (this.currentSector >= 4) laserSpeedBonus = 500;
+
         const laser = this.lasers.create(x, y, 'laser-beam') as Phaser.Physics.Arcade.Sprite;
         laser.setData('type', 'LASER');
-        laser.setVelocityY(this.currentSpeed + 500);
+        laser.setVelocityY(this.currentSpeed + laserSpeedBonus);
         laser.setImmovable(false);
         laser.setDepth(12);
         if (laser.body) {
@@ -245,6 +272,20 @@ export class ObstacleManager {
         powerup.setDisplaySize(pwSize, pwSize);
         powerup.setVelocityY(this.currentSpeed);
         powerup.setDepth(10);
+    }
+
+    private spawnAmmo(x: number) {
+        const ammoSize = Math.floor(this.LANE_WIDTH * 0.45);
+        // Using powerup-gun texture for regular ammo, slightly smaller
+        const ammo = this.obstacles.create(x, -80, 'powerup-gun') as Phaser.Physics.Arcade.Sprite;
+        ammo.setData('type', 'AMMO');
+        ammo.setDisplaySize(ammoSize, ammoSize);
+        ammo.setVelocityY(this.currentSpeed);
+        ammo.setCircle(ammoSize / 2);
+        ammo.setDepth(10);
+        // Add a slight green/yellow tint to distinguish from the rare powerup box if needed,
+        // but since we reuse powerup-gun image, it might look the same.
+        // Let's add a pulsing effect in GameScene or just let it be.
     }
 
     private spawnZone() {

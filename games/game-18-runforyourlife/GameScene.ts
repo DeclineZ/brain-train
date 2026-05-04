@@ -787,6 +787,8 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             this.collectCoin(obstacle);
         } else if (obstacleType === 'POWERUP') {
             this.collectPowerup(obstacle);
+        } else if (obstacleType === 'AMMO') {
+            this.collectRegularAmmo(obstacle);
         }
     }
 
@@ -796,6 +798,17 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.score += 50;
         this.coinText.setText(String(this.coins));
         this.sound.play('sfx-coin', { volume: 0.5 });
+    }
+
+    private collectRegularAmmo(ammo: any) {
+        (ammo as Phaser.Physics.Arcade.Sprite).disableBody(true, true);
+        this.sound.play('sfx-powerup', { volume: 0.4 });
+        
+        if (this.gunAmmo < 5) { // Cap at 5 ammo
+            this.gunAmmo++;
+        }
+        if (this.gunAmmoText) this.gunAmmoText.setText(String(this.gunAmmo));
+        this.updateGunButtonVisual();
     }
 
     private collectPowerup(powerup: any) {

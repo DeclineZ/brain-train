@@ -103,6 +103,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private brakeStopTimer: Phaser.Time.TimerEvent | null = null;
     private brakeStopSegments: number[] = [];  // Indices of segments where brake stops will occur
     private stopSignContainer: Phaser.GameObjects.Container | null = null;
+    private isApproachingBrakeStop = false;  // Deferred brake stop — car drives to position first
 
     // Road closure / obstacle reroute state
     private roadClosureSegments: number[] = [];  // Indices of segments where obstacles appear
@@ -163,6 +164,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isApproachingIntersection = false;
         this.brakeStopsRemaining = 0;
         this.isBrakeStopped = false;
+        this.isApproachingBrakeStop = false;
         this.brakeStopSegments = [];
 
         // Reset road closure state
@@ -1118,6 +1120,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 // Reset navigation state
                 this.queuedDirection = null;
                 this.isApproachingIntersection = false;
+                this.isApproachingBrakeStop = false;
                 this.upcomingIntersectionIndex = -1;
                 
                 // Find next intersection and resume movement
@@ -1555,6 +1558,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
     private startContinuousMovement() {
         if (this.currentPathIndex >= this.path.length - 1) {
+            // Guard: if path is too short (≤1 segment), don't enter a victory loop.
+            // This can happen when generatePath fails to find moves from the current position.
+            if (this.path.length <= 1) {
+                console.warn('[TaxiDriver] Path too short to play — forcing completion.');
+                this.endGame('completed');
+                return;
+            }
             this.handleVictory();
             return;
         }
@@ -1669,13 +1679,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.brakeStopsRemaining = this.brakeStopSegments.length;
     }
 
-    private checkBrakeStop() {
-        if (this.isBrakeStopped) return;
-        if (this.brakeStopSegments.length === 0) return;
-        if (!this.brakeStopSegments.includes(this.currentPathIndex)) return;
+    private checkBrakeStop(): boolean {
+        if (this.isBrakeStopped) return false;
+        if (this.brakeStopSegments.length === 0) return false;
+        if (!this.brakeStopSegments.includes(this.currentPathIndex)) return false;
 
-        // Trigger brake stop!
-        this.triggerBrakeStop();
+        // Don't stop immediately — set a flag so the car drives TO this position first
+        this.isApproachingBrakeStop = true;
+        return true;
     }
 
     private triggerBrakeStop() {
@@ -2156,6 +2167,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.upcomingIntersectionIndex = -1;
         this.queuedDirection = null;
         this.isApproachingIntersection = false;
+        this.isApproachingBrakeStop = false;
 
         // Setup remaining road closures for the new path (BEFORE brake stops)
         this.roadClosureSegments = [];
@@ -2204,6 +2216,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.upcomingIntersectionIndex = -1;
         this.queuedDirection = null;
         this.isApproachingIntersection = false;
+        this.isApproachingBrakeStop = false;
 
         // Generate fresh path
         this.path = [];
@@ -2503,15 +2516,19 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.isApproachingRoadClosure = true;
         }
 
-        // Check if this segment has a brake stop
+        // Check if this segment has a brake stop — car will drive TO it, then stop
         this.checkBrakeStop();
-        if (this.isBrakeStopped) return;
 
-        // Check if this segment triggers control swap
+        // Check if this segment triggers control swap — car will drive TO it, then trigger
+        // (swap is handled after arrival too, but we mark it here for now)
         if (this.swapControlSegment >= 0 && this.currentPathIndex === this.swapControlSegment) {
             this.swapControlSegment = -1;  // Consume the event
-            this.triggerControlSwap();
-            // Don't return — let movement continue, the pause will be handled by isPaused check
+            // If also approaching brake stop, let brake stop take priority;
+            // otherwise trigger swap after arriving at this segment
+            if (!this.isApproachingBrakeStop) {
+                this.triggerControlSwap();
+                return;  // triggerControlSwap stops the car; it will resume via handleForwardPress
+            }
         }
 
         this.isMoving = true;
@@ -2536,6 +2553,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             if (this.isApproachingRoadClosure) {
                 this.isApproachingRoadClosure = false;
                 this.triggerRoadClosure();
+                return;
+            }
+
+            // Check if we just arrived at a brake stop segment
+            if (this.isApproachingBrakeStop) {
+                this.isApproachingBrakeStop = false;
+                this.triggerBrakeStop();
                 return;
             }
 
@@ -2740,6 +2764,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Reset per-objective brake stops
         this.brakeStopsRemaining = 0;
         this.isBrakeStopped = false;
+        this.isApproachingBrakeStop = false;
         this.brakeStopSegments = [];
         if (this.brakeStopTimer) {
             this.brakeStopTimer.destroy();
@@ -2791,10 +2816,23 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Enforce minimum path length — if path is too short, regenerate
         let retries = 0;
-        while (this.path.length < 5 && retries < 3) {
+        while (this.path.length < 5 && retries < 10) {
             this.path = [];
             this.generatePath(continueX, continueY, continueHeading);
             retries++;
+        }
+
+        // If still too short after retries, the car is likely boxed in.
+        // Generate from a default start position as a fallback.
+        if (this.path.length <= 1) {
+            console.warn('[TaxiDriver] Path generation stuck — falling back to default start.');
+            this.path = [];
+            this.carGridX = 3;
+            this.carGridY = 6;
+            this.carHeading = 'N';
+            this.generatePath(3, 6, 'N');
+            const fallbackPos = this.gridToWorld(3, 6);
+            this.car.setPosition(fallbackPos.x, fallbackPos.y);
         }
 
         this.drawPath();
