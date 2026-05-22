@@ -44,7 +44,7 @@ export async function getTodayStatGains(userId: string) {
             { subject: 'ความจำ', A: memory, fullMark: maxGain },
             { subject: 'สมาธิ', A: focus, fullMark: maxGain },
             { subject: 'การมองเห็น', A: visual, fullMark: maxGain },
-            { subject: 'อารมณ์', A: emotion, fullMark: maxGain },
+            { subject: 'ภาษาและการนึกคำ', A: emotion, fullMark: maxGain },
         ];
     } catch (error) {
         console.error("Failed to calculate today stat gains:", error);
