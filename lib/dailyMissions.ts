@@ -39,9 +39,85 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
         return [];
     }
 
-    // Randomly select 3 unique games
-    const shuffledGames = shuffleArray(allGames);
-    const selectedGames = shuffledGames.slice(0, 3);
+    // Fetch user profile to find top weaknesses
+    const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("global_memory, global_speed, global_visual, global_focus, global_planning, global_emotion")
+        .eq("user_id", userId)
+        .single();
+
+    const statsList = [
+        { key: "global_memory", val: profile?.global_memory ?? 0 },
+        { key: "global_speed", val: profile?.global_speed ?? 0 },
+        { key: "global_visual", val: profile?.global_visual ?? 0 },
+        { key: "global_focus", val: profile?.global_focus ?? 0 },
+        { key: "global_planning", val: profile?.global_planning ?? 0 },
+        { key: "global_emotion", val: profile?.global_emotion ?? 0 },
+    ];
+
+    // Sort ascending by value to find weaknesses
+    statsList.sort((a, b) => a.val - b.val);
+
+    const weakest1 = statsList[0].key;
+    const weakest2 = statsList[1].key;
+
+    // Dimension to Game IDs mapping
+    const DIMENSION_GAMES: Record<string, string[]> = {
+        global_memory: ["game-01-cardmatch", "game-13-boxpattern", "game-14-wordrecognize"],
+        global_focus: ["game-02-sensorlock", "game-06-dreamdirect", "game-18-runforyourlife"],
+        global_planning: ["game-09-tube-sort", "game-21-parking-jam", "game-05-wormtrain"],
+        global_speed: ["game-02-sensorlock", "game-06-dreamdirect", "game-12-gridhunter"],
+        global_visual: ["game-20-boxcounting", "game-11-pipe-patch", "game-10-miner"],
+        global_emotion: ["game-08-mysterysound"],
+    };
+
+    // Map of game_id -> game object
+    const gamesById = new Map<string, typeof allGames[0]>();
+    allGames.forEach(game => {
+        gamesById.set(game.game_id, game);
+    });
+
+    const getGamesForDimension = (dim: string) => {
+        const ids = DIMENSION_GAMES[dim] || [];
+        return ids.map(id => gamesById.get(id)).filter((g): g is NonNullable<typeof g> => !!g);
+    };
+
+    const gamesForWeakness1 = getGamesForDimension(weakest1);
+    const gamesForWeakness2 = getGamesForDimension(weakest2);
+
+    let chosenGame1: typeof allGames[0];
+    let chosenGame2: typeof allGames[0];
+    let chosenGame3: typeof allGames[0];
+
+    // 1. Pick Game 2 (Weakest 1)
+    if (gamesForWeakness1.length > 0) {
+        chosenGame2 = gamesForWeakness1[Math.floor(Math.random() * gamesForWeakness1.length)];
+    } else {
+        chosenGame2 = allGames[Math.floor(Math.random() * allGames.length)];
+    }
+
+    // 2. Pick Game 3 (Weakest 2) - Exclude chosenGame2
+    const filteredWeakness2 = gamesForWeakness2.filter(g => g.game_id !== chosenGame2.game_id);
+    if (filteredWeakness2.length > 0) {
+        chosenGame3 = filteredWeakness2[Math.floor(Math.random() * filteredWeakness2.length)];
+    } else {
+        if (gamesForWeakness2.length > 0) {
+            chosenGame3 = gamesForWeakness2[Math.floor(Math.random() * gamesForWeakness2.length)];
+        } else {
+            const fallbackGames = allGames.filter(g => g.game_id !== chosenGame2.game_id);
+            chosenGame3 = fallbackGames[Math.floor(Math.random() * fallbackGames.length)] || allGames[0];
+        }
+    }
+
+    // 3. Pick Game 1 (Random all games) - Exclude chosenGame2 and chosenGame3
+    const filteredAllGames = allGames.filter(g => g.game_id !== chosenGame2.game_id && g.game_id !== chosenGame3.game_id);
+    if (filteredAllGames.length > 0) {
+        chosenGame1 = filteredAllGames[Math.floor(Math.random() * filteredAllGames.length)];
+    } else {
+        chosenGame1 = allGames[Math.floor(Math.random() * allGames.length)];
+    }
+
+    const selectedGames = [chosenGame1, chosenGame2, chosenGame3];
 
     const missionsToInsert = selectedGames.map((game, index) => ({
         user_id: userId,

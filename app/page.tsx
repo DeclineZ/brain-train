@@ -11,6 +11,7 @@ import StatRadarCard from "@/components/StatRadarCard";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import QuestNotificationManager from "@/components/QuestNotificationManager";
+import WeaknessNotification from "@/components/WeaknessNotification";
 import { Trophy, Grid3X3 } from "lucide-react";
 
 export default async function Home() {
@@ -26,6 +27,26 @@ export default async function Home() {
     getDailyMissions(user.id),
     getTodayStatGains(user.id),
   ]);
+
+  // Fetch profile stats to determine weakest skill
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("global_memory, global_speed, global_visual, global_focus, global_planning, global_emotion")
+    .eq("user_id", user.id)
+    .single();
+
+  const statsList = [
+    { key: "global_memory", val: profile?.global_memory ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านความจำ เพื่อเพิ่มทักษะด้านนี้" },
+    { key: "global_speed", val: profile?.global_speed ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับความเร็วในการคิด เพื่อเพิ่มทักษะด้านนี้" },
+    { key: "global_visual", val: profile?.global_visual ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับมิติสัมพันธ์ เพื่อเพิ่มทักษะด้านนี้" },
+    { key: "global_focus", val: profile?.global_focus ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านสมาธิและการจดจ่อ เพื่อเพิ่มทักษะด้านนี้" },
+    { key: "global_planning", val: profile?.global_planning ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านการวางแผนและแก้ปัญหา เพื่อเพิ่มทักษะด้านนี้" },
+    { key: "global_emotion", val: profile?.global_emotion ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านภาษาและการนึกคำ เพื่อเพิ่มทักษะด้านนี้" },
+  ];
+
+  statsList.sort((a, b) => a.val - b.val);
+  const weakest = statsList[0];
+  const shortRecommendation = weakest ? weakest.shortSuggestion : "ลองเล่นเกมพัฒนาทักษะสมองกันเถอะ";
 
   // Filter games that are part of today's missions
   const dailyQuestGames = games.filter(game => missions.some(m => m.game_id === game.gameId));
@@ -49,6 +70,7 @@ export default async function Home() {
     <div className="bg-cream overflow-hidden">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6">
         <QuestNotificationManager />
+        <WeaknessNotification message={shortRecommendation} />
         {/* TopCard */}
         <TopCard />
 

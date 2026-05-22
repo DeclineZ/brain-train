@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/BottomNav";
-import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart, Award } from "lucide-react";
+import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart, Award, MessageSquare, Lightbulb, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import BadgesSection from "./BadgesSection";
 import TopBarMenu from "@/components/TopBarMenu";
 import AvatarEditModal from "@/components/AvatarEditModal";
@@ -35,6 +36,97 @@ interface StatsPageClientProps {
   ownedThemes: ShopItemWithOwnership[];
 }
 
+const RECOMMENDATIONS: Record<string, {
+  title: string;
+  suggestion: string;
+  practice: string[];
+  games: { name: string; id: string }[];
+}> = {
+  global_memory: {
+    title: "ด้านความจำ",
+    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านความจำมีแนวโน้มที่ลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาในการจำข้อมูลในชีวิตประจำวัน เช่น ลืมสิ่งของ ลืมนัด หรือจำสิ่งที่เพิ่งได้ยินหรือเห็นได้ไม่นาน",
+    practice: [
+      "ฝึกจำข้อมูลเล็กๆ เช่น รายการของใช้ก่อนออกจากบ้าน โดยพยายามไม่จดทันที",
+      "ใช้วิธี \"การจัดกลุ่มข้อมูลเพื่อช่วยจำ\" เช่น การจัดของเป็นหมวดหมู่",
+      "ฝึกเล่าเหตุการณ์ที่เกิดขึ้นในแต่ละวันย้อนหลัง"
+    ],
+    games: [
+      { name: "เกมจับคู่การ์ด", id: "game-01-cardmatch" },
+      { name: "เกมลูกไหนต่อดี", id: "game-13-boxpattern" },
+      { name: "เกมคุ้นๆนะเนี่ย", id: "game-14-wordrecognize" }
+    ]
+  },
+  global_focus: {
+    title: "ด้านสมาธิและการจดจ่อ",
+    suggestion: "จากผลการเล่นเกม พบว่าความสามารถในด้านสมาธิ หรือการจดจ่อกับสิ่งใดสิ่งหนึ่งลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาเรื่องการวอกแวกง่าย ทำให้ทำกิจกรรมอื่นๆได้ไม่ต่อเนื่อง",
+    practice: [
+      "ทำกิจกรรมทีละอย่าง ไม่ทำหลายอย่างพร้อมกัน",
+      "ลดสิ่งรบกวน เช่น เสียงโทรศัพท์ หรือโทรทัศน์",
+      "ฝึกฟังแล้วสรุป เช่น ฟังเรื่องแล้วเล่าให้ผู้อื่นฟัง"
+    ],
+    games: [
+      { name: "เกมตรงไม่ตรง", id: "game-02-sensorlock" },
+      { name: "เกมลูกศรชี้โน้ต", id: "game-06-dreamdirect" },
+      { name: "ท่องอวกาศ", id: "game-18-runforyourlife" }
+    ]
+  },
+  global_planning: {
+    title: "ด้านการวางแผนและแก้ปัญหา",
+    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการวางแผนลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาเรื่องการทำงานเป็นลำดับขั้นตอน เช่น ทำกิจกรรมหลายขั้นตอนไม่ครบหรือสับสนลำดับ",
+    practice: [
+      "เขียนรายการสิ่งที่ต้องทำในแต่ละวัน",
+      "แบ่งงานออกเป็นขั้นตอนเล็ก ๆ แล้วทำทีละขั้น",
+      "ฝึกคิดล่วงหน้าก่อนลงมือทำ เช่น จะไปไหน ต้องเตรียมอะไรบ้าง",
+      "ฝึกแก้ปัญห่ายากๆ หรือเรื่องง่ายๆ ในชีวิตประจำวัน"
+    ],
+    games: [
+      { name: "เกมเรียงสีหลอดแก้ว", id: "game-09-tube-sort" },
+      { name: "เกมแก้รถติด", id: "game-21-parking-jam" },
+      { name: "เกมกลับหลุม", id: "game-05-wormtrain" }
+    ]
+  },
+  global_speed: {
+    title: "ความเร็วในการคิด การตอบสนอง",
+    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการคิดหรือการตอบสนองอยู่ในระดับที่ควรได้รับการฝึกฝนเพิ่มเติม อาจมีการตอบสนองที่ช้าหรือใช้เวลาในการทำสิ่งใดนานกว่าปกติ",
+    practice: [
+      "ฝึกทำกิจกรรมที่ต้องใช้ความเร็ว เช่น อ่านแล้วตอบคำถามทันที",
+      "ฝึกมองหาสิ่งของหรือสัญลักษณ์ในเวลาจำกัด",
+      "จัดสภาพแวดล้อมให้เรียบง่าย ไม่ซับซ้อน"
+    ],
+    games: [
+      { name: "เกมตรงไม่ตรง", id: "game-02-sensorlock" },
+      { name: "เกมลูกศรชี้โน้ต", id: "game-06-dreamdirect" },
+      { name: "เกมนักล่าตัวเลข", id: "game-12-gridhunter" }
+    ]
+  },
+  global_visual: {
+    title: "มิติสัมพันธ์ (Visuospatial การ scanning ภาพรวม)",
+    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการมองภาพรวม การกะระยะ หรือการจำตำแหน่งของสิ่งของอยู่ในระดับที่ควรฝึกฝนเพิ่ม",
+    practice: [
+      "ฝึกสังเกตรอบตัว เช่น จำตำแหน่งของสิ่งของในบ้าน",
+      "ฝึกดูเส้นทาง เช่น จำทางไปสถานที่ที่ไปบ่อย",
+      "จัดของให้เป็นระเบียบและเป็นหมวดหมู่"
+    ],
+    games: [
+      { name: "เกมกล่องเยอะจัง", id: "game-20-boxcounting" },
+      { name: "เกมท่อน้ำของการประปา", id: "game-11-pipe-patch" },
+      { name: "เกมลงเหมืองหาทอง", id: "game-10-miner" }
+    ]
+  },
+  global_emotion: {
+    title: "ด้านภาษาและการนึกคำ",
+    suggestion: "จากผลการเล่นเกม พบว่า ความสามารถด้านภาษาอยู่ในระดับที่ควรได้รับการฝึกเพิ่มเติม เนื่องจากอาจมีความยากในการนึกคำหรือเรียกชื่อสิ่งต่าง ๆ",
+    practice: [
+      "ฝึกเรียกชื่อสิ่งของรอบตัว",
+      "ฝึกพูดหรือเล่าเรื่องในแต่ละวัน",
+      "ฝึกจัดกลุ่มคำ เช่น สัตว์ อาหาร สิ่งของ"
+    ],
+    games: [
+      { name: "เกมเสียงอะไรเอ่ย", id: "game-08-mysterysound" }
+    ]
+  }
+};
+
 export default function StatsPageClient({
   profile,
   balance,
@@ -58,8 +150,13 @@ export default function StatsPageClient({
     { key: "global_visual", label: "มิติสัมพันธ์", color: "bg-blue", icon: Eye, val: profile?.global_visual || 0 },
     { key: "global_focus", label: "สมาธิ", color: "bg-red", icon: Target, val: profile?.global_focus || 0 },
     { key: "global_speed", label: "ความเร็ว", color: "bg-blue-dark", icon: Zap, val: profile?.global_speed || 0 },
-    { key: "global_emotion", label: "การควบคุมอารมณ์", color: "bg-purple", icon: Heart, val: profile?.global_emotion || 0 },
+    { key: "global_emotion", label: "ภาษาและการนึกคำ", color: "bg-purple", icon: MessageSquare, val: profile?.global_emotion || 0 },
   ];
+
+  // Find the weakest skill key from cognitiveStats
+  const weakestStat = [...cognitiveStats].sort((a, b) => a.val - b.val)[0];
+  const weakestKey = weakestStat ? weakestStat.key : "global_memory";
+  const recommendation = RECOMMENDATIONS[weakestKey] || RECOMMENDATIONS.global_memory;
 
   // Helper to format join date
   const formatDate = (dateString: string | null) => {
@@ -314,6 +411,75 @@ export default function StatsPageClient({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Cognitive Recommendations - Rustic Board */}
+        <section className="relative">
+          <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0">
+            <div className="bg-cream rounded-[20px] p-6 relative z-10 text-left">
+              <h2 className="text-xl font-bold text-brown-800 mb-4 flex items-center gap-2">
+                <Lightbulb className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
+                คำแนะนำพัฒนาทักษะสมอง
+              </h2>
+              
+              <div className="bg-[var(--color-card-item-bg)] border-2 border-gray-medium rounded-2xl p-4 shadow-sm mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold uppercase bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
+                    ด้านที่ควรพัฒนามากที่สุด
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-brown-darkest mb-2 flex items-center gap-2">
+                  {weakestStat ? (
+                    <>
+                      <weakestStat.icon className="w-5 h-5 text-brown-light" />
+                      <span>{recommendation.title}</span>
+                    </>
+                  ) : (
+                    <span>{recommendation.title}</span>
+                  )}
+                </h3>
+                <p className="text-sm text-brown-medium font-medium leading-relaxed">
+                  {recommendation.suggestion}
+                </p>
+              </div>
+
+              {/* Daily Practice Guideline */}
+              <div className="mb-4">
+                <h4 className="text-sm font-bold text-brown-light uppercase mb-2">
+                  แนวทางการฝึกในชีวิตประจำวัน
+                </h4>
+                <ul className="space-y-2">
+                  {recommendation.practice.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 text-sm text-brown-darkest font-medium">
+                      <span className="text-orange-500 text-base mt-0.5">•</span>
+                      <span className="leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Game Training Guideline */}
+              <div>
+                <h4 className="text-sm font-bold text-brown-light uppercase mb-3">
+                  ฝึกฝนผ่านเกมที่แนะนำ
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {recommendation.games.map((game, idx) => (
+                    <Link
+                      key={idx}
+                      href={`/play/${game.id}`}
+                      className="flex items-center justify-between border-2 border-gray-medium rounded-xl p-3 bg-white hover:border-brown-light active:bg-brown-lightest transition-all shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
+                    >
+                      <span className="text-sm font-bold text-brown-darkest group-hover:text-brown-800 transition-colors">
+                        {game.name}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-brown-light group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
