@@ -63,21 +63,21 @@ export default function LoginPage() {
             const { error } = await supabase.auth.signInAnonymously({
                 options: {
                     data: {
-                        full_name: "ผู้ทดสอบ (Guest)",
+                        full_name: "ผู้เยี่ยมชม (Guest)",
                     },
                 },
             });
 
             if (error) {
                 if (error.message.includes("not enabled")) {
-                    throw new Error("ระบบล็อกอินผู้ทดสอบยังไม่เปิดใช้งานใน Supabase Dashboard (กรุณาไปที่ Auth -> Providers -> Anonymous และเปิดใช้งาน)");
+                    throw new Error("ระบบล็อกอินผู้เยี่ยมชมยังไม่เปิดใช้งานใน Supabase Dashboard (กรุณาไปที่ Auth -> Providers -> Anonymous และเปิดใช้งาน)");
                 }
                 throw error;
             }
             router.refresh();
             router.push("/");
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการเข้าสู่ระบบผู้ทดสอบ";
+            const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการเข้าสู่ระบบผู้เยี่ยมชม";
             setError(errorMessage);
             setLoading(false);
         }
@@ -235,7 +235,7 @@ export default function LoginPage() {
                                 className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-brown-border bg-tan/20 hover:bg-tan/40 hover:border-orange-action text-brown-800 text-sm font-bold transition-all"
                             >
                                 <User className="h-5 w-5" />
-                                เข้าใช้งานในฐานะผู้ทดสอบ (Guest)
+                                เข้าใช้งานในฐานะผู้เยี่ยมชม (Guest)
                             </button>
                         </div>
                     </div>
