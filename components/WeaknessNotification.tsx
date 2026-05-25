@@ -15,14 +15,20 @@ export default function WeaknessNotification({ message }: WeaknessNotificationPr
         // Only show if it hasn't been shown during this session
         const hasNotified = sessionStorage.getItem("weakness_notified");
         if (!hasNotified) {
-            setIsVisible(true);
+            const animTimer = setTimeout(() => {
+                setIsVisible(true);
+            }, 50);
             sessionStorage.setItem("weakness_notified", "true");
 
             // Auto-close after 7 seconds
             const timer = setTimeout(() => {
                 setIsVisible(false);
             }, 7000);
-            return () => clearTimeout(timer);
+
+            return () => {
+                clearTimeout(animTimer);
+                clearTimeout(timer);
+            };
         }
     }, []);
 
@@ -38,7 +44,7 @@ export default function WeaknessNotification({ message }: WeaknessNotificationPr
                 >
                     <div className="bg-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border-2 border-orange-light overflow-hidden relative">
                         {/* Colorful Accent Bar */}
-                        <div className="bg-gradient-to-r from-orange-action to-yellow-highlight px-4 py-3 text-white flex items-center justify-between">
+                        <div className="bg-orange-action px-4 py-3 text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Lightbulb className="w-5 h-5 text-white fill-white/20 animate-pulse" />
                                 <span className="font-black text-sm text-shadow-sm">คำแนะนำจากทักษะสมอง</span>
