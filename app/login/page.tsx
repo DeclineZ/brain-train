@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowRight, User } from "lucide-react";
 import { m } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
@@ -52,6 +52,33 @@ export default function LoginPage() {
             if (error) throw error;
         } catch (err: any) {
             setError(err.message);
+            setLoading(false);
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { error } = await supabase.auth.signInAnonymously({
+                options: {
+                    data: {
+                        full_name: "ผู้ทดสอบ (Guest)",
+                    },
+                },
+            });
+
+            if (error) {
+                if (error.message.includes("not enabled")) {
+                    throw new Error("ระบบล็อกอินผู้ทดสอบยังไม่เปิดใช้งานใน Supabase Dashboard (กรุณาไปที่ Auth -> Providers -> Anonymous และเปิดใช้งาน)");
+                }
+                throw error;
+            }
+            router.refresh();
+            router.push("/");
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการเข้าสู่ระบบผู้ทดสอบ";
+            setError(errorMessage);
             setLoading(false);
         }
     };
@@ -144,15 +171,7 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm font-medium text-brown-medium px-1">
-                            <label className="flex items-center gap-2 cursor-pointer hover:text-brown-800 transition-colors">
-                                <input type="checkbox" className="w-5 h-5 rounded border-brown-border text-orange-action focus:ring-orange-action/20 cursor-pointer" />
-                                <span>จดจำฉัน</span>
-                            </label>
-                            <button type="button" className="hover:text-orange-action transition-colors font-bold">
-                                ลืมรหัสผ่าน?
-                            </button>
-                        </div>
+
 
                         {error && (
                             <div className="p-4 rounded-xl bg-red-50 text-red-600 text-sm font-bold flex items-center gap-2 border border-red-100">
@@ -208,6 +227,15 @@ export default function LoginPage() {
                                     />
                                 </svg>
                                 เข้าสู่ระบบด้วย Google
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleGuestLogin}
+                                disabled={loading}
+                                className="h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-brown-border bg-tan/20 hover:bg-tan/40 hover:border-orange-action text-brown-800 text-sm font-bold transition-all"
+                            >
+                                <User className="h-5 w-5" />
+                                เข้าใช้งานในฐานะผู้ทดสอบ (Guest)
                             </button>
                         </div>
                     </div>
