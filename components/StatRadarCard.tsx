@@ -18,7 +18,7 @@ export default function StatRadarCard({ data }: StatRadarCardProps) {
         { subject: 'ความจำ', A: 0, fullMark: 100 },
         { subject: 'สมาธิ', A: 0, fullMark: 100 },
         { subject: 'การมองเห็น', A: 0, fullMark: 100 },
-        { subject: 'อารมณ์', A: 0, fullMark: 100 },
+        { subject: 'ภาษาและการนึกคำ', A: 0, fullMark: 100 },
     ], []);
 
     const chartData = data && data.length > 0 ? data : defaultData;
