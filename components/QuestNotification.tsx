@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Trophy, Coins, Star } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { X, Trophy, Coins } from "lucide-react";
 import { m, AnimatePresence } from "framer-motion";
 
 interface QuestNotificationProps {
@@ -11,19 +11,26 @@ interface QuestNotificationProps {
 export default function QuestNotification({ onClose }: QuestNotificationProps) {
     const [isVisible, setIsVisible] = useState(false);
 
+    const handleClose = useCallback(() => {
+        setIsVisible(false);
+        setTimeout(onClose, 300);
+    }, [onClose]);
+
     useEffect(() => {
-        setIsVisible(true);
+        const animTimer = setTimeout(() => {
+            setIsVisible(true);
+        }, 50);
+
         // Auto-close after 6 seconds
         const timer = setTimeout(() => {
             handleClose();
         }, 6000);
-        return () => clearTimeout(timer);
-    }, []);
 
-    const handleClose = () => {
-        setIsVisible(false);
-        setTimeout(onClose, 300);
-    };
+        return () => {
+            clearTimeout(animTimer);
+            clearTimeout(timer);
+        };
+    }, [handleClose]);
 
     return (
         <AnimatePresence>
@@ -36,7 +43,7 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                 >
                     <div className="bg-white rounded-xl shadow-2xl border-2 border-yellow-highlight overflow-hidden max-w-sm w-full relative">
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-yellow-highlight to-orange-action px-4 py-3 text-white flex items-center justify-between">
+                        <div className="bg-yellow-highlight px-4 py-3 text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Trophy className="w-5 h-5 text-white" />
                                 <span className="font-bold text-shadow-sm">ภารกิจสำเร็จ!</span>
@@ -95,7 +102,7 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                             initial={{ width: "100%" }}
                             animate={{ width: "0%" }}
                             transition={{ duration: 6, ease: "linear" }}
-                            className="h-1 bg-yellow-500"
+                            className="h-1 bg-yellow-highlight"
                         />
                     </div>
                 </m.div>
