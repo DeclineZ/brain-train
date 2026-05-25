@@ -14,15 +14,20 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
 
   useEffect(() => {
     // Trigger entrance animation
-    setIsVisible(true);
+    const animTimer = setTimeout(() => {
+      setIsVisible(true);
+    }, 50);
 
-    // Auto-close after 4 seconds
+    // Auto-close after 10 seconds
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onClose, 300); // Wait for exit animation
     }, 10000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(animTimer);
+      clearTimeout(timer);
+    };
   }, [onClose]);
 
   const handleClose = () => {
@@ -49,7 +54,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
     >
       <div className="bg-white rounded-xl shadow-2xl border-2 border-orange-dark max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-dark to-orange-dark-2 px-4 py-3 text-white">
+        <div className="bg-orange-dark px-4 py-3 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5" />
@@ -161,7 +166,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
         </div>
 
         {/* Progress bar animation */}
-        <div className="h-1 bg-gradient-to-r from-transparent via-orange-dark to-transparent animate-pulse"></div>
+        <div className="h-1 bg-orange-dark"></div>
       </div>
     </div>
   );
