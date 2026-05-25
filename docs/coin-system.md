@@ -133,7 +133,7 @@ Client endpoint for purchasing items.
     "price": 50
   },
   "transaction_id": "order_1234567890_abc123",
-  "message": "ซื้อเคล็ดลับพิเศษสำเร็จ! คงเหลือ 50 เหรียญ"
+  "message": "ซื้อเคล็ดลับพิเศษสำเร็จ คงเหลือ 50 เหรียญ"
 }
 ```
 

@@ -68,7 +68,7 @@ export default function QuestNotification({ onClose }: QuestNotificationProps) {
                                     <span className="text-4xl">🎁</span>
                                 </m.div>
                                 <h3 className="font-bold text-brown-900 text-lg">
-                                    ยินดีด้วย!
+                                    ยินดีด้วย
                                 </h3>
                                 <p className="text-sm text-brown-medium">
                                     คุณทำภารกิจประจำวันครบแล้ว

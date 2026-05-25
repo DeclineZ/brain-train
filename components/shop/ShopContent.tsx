@@ -91,7 +91,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
 
         // Close modal and show success
         setIsModalOpen(false);
-        showToast(result.message || "ซื้อสำเร็จ!", "success");
+        showToast(result.message || "ซื้อสำเร็จ", "success");
 
         // Trigger balance update for other components
         window.dispatchEvent(new Event('balanceUpdate'));
@@ -144,7 +144,7 @@ export default function ShopContent({ userId, initialBalance, initialItems }: {
       const result = await response.json();
 
       if (response.ok) {
-        showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ!`, "success");
+        showToast(`ใช้อวาตาร์ ${item.name} สำเร็จ`, "success");
 
         // Update current avatar state
         setCurrentAvatar(item.item_key);

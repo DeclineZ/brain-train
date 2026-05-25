@@ -65,7 +65,7 @@ export default function WeaknessNotification({ message }: WeaknessNotificationPr
                             </div>
                             <div className="flex-1">
                                 <h3 className="font-bold text-brown-900 text-sm mb-1 leading-snug">
-                                    ฝึกฝนเพื่อพัฒนาทักษะสมอง!
+                                    ฝึกฝนเพื่อพัฒนาทักษะสมอง
                                 </h3>
                                 <p className="text-xs text-brown-medium font-semibold leading-relaxed">
                                     {message}
