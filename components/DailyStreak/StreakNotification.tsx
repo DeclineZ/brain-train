@@ -36,21 +36,20 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
   };
 
   const getStreakMilestone = (streak: number) => {
-    if (streak === 1) return { icon: "🌱", message: "เริ่มต้นได้เยี่ยม!" };
-    if (streak === 3) return { icon: "🔥", message: "3 วันติดต่อกัน!" };
-    if (streak === 7) return { icon: "💪", message: "สัปดาห์แห่งความมุ่งมั่น!" };
-    if (streak === 30) return { icon: "🏆", message: "เดือนแห่งความมุ่งมั่น!" };
-    if (streak === 100) return { icon: "👑", message: "ระดับตำนาน!" };
-    return { icon: "🔥", message: `${streak} วันติดต่อกัน!` };
+    if (streak === 1) return { icon: "🌱", message: "เริ่มต้นได้เยี่ยม" };
+    if (streak === 3) return { icon: "🔥", message: "3 วันติดต่อกัน" };
+    if (streak === 7) return { icon: "💪", message: "สัปดาห์แห่งความมุ่งมั่น" };
+    if (streak === 30) return { icon: "🏆", message: "เดือนแห่งความมุ่งมั่น" };
+    if (streak === 100) return { icon: "👑", message: "ระดับตำนาน" };
+    return { icon: "🔥", message: `${streak} วันติดต่อกัน` };
   };
 
   const milestone = getStreakMilestone(notification.streak_count);
 
   return (
     <div
-      className={`fixed top-4 right-4 z-50 transition-all duration-300 transform ${
-        isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-      }`}
+      className={`fixed top-4 right-4 z-50 transition-all duration-300 transform ${isVisible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+        }`}
     >
       <div className="bg-white rounded-xl shadow-2xl border-2 border-orange-dark max-w-sm overflow-hidden">
         {/* Header */}
@@ -102,20 +101,20 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
                 <div className="flex items-center gap-2">
                   <Coins className="w-5 h-5 text-green-600" />
                   <span className="text-sm font-semibold text-green-900">
-                    รับเหรียญรางวัล!
+                    รับเหรียญรางวัล
                   </span>
                 </div>
                 <span className="text-xl font-bold text-green-600">
                   +{notification.coins_earned}
                 </span>
               </div>
-              
+
               {notification.base_amount && notification.multiplier && (
                 <div className="text-xs text-green-700 text-center bg-green-100 rounded px-2 py-1">
                   {notification.base_amount} × {notification.multiplier}x = {notification.coins_earned} เหรียญ
                 </div>
               )}
-              
+
               {notification.new_balance !== undefined && (
                 <div className="text-xs text-green-600 text-center">
                   ยอดเงินคงเหลือ: {notification.new_balance} เหรียญ
@@ -129,7 +128,7 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
             <div className="space-y-2">
               <p className="text-sm font-semibold text-brown-900 flex items-center gap-1">
                 <Star className="w-4 h-4 text-yellow-highlight" />
-                ปลดล็อคเครื่องหมายใหม่!
+                ปลดล็อคเครื่องหมายใหม่
               </p>
               <div className="space-y-1">
                 {notification.new_badges.map((badge) => (
@@ -155,11 +154,11 @@ export default function StreakNotification({ notification, onClose }: StreakNoti
           {/* Keep going message */}
           <div className="text-center pt-2 border-t">
             <p className="text-xs text-brown-medium italic">
-              {notification.streak_count < 7 
-                ? "อีกไม่กี่วันจะถึงสัปดาห์แห่งความมุ่งมั่น!"
+              {notification.streak_count < 7
+                ? "อีกไม่กี่วันจะถึงสัปดาห์แห่งความมุ่งมั่น"
                 : notification.streak_count < 30
-                ? "อย่าหยุด! เดือนแห่งความมุ่งมั่นรออยู่!"
-                : "คุณเป็นแรงบันดาลใจของผู้อื่น!"
+                  ? "อย่าหยุด เดือนแห่งความมุ่งมั่นรออยู่"
+                  : "คุณเป็นแรงบันดาลใจของผู้อื่น"
               }
             </p>
           </div>

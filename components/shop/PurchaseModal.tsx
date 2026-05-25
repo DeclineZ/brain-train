@@ -12,12 +12,12 @@ interface PurchaseModalProps {
   onConfirm: (item: ShopItemWithOwnership) => Promise<void>;
 }
 
-export default function PurchaseModal({ 
-  isOpen, 
-  onClose, 
-  item, 
-  userBalance, 
-  onConfirm 
+export default function PurchaseModal({
+  isOpen,
+  onClose,
+  item,
+  userBalance,
+  onConfirm
 }: PurchaseModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<PurchaseResult | null>(null);
@@ -87,7 +87,7 @@ export default function PurchaseModal({
         <div className="p-6 border-b border-gray-medium">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-brown-900">
-              {result ? "การซื้อสำเร็จ!" : "ยืนยันการซื้อ"}
+              {result ? "การซื้อสำเร็จ" : "ยืนยันการซื้อ"}
             </h2>
             <button
               onClick={handleClose}
@@ -165,7 +165,7 @@ export default function PurchaseModal({
                     {result.message}
                   </h3>
                   <p className="text-brown-800">
-                    คุณได้รับ {item.name} แล้ว!
+                    คุณได้รับ {item.name} แล้ว
                   </p>
                 </div>
               </div>
@@ -229,7 +229,7 @@ export default function PurchaseModal({
 // Export a method to update result from parent
 export function createPurchaseModalRef() {
   let modalRef: ((result: PurchaseResult) => void) | null = null;
-  
+
   return {
     setRef: (ref: (result: PurchaseResult) => void) => {
       modalRef = ref;

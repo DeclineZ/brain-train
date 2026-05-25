@@ -579,7 +579,7 @@ export default function GamePage({ params }: PageProps) {
                         <ConfettiEffect />
                         <div className="bg-popup-bg w-[90%] max-w-sm rounded-[32px] shadow-2xl border-8 border-brown-primary relative z-10 overflow-hidden flex flex-col items-center p-6 text-center animate-in zoom-in-95 duration-300">
                             <h1 className="text-3xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
-                                คุณเก่งมาก!
+                                คุณเก่งมาก
                             </h1>
                             <p className="text-brown-primary font-bold text-lg mb-6">
                                 เราไปเริ่มเล่นเกมจริงกัน
@@ -630,7 +630,7 @@ export default function GamePage({ params }: PageProps) {
                                 // SUCCESS CONTENT
                                 <>
                                     <h1 className="text-4xl font-extrabold text-popup-title drop-shadow-sm mt-2 mb-4">
-                                        เยี่ยมมาก!
+                                        เยี่ยมมาก
                                     </h1>
                                     {/* Stars OR Score */}
                                     {!isEndless ? (
@@ -811,7 +811,7 @@ export default function GamePage({ params }: PageProps) {
                                         เกมโอเวอร์
                                     </h1>
                                     <p className="text-brown-primary font-bold text-lg mb-6">
-                                        ลองอีกครั้งนะ!
+                                        ลองอีกครั้งนะ
                                     </p>
 
                                     {/* Buttons */}

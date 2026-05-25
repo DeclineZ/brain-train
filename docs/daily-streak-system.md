@@ -104,7 +104,7 @@ The system expects these Supabase tables:
 
 ### Streak Milestones
 - 🌱 1 day: การเริ่มต้น (First Check-in)
-- 🔥 3 days: 3 วันติดต่อกัน! (3 Day Streak)
+- 🔥 3 days: 3 วันติดต่อกัน (3 Day Streak)
 - 💪 7 days: สัปดาห์แห่งความมุ่งมั่น (Week of Commitment)
 - 🏆 30 days: เดือนแห่งความมุ่งมั่น (Month of Commitment)
 - 👑 100 days: ระดับตำนาน (Legendary Level)
