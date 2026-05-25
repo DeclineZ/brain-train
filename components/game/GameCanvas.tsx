@@ -164,7 +164,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         callbacks: {
           preBoot: (game: Game) => {
             if (game.sound) {
-                game.sound.mute = isMuted;
+              game.sound.mute = isMuted;
             }
             // 1. Pass a STABLE wrapper to the Registry
             // This allows onGameOverRef to update without needing to set registry again
@@ -393,7 +393,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
                   }}
                   className="w-full bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white text-2xl font-bold py-4 rounded-2xl shadow-lg active:border-b-0 active:translate-y-1 transition-all"
                 >
-                  เริ่มกันเลย!
+                  เริ่มกันเลย
                 </button>
               </div>
             </div>
