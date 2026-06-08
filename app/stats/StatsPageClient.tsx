@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import BottomNav from "@/components/BottomNav";
-import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart, Award, MessageSquare, Lightbulb, ChevronRight } from "lucide-react";
+import { Flame, Star, Coins, Zap, Trophy, Map, Brain, Eye, Target, Heart, Award, MessageSquare, Lightbulb, ChevronRight, X, HelpCircle } from "lucide-react";
+import { m, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import BadgesSection from "./BadgesSection";
@@ -17,12 +18,12 @@ interface ProfileData {
   full_name: string;
   avatar_url: string;
   created_at: string;
-  global_planning: number;
-  global_memory: number;
-  global_visual: number;
-  global_focus: number;
-  global_speed: number;
-  global_emotion: number;
+  global_planning: number | null;
+  global_memory: number | null;
+  global_visual: number | null;
+  global_focus: number | null;
+  global_speed: number | null;
+  global_emotion: number | null;
   active_theme_id?: string;
 }
 
@@ -34,6 +35,7 @@ interface StatsPageClientProps {
   badges: any[];
   userId: string;
   ownedThemes: ShopItemWithOwnership[];
+  playedGameIds: string[];
 }
 
 const RECOMMENDATIONS: Record<string, {
@@ -100,7 +102,7 @@ const RECOMMENDATIONS: Record<string, {
     ]
   },
   global_visual: {
-    title: "มิติสัมพันธ์ (Visuospatial การ scanning ภาพรวม)",
+    title: "มิติสัมพันธ์",
     suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการมองภาพรวม การกะระยะ หรือการจำตำแหน่งของสิ่งของอยู่ในระดับที่ควรฝึกฝนเพิ่ม",
     practice: [
       "ฝึกสังเกตรอบตัว เช่น จำตำแหน่งของสิ่งของในบ้าน",
@@ -134,7 +136,8 @@ export default function StatsPageClient({
   checkinStatus,
   badges,
   userId,
-  ownedThemes
+  ownedThemes,
+  playedGameIds
 
 }: StatsPageClientProps) {
   const { theme, setTheme } = useTheme();
@@ -142,6 +145,7 @@ export default function StatsPageClient({
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
   const [isUpdatingTheme, setIsUpdatingTheme] = useState(false);
   const [currentAvatar, setCurrentAvatar] = useState(profile?.avatar_url || null);
+  const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null);
 
   // Mock total XP since we don't have a direct field for it yet, or use sum of stats
   const cognitiveStats = [
@@ -153,10 +157,30 @@ export default function StatsPageClient({
     { key: "global_emotion", label: "ภาษาและการนึกคำ", color: "bg-purple", icon: MessageSquare, val: profile?.global_emotion || 0 },
   ];
 
+  const DIMENSION_GAMES: Record<string, string[]> = {
+    global_memory: ["game-01-cardmatch", "game-13-boxpattern", "game-14-wordrecognize"],
+    global_focus: ["game-02-sensorlock", "game-06-dreamdirect", "game-18-runforyourlife"],
+    global_planning: ["game-09-tube-sort", "game-21-parking-jam", "game-05-wormtrain"],
+    global_speed: ["game-02-sensorlock", "game-06-dreamdirect", "game-12-gridhunter"],
+    global_visual: ["game-20-boxcounting", "game-11-pipe-patch", "game-10-miner"],
+    global_emotion: ["game-08-mysterysound"],
+  };
+
+  // Find which categories are unplayed (using actual played game IDs from sessions)
+  const unplayedStats = cognitiveStats.filter(stat => {
+    const games = DIMENSION_GAMES[stat.key] || [];
+    return !games.some(gameId => playedGameIds.includes(gameId));
+  });
+  const hasUnplayed = unplayedStats.length > 0;
+
   // Find the weakest skill key from cognitiveStats
   const weakestStat = [...cognitiveStats].sort((a, b) => a.val - b.val)[0];
   const weakestKey = weakestStat ? weakestStat.key : "global_memory";
   const recommendation = RECOMMENDATIONS[weakestKey] || RECOMMENDATIONS.global_memory;
+
+  // Derived values for category detail popup
+  const selectedRecommendation = selectedCategoryKey ? RECOMMENDATIONS[selectedCategoryKey] : null;
+  const selectedStat = selectedCategoryKey ? cognitiveStats.find(s => s.key === selectedCategoryKey) : null;
 
   // Helper to format join date
   const formatDate = (dateString: string | null) => {
@@ -396,6 +420,13 @@ export default function StatsPageClient({
                       <div className="flex items-center gap-2">
                         <stat.icon className="w-5 h-5 text-brown-lightest" />
                         <span>{stat.label}</span>
+                        <button
+                          onClick={() => setSelectedCategoryKey(stat.key)}
+                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#E8F4FD] hover:bg-[#C8E6FA] text-[#1CB0F6] border border-[#1CB0F6]/30 cursor-pointer transition-all active:scale-95 ml-1.5 shrink-0"
+                          aria-label={`ดูรายละเอียด${stat.label}`}
+                        >
+                          <span className="text-xs font-bold leading-none">?</span>
+                        </button>
                       </div>
                       <span className="text-brown-darkest">{getScaledScore(stat.val)}</span>
                     </div>
@@ -424,63 +455,122 @@ export default function StatsPageClient({
                 <Lightbulb className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
                 คำแนะนำพัฒนาทักษะสมอง
               </h2>
-              
-              <div className="bg-[var(--color-card-item-bg)] border-2 border-gray-medium rounded-2xl p-4 shadow-sm mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-bold uppercase bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
-                    ด้านที่ควรพัฒนามากที่สุด
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-brown-darkest mb-2 flex items-center gap-2">
-                  {weakestStat ? (
-                    <>
-                      <weakestStat.icon className="w-5 h-5 text-brown-light" />
-                      <span>{recommendation.title}</span>
-                    </>
-                  ) : (
-                    <span>{recommendation.title}</span>
-                  )}
-                </h3>
-                <p className="text-sm text-brown-medium font-medium leading-relaxed">
-                  {recommendation.suggestion}
-                </p>
-              </div>
 
-              {/* Daily Practice Guideline */}
-              <div className="mb-4">
-                <h4 className="text-sm font-bold text-brown-light uppercase mb-2">
-                  แนวทางการฝึกในชีวิตประจำวัน
-                </h4>
-                <ul className="space-y-2">
-                  {recommendation.practice.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-sm text-brown-darkest font-medium">
-                      <span className="text-orange-500 text-base mt-0.5">•</span>
-                      <span className="leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Game Training Guideline */}
-              <div>
-                <h4 className="text-sm font-bold text-brown-light uppercase mb-3">
-                  ฝึกฝนผ่านเกมที่แนะนำ
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {recommendation.games.map((game, idx) => (
-                    <Link
-                      key={idx}
-                      href={`/play/${game.id}`}
-                      className="flex items-center justify-between border-2 border-gray-medium rounded-xl p-3 bg-white hover:border-brown-light active:bg-brown-lightest transition-all shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
-                    >
-                      <span className="text-sm font-bold text-brown-darkest group-hover:text-brown-800 transition-colors">
-                        {game.name}
+              {hasUnplayed ? (
+                <>
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4 shadow-sm mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold uppercase bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Brain className="w-3.5 h-3.5" /> ข้อมูลยังไม่เพียงพอ
                       </span>
-                      <ChevronRight className="w-4 h-4 text-brown-light group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-brown-darkest mb-2">
+                      วิเคราะห์ทักษะสมองของคุณ
+                    </h3>
+                    <p className="text-sm text-brown-medium font-medium leading-relaxed">
+                      กรุณาเล่นเกมให้ครบทุกหมวดหมู่ เพื่อให้ระบบสามารถวิเคราะห์ทักษะสมองด้านที่ควรพัฒนามากที่สุดของคุณได้อย่างแม่นยำ (ขณะนี้เหลืออีก {unplayedStats.length} ด้านที่ยังไม่ได้ทดสอบ)
+                    </p>
+                  </div>
+
+                  <div className="mb-2">
+                    <h4 className="text-sm font-bold text-brown-light uppercase mb-3">
+                      หมวดหมู่ทักษะสมองที่แนะนำให้ลองเล่น
+                    </h4>
+                    <div className="space-y-3">
+                      {unplayedStats.map((stat) => {
+                        const rec = RECOMMENDATIONS[stat.key];
+                        if (!rec) return null;
+                        return (
+                          <div key={stat.key} className="border-2 border-gray-medium rounded-2xl p-4 bg-white/60 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2 font-bold text-brown-darkest">
+                                <stat.icon className="w-5 h-5 text-brown-light" />
+                                <span>{rec.title}</span>
+                              </div>
+                              <span className="text-[10px] sm:text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100 shrink-0">
+                                ยังไม่ได้ลอง
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                              {rec.games.map((game, idx) => (
+                                <Link
+                                  key={idx}
+                                  href={`/play/${game.id}`}
+                                  className="flex items-center justify-between border-2 border-gray-medium rounded-xl p-2.5 bg-white hover:border-brown-light hover:bg-brown-lightest active:bg-brown-lightest transition-all shadow-sm cursor-pointer group"
+                                >
+                                  <span className="text-xs sm:text-sm font-bold text-brown-darkest group-hover:text-brown-800 transition-colors">
+                                    {game.name}
+                                  </span>
+                                  <ChevronRight className="w-4 h-4 text-brown-light group-hover:translate-x-0.5 transition-transform shrink-0" />
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-[var(--color-card-item-bg)] border-2 border-gray-medium rounded-2xl p-4 shadow-sm mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold uppercase bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
+                        ด้านที่ควรพัฒนามากที่สุด
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-brown-darkest mb-2 flex items-center gap-2">
+                      {weakestStat ? (
+                        <>
+                          <weakestStat.icon className="w-5 h-5 text-brown-light" />
+                          <span>{recommendation.title}</span>
+                        </>
+                      ) : (
+                        <span>{recommendation.title}</span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-brown-medium font-medium leading-relaxed">
+                      {recommendation.suggestion}
+                    </p>
+                  </div>
+
+                  {/* Daily Practice Guideline */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-bold text-brown-light uppercase mb-2">
+                      แนวทางการฝึกในชีวิตประจำวัน
+                    </h4>
+                    <ul className="space-y-2">
+                      {recommendation.practice.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-sm text-brown-darkest font-medium">
+                          <span className="text-orange-500 text-base mt-0.5">•</span>
+                          <span className="leading-relaxed">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Game Training Guideline */}
+                  <div>
+                    <h4 className="text-sm font-bold text-brown-light uppercase mb-3">
+                      ฝึกฝนผ่านเกมที่แนะนำ
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {recommendation.games.map((game, idx) => (
+                        <Link
+                          key={idx}
+                          href={`/play/${game.id}`}
+                          className="flex items-center justify-between border-2 border-gray-medium rounded-xl p-3 bg-white hover:border-brown-light active:bg-brown-lightest transition-all shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
+                        >
+                          <span className="text-sm font-bold text-brown-darkest group-hover:text-brown-800 transition-colors">
+                            {game.name}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-brown-light group-hover:translate-x-0.5 transition-transform" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -593,6 +683,105 @@ export default function StatsPageClient({
         isLoading={isUpdatingAvatar}
         userId={userId}
       />
+
+      {/* Category Detail Popup Modal */}
+      <AnimatePresence>
+        {selectedCategoryKey && selectedRecommendation && (
+          <m.div
+            key="category-detail-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSelectedCategoryKey(null)}
+          >
+            <m.div
+              key="category-detail-content"
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-cream rounded-3xl shadow-2xl border-2 border-brown-lightest w-full max-w-md max-h-[85vh] overflow-y-auto relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 z-10 bg-cream rounded-t-3xl border-b border-brown-lightest px-5 pt-5 pb-3 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedStat && <selectedStat.icon className="w-6 h-6 text-brown-medium" />}
+                  <h3 className="text-lg font-bold text-brown-darkest leading-snug">
+                    {selectedRecommendation.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setSelectedCategoryKey(null)}
+                  className="p-1.5 rounded-full hover:bg-brown-lightest transition-colors cursor-pointer"
+                  aria-label="ปิด"
+                >
+                  <X className="w-5 h-5 text-brown-medium" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="px-5 pb-6 pt-4 space-y-5">
+                {/* Score */}
+                {selectedStat && (
+                  <div className="flex items-center gap-3 bg-white border-2 border-gray-medium rounded-2xl p-3 shadow-sm">
+                    <div className={`w-10 h-10 rounded-xl ${selectedStat.color} flex items-center justify-center shadow-sm`}>
+                      <selectedStat.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-brown-light uppercase">คะแนนปัจจุบัน</div>
+                      <div className="text-xl font-bold text-brown-darkest">{getScaledScore(selectedStat.val)}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Suggestion */}
+                <div>
+                  <h4 className="text-xs font-bold text-brown-light uppercase mb-2">ข้อเสนอแนะ</h4>
+                  <p className="text-sm text-brown-darkest font-medium leading-relaxed">
+                    {selectedRecommendation.suggestion}
+                  </p>
+                </div>
+
+                {/* Daily Practice */}
+                <div>
+                  <h4 className="text-xs font-bold text-brown-light uppercase mb-2">แนวทางการฝึกในชีวิตประจำวัน</h4>
+                  <ul className="space-y-2">
+                    {selectedRecommendation.practice.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2.5 text-sm text-brown-darkest font-medium">
+                        <span className="text-orange-500 text-base mt-0.5">•</span>
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Recommended Games */}
+                <div>
+                  <h4 className="text-xs font-bold text-brown-light uppercase mb-3">ฝึกฝนผ่านเกมที่แนะนำ</h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    {selectedRecommendation.games.map((game, idx) => (
+                      <Link
+                        key={idx}
+                        href={`/play/${game.id}`}
+                        onClick={() => setSelectedCategoryKey(null)}
+                        className="flex items-center justify-between border-2 border-gray-medium rounded-xl p-3 bg-white hover:border-brown-light active:bg-brown-lightest transition-all shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer group"
+                      >
+                        <span className="text-sm font-bold text-brown-darkest group-hover:text-brown-800 transition-colors">
+                          {game.name}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-brown-light group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </m.div>
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
