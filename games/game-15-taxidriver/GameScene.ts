@@ -71,6 +71,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private leftButton!: Phaser.GameObjects.Container;
     private rightButton!: Phaser.GameObjects.Container;
     private forwardButton!: Phaser.GameObjects.Container;
+    private leftButtonBg!: Phaser.GameObjects.Arc;
+    private leftButtonText!: Phaser.GameObjects.Text;
+    private rightButtonBg!: Phaser.GameObjects.Arc;
+    private rightButtonText!: Phaser.GameObjects.Text;
+    private forwardButtonBg!: Phaser.GameObjects.Arc;
+    private forwardButtonText!: Phaser.GameObjects.Text;
     private messageText!: Phaser.GameObjects.Text;
     private alertIndicator!: Phaser.GameObjects.Container;  // Exclamation mark above car
 
@@ -972,18 +978,24 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             width / 2 - buttonSize - spacing, panelY,
             'left', 'ซ้าย', buttonSize
         );
+        this.leftButtonBg = this.leftButton.list[0] as Phaser.GameObjects.Arc;
+        this.leftButtonText = this.leftButton.list[1] as Phaser.GameObjects.Text;
 
         // Forward button (Start / Go)
         this.forwardButton = this.createDirectionButton(
             width / 2, panelY,
             'forward', 'START', buttonSize
         );
+        this.forwardButtonBg = this.forwardButton.list[0] as Phaser.GameObjects.Arc;
+        this.forwardButtonText = this.forwardButton.list[1] as Phaser.GameObjects.Text;
 
         // Right button (Thai: Right)
         this.rightButton = this.createDirectionButton(
             width / 2 + buttonSize + spacing, panelY,
             'right', 'ขวา', buttonSize
         );
+        this.rightButtonBg = this.rightButton.list[0] as Phaser.GameObjects.Arc;
+        this.rightButtonText = this.rightButton.list[1] as Phaser.GameObjects.Text;
 
         // Create Lives Display (Top Center)
         this.createLivesDisplay(width);
@@ -1158,7 +1170,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Hover effects
         bg.on('pointerover', () => {
             if (this.gameOver) return;
-            bg.setFillStyle(0xFFFFFF);
+            if (direction === 'forward' && this.isBrakeStopped) {
+                bg.setFillStyle(0x357AE8); // Lighter/darker blue on hover
+                text.setColor('#FFFFFF');
+            } else {
+                bg.setFillStyle(0xFFFFFF);
+                text.setColor('#555555');
+            }
             this.tweens.add({
                 targets: container,
                 scale: 1.05,
@@ -1168,7 +1186,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         bg.on('pointerout', () => {
             if (this.gameOver) return;
-            bg.setFillStyle(0xF5F5F5);
+            if (direction === 'forward' && this.isBrakeStopped) {
+                bg.setFillStyle(0x4285F4); // Reset to highlight blue
+                text.setColor('#FFFFFF');
+            } else {
+                bg.setFillStyle(0xF5F5F5);
+                text.setColor('#555555');
+            }
             this.tweens.add({
                 targets: container,
                 scale: 1.0,
@@ -1546,7 +1570,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private findNextIntersection() {
-        // Find the next intersection AFTER the current position (start from next segment)
+        // Find the next intersection ahead of the current position.
+        // Starts from currentPathIndex + 1 because the current segment (if it was an
+        // intersection) has already been processed or skipped by the time this is called.
         for (let i = this.currentPathIndex + 1; i < this.path.length; i++) {
             if (this.path[i].isIntersection) {
                 this.upcomingIntersectionIndex = i;
@@ -1588,7 +1614,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // Calculate how long it will take to reach the intersection at current speed
-        const speed = this.currentLevelConfig.carSpeed;  // pixels per second
+        // MUST use the same scaled speed as moveCarTowardsTarget to avoid timing mismatches
+        const speedScale = this.cellSize / 80;
+        const speed = this.currentLevelConfig.carSpeed * speedScale;
         const timeToIntersectionMs = (distance / speed) * 1000;
 
         // Check if we're within the approach time window
@@ -2475,8 +2503,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private highlightForwardButton(highlight: boolean) {
         if (!this.forwardButton) return;
 
+        const bg = this.forwardButtonBg;
+        const text = this.forwardButtonText;
+
         if (highlight) {
             this.forwardButton.setAlpha(1);
+            if (bg) bg.setFillStyle(0x4285F4);
+            if (text) text.setColor('#FFFFFF');
+
+            this.tweens.killTweensOf(this.forwardButton);
             this.tweens.add({
                 targets: this.forwardButton,
                 scale: { from: 1, to: 1.1 },
@@ -2487,6 +2522,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         } else {
             this.tweens.killTweensOf(this.forwardButton);
             this.forwardButton.setScale(1);
+            if (bg) bg.setFillStyle(0xF5F5F5);
+            if (text) text.setColor('#555555');
         }
     }
 
