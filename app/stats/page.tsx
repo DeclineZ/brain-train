@@ -25,13 +25,14 @@ export default async function StatsPage() {
   }
 
   // Parallel data fetching
-  const [profileResult, walletResult, checkinResult, badgesResult, itemsResult, stars] = await Promise.all([
+  const [profileResult, walletResult, checkinResult, badgesResult, itemsResult, stars, sessionsResult] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("user_id", user.id).single(),
     supabase.from("wallets").select("balance").eq("user_id", user.id).single(),
     getCheckinStatus(user.id),
     getStreakBadges(user.id),
     getShopItemsWithOwnership(user.id),
-    getGlobalStarCount(user.id)
+    getGlobalStarCount(user.id),
+    supabase.from("game_sessions").select("game_id").eq("user_id", user.id)
   ])
 
   const profile = profileResult.data
@@ -39,7 +40,7 @@ export default async function StatsPage() {
   const checkinStatus = checkinResult.ok ? checkinResult.data : null
   const badges = badgesResult.ok ? badgesResult.data : []
   const ownedThemes = itemsResult.ok ? itemsResult.data.filter(item => item.type === "theme" && item.isOwned) : []
-  // Wait, array destructuring is cleaner, let's fix that below.
+  const playedGameIds = Array.from(new Set((sessionsResult.data || []).map((s: any) => s.game_id)))
 
 
   return (
@@ -51,6 +52,7 @@ export default async function StatsPage() {
       badges={badges}
       userId={user.id}
       ownedThemes={ownedThemes}
+      playedGameIds={playedGameIds}
     />
   )
 }
