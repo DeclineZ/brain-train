@@ -56,6 +56,12 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private leftButton!: Phaser.GameObjects.Container;
     private rightButton!: Phaser.GameObjects.Container;
     private forwardButton!: Phaser.GameObjects.Container;
+    private leftButtonBg!: Phaser.GameObjects.Arc;
+    private leftButtonText!: Phaser.GameObjects.Text;
+    private rightButtonBg!: Phaser.GameObjects.Arc;
+    private rightButtonText!: Phaser.GameObjects.Text;
+    private forwardButtonBg!: Phaser.GameObjects.Arc;
+    private forwardButtonText!: Phaser.GameObjects.Text;
 
     // Tutorial flow
     private currentPhase = 0;
@@ -421,8 +427,16 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         shadowG.setDepth(149);
 
         this.leftButton = this.createDirectionButton(width / 2 - buttonSize - spacing, panelY, 'left', 'ซ้าย', buttonSize);
+        this.leftButtonBg = this.leftButton.list[0] as Phaser.GameObjects.Arc;
+        this.leftButtonText = this.leftButton.list[1] as Phaser.GameObjects.Text;
+
         this.forwardButton = this.createDirectionButton(width / 2, panelY, 'forward', 'START', buttonSize);
+        this.forwardButtonBg = this.forwardButton.list[0] as Phaser.GameObjects.Arc;
+        this.forwardButtonText = this.forwardButton.list[1] as Phaser.GameObjects.Text;
+
         this.rightButton = this.createDirectionButton(width / 2 + buttonSize + spacing, panelY, 'right', 'ขวา', buttonSize);
+        this.rightButtonBg = this.rightButton.list[0] as Phaser.GameObjects.Arc;
+        this.rightButtonText = this.rightButton.list[1] as Phaser.GameObjects.Text;
 
         // Dim buttons initially
         this.setButtonsEnabled(false);
@@ -449,12 +463,26 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         bg.setInteractive({ useHandCursor: true });
 
         bg.on('pointerover', () => {
-            bg.setFillStyle(0xFFFFFF);
+            if (this.gameOver) return;
+            if (direction === 'forward' && this.isBrakeStopped) {
+                bg.setFillStyle(0x357AE8); // Lighter/darker blue on hover
+                text.setColor('#FFFFFF');
+            } else {
+                bg.setFillStyle(0xFFFFFF);
+                text.setColor('#555555');
+            }
             this.tweens.add({ targets: container, scale: 1.05, duration: 100 });
         });
 
         bg.on('pointerout', () => {
-            bg.setFillStyle(0xF5F5F5);
+            if (this.gameOver) return;
+            if (direction === 'forward' && this.isBrakeStopped) {
+                bg.setFillStyle(0x4285F4); // Reset to highlight blue
+                text.setColor('#FFFFFF');
+            } else {
+                bg.setFillStyle(0xF5F5F5);
+                text.setColor('#555555');
+            }
             this.tweens.add({ targets: container, scale: 1.0, duration: 100 });
         });
 
@@ -514,8 +542,16 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private highlightForwardButton(highlight: boolean) {
         if (!this.forwardButton) return;
+
+        const bg = this.forwardButtonBg;
+        const text = this.forwardButtonText;
+
         if (highlight) {
             this.forwardButton.setAlpha(1);
+            if (bg) bg.setFillStyle(0x4285F4);
+            if (text) text.setColor('#FFFFFF');
+
+            this.tweens.killTweensOf(this.forwardButton);
             this.tweens.add({
                 targets: this.forwardButton,
                 scale: { from: 1, to: 1.1 },
@@ -526,6 +562,8 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         } else {
             this.tweens.killTweensOf(this.forwardButton);
             this.forwardButton.setScale(1);
+            if (bg) bg.setFillStyle(0xF5F5F5);
+            if (text) text.setColor('#555555');
         }
     }
 

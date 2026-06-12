@@ -511,7 +511,7 @@ export class TutorialScene extends Phaser.Scene {
 
         const options = this.shuffleArray([...currentQuestion.options]);
 
-        const maxButtonSize = 110;
+        const maxButtonSize = 160;
         const availableWidth = width - 50;
         const buttonSize = Math.min(maxButtonSize, availableWidth / 2.5);
         const gapX = 20;
@@ -568,7 +568,7 @@ export class TutorialScene extends Phaser.Scene {
         let image: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
         if (this.textures.exists(id)) {
             image = this.add.image(0, imageY, id);
-            image.setDisplaySize(size * 0.65, size * 0.65);
+            image.setDisplaySize(size * 0.75, size * 0.75);
         } else {
             const emojis: Record<string, string> = {
                 pig: '🐷', cow: '🐄', chicken: '🐔', frog: '🐸',
@@ -814,9 +814,8 @@ export class TutorialScene extends Phaser.Scene {
         }
 
         if (this.choicesVisible && this.optionButtons.length > 0) {
-            const maxButtonSize = 110;
-            const availableWidth = width - 50;
-            const buttonSize = Math.min(maxButtonSize, availableWidth / 2.5);
+            const firstButton = this.optionButtons[0];
+            const buttonSize = firstButton ? firstButton.getData('size') : 110;
             const gapX = 20;
             const gapY = 15;
 

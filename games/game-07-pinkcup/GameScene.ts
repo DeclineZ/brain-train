@@ -13,6 +13,16 @@ import type {
   GridConfig
 } from './types';
 
+type GridPosition = {x: number, y: number};
+
+type PinkCupLevelPlan = {
+  targetCell: GridPosition;
+  cellNumbers: Record<string, number>;
+  cupPositions: GridPosition[];
+  emptyCells: GridPosition[];
+  minimumMoves: number;
+};
+
 /**
  * Find the Pink Cup - Main Game Scene
  * Scalable architecture with event-driven design
@@ -62,6 +72,9 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   // UI Elements
   private messageText!: Phaser.GameObjects.Text;
+  private moveStarGuideContainer!: Phaser.GameObjects.Container;
+  private moveStarGuideRail!: Phaser.GameObjects.Graphics;
+  private moveStarGuideStars: Phaser.GameObjects.Graphics[] = [];
   private probeUIContainer!: Phaser.GameObjects.Container;
   private probePanelHeight = 0;
 
@@ -74,7 +87,8 @@ export class PinkCupGameScene extends Phaser.Scene {
   private probeUIGraphics!: Phaser.GameObjects.Graphics;
   private swipeStart: {x: number, y: number} | null = null;
   private activeCup: CupData | null = null;
-  private rng!: SeededRandom;
+  private probeRng!: SeededRandom;
+  private levelPlan!: PinkCupLevelPlan;
 
   constructor() {
     super({ key: 'PinkCupGameScene' });
@@ -87,7 +101,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     const level = data.level || regLevel || 1;
     this.currentLevelConfig = getPinkCupLevel(level);
     this.isTutorialComplete = data.isTutorialComplete || false;
-    this.rng = createSeededRandom(7000 + this.currentLevelConfig.level * 977);
+    this.levelPlan = this.createLevelPlan();
+    this.probeRng = createSeededRandom(this.getLevelSeed(4));
 
     // Reset state
     this.cups = [];
@@ -95,6 +110,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.hasMovedFirst = false;
     this.isNumbersRevealed = false;
     this.isLocked = false;
+    this.isProbePhase = false;
+    this.probeAnswerLocked = false;
     this.hasPlayedLowTimeWarning = false;
     this.stopWarningSound();
     
@@ -102,7 +119,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.telemetry = {
       level: level,
       mode: this.currentLevelConfig.mode || 'classic',
-      targetCell: {x: 0, y: 0},
+      targetCell: {...this.levelPlan.targetCell},
       pinkStart: {x: 0, y: 0},
       t_start: 0,
       t_end: 0,
@@ -239,50 +256,155 @@ export class PinkCupGameScene extends Phaser.Scene {
     return this.currentLevelConfig.gridCols >= 5 || this.currentLevelConfig.gridRows >= 5;
   }
 
-  createTiles() {
+  private getLevelSeed(channel: number) {
+    return 7000 + this.currentLevelConfig.level * 977 + channel * 104729;
+  }
+
+  private createLevelPlan(): PinkCupLevelPlan {
     const { gridCols, gridRows } = this.currentLevelConfig;
-    let adjustedCols = gridCols;
-    let adjustedRows = gridRows;
+    const allPositions: GridPosition[] = [];
+    for (let y = 0; y < gridRows; y++) {
+      for (let x = 0; x < gridCols; x++) {
+        allPositions.push({x, y});
+      }
+    }
 
-    this.tiles = [];
+    const targetRng = createSeededRandom(this.getLevelSeed(1));
+    const targetCell = {
+      x: targetRng.nextInt(0, gridCols - 1),
+      y: targetRng.nextInt(0, gridRows - 1)
+    };
 
-    // Random target position (within adjusted grid)
-    const targetX = this.rng.nextInt(0, adjustedCols - 1);
-    const targetY = this.rng.nextInt(0, adjustedRows - 1);
-    this.targetCell = {x: targetX, y: targetY};
-    this.telemetry.targetCell = this.targetCell;
-    
-    console.log('[CreateTiles] Level:', this.currentLevelConfig.level, 'Adjusted grid:', adjustedCols, 'x', adjustedRows);
-    console.log('[CreateTiles] Target cell:', this.targetCell);
-
-    // Determine number of numbered cells (not all cells need numbers)
-    const totalCells = adjustedCols * adjustedRows;
-    const defaultNumberedCells = totalCells - 1; // One empty cell, rest have numbers
+    const totalCells = allPositions.length;
+    const defaultNumberedCells = totalCells - 1;
     const numberedCellsCount = Math.min(
       this.currentLevelConfig.numberedTilesCount ?? defaultNumberedCells,
       defaultNumberedCells
     );
+    const numberedPositions = shuffleWithSeed(
+      allPositions,
+      createSeededRandom(this.getLevelSeed(2))
+    );
+    const cellNumbers: Record<string, number> = {};
+    for (let i = 0; i < numberedCellsCount; i++) {
+      const position = numberedPositions[i];
+      cellNumbers[`${position.x},${position.y}`] = i + 1;
+    }
 
-    // Create list of cell positions and shuffle
-    const allCellPositions: {x: number, y: number}[] = [];
-    for (let y = 0; y < adjustedRows; y++) {
-      for (let x = 0; x < adjustedCols; x++) {
-        allCellPositions.push({x, y});
+    const shuffledCupPositions = shuffleWithSeed(
+      allPositions,
+      createSeededRandom(this.getLevelSeed(3))
+    );
+    if (
+      shuffledCupPositions.length > 1 &&
+      shuffledCupPositions[0].x === targetCell.x &&
+      shuffledCupPositions[0].y === targetCell.y
+    ) {
+      const swapIndex = shuffledCupPositions.findIndex(
+        (position, index) =>
+          index > 0 &&
+          (position.x !== targetCell.x || position.y !== targetCell.y)
+      );
+      if (swapIndex !== -1) {
+        [shuffledCupPositions[0], shuffledCupPositions[swapIndex]] = [
+          shuffledCupPositions[swapIndex],
+          shuffledCupPositions[0]
+        ];
       }
     }
-    const shuffledCellPositions = shuffleWithSeed(allCellPositions, this.rng);
 
-    // Assign numbers to cells (all except one)
-    const cellNumbers: {[key: string]: number} = {};
-    for (let i = 0; i < numberedCellsCount; i++) {
-      const pos = shuffledCellPositions[i];
-      cellNumbers[`${pos.x},${pos.y}`] = i + 1;
+    const totalCups = Math.max(0, totalCells - this.getEmptyCellCount());
+    const cupPositions = shuffledCupPositions.slice(0, totalCups);
+    const emptyCells = shuffledCupPositions.slice(totalCups);
+    return {
+      targetCell,
+      cellNumbers,
+      cupPositions,
+      emptyCells,
+      minimumMoves: this.calculateMinimumMoves(
+        cupPositions[0],
+        emptyCells,
+        targetCell,
+        gridCols,
+        gridRows
+      )
+    };
+  }
+
+  private calculateMinimumMoves(
+    pinkStart: GridPosition,
+    emptyStarts: GridPosition[],
+    target: GridPosition,
+    cols: number,
+    rows: number
+  ) {
+    const toIndex = (position: GridPosition) => position.y * cols + position.x;
+    const targetIndex = toIndex(target);
+    const stateKey = (pink: number, empties: number[]) =>
+      `${pink}|${[...empties].sort((a, b) => a - b).join(',')}`;
+    const queue: Array<{pink: number; empties: number[]; moves: number}> = [{
+      pink: toIndex(pinkStart),
+      empties: emptyStarts.map(toIndex),
+      moves: 0
+    }];
+    const visited = new Set([stateKey(queue[0].pink, queue[0].empties)]);
+
+    for (let queueIndex = 0; queueIndex < queue.length; queueIndex++) {
+      const state = queue[queueIndex];
+      if (state.pink === targetIndex) {
+        return state.moves;
+      }
+
+      const emptySet = new Set(state.empties);
+      for (let emptyIndex = 0; emptyIndex < state.empties.length; emptyIndex++) {
+        const empty = state.empties[emptyIndex];
+        const emptyX = empty % cols;
+        const emptyY = Math.floor(empty / cols);
+        const neighbors: number[] = [];
+
+        if (emptyX > 0) neighbors.push(empty - 1);
+        if (emptyX < cols - 1) neighbors.push(empty + 1);
+        if (emptyY > 0) neighbors.push(empty - cols);
+        if (emptyY < rows - 1) neighbors.push(empty + cols);
+
+        neighbors.forEach(cupPosition => {
+          if (emptySet.has(cupPosition)) return;
+
+          const nextEmpties = [...state.empties];
+          nextEmpties[emptyIndex] = cupPosition;
+          const nextPink = state.pink === cupPosition ? empty : state.pink;
+          const key = stateKey(nextPink, nextEmpties);
+          if (visited.has(key)) return;
+
+          visited.add(key);
+          queue.push({
+            pink: nextPink,
+            empties: nextEmpties,
+            moves: state.moves + 1
+          });
+        });
+      }
     }
 
+    return Number.POSITIVE_INFINITY;
+  }
+
+  createTiles() {
+    const { gridCols, gridRows } = this.currentLevelConfig;
+
+    this.tiles = [];
+    this.targetCell = {...this.levelPlan.targetCell};
+    this.telemetry.targetCell = {...this.targetCell};
+
+    console.log('[CreateTiles] Level:', this.currentLevelConfig.level, 'Grid:', gridCols, 'x', gridRows);
+    console.log('[CreateTiles] Level seed:', this.getLevelSeed(1));
+    console.log('[CreateTiles] Target cell:', this.targetCell);
+    console.log('[CreateTiles] Minimum solution moves:', this.levelPlan.minimumMoves);
+
     // Create tiles with numbers
-    for (let y = 0; y < adjustedRows; y++) {
-      for (let x = 0; x < adjustedCols; x++) {
-        const isTarget = x === targetX && y === targetY;
+    for (let y = 0; y < gridRows; y++) {
+      for (let x = 0; x < gridCols; x++) {
+        const isTarget = x === this.targetCell.x && y === this.targetCell.y;
         const color = isTarget ? 0xFFB6C1 : 0xE8E8E8;
         
         const rectangle = this.add.rectangle(0, 0, 100, 100, color);
@@ -291,8 +413,8 @@ export class PinkCupGameScene extends Phaser.Scene {
         
         // Check if this cell has a number
         const cellKey = `${x},${y}`;
-        const hasNumber = cellNumbers[cellKey] !== undefined;
-        const numberValue = cellNumbers[cellKey] || null;
+        const hasNumber = this.levelPlan.cellNumbers[cellKey] !== undefined;
+        const numberValue = this.levelPlan.cellNumbers[cellKey] || null;
 
         // Create number text if cell has a number
         let numberText: Phaser.GameObjects.Text | null = null;
@@ -328,48 +450,13 @@ export class PinkCupGameScene extends Phaser.Scene {
       }
     }
 
-    console.log('[CreateTiles] Created tiles with numbers:', numberedCellsCount);
+    console.log('[CreateTiles] Created tiles with numbers:', Object.keys(this.levelPlan.cellNumbers).length);
   }
 
   createCups() {
     const { gridCols, gridRows } = this.currentLevelConfig;
-    let adjustedCols = gridCols;
-    let adjustedRows = gridRows;
-
-    const totalCells = adjustedCols * adjustedRows;
-    const emptyCount = this.getEmptyCellCount();
-    const totalCups = Math.max(0, totalCells - emptyCount);
-    
-    // Create list of cell positions
-    const allPositions: {x: number, y: number}[] = [];
-    for (let i = 0; i < totalCells; i++) {
-      allPositions.push({x: i % adjustedCols, y: Math.floor(i / adjustedCols)});
-    }
-    
-    // Shuffle all positions
-    const shuffledPositions = shuffleWithSeed(allPositions, this.rng);
-
-    // Ensure the PINK cup never spawns on the target (pink) tile.
-    // Pink cup is placed at allPositions[0], so if that happens to be the target,
-    // swap it with the first non-target position.
-    if (
-      allPositions.length > 1 &&
-      shuffledPositions[0].x === this.targetCell.x &&
-      shuffledPositions[0].y === this.targetCell.y
-    ) {
-      const swapIndex = shuffledPositions.findIndex(
-        (pos, idx) =>
-          idx !== 0 &&
-          (pos.x !== this.targetCell.x || pos.y !== this.targetCell.y)
-      );
-
-      if (swapIndex !== -1) {
-        [shuffledPositions[0], shuffledPositions[swapIndex]] = [
-          shuffledPositions[swapIndex],
-          shuffledPositions[0]
-        ];
-      }
-    }
+    const totalCells = gridCols * gridRows;
+    const totalCups = this.levelPlan.cupPositions.length;
 
     this.cups = [];
 
@@ -377,7 +464,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     for (let i = 0; i < totalCups; i++) {
       const isPink = i === 0;
       const cup = this.createCup(isPink, i);
-      cup.position = shuffledPositions[i];
+      cup.position = {...this.levelPlan.cupPositions[i]};
       
       if (isPink) {
         this.pinkCupIndex = i;
@@ -388,7 +475,7 @@ export class PinkCupGameScene extends Phaser.Scene {
     }
 
     // Remaining positions are empty cells
-    this.emptyCells = shuffledPositions.slice(totalCups, totalCells);
+    this.emptyCells = this.levelPlan.emptyCells.map(position => ({...position}));
     this.emptyCellKeys = new Set(this.emptyCells.map(cell => `${cell.x},${cell.y}`));
     
     console.log('[CreateCups] Total cells:', totalCells, 'Total cups:', totalCups, 'Empty cells:', this.emptyCells.length);
@@ -493,9 +580,13 @@ export class PinkCupGameScene extends Phaser.Scene {
     const probeBottom = this.probeUIContainer && this.probePanelHeight > 0
       ? this.probeUIContainer.y + this.probePanelHeight * 0.5
       : 0;
+    const moveGuideBottom = this.moveStarGuideContainer?.visible
+      ? this.moveStarGuideContainer.y + this.getMoveStarGuideHeight() * 0.5
+      : 0;
     const topInset = Math.max(
       isLargeGrid ? height * 0.09 : height * 0.14,
-      probeBottom > 0 ? probeBottom + (isLargeGrid ? 16 : 20) : 0
+      probeBottom > 0 ? probeBottom + (isLargeGrid ? 16 : 20) : 0,
+      moveGuideBottom > 0 ? moveGuideBottom + (isLargeGrid ? 10 : 14) : 0
     );
     const bottomInset = Math.max(44, height * 0.11);
 
@@ -591,17 +682,40 @@ export class PinkCupGameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(200);
 
+    this.moveStarGuideContainer = this.add.container(width / 2, height * 0.24)
+      .setDepth(200)
+      .setVisible(false);
+    this.moveStarGuideRail = this.add.graphics();
+    this.moveStarGuideStars = [
+      this.add.graphics(),
+      this.add.graphics(),
+      this.add.graphics()
+    ];
+    this.moveStarGuideContainer.add([
+      this.moveStarGuideRail,
+      ...this.moveStarGuideStars
+    ]);
+
     this.layoutUI();
   }
 
   private layoutUI() {
     const { width, height } = this.scale;
     const isLargeGrid = this.isLargeGridLevel();
-    if (!this.messageText) return;
+    if (!this.messageText || !this.moveStarGuideContainer) return;
 
     this.messageText.setPosition(width / 2, height * (isLargeGrid ? 0.11 : 0.17));
     this.messageText.setFontSize(isLargeGrid ? 28 : 36);
     this.messageText.setWordWrapWidth(width * (isLargeGrid ? 0.7 : 0.78), true);
+
+    this.moveStarGuideContainer.setPosition(
+      width / 2,
+      this.messageText.y +
+        this.messageText.displayHeight * 0.5 +
+        this.getMoveStarGuideHeight() * 0.5 +
+        (isLargeGrid ? 7 : 10)
+    );
+    this.drawMoveStarGuide();
   }
 
   // ===== GAME FLOW =====
@@ -683,6 +797,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   startGame() {
     this.setStatusMessage('เคลื่อนถ้วยชมพู\nไปยังช่องเป้าหมาย', false);
+    this.updateMoveStarGuide();
     this.startTime = Date.now();
     this.telemetry.t_start = this.startTime;
     this.startTimer();
@@ -864,6 +979,7 @@ export class PinkCupGameScene extends Phaser.Scene {
         backtracked
       };
       this.telemetry.moves.push(move);
+      this.updateMoveStarGuide();
 
       // Check if first move
       if (!this.hasMovedFirst) {
@@ -999,6 +1115,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   handleWin() {
     this.isLocked = true;
     this.telemetry.t_end = Date.now();
+    this.hideMoveStarGuide();
 
     this.sound.play('success');
     this.showMessage('เยี่ยมมาก!');
@@ -1021,6 +1138,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   handleTimeout() {
     this.isLocked = true;
     this.telemetry.t_end = Date.now();
+    this.hideMoveStarGuide();
 
     if (this.timerEvent) this.timerEvent.remove();
     if (this.customTimerBar) this.customTimerBar.setVisible(false);
@@ -1038,6 +1156,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   showMemoryProbe() {
     console.log('[ShowMemoryProbe] Starting memory probe...');
+    this.hideMoveStarGuide();
     const level = this.currentLevelConfig.level;
 
     // Use probeCount from level config if available, otherwise calculate based on level.
@@ -1069,7 +1188,7 @@ export class PinkCupGameScene extends Phaser.Scene {
         allPositions.push({...tile.position});
       }
     });
-    const shuffledProbePositions = shuffleWithSeed(allPositions, this.rng);
+    const shuffledProbePositions = shuffleWithSeed(allPositions, this.probeRng);
 
     // Select random positions for questions
     for (let i = 0; i < numQuestions && i < shuffledProbePositions.length; i++) {
@@ -1432,6 +1551,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   // ===== END GAME =====
 
   endGame(success: boolean = true) {
+    this.hideMoveStarGuide();
     if (this.timerEvent) this.timerEvent.remove();
     if (this.customTimerBar) this.customTimerBar.setVisible(false);
     if (this.revealTimerEvent) this.revealTimerEvent.remove();
@@ -1543,9 +1663,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   }
 
   private getMoveStarBudgets() {
-    const optimalMoves =
-      Math.abs(this.telemetry.pinkStart.x - this.telemetry.targetCell.x) +
-      Math.abs(this.telemetry.pinkStart.y - this.telemetry.targetCell.y);
+    const optimalMoves = this.levelPlan.minimumMoves;
     const threeStarMoves = optimalMoves + (this.currentLevelConfig.moveStarAllowance ?? 4);
     const downgradeBuffer =
       this.currentLevelConfig.gridCols >= 5 ? 3 : this.currentLevelConfig.gridCols >= 4 ? 2 : 1;
@@ -1555,6 +1673,147 @@ export class PinkCupGameScene extends Phaser.Scene {
       threeStarMoves,
       twoStarMoves: threeStarMoves + downgradeBuffer
     };
+  }
+
+  private updateMoveStarGuide() {
+    if (!this.moveStarGuideContainer || this.isLocked || this.isProbePhase) {
+      this.hideMoveStarGuide();
+      return;
+    }
+
+    this.moveStarGuideContainer.setVisible(true);
+    this.layoutUI();
+    this.layoutGrid();
+  }
+
+  private hideMoveStarGuide() {
+    if (this.moveStarGuideContainer) {
+      this.moveStarGuideContainer.setVisible(false);
+    }
+  }
+
+  private getMoveStarGuideHeight() {
+    return this.isLargeGridLevel() ? 32 : 40;
+  }
+
+  private drawMoveStarGuide() {
+    if (!this.moveStarGuideRail || this.moveStarGuideStars.length !== 3) return;
+
+    const { width } = this.scale;
+    const isLargeGrid = this.isLargeGridLevel();
+    const railWidth = Math.min(width * (isLargeGrid ? 0.42 : 0.5), isLargeGrid ? 250 : 300);
+    const railHeight = isLargeGrid ? 9 : 11;
+    const starSizes = isLargeGrid ? [10, 13, 17] : [12, 16, 21];
+    const starPositions = [-0.34, 0, 0.36];
+    const movesTaken = this.telemetry.moves.length;
+    const { threeStarMoves, twoStarMoves } = this.getMoveStarBudgets();
+    const railStartX = -railWidth / 2;
+    const railEndX = railWidth / 2;
+    const starXs = starPositions.map(position => railWidth * position);
+    let fillEndX: number;
+
+    if (movesTaken <= threeStarMoves) {
+      const progress = threeStarMoves > 0 ? movesTaken / threeStarMoves : 1;
+      fillEndX = Phaser.Math.Linear(railEndX, starXs[2], progress);
+    } else if (movesTaken <= twoStarMoves) {
+      const tierMoves = Math.max(1, twoStarMoves - threeStarMoves);
+      const progress = (movesTaken - threeStarMoves) / tierMoves;
+      fillEndX = Phaser.Math.Linear(starXs[2], starXs[1], progress);
+    } else {
+      fillEndX = starXs[0];
+    }
+
+    const fillWidth = Math.max(0, fillEndX - railStartX);
+
+    this.moveStarGuideRail.clear();
+    this.moveStarGuideRail.fillStyle(0x8A5A16, 0.18);
+    this.moveStarGuideRail.fillRoundedRect(
+      -railWidth / 2 - 3,
+      -railHeight / 2 + 3,
+      railWidth + 6,
+      railHeight,
+      railHeight / 2
+    );
+
+    this.moveStarGuideRail.fillStyle(0xD3C6AE, 1);
+    this.moveStarGuideRail.fillRoundedRect(
+      -railWidth / 2,
+      -railHeight / 2,
+      railWidth,
+      railHeight,
+      railHeight / 2
+    );
+
+    if (fillWidth > 0) {
+      const fillRadius = Math.min(railHeight / 2, fillWidth / 2);
+      this.moveStarGuideRail.fillStyle(0xF3B735, 1);
+      this.moveStarGuideRail.fillRoundedRect(
+        railStartX,
+        -railHeight / 2,
+        fillWidth,
+        railHeight,
+        fillRadius
+      );
+
+      const highlightWidth = Math.max(0, fillWidth - 6);
+      if (highlightWidth > 0) {
+        this.moveStarGuideRail.fillStyle(0xFFE898, 0.9);
+        this.moveStarGuideRail.fillRoundedRect(
+          railStartX + 3,
+          -railHeight / 2 + 2,
+          highlightWidth,
+          Math.max(2, railHeight * 0.32),
+          Math.min(railHeight / 3, highlightWidth / 2)
+        );
+      }
+    }
+
+    this.moveStarGuideStars.forEach((star, index) => {
+      const x = starXs[index];
+      const isLit = index === 0 || fillEndX >= x;
+      this.drawMoveStar(
+        star,
+        x,
+        0,
+        starSizes[index],
+        isLit ? 0xFFD34E : 0xC8BFAE,
+        isLit ? 0xD48A16 : 0x8F887B
+      );
+    });
+  }
+
+  private drawMoveStar(
+    graphics: Phaser.GameObjects.Graphics,
+    centerX: number,
+    centerY: number,
+    size: number,
+    fillColor: number,
+    strokeColor: number
+  ) {
+    const points: Phaser.Geom.Point[] = [];
+    const innerRadius = size * 0.48;
+
+    for (let i = 0; i < 10; i++) {
+      const radius = i % 2 === 0 ? size : innerRadius;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      points.push(new Phaser.Geom.Point(
+        centerX + Math.cos(angle) * radius,
+        centerY + Math.sin(angle) * radius
+      ));
+    }
+
+    graphics.clear();
+    graphics.fillStyle(0x5B3A0C, 0.18);
+    graphics.fillPoints(points.map(point => new Phaser.Geom.Point(point.x + 2, point.y + 3)), true);
+    graphics.fillStyle(fillColor, 1);
+    graphics.fillPoints(points, true);
+    graphics.lineStyle(Math.max(1.5, size * 0.12), strokeColor, 1);
+    graphics.strokePoints(points, true);
+
+    if (fillColor === 0xFFD34E) {
+      graphics.fillStyle(0xFFF4B0, 0.75);
+      graphics.fillCircle(centerX - size * 0.2, centerY - size * 0.25, Math.max(1.5, size * 0.12));
+    }
   }
 
   async saveStars(stars: number) {
