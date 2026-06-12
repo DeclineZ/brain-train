@@ -19,6 +19,7 @@ export class MysterySoundScene extends Phaser.Scene {
     // Multi-select state
     private selectedAnswers: string[] = [];
     private requiredSelections: number = 1;
+    private cols: number = 2;
 
     // UI Elements
     private optionButtons: Phaser.GameObjects.Container[] = [];
@@ -415,6 +416,7 @@ export class MysterySoundScene extends Phaser.Scene {
         if (options.length >= 7 || (options.length >= 5 && height < 750)) {
             cols = 3;
         }
+        this.cols = cols;
 
         const rows = Math.ceil(options.length / cols);
         
@@ -430,8 +432,11 @@ export class MysterySoundScene extends Phaser.Scene {
         const availableHeight = bottomY - topY;
         const availableWidth = width - 40;
 
-        // Initial values based on columns
-        const maxInitialSize = cols === 3 ? 90 : 110;
+        // Determine if label is shown for any option
+        const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
+
+        // Initial values based on columns - increased size for visibility
+        const maxInitialSize = cols === 3 ? 110 : 160;
         const gapX = cols === 3 ? 10 : 20;
         const gapY = cols === 3 ? 10 : 15;
 
@@ -439,7 +444,9 @@ export class MysterySoundScene extends Phaser.Scene {
         const widthLimitSize = (availableWidth - (cols - 1) * gapX) / cols;
 
         // We need to fit `rows` rows into `availableHeight`
-        const constantHeight = 40 + 45 * (rows - 1) + gapY * (rows - 1);
+        const cardExtraHeight = showLabel ? 40 : 0;
+        const rowSpacingExtra = showLabel ? 45 : 5;
+        const constantHeight = cardExtraHeight + rowSpacingExtra * (rows - 1) + gapY * (rows - 1);
         let heightLimitSize = maxInitialSize;
         if (rows > 0) {
             heightLimitSize = Math.max(60, (availableHeight - constantHeight) / rows);
@@ -449,12 +456,13 @@ export class MysterySoundScene extends Phaser.Scene {
 
         const gridWidth = buttonSize * cols + gapX * (cols - 1);
         const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
+        const rowSpacing = showLabel ? buttonSize + 45 + gapY : buttonSize + 5 + gapY;
 
         options.forEach((opt: MysterySoundOption, index: number) => {
             const col = index % cols;
             const row = Math.floor(index / cols);
             const x = startX + col * (buttonSize + gapX);
-            const y = topY + buttonSize / 2 + row * (buttonSize + 45 + gapY);
+            const y = topY + buttonSize / 2 + row * rowSpacing;
 
             const button = this.createOptionButton(x, y, opt, buttonSize);
             this.optionButtons.push(button);
@@ -478,19 +486,23 @@ export class MysterySoundScene extends Phaser.Scene {
         const id = option.id;
         const label = option.label;
 
+        // Show label for learning levels:
+        const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
+        const cardHeight = showLabel ? size + 40 : size;
+
         const shadow = this.add.graphics();
         shadow.fillStyle(0x000000, 0.15);
-        shadow.fillRoundedRect(-size / 2 + 4, -size / 2 + 4, size, size + 40, 14);
+        shadow.fillRoundedRect(-size / 2 + 4, -size / 2 + 4, size, cardHeight, 14);
 
         const bg = this.add.graphics();
         bg.fillStyle(0xffffff, 1);
-        bg.fillRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        bg.fillRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         bg.setName('bg');
 
         // Selection highlight (hidden initially)
         const selectionHighlight = this.add.graphics();
         selectionHighlight.lineStyle(5, 0x3b82f6, 1);
-        selectionHighlight.strokeRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        selectionHighlight.strokeRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         selectionHighlight.setName('selection');
         selectionHighlight.setAlpha(0);
 
@@ -498,16 +510,14 @@ export class MysterySoundScene extends Phaser.Scene {
         borderOverlay.setName('border');
         borderOverlay.setAlpha(0);
 
-        // Show label for learning levels:
-        const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
-
         // Center image vertically when no label is shown
-        const imageY = showLabel ? -5 : 15;
+        const imageY = showLabel ? -5 : 0;
+        const imageScale = showLabel ? 0.75 : 0.85;
 
         let image: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
         if (this.textures.exists(id)) {
             image = this.add.image(0, imageY, id);
-            image.setDisplaySize(size * 0.65, size * 0.65);
+            image.setDisplaySize(size * imageScale, size * imageScale);
         } else {
             const emojis: Record<string, string> = {
                 dog: '🐕', cat: '🐱', pig: '🐷', snake: '🐍',
@@ -522,7 +532,7 @@ export class MysterySoundScene extends Phaser.Scene {
                 bell_aircon: '🔔💨', laugh_door: '😆🚪',
             };
             image = this.add.text(0, imageY, emojis[id] || '❓', {
-                fontSize: `${size * 0.4}px`,
+                fontSize: `${size * (showLabel ? 0.45 : 0.55)}px`,
             }).setOrigin(0.5);
         }
 
@@ -542,7 +552,8 @@ export class MysterySoundScene extends Phaser.Scene {
         labelText.setVisible(showLabel);
 
         const iconSize = Math.max(30, size * 0.55);
-        const checkmark = this.add.text(0, -5, '✓', {
+        const iconY = showLabel ? -5 : 0;
+        const checkmark = this.add.text(0, iconY, '✓', {
             fontSize: `${iconSize}px`,
             color: '#16a34a',
             fontStyle: 'bold',
@@ -550,7 +561,7 @@ export class MysterySoundScene extends Phaser.Scene {
             strokeThickness: 4,
         }).setOrigin(0.5).setAlpha(0).setName('checkmark');
 
-        const xmark = this.add.text(0, -5, '✕', {
+        const xmark = this.add.text(0, iconY, '✕', {
             fontSize: `${iconSize}px`,
             color: '#dc2626',
             fontStyle: 'bold',
@@ -561,9 +572,10 @@ export class MysterySoundScene extends Phaser.Scene {
         container.add([shadow, bg, selectionHighlight, image, labelBg, labelText, borderOverlay, checkmark, xmark]);
         container.setData('id', id);
         container.setData('size', size);
+        container.setData('showLabel', showLabel);
         container.setData('selected', false);
 
-        const hitArea = new Phaser.Geom.Rectangle(-size / 2, -size / 2, size, size + 40);
+        const hitArea = new Phaser.Geom.Rectangle(-size / 2, -size / 2, size, cardHeight);
         container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
         container.on('pointerover', () => {
@@ -697,11 +709,13 @@ export class MysterySoundScene extends Phaser.Scene {
 
     private showCorrectFeedbackOnButton(button: Phaser.GameObjects.Container) {
         const size = button.getData('size');
+        const showLabel = button.getData('showLabel');
+        const cardHeight = showLabel ? size + 40 : size;
 
         const borderOverlay = button.getByName('border') as Phaser.GameObjects.Graphics;
         borderOverlay.clear();
         borderOverlay.lineStyle(5, 0x22c55e, 1);
-        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         borderOverlay.setAlpha(1);
 
         try {
@@ -711,11 +725,13 @@ export class MysterySoundScene extends Phaser.Scene {
 
     private showWrongFeedbackOnButton(button: Phaser.GameObjects.Container) {
         const size = button.getData('size');
+        const showLabel = button.getData('showLabel');
+        const cardHeight = showLabel ? size + 40 : size;
 
         const borderOverlay = button.getByName('border') as Phaser.GameObjects.Graphics;
         borderOverlay.clear();
         borderOverlay.lineStyle(5, 0xef4444, 1);
-        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         borderOverlay.setAlpha(1);
 
         const xmark = button.getByName('xmark') as Phaser.GameObjects.Text;
@@ -809,6 +825,8 @@ export class MysterySoundScene extends Phaser.Scene {
 
     private showCorrectFeedback(button: Phaser.GameObjects.Container) {
         const size = button.getData('size');
+        const showLabel = button.getData('showLabel');
+        const cardHeight = showLabel ? size + 40 : size;
 
         try {
             this.sound.play('correct', { volume: 0.7 });
@@ -817,7 +835,7 @@ export class MysterySoundScene extends Phaser.Scene {
         const borderOverlay = button.getByName('border') as Phaser.GameObjects.Graphics;
         borderOverlay.clear();
         borderOverlay.lineStyle(5, 0x22c55e, 1);
-        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         borderOverlay.setAlpha(1);
 
         const checkmark = button.getByName('checkmark') as Phaser.GameObjects.Text;
@@ -846,6 +864,8 @@ export class MysterySoundScene extends Phaser.Scene {
 
     private showWrongFeedback(button: Phaser.GameObjects.Container) {
         const size = button.getData('size');
+        const showLabel = button.getData('showLabel');
+        const cardHeight = showLabel ? size + 40 : size;
 
         try {
             this.sound.play('wrong', { volume: 0.5 });
@@ -854,7 +874,7 @@ export class MysterySoundScene extends Phaser.Scene {
         const borderOverlay = button.getByName('border') as Phaser.GameObjects.Graphics;
         borderOverlay.clear();
         borderOverlay.lineStyle(5, 0xef4444, 1);
-        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, size + 40, 14);
+        borderOverlay.strokeRoundedRect(-size / 2, -size / 2, size, cardHeight, 14);
         borderOverlay.setAlpha(1);
 
         const xmark = button.getByName('xmark') as Phaser.GameObjects.Text;
@@ -885,9 +905,11 @@ export class MysterySoundScene extends Phaser.Scene {
             this.time.delayedCall(500, () => {
                 const correctBorder = correctBtn.getByName('border') as Phaser.GameObjects.Graphics;
                 const correctSize = correctBtn.getData('size');
+                const correctShowLabel = correctBtn.getData('showLabel');
+                const correctCardHeight = correctShowLabel ? correctSize + 40 : correctSize;
                 correctBorder.clear();
                 correctBorder.lineStyle(5, 0x22c55e, 1);
-                correctBorder.strokeRoundedRect(-correctSize / 2, -correctSize / 2, correctSize, correctSize + 40, 14);
+                correctBorder.strokeRoundedRect(-correctSize / 2, -correctSize / 2, correctSize, correctCardHeight, 14);
                 correctBorder.setAlpha(1);
             });
         }
@@ -1011,7 +1033,7 @@ export class MysterySoundScene extends Phaser.Scene {
         const titleY = 80;
         const questionY = 135;
         const speakerY = Math.max(height * 0.28, 230);
-        let hintY = Math.max(height * 0.42, speakerY + 100);
+        const hintY = Math.max(height * 0.42, speakerY + 100);
 
         if (this.titleContainer) {
             this.titleContainer.setPosition(width / 2, titleY);
@@ -1034,13 +1056,13 @@ export class MysterySoundScene extends Phaser.Scene {
         }
 
         if (this.choicesVisible && this.optionButtons.length > 0) {
-            const maxButtonSize = 110;
-            const availableWidth = width - 50;
-            const buttonSize = Math.min(maxButtonSize, availableWidth / 2.5);
-            const gapX = 20;
-            const gapY = 15;
+            const firstButton = this.optionButtons[0];
+            const buttonSize = firstButton ? firstButton.getData('size') : 110;
+            const cols = this.cols;
+            const gapX = cols === 3 ? 10 : 20;
+            const gapY = cols === 3 ? 10 : 15;
 
-            const gridWidth = buttonSize * 2 + gapX;
+            const gridWidth = buttonSize * cols + gapX * (cols - 1);
             const startX = width / 2 - gridWidth / 2 + buttonSize / 2;
 
             // Recalculate startY based on new positions
@@ -1052,11 +1074,14 @@ export class MysterySoundScene extends Phaser.Scene {
             }
             const startY = referenceY;
 
+            const showLabel = this.level <= 2 || (this.level === 3 && this.currentQuestionIndex === 0) || this.level === 6 || this.level === 7;
+            const rowSpacing = showLabel ? buttonSize + 45 + gapY : buttonSize + 5 + gapY;
+
             this.optionButtons.forEach((button, index) => {
-                const col = index % 2;
-                const row = Math.floor(index / 2);
+                const col = index % cols;
+                const row = Math.floor(index / cols);
                 const x = startX + col * (buttonSize + gapX);
-                const y = startY + row * (buttonSize + 45 + gapY);
+                const y = startY + buttonSize / 2 + row * rowSpacing;
                 button.setPosition(x, y);
             });
         }

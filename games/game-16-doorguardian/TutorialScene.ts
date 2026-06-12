@@ -92,33 +92,26 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
 
     private startIntroStep() {
         this.tutorialStep = 'INTRO';
-
-        // 1. Point to Reference Card
-        const cardX = this.cardPanelContainer.x;
-        const cardY = this.cardPanelContainer.y;
+        this.isInputLocked = false; // Allow opening the reference list
 
         this.setInstruction('กดปุ่ม "ดูรายชื่อเข้าได้" ที่ด้านขวาล่าง\nเพื่อเช็คว่าวันนี้ใครเข้าได้บ้าง');
         this.pulseObject(this.cardPanelContainer);
+    }
 
-        // Add a one-time click listener to the card panel to progress
-        // We can attach to the last child which is the hitArea
-        const children = this.cardPanelContainer.list;
-        const hitArea = children[children.length - 1] as Phaser.GameObjects.Rectangle;
+    protected showReferenceModal() {
+        super.showReferenceModal();
+        if (this.tutorialStep === 'INTRO') {
+            this.setInstruction('ปัดซ้าย/ขวา หรือกดลูกศรเพื่อดูคนถัดไป\nจำให้ดี แล้วกดปิดเมื่อพร้อมนะ');
+        }
+    }
 
-        if (hitArea) {
-            const originalCallback = hitArea.listeners('pointerdown')[0]; // Keep original logic (slide)
-
-            hitArea.once('pointerdown', () => {
-                this.time.delayedCall(500, () => {
-                    this.setInstruction('ลองกดดู... เห็นไหมว่ามันเปลี่ยนได้?');
-                    this.time.delayedCall(2000, () => {
-                        this.setInstruction('และคอยสังเกต "สิ่งผิดปกติ" ให้ดีนะ!');
-                        this.time.delayedCall(2500, () => {
-                            this.stopPulse();
-                            this.startAllowPractice();
-                        });
-                    });
-                });
+    protected closeReferenceModal() {
+        super.closeReferenceModal();
+        if (this.tutorialStep === 'INTRO') {
+            this.setInstruction('เก่งมาก! และคอยสังเกต "สิ่งผิดปกติ" ให้ดีนะ');
+            this.time.delayedCall(2500, () => {
+                this.stopPulse();
+                this.startAllowPractice();
             });
         }
     }

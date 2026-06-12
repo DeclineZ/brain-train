@@ -1162,7 +1162,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         }
     }
 
-    private showReferenceModal() {
+    protected showReferenceModal() {
         this.isRefModalOpen = true;
         this.isRefTransitioning = false;
         this.currentRefIndex = 0;
@@ -1359,7 +1359,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         });
     }
 
-    private closeReferenceModal() {
+    protected closeReferenceModal() {
         this.tweens.add({
             targets: this.refModalContainer, scale: 0, duration: 200, ease: 'Back.in',
             onComplete: () => {
