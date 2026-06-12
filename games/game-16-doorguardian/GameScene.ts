@@ -51,7 +51,10 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
     // --- Reference Card Panel ---
     protected cardPanelContainer!: Phaser.GameObjects.Container;
-    protected cardIndex = 0;
+    protected refCardContainer!: Phaser.GameObjects.Container;
+    protected currentRefIndex = 0;
+    protected isRefTransitioning = false;
+    protected refModalDots: Phaser.GameObjects.Arc[] = [];
     protected allowedCharacterIds: string[] = [];
     protected refViewsUsed = 0;
 
@@ -1061,8 +1064,110 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         }
     }
 
+    private populateRefCard(container: Phaser.GameObjects.Container, index: number) {
+        const charId = this.allowedCharacterIds[index] as CharacterId;
+        const char = CHARACTERS[charId];
+
+        // Character Image (centered in the card container)
+        const spriteKey = char.normalSprite;
+        const imgY = -25;
+        if (this.charImageKeys.has(spriteKey)) {
+            const img = this.add.image(0, imgY, spriteKey);
+            // Large size: max 150px
+            const s = Math.min(150 / img.width, 150 / img.height);
+            img.setScale(s);
+            container.add(img);
+        } else {
+            // Draw a beautiful fallback card
+            const fallbackBg = this.add.graphics();
+            fallbackBg.fillStyle(0xf1f2f6, 1);
+            fallbackBg.lineStyle(3, 0x6c5ce7, 1);
+            fallbackBg.fillRoundedRect(-60, imgY - 60, 120, 120, 16);
+            fallbackBg.strokeRoundedRect(-60, imgY - 60, 120, 120, 16);
+            container.add(fallbackBg);
+
+            const fallbackText = this.add.text(0, imgY, '❓', {
+                fontSize: '48px'
+            }).setOrigin(0.5);
+            container.add(fallbackText);
+        }
+
+        // Character Name
+        const nameText = this.add.text(0, 70, char.name, {
+            fontFamily: '"Mali", "Sarabun", sans-serif',
+            fontSize: '24px', // Larger font size
+            color: '#2d3436', // Dark gray
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+        container.add(nameText);
+    }
+
+    private animateRefCardTransition(newIndex: number, direction: 'left' | 'right') {
+        if (newIndex === this.currentRefIndex || this.isRefTransitioning) return;
+        this.isRefTransitioning = true;
+
+        const maxChars = this.allowedCharacterIds.length;
+        const slideDistance = 250; // Distance to slide out/in
+
+        // 1. Create a new temporary container for the incoming card
+        const incomingCardContainer = this.add.container(0, 0);
+        this.populateRefCard(incomingCardContainer, newIndex);
+        this.refModalContainer.add(incomingCardContainer);
+
+        // Position incoming container off-screen
+        const startX = direction === 'left' ? slideDistance : -slideDistance;
+        incomingCardContainer.setX(startX);
+        incomingCardContainer.setAlpha(0);
+
+        // 2. Animate outgoing card sliding out and fading out
+        const targetX = direction === 'left' ? -slideDistance : slideDistance;
+        this.tweens.add({
+            targets: this.refCardContainer,
+            x: targetX,
+            alpha: 0,
+            duration: 250,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                this.refCardContainer.destroy();
+            }
+        });
+
+        // 3. Animate incoming card sliding in and fading in
+        this.tweens.add({
+            targets: incomingCardContainer,
+            x: 0,
+            alpha: 1,
+            duration: 250,
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                this.refCardContainer = incomingCardContainer;
+                this.currentRefIndex = newIndex;
+                this.isRefTransitioning = false;
+            }
+        });
+
+        // 4. Update dots indicator
+        for (let i = 0; i < maxChars; i++) {
+            const dot = this.refModalDots[i];
+            if (dot) {
+                const isActive = i === newIndex;
+                this.tweens.add({
+                    targets: dot,
+                    radius: isActive ? 6 : 4,
+                    duration: 150,
+                    ease: 'Quad.easeOut'
+                });
+                dot.setFillStyle(isActive ? 0x6c5ce7 : 0xcccccc);
+            }
+        }
+    }
+
     private showReferenceModal() {
         this.isRefModalOpen = true;
+        this.isRefTransitioning = false;
+        this.currentRefIndex = 0;
+        this.refModalDots = [];
+
         const { width, height } = this.scale;
 
         this.refModalContainer = this.add.container(width / 2, height / 2);
@@ -1073,14 +1178,11 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             .setInteractive(); // Blocks hits
         this.refModalContainer.add(overlay);
 
-        // Dynamic cols
         const maxChars = this.allowedCharacterIds.length;
-        const charsPerRow = Math.min(maxChars, 3);
-        const numRows = Math.ceil(maxChars / charsPerRow);
 
         // Modal Box
-        const modalW = Math.min(width * 0.9, 450);
-        const modalH = 200 + (numRows * 130);
+        const modalW = Math.min(width * 0.9, 380);
+        const modalH = 430;
 
         const bgGroup = this.add.container(0, 0);
         
@@ -1103,43 +1205,98 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         // Title
         const titleText = this.add.text(0, -modalH / 2 + 40, 'ผู้ที่ได้รับอนุญาตให้เข้าวันนี้', {
             fontFamily: '"Mali", "Sarabun", sans-serif',
-            fontSize: '26px', color: '#333333', fontStyle: 'bold'
-        }).setOrigin(0.5).setPadding({ top: 15, bottom: 15 });
+            fontSize: '22px', color: '#333333', fontStyle: 'bold'
+        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
         this.refModalContainer.add(titleText);
 
-        // Draw Characters Grid
-        const startY = -modalH / 2 + 150;
-        const colWidth = modalW / charsPerRow;
+        // Create Container for the Card Content (Image + Name)
+        this.refCardContainer = this.add.container(0, 0);
+        this.refModalContainer.add(this.refCardContainer);
+
+        // Navigation Arrows
+        const leftBtnX = -modalW / 2 + 45;
+        const arrowY = -15; // Centered with image
+        const leftArrowBtn = this.add.container(leftBtnX, arrowY);
+        
+        const leftArrowBg = this.add.graphics();
+        leftArrowBg.fillStyle(0xFFFFFF, 1);
+        leftArrowBg.lineStyle(3, 0x6c5ce7, 1);
+        leftArrowBg.fillCircle(0, 0, 22);
+        leftArrowBg.strokeCircle(0, 0, 22);
+        leftArrowBtn.add(leftArrowBg);
+
+        const leftArrowIcon = this.add.text(0, 0, '◀', {
+            fontFamily: 'sans-serif', fontSize: '18px', color: '#6c5ce7'
+        }).setOrigin(0.5);
+        leftArrowBtn.add(leftArrowIcon);
+
+        const leftArrowHit = this.add.circle(0, 0, 22, 0x000000, 0)
+            .setInteractive({ useHandCursor: true });
+        leftArrowBtn.add(leftArrowHit);
+
+        leftArrowHit.on('pointerdown', () => {
+            if (this.isRefTransitioning) return;
+            const newIndex = (this.currentRefIndex - 1 + maxChars) % maxChars;
+            this.animateRefCardTransition(newIndex, 'right');
+        });
+        
+        leftArrowHit.on('pointerover', () => {
+            this.tweens.add({ targets: leftArrowBtn, scale: 1.1, duration: 100 });
+        });
+        leftArrowHit.on('pointerout', () => {
+            this.tweens.add({ targets: leftArrowBtn, scale: 1.0, duration: 100 });
+        });
+
+        this.refModalContainer.add(leftArrowBtn);
+
+        // Right Arrow Button
+        const rightBtnX = modalW / 2 - 45;
+        const rightArrowBtn = this.add.container(rightBtnX, arrowY);
+        
+        const rightArrowBg = this.add.graphics();
+        rightArrowBg.fillStyle(0xFFFFFF, 1);
+        rightArrowBg.lineStyle(3, 0x6c5ce7, 1);
+        rightArrowBg.fillCircle(0, 0, 22);
+        rightArrowBg.strokeCircle(0, 0, 22);
+        rightArrowBtn.add(rightArrowBg);
+
+        const rightArrowIcon = this.add.text(0, 0, '▶', {
+            fontFamily: 'sans-serif', fontSize: '18px', color: '#6c5ce7'
+        }).setOrigin(0.5);
+        rightArrowBtn.add(rightArrowIcon);
+
+        const rightArrowHit = this.add.circle(0, 0, 22, 0x000000, 0)
+            .setInteractive({ useHandCursor: true });
+        rightArrowBtn.add(rightArrowHit);
+
+        rightArrowHit.on('pointerdown', () => {
+            if (this.isRefTransitioning) return;
+            const newIndex = (this.currentRefIndex + 1) % maxChars;
+            this.animateRefCardTransition(newIndex, 'left');
+        });
+
+        rightArrowHit.on('pointerover', () => {
+            this.tweens.add({ targets: rightArrowBtn, scale: 1.1, duration: 100 });
+        });
+        rightArrowHit.on('pointerout', () => {
+            this.tweens.add({ targets: rightArrowBtn, scale: 1.0, duration: 100 });
+        });
+
+        this.refModalContainer.add(rightArrowBtn);
+
+        // Page Dots Indicator
+        const dotY = 110;
+        const dotSpacing = 16;
+        const dotsTotalW = (maxChars - 1) * dotSpacing;
+        const dotsStartX = -dotsTotalW / 2;
 
         for (let i = 0; i < maxChars; i++) {
-            const charId = this.allowedCharacterIds[i] as CharacterId;
-            const char = CHARACTERS[charId];
-            
-            const row = Math.floor(i / charsPerRow);
-            const charsInThisRow = (row === numRows - 1) ? (maxChars - row * charsPerRow) : charsPerRow;
-            
-            // Calculate X start to dynamically center the row
-            const rowStartX = -(charsInThisRow * colWidth) / 2 + (colWidth / 2);
-            const col = i % charsPerRow;
-
-            const cx = rowStartX + col * colWidth;
-            const cy = startY + row * 130;
-
-            const spriteKey = char.normalSprite;
-            if (this.charImageKeys.has(spriteKey)) {
-                const img = this.add.image(cx, cy - 25, spriteKey);
-                const s = Math.min(85 / img.width, 85 / img.height);
-                img.setScale(s);
-                this.refModalContainer.add(img);
-            } else {
-                 const fallback = this.add.circle(cx, cy - 25, 30, 0xcccccc);
-                 this.refModalContainer.add(fallback);
-            }
-
-            const name = this.add.text(cx, cy + 30, char.name, {
-                fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '18px', color: '#555555', fontStyle: 'bold'
-            }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
-            this.refModalContainer.add(name);
+            const dotX = dotsStartX + i * dotSpacing;
+            const isActive = i === 0;
+            const dot = this.add.arc(dotX, dotY, isActive ? 6 : 4, 0, 360, false, isActive ? 0x6c5ce7 : 0xcccccc);
+            dot.setFillStyle(isActive ? 0x6c5ce7 : 0xcccccc);
+            this.refModalContainer.add(dot);
+            this.refModalDots.push(dot);
         }
 
         // Close Button
@@ -1175,6 +1332,26 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         this.refModalContainer.add(btnContainer);
 
+        // Drag / Swipe Gestures on Overlay
+        let dragStartX = 0;
+        overlay.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            dragStartX = pointer.x;
+        });
+        overlay.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+            if (this.isRefTransitioning) return;
+            const dragDiff = pointer.x - dragStartX;
+            if (dragDiff > 50) {
+                const newIndex = (this.currentRefIndex - 1 + maxChars) % maxChars;
+                this.animateRefCardTransition(newIndex, 'right');
+            } else if (dragDiff < -50) {
+                const newIndex = (this.currentRefIndex + 1) % maxChars;
+                this.animateRefCardTransition(newIndex, 'left');
+            }
+        });
+
+        // Initialize first card
+        this.populateRefCard(this.refCardContainer, 0);
+
         // Entrance Animation
         this.refModalContainer.setScale(0);
         this.tweens.add({
@@ -1188,6 +1365,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             onComplete: () => {
                 this.refModalContainer.destroy();
                 this.isRefModalOpen = false;
+                this.refModalDots = [];
                 
                 // Increment view and update UI
                 this.refViewsUsed++;
