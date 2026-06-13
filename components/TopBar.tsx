@@ -48,7 +48,7 @@ export default function TopBar() {
                     <div className="relative w-10 h-10 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105">
                         <Image
                             src="/logo.webp"
-                            alt="RunJum Logo"
+                            alt="RunJump Logo"
                             fill
                             className="object-contain drop-shadow-md"
                         />
@@ -57,7 +57,7 @@ export default function TopBar() {
                     <span 
                         className="font-bold text-[1.35rem] tracking-tight text-[var(--color-topbar-text)] drop-shadow-sm transition-colors duration-300 font-sans"
                     >
-                        RunJum
+                        RunJump
                     </span>
                 </div>
             </div>

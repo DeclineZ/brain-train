@@ -1,7 +1,7 @@
 import type { FloatingMarketLevelConfig } from './types';
 
 /**
- * 30 Levels — "Runjum: Talad Kwam Jum" (The Market of Memory)
+ * 30 Levels — "RunJump: Talad Kwam Jum" (The Market of Memory)
  *
  * Phase 1: Morning Calm  (1-10)  — Teach steering, basic Mode A, intro Mode B
  * Phase 2: Afternoon Rush (11-20) — Ramping cognitive load, similarity, negative rules
