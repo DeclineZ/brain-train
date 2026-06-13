@@ -1,4 +1,4 @@
-// Floating Market Memory Game Types — "Runjum: Talad Kwam Jum"
+// Floating Market Memory Game Types — "RunJump: Talad Kwam Jum"
 
 // ==================== GAME MODES ====================
 
