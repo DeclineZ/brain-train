@@ -15,7 +15,7 @@ export default function LogoHeader({ className, variant }: LogoHeaderProps) {
             <div className="relative w-16 h-16 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105">
                 <Image
                     src="/logo.webp"
-                    alt="RunJum Logo"
+                    alt="RunJump Logo"
                     fill
                     className="object-contain drop-shadow-md"
                 />
@@ -28,7 +28,7 @@ export default function LogoHeader({ className, variant }: LogoHeaderProps) {
                     isDesktop ? "text-brown-900" : "text-slate-800"
                 )}
             >
-                RunJum
+                RunJump
             </span>
         </div>
     );
