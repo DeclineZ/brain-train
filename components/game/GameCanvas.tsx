@@ -85,7 +85,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
       // Determine Scene Config
       // If mode is tutorial, override the scene config to use TutorialScene
-      let config = { ...selectedConfig };
+      const config = { ...selectedConfig };
       if (mode === 'tutorial') {
         if (gameId === 'game-01-cardmatch') {
           const { TutorialScene } = await import('@/games/game-01-cardmatch/TutorialScene');

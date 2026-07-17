@@ -1059,7 +1059,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.labelText.setOrigin(0.5);
 
         if (startMatch) {
-            // @ts-ignore
+            // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = this.getThaiLabel(this.currentArrowDir);
             this.isMatch = true;
         } else {
@@ -1067,7 +1067,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             while (other === this.currentArrowDir) {
                 other = dirs[Math.floor(Math.random() * dirs.length)];
             }
-            // @ts-ignore
+            // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = this.getThaiLabel(other);
             this.isMatch = false;
         }
@@ -1110,7 +1110,7 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         if (startMatch) {
             // Ink matches Meaning
-            // @ts-ignore
+            // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = targetColor.label;
             this.labelText.setColor(this.colorToHex(targetColor.hex));
             this.isMatch = true;
@@ -1121,7 +1121,7 @@ export class SensorLockGameScene extends Phaser.Scene {
                 otherInk = colors[Math.floor(Math.random() * colors.length)];
             }
 
-            // @ts-ignore
+            // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = targetColor.label; // Meaning says "Red"
             this.labelText.setColor(this.colorToHex(otherInk.hex)); // Ink is "Blue"
 
@@ -1216,7 +1216,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         }
 
         // Apply
-        // @ts-ignore
+        // @ts-expect-error - ignore phaser dynamic type mismatch
         this.currentLabelText = this.getThaiLabel(textDir);
         this.labelText.setText(this.currentLabelText);
         this.labelText.setColor(this.colorToHex(textInk.hex));
@@ -1305,7 +1305,7 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // NOT Operator: Flip expected answer if negated
         const effectiveMatch = this.isNegated ? !this.isMatch : this.isMatch;
-        let isCorrect = (saidMatch === effectiveMatch);
+        const isCorrect = (saidMatch === effectiveMatch);
 
         // Tutorial Logic: Retry on fail, proceed on success
         if (this.isTutorialMode) {

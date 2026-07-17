@@ -57,13 +57,19 @@ const BASE_BADGE_CLASS =
   "absolute top-4 left-1/2 -translate-x-1/2 z-10 px-6 py-2 rounded-full border-4 font-black shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4";
 
 export default function PlayLevelBadge({ gameId, activeLevel, isLoadingLevel }: PlayLevelBadgeProps) {
+  const [prevKey, setPrevKey] = useState(() => `${gameId}-${activeLevel}`);
   const [visible, setVisible] = useState(true);
 
-  useEffect(() => {
+  const currentKey = `${gameId}-${activeLevel}`;
+  if (currentKey !== prevKey) {
+    setPrevKey(currentKey);
     setVisible(true);
+  }
+
+  useEffect(() => {
     const timer = setTimeout(() => setVisible(false), 3000);
     return () => clearTimeout(timer);
-  }, [activeLevel, gameId]);
+  }, [currentKey]);
 
   if (isLoadingLevel || activeLevel <= 0) return null;
 

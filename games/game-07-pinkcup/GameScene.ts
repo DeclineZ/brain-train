@@ -241,8 +241,8 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   createGrid() {
     const { gridCols, gridRows } = this.currentLevelConfig;
-    let adjustedCols = gridCols;
-    let adjustedRows = gridRows;
+    const adjustedCols = gridCols;
+    const adjustedRows = gridRows;
 
     this.gridMetrics = {
       cols: adjustedCols,
@@ -1269,10 +1269,6 @@ export class PinkCupGameScene extends Phaser.Scene {
       return;
     }
 
-    // Determine question type based on tile
-    let questionText: string;
-    let correctAnswer: any;
-    
     if (!questionTile.hasNumber) {
       console.warn('[ShowProbeQuestion] Non-numbered tile selected, skipping:', question);
       this.currentProbeIndex++;
@@ -1280,9 +1276,9 @@ export class PinkCupGameScene extends Phaser.Scene {
       return;
     }
 
-    // Numbered cell question
-    correctAnswer = this.telemetry.reveal.elements[`${question.x},${question.y}`];
-    questionText = `เลขที่ ${correctAnswer} อยู่ที่ช่องไหน?`;
+    // Numbered cell question and determine question type
+    const correctAnswer = this.telemetry.reveal.elements[`${question.x},${question.y}`];
+    const questionText = `เลขที่ ${correctAnswer} อยู่ที่ช่องไหน?`;
     console.log('[ShowProbeQuestion] Number question:', question, 'Answer:', correctAnswer);
     this.probeAnswerLocked = false;
 

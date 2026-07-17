@@ -29,6 +29,28 @@ const getCategoryInThai = (category: string): string => {
 };
 
 export default function GameTile({ game, totalStars }: GameTileProps) {
+  // Unlocked game - with button overlay
+  const [showOverlay, setShowOverlay] = useState(false);
+  const router = useRouter();
+  const tileRef = useRef<HTMLDivElement>(null);
+
+  // Close overlay when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tileRef.current && !tileRef.current.contains(event.target as Node)) {
+        setShowOverlay(false);
+      }
+    };
+
+    if (showOverlay) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOverlay]);
+
   const isLocked = game.locked;
 
   if (isLocked) {
@@ -60,28 +82,6 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
       </div>
     );
   }
-
-  // Unlocked game - with button overlay
-  const [showOverlay, setShowOverlay] = useState(false);
-  const router = useRouter();
-  const tileRef = useRef<HTMLDivElement>(null);
-
-  // Close overlay when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tileRef.current && !tileRef.current.contains(event.target as Node)) {
-        setShowOverlay(false);
-      }
-    };
-
-    if (showOverlay) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showOverlay]);
 
   const handleTileClick = () => {
     setShowOverlay(true);

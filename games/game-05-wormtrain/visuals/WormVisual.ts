@@ -328,7 +328,7 @@ export class WormVisual {
 
                 // Find position in history at the correct distance behind head
                 const targetDistance = segmentIndex * spacing;
-                let targetPos = this.getPositionAtDistance(data.positionHistory, targetDistance);
+                const targetPos = this.getPositionAtDistance(data.positionHistory, targetDistance);
 
                 if (targetPos) {
                     // Get current smooth position
