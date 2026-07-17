@@ -884,7 +884,7 @@ export class FloatingMarketScene extends Phaser.Scene {
 
                 // To prevent massive flip-overs when rotating past vertical, we loosely clamp it.
                 // Depending on axis, rawTilt might flip rapidly.
-                let currentTilt = Phaser.Math.Clamp(rawTilt, -90, 90);
+                const currentTilt = Phaser.Math.Clamp(rawTilt, -90, 90);
 
                 // Calculate relative tilt safely
                 const base = this.baseTiltGamma ?? 0;
@@ -1078,7 +1078,7 @@ export class FloatingMarketScene extends Phaser.Scene {
             const isPortrait = this.scale.width < this.scale.height;
             const sensitivityDivisor = isPortrait ? 35 : 25;
 
-            let normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / sensitivityDivisor, -1, 1);
+            const normalizedTilt = Phaser.Math.Clamp(this.tiltGamma / sensitivityDivisor, -1, 1);
             // Non-linear curve to make small tilts less sensitive, but large tilts snap fast
             targetDirection = Math.sign(normalizedTilt) * Math.pow(Math.abs(normalizedTilt), 1.3);
         }

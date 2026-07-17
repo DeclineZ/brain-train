@@ -45,7 +45,7 @@ export async function performDailyCheckin(userId: string): Promise<Result<Checki
       return { ok: false, error: "Failed to get updated status" };
     }
 
-    let status = statusResult.data;
+    const status = statusResult.data;
 
     // PATCH: If we just checked in successfully, ensure counts are at least 1
     // This handles potential read-after-write consistency delays

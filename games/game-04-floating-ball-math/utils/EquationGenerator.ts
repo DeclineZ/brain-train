@@ -89,7 +89,7 @@ export class EquationGenerator {
 
     // For each operation, find values that help get closer to target
     prioritizedOperations.forEach(operator => {
-      let validValues: number[] = [];
+      const validValues: number[] = [];
 
       switch (operator) {
         case '+':

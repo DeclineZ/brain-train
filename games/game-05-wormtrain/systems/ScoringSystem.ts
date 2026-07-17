@@ -57,7 +57,7 @@ export class ScoringSystem {
         planning = Math.max(0, planning);
 
         // 2. Efficiency: (optimal / actual) * 100 - Skipping for now, defaulting to 100
-        let efficiency = 100;
+        const efficiency = 100;
 
         // 3. Accuracy: 100 - (mistake * 15)
         let accuracy = 100 - (this.mistakeCount * 15);

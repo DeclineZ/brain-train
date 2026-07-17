@@ -1371,7 +1371,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             }
             try {
                 // Safe evaluation for simple math
-                // eslint-disable-next-line @typescript-eslint/no-implied-eval
+                 
                 const val = new Function('return ' + expression)();
                 isCorrect = Math.abs(val - this.currentEquation.result) < 0.001;
             } catch (e) {
