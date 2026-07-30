@@ -365,8 +365,10 @@ export async function addCoins(
       return { ok: false, error: "จำนวนเหรียญต้องมากกว่า 0" };
     }
 
-    const orderId = `bonus_${from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const idempotencyKey = `${userId}_bonus_${orderId}`;
+    const today = new Date().toISOString().split('T')[0];
+    const cleanReason = reason.replace(/[^a-zA-Z0-9]/g, '_');
+    const orderId = `bonus_${from}_${today}_${cleanReason}_${amount}`;
+    const idempotencyKey = `${userId}_${orderId}`;
 
     const { data, error } = await supabase.rpc("apply_coin_delta", {
       p_user_id: userId,

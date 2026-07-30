@@ -46,6 +46,16 @@ export async function GET() {
 // POST: Send friend request
 export async function POST(request: NextRequest) {
     try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            return NextResponse.json(
+                { ok: false, error: 'ไม่ได้เข้าสู่ระบบ' },
+                { status: 401 }
+            );
+        }
+
         const { friendCode } = await request.json();
 
         if (!friendCode || typeof friendCode !== 'string' || friendCode.length !== 4) {

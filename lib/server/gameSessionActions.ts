@@ -28,8 +28,30 @@ export async function submitGameSession(
         // We check if a session already exists for this game and level *before* inserting the new one.
         // The 'level' is usually in rawData.levelPlayed or rawData.current_played.
         // We'll try to find a consistent level indicator.
-        const levelPlayed =
-            rawData.level ?? rawData.levelPlayed ?? rawData.current_played ?? 1;
+        // Input Sanitization & Clamping
+        const levelPlayed = Math.max(
+            0,
+            Math.floor(Number(rawData?.level ?? rawData?.levelPlayed ?? rawData?.current_played ?? 1)) || 0
+        );
+
+        // Sanitize raw stats
+        if (rawData) {
+            if (rawData.stars !== undefined) {
+                rawData.stars = Math.max(0, Math.min(3, Math.floor(Number(rawData.stars) || 0)));
+            }
+            if (rawData.score !== undefined) {
+                rawData.score = Math.max(0, Math.floor(Number(rawData.score) || 0));
+            }
+        }
+
+        // Sanitize clinicalStats (clamp non-null values to 0-100)
+        const sanitizedClinicalStats: ClinicalStats = { ...clinicalStats };
+        (Object.keys(sanitizedClinicalStats) as (keyof ClinicalStats)[]).forEach((key) => {
+            const val = sanitizedClinicalStats[key];
+            if (val !== null && val !== undefined) {
+                sanitizedClinicalStats[key] = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+            }
+        });
 
         const { count: priorSessionCount, error: countError } = await supabase
             .from("game_sessions")
@@ -40,8 +62,6 @@ export async function submitGameSession(
 
         if (countError) {
             console.error("Error checking prior sessions:", countError);
-            // Fallback to standard learning rate if check fails, or throw?
-            // Let's proceed with standard LR to not block gameplay, but log error.
         }
 
         const isReplay = (priorSessionCount || 0) > 0;
@@ -67,12 +87,9 @@ export async function submitGameSession(
 
         // 3. Calculate New Stats
         // Formula: Current + ((GameResult - Current) * LearningRate)
-        // If Current is null, New = GameResult
-        // If GameResult is null, Skip
         const newStats: any = {};
         const statChanges: Record<string, number> = {};
 
-        // Define type for user profile stats
         type UserProfileStats = {
             global_memory: number | null;
             global_speed: number | null;
@@ -91,7 +108,6 @@ export async function submitGameSession(
             stat_emotion: "global_emotion",
         };
 
-        // Only calculate stats if not tutorial
         if (levelPlayed > 0) {
             const statKeys: (keyof ClinicalStats)[] = [
                 "stat_memory",
@@ -103,7 +119,7 @@ export async function submitGameSession(
             ];
 
             statKeys.forEach((key) => {
-                const gameResult = clinicalStats[key];
+                const gameResult = sanitizedClinicalStats[key];
                 const dbKey = statToGlobal[key];
                 const currentVal = currentProfile && dbKey in currentProfile
                     ? currentProfile[dbKey] as number | null
@@ -111,16 +127,11 @@ export async function submitGameSession(
 
                 if (gameResult !== null && gameResult !== undefined) {
                     if (currentVal === null || currentVal === undefined) {
-                        // First time this stat is recorded -> Set to Game Result
                         newStats[dbKey] = gameResult;
-                        // We consider this an "increase" from 0/null
                         statChanges[key as string] = gameResult;
                     } else {
-                        // Standard update formula
-                        // New = Current + ((GameResult - Current) * LearningRate)
                         const delta = gameResult - currentVal;
                         const change = delta * learningRate;
-                        // Ensure we stay within 0-100 and send integers (assuming DB is integer keys)
                         const newVal = Math.max(
                             0,
                             Math.min(100, Math.round(currentVal + change))
@@ -129,7 +140,6 @@ export async function submitGameSession(
                         statChanges[key as string] = newVal - currentVal;
                     }
                 }
-                // If gameResult is null, we leave newStats[dbKey] undefined, so it won't be updated.
             });
 
             // 4. Update User Profile (if there are changes)
@@ -150,7 +160,6 @@ export async function submitGameSession(
         } // End levelPlayed > 0 check
 
         // 5. Save Game Session
-        // We use the `clinicalStats` passed in, as they are the source of truth for this session.
         const { data: sessionData, error: sessionError } = await supabase
             .from("game_sessions")
             .insert({
@@ -158,20 +167,20 @@ export async function submitGameSession(
                 user_id: user.id,
 
                 // Stats
-                stat_memory: clinicalStats.stat_memory,
-                stat_speed: clinicalStats.stat_speed,
-                stat_focus: clinicalStats.stat_focus,
-                stat_visual: clinicalStats.stat_visual,
-                stat_planning: clinicalStats.stat_planning,
-                stat_emotion: clinicalStats.stat_emotion,
+                stat_memory: sanitizedClinicalStats.stat_memory,
+                stat_speed: sanitizedClinicalStats.stat_speed,
+                stat_focus: sanitizedClinicalStats.stat_focus,
+                stat_visual: sanitizedClinicalStats.stat_visual,
+                stat_planning: sanitizedClinicalStats.stat_planning,
+                stat_emotion: sanitizedClinicalStats.stat_emotion,
 
                 // Metadata
                 duration_seconds: rawData.userTimeMs
-                    ? rawData.userTimeMs / 1000
+                    ? Math.max(0, Number(rawData.userTimeMs) / 1000)
                     : 0,
                 current_played: levelPlayed,
                 raw_data: rawData,
-                score: rawData.score || 0, // Explicitly save score column
+                score: rawData.score || 0,
             })
             .select("id")
             .single();
