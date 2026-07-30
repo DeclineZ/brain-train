@@ -74,9 +74,9 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
     async function initGame() {
       // Dynamic imports to avoid SSR issues
       const Phaser = await import('phaser');
-      const { GameRegistry } = await import('@/games/registry');
+      const { getGameConfig } = await import('@/games/registry');
 
-      const selectedConfig = GameRegistry[gameId];
+      const selectedConfig = await getGameConfig(gameId);
 
       if (!selectedConfig) {
         console.error(`Game ID "${gameId}" not found in registry!`);

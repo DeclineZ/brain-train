@@ -4,20 +4,23 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-    const category = searchParams.get('category') || 'all';
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!userId) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
+        { error: "ไม่ได้เข้าสู่ระบบ" },
+        { status: 401 }
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category') || 'all';
+    const targetUserId = user.id;
+
     // Get both balance and items in parallel
     const [balanceResult, itemsResult] = await Promise.all([
-      getUserBalance(userId),
+      getUserBalance(targetUserId),
       getShopItemsByCategory(category)
     ]);
 
@@ -50,17 +53,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, itemId } = body;
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!userId || !itemId) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: "User ID and Item ID are required" },
+        { error: "ไม่ได้เข้าสู่ระบบ" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { itemId } = body;
+
+    if (!itemId) {
+      return NextResponse.json(
+        { error: "Item ID is required" },
         { status: 400 }
       );
     }
 
-    const result = await purchaseItem(userId, itemId);
+    const result = await purchaseItem(user.id, itemId);
     
     if (!result.ok) {
       return NextResponse.json(
