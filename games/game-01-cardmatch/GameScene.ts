@@ -216,7 +216,7 @@ export class MatchingGameScene extends Phaser.Scene {
         };
 
         this.cards = [];
-        let deck: any[] = [];
+        const deck: any[] = [];
 
         if (useHardVariations) {
             // HARD MODE: Create "Confusing Pairs"

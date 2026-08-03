@@ -23,10 +23,6 @@ export default function FriendRequestsModal({ onClose, onRequestHandled }: Frien
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchRequests();
-    }, []);
-
     const fetchRequests = async () => {
         setLoading(true);
         try {
@@ -40,6 +36,14 @@ export default function FriendRequestsModal({ onClose, onRequestHandled }: Frien
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        // Defer fetch to avoid synchronous state update in effect body
+        const timer = setTimeout(() => {
+            fetchRequests();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleAction = async (requestId: string, action: "accept" | "reject") => {
         setActionLoading(requestId);

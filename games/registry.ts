@@ -1,47 +1,30 @@
-import { MemoryGameConfig as ExampleGameConfig } from './game-00-example/config';
-import { MatchingGameConfig } from './game-01-cardmatch/config';
-import { SensorLockGameConfig } from './game-02-sensorlock/config';
-import { BilliardsGameConfig } from './game-03-billiards-math/config';
-import { WormGameConfig } from './game-05-wormtrain/config';
-import { FloatingBallMathConfig } from './game-04-floating-ball-math/config';
-import { DreamDirectGameConfig } from './game-06-dreamdirect/config';
-import { MysterySoundGameConfig } from './game-08-mysterysound/config';
-import { PinkCupGameConfig } from './game-07-pinkcup/config';
-import { TubeSortGameConfig } from './game-09-tube-sort/config';
-import { PipePatchGameConfig } from './game-11-pipe-patch/config';
-import { GridHunterGameConfig } from './game-12-gridhunter/config';
-import { BoxPatternGameConfig } from './game-13-boxpattern/config';
-import { TaxiDriverGameConfig } from './game-15-taxidriver/config';
-import { MinerGameConfig } from './game-10-miner/config';
-import { WordRecognizeGameConfig } from './game-14-wordrecognize/config';
-import { DoorGuardianGameConfig } from './game-16-doorguardian/config';
-import { FloatingMarketGameConfig } from './game-17-floatingmarket/config';
-import { RunForYourLifeGameConfig } from './game-18-runforyourlife/config';
-import { CashierGameConfig } from './game-19-cashier/config';
-import { BoxCountingGameConfig } from './game-20-boxcounting/config';
-import { ParkingJamGameConfig } from './game-21-parking-jam/config';
-
-export const GameRegistry: Record<string, Phaser.Types.Core.GameConfig> = {
-  'game-00-example': ExampleGameConfig,
-  'game-01-cardmatch': MatchingGameConfig,
-  'game-02-sensorlock': SensorLockGameConfig,
-  'game-03-billiards-math': BilliardsGameConfig,
-  'game-05-wormtrain': WormGameConfig,
-  'game-04-floating-ball-math': FloatingBallMathConfig,
-  'game-06-dreamdirect': DreamDirectGameConfig,
-  'game-08-mysterysound': MysterySoundGameConfig,
-  'game-07-pinkcup': PinkCupGameConfig,
-  'game-09-tube-sort': TubeSortGameConfig,
-  'game-10-miner': MinerGameConfig,
-  'game-11-pipe-patch': PipePatchGameConfig,
-  'game-12-gridhunter': GridHunterGameConfig,
-  'game-13-boxpattern': BoxPatternGameConfig,
-  'game-15-taxidriver': TaxiDriverGameConfig,
-  'game-14-wordrecognize': WordRecognizeGameConfig,
-  'game-16-doorguardian': DoorGuardianGameConfig,
-  'game-17-floatingmarket': FloatingMarketGameConfig,
-  'game-18-runforyourlife': RunForYourLifeGameConfig,
-  'game-19-cashier': CashierGameConfig,
-  'game-20-boxcounting': BoxCountingGameConfig,
-  'game-21-parking-jam': ParkingJamGameConfig,
+export const GameRegistryLoaders: Record<string, () => Promise<Phaser.Types.Core.GameConfig>> = {
+  'game-00-example': async () => (await import('./game-00-example/config')).MemoryGameConfig,
+  'game-01-cardmatch': async () => (await import('./game-01-cardmatch/config')).MatchingGameConfig,
+  'game-02-sensorlock': async () => (await import('./game-02-sensorlock/config')).SensorLockGameConfig,
+  'game-03-billiards-math': async () => (await import('./game-03-billiards-math/config')).BilliardsGameConfig,
+  'game-04-floating-ball-math': async () => (await import('./game-04-floating-ball-math/config')).FloatingBallMathConfig,
+  'game-05-wormtrain': async () => (await import('./game-05-wormtrain/config')).WormGameConfig,
+  'game-06-dreamdirect': async () => (await import('./game-06-dreamdirect/config')).DreamDirectGameConfig,
+  'game-07-pinkcup': async () => (await import('./game-07-pinkcup/config')).PinkCupGameConfig,
+  'game-08-mysterysound': async () => (await import('./game-08-mysterysound/config')).MysterySoundGameConfig,
+  'game-09-tube-sort': async () => (await import('./game-09-tube-sort/config')).TubeSortGameConfig,
+  'game-10-miner': async () => (await import('./game-10-miner/config')).MinerGameConfig,
+  'game-11-pipe-patch': async () => (await import('./game-11-pipe-patch/config')).PipePatchGameConfig,
+  'game-12-gridhunter': async () => (await import('./game-12-gridhunter/config')).GridHunterGameConfig,
+  'game-13-boxpattern': async () => (await import('./game-13-boxpattern/config')).BoxPatternGameConfig,
+  'game-14-wordrecognize': async () => (await import('./game-14-wordrecognize/config')).WordRecognizeGameConfig,
+  'game-15-taxidriver': async () => (await import('./game-15-taxidriver/config')).TaxiDriverGameConfig,
+  'game-16-doorguardian': async () => (await import('./game-16-doorguardian/config')).DoorGuardianGameConfig,
+  'game-17-floatingmarket': async () => (await import('./game-17-floatingmarket/config')).FloatingMarketGameConfig,
+  'game-18-runforyourlife': async () => (await import('./game-18-runforyourlife/config')).RunForYourLifeGameConfig,
+  'game-19-cashier': async () => (await import('./game-19-cashier/config')).CashierGameConfig,
+  'game-20-boxcounting': async () => (await import('./game-20-boxcounting/config')).BoxCountingGameConfig,
+  'game-21-parking-jam': async () => (await import('./game-21-parking-jam/config')).ParkingJamGameConfig,
 };
+
+export async function getGameConfig(gameId: string): Promise<Phaser.Types.Core.GameConfig | null> {
+  const loader = GameRegistryLoaders[gameId];
+  if (!loader) return null;
+  return await loader();
+}

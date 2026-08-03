@@ -11,7 +11,10 @@ function QuestNotificationManagerContent() {
 
     useEffect(() => {
         if (searchParams.get("questComplete") === "true") {
-            setShowNotification(true);
+            // Defer state update to avoid synchronous cascading render warning
+            setTimeout(() => {
+                setShowNotification(true);
+            }, 0);
 
             // Clean up the URL
             const newParams = new URLSearchParams(searchParams.toString());
