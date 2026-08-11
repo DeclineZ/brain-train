@@ -12,7 +12,8 @@
     "audit:parking-jam": "node games/game-21-parking-jam/scripts/audit-levels.cjs",
     "solve:pipe-patch": "node games/game-11-pipe-patch/scripts/solve-levels.cjs",
     "audit:pipe-patch": "node games/game-11-pipe-patch/scripts/audit-levels.cjs",
-    "test": "echo 'No tests yet'"
+    "test": "echo 'No tests yet'",
+    "test:vitalmind": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/vitalmind-types.test.mjs"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.1.1",
