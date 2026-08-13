@@ -9,8 +9,6 @@ import { createAdminClient } from "@/utils/supabase/admin";
 
 type ExistingPatient = {
   auth_user_id: string | null;
-  user_type: string;
-  source_updated_at: string | null;
 };
 
 export async function POST(request: NextRequest) {
@@ -23,84 +21,72 @@ export async function POST(request: NextRequest) {
     const rateCheck = checkRateLimit(
       `patient-updated:${keyHash}`,
       getVitalmindRateLimit(),
-      60_000
+      60_000,
     );
     if (rateCheck.limited) return withPrivateHeaders(rateCheck.response);
 
     const payload = parsePatientUpdate(await request.json());
-    if (!payload || (payload.current.user_type && payload.current.user_type !== "patient")) {
+    if (!payload) {
       return json({ error: "Invalid patient update payload" }, 400);
     }
 
     const admin = createAdminClient();
-    const { data: existing, error: readError } = await admin
-      .from("vitalmind_patients")
-      .select("auth_user_id, user_type, source_updated_at")
-      .eq("patient_id", payload.patient_id)
+    const { data: existing, error: updateError } = await admin
+      .rpc("update_vitalmind_patient_profile", {
+        p_patient_id: payload.patient_id,
+        p_name: payload.current.name,
+        p_surname: payload.current.surname,
+      })
       .maybeSingle<ExistingPatient>();
 
-    if (readError) {
-      console.error("[Vitalmind patient update] Mapping read failed", {
-        code: readError.code,
-        message: readError.message,
+    if (updateError) {
+      console.error("[Vitalmind patient update] Mapping update failed", {
+        code: updateError.code,
+        message: updateError.message,
       });
       return json({ error: "Unable to update patient" }, 500);
     }
 
-    const existingTimestamp = existing?.source_updated_at
-      ? new Date(existing.source_updated_at).getTime()
-      : null;
-    const incomingTimestamp = new Date(payload.updated_at).getTime();
-    if (existingTimestamp !== null && existingTimestamp > incomingTimestamp) {
-      return json({ ok: true }, 200);
-    }
-
-    if (existingTimestamp !== incomingTimestamp) {
-      const { error: writeError } = await admin.from("vitalmind_patients").upsert(
+    if (!existing) {
+      return json(
         {
-          patient_id: payload.patient_id,
-          name: payload.current.name,
-          surname: payload.current.surname,
-          user_type: payload.current.user_type ?? existing?.user_type ?? "patient",
-          source_updated_at: payload.updated_at,
-          updated_at: new Date().toISOString(),
+          error: "Patient is unavailable",
+          code: "PATIENT_NOT_FOUND",
         },
-        { onConflict: "patient_id" }
+        404,
       );
-
-      if (writeError) {
-        console.error("[Vitalmind patient update] Mapping write failed", {
-          code: writeError.code,
-          message: writeError.message,
-        });
-        return json({ error: "Unable to update patient" }, 500);
-      }
     }
 
-    if (existing?.auth_user_id) {
-      const { data: authUser, error: authReadError } = await admin.auth.admin.getUserById(
-        existing.auth_user_id
-      );
-      if (authReadError || !authUser.user) return json({ error: "Unable to update patient" }, 500);
+    if (existing.auth_user_id) {
+      const { data: authUser, error: authReadError } =
+        await admin.auth.admin.getUserById(existing.auth_user_id);
+      if (authReadError || !authUser.user)
+        return json({ error: "Unable to update patient" }, 500);
 
-      const { error: metadataError } = await admin.auth.admin.updateUserById(existing.auth_user_id, {
-        user_metadata: {
-          ...authUser.user.user_metadata,
-          full_name: `${payload.current.name} ${payload.current.surname}`.trim(),
+      const { error: metadataError } = await admin.auth.admin.updateUserById(
+        existing.auth_user_id,
+        {
+          user_metadata: {
+            ...authUser.user.user_metadata,
+            full_name:
+              `${payload.current.name} ${payload.current.surname}`.trim(),
+          },
         },
-      });
-      if (metadataError) return json({ error: "Unable to update patient" }, 500);
+      );
+      if (metadataError)
+        return json({ error: "Unable to update patient" }, 500);
 
       await syncLocalProfile(
         existing.auth_user_id,
         payload.current.name,
-        payload.current.surname
+        payload.current.surname,
       );
     }
 
     return json({ ok: true }, 200);
   } catch (error) {
-    if (error instanceof SyntaxError) return json({ error: "Invalid JSON body" }, 400);
+    if (error instanceof SyntaxError)
+      return json({ error: "Invalid JSON body" }, 400);
     console.error("[Vitalmind patient update] Unexpected failure", error);
     return json({ error: "Internal server error" }, 500);
   }

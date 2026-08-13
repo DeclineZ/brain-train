@@ -11,12 +11,12 @@ export type VitalmindVerifyResponse = {
 
 export type VitalmindPatientUpdate = {
   patient_id: string;
-  previous?: { name?: string; surname?: string };
-  current: { name: string; surname: string; user_type?: string };
-  updated_at: string;
+  current: { name: string; surname: string };
 };
 
-export function parseVerifyResponse(value: unknown): VitalmindVerifyResponse | null {
+export function parseVerifyResponse(
+  value: unknown,
+): VitalmindVerifyResponse | null {
   if (!isRecord(value) || !isRecord(value.profile)) return null;
   const profile = value.profile;
   if (
@@ -30,7 +30,9 @@ export function parseVerifyResponse(value: unknown): VitalmindVerifyResponse | n
   }
 
   return {
-    ...(isNonBlankString(value.user_id) ? { user_id: value.user_id.trim() } : {}),
+    ...(isNonBlankString(value.user_id)
+      ? { user_id: value.user_id.trim() }
+      : {}),
     patient_id: value.patient_id.trim(),
     profile: {
       name: profile.name.trim(),
@@ -41,35 +43,32 @@ export function parseVerifyResponse(value: unknown): VitalmindVerifyResponse | n
   };
 }
 
-export function parsePatientUpdate(value: unknown): VitalmindPatientUpdate | null {
+export function parsePatientUpdate(
+  value: unknown,
+): VitalmindPatientUpdate | null {
   if (!isRecord(value) || !isRecord(value.current)) return null;
   const current = value.current;
   if (
     !isNonBlankString(value.patient_id) ||
     !isNonBlankString(current.name) ||
-    !isNonBlankString(current.surname) ||
-    (current.user_type !== undefined && !isNonBlankString(current.user_type)) ||
-    !isNonBlankString(value.updated_at)
+    !isNonBlankString(current.surname)
   ) {
     return null;
   }
-
-  const updatedAt = new Date(value.updated_at);
-  if (Number.isNaN(updatedAt.getTime())) return null;
 
   return {
     patient_id: value.patient_id.trim(),
     current: {
       name: current.name.trim(),
       surname: current.surname.trim(),
-      user_type: typeof current.user_type === "string" ? current.user_type.trim() : undefined,
     },
-    updated_at: updatedAt.toISOString(),
   };
 }
 
 export function isAuthorizedPatient(value: VitalmindVerifyResponse): boolean {
-  return value.profile.user_type === "patient" && value.profile.consent === true;
+  return (
+    value.profile.user_type === "patient" && value.profile.consent === true
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
