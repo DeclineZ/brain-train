@@ -125,25 +125,25 @@ export default async function Home() {
                 <div className="flex flex-col items-start gap-2">
                   <Link
                     href="/allgames"
-                    className="group relative inline-flex items-center gap-2 bg-gradient-to-r from-[var(--color-blue)] to-[var(--color-blue-dark)] text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-[var(--color-blue)]/30 hover:shadow-lg hover:shadow-[var(--color-blue)]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 border border-white/20 overflow-hidden"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-action to-orange-dark text-white px-5 py-2 rounded-xl text-sm md:text-base font-bold shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all"
                   >
-                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                    <Grid3X3 className="w-4 h-4 text-white drop-shadow-sm group-hover:rotate-12 transition-transform" />
-                    <span className="drop-shadow-sm relative z-10">ไปที่คลังเกม</span>
+                    <Grid3X3 className="w-4 h-4 text-white" />
+                    <span>ไปที่คลังเกม</span>
                   </Link>
                 </div>
               ) : (
                 <Link
                   href={currentMission ? `/play/${currentMission.game_id}` : "#"}
-                  className="inline-flex items-center gap-2 bg-orange-action text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md hover:bg-orange-hover-2 active:translate-y-0.5 transition-all"
+                  className="inline-flex items-center gap-2 bg-orange-action hover:bg-orange-hover-2 text-white px-5 py-2 rounded-xl text-sm md:text-base font-bold shadow-sm hover:shadow-md active:translate-y-0.5 transition-all"
                 >
                   <span>เริ่มภารกิจ</span>
+                  <span className="text-xs">→</span>
                 </Link>
               )
             }
           >
             {/* Game Cards Grid */}
-            <div className="grid gap-6 grid-cols-1">
+            <div className="grid gap-4 md:gap-5 grid-cols-1">
               {dailyQuestGames.map((game, index) => {
                 const mission = missions.find(m => m.game_id === game.gameId);
                 const isCompleted = mission ? mission.completed : false;

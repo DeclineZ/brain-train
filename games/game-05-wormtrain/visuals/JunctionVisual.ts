@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import GameScene from '../GameScene';
 import { WormGameConstants as WormGameConfig } from '../config';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 interface JunctionIndicator {
     container: Phaser.GameObjects.Container;
@@ -161,16 +162,14 @@ export class JunctionVisual {
         arrowGraphics.fillPath();
 
         // 3. Create Text Label "กดเพื่อเปลี่ยนทาง" (Above the arrow)
-        const hintText = this.scene.add.text(junctionX, arrowStartY - 20, 'กดเพื่อเปลี่ยนทาง', {
+        const hintText = this.scene.add.text(junctionX, arrowStartY - 20, 'กดเพื่อเปลี่ยนทาง', createGameTextStyle({
             fontSize: '24px',
             color: '#FFD700',
-            fontFamily: 'Noto Sans Thai, Arial',
             fontStyle: 'bold',
             stroke: '#000000',
             strokeThickness: 5,
-            padding: { x: 8, y: 6 },
             align: 'center'
-        });
+        }));
         hintText.setOrigin(0.5, 1); // Bottom Center anchor
         hintText.setDepth(WormGameConfig.DEPTH.JUNCTION_UI + 5);
         elements.push(hintText);

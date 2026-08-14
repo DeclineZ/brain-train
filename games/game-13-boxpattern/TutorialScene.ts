@@ -1,6 +1,7 @@
 
 import { BoxPatternGameScene } from './GameScene';
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class BoxPatternTutorialScene extends BoxPatternGameScene {
     private tutorialRound = 0;
@@ -16,9 +17,9 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
     create() {
         // IMPORTANT: Create handIcon BEFORE super.create() because startGame() is called there
         // and it calls startTutorialRound() which uses handIcon
-        this.handIcon = this.add.text(0, 0, '👆', {
+        this.handIcon = this.add.text(0, 0, '👆', createEmojiTextStyle({
             fontSize: '48px'
-        }).setOrigin(0.5).setVisible(false).setDepth(300);
+        })).setOrigin(0.5).setVisible(false).setDepth(300);
 
         // Now call parent create (which will call startGame -> startTutorialRound)
         super.create();
@@ -35,14 +36,13 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
 
         // Add Instruction Text
         const { width, height } = this.scale;
-        this.instructionText = this.add.text(width / 2, height * 0.15, '', {
-            fontFamily: '"Sarabun", sans-serif',
+        this.instructionText = this.add.text(width / 2, height * 0.15, '', createGameTextStyle({
             fontSize: '28px',
             color: '#2d3436',
             align: 'center',
             wordWrap: { width: width * 0.9 },
             padding: { top: 15, bottom: 15, left: 10, right: 10 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
         this.instructionText.setDepth(200);
     }
 

@@ -3,6 +3,7 @@ import { calculateParkingJamStats } from "@/lib/scoring/parking-jam";
 import { calculateParkingJamLevelScore } from "@/lib/scoring/engine/levelScoreMappers";
 import { getParkingJamLevel } from "./levels";
 import { canParkingJamCarExit } from "./solver";
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 import {
     PARKING_JAM_SESSION_MS,
     type ParkingJamCarConfig,
@@ -268,50 +269,42 @@ export class ParkingJamGameScene extends Phaser.Scene {
     private createHud() {
         this.timerDial = this.add.graphics().setDepth(30);
         this.timerText = this.add
-            .text(42, 42, "90", {
+            .text(42, 42, "90", createGameTextStyle({
                 fontSize: "18px",
                 color: "#0f172a",
-                fontStyle: "700",
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                padding: { left: 4, right: 4, top: 2, bottom: 2 },
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(0.5)
             .setDepth(31);
 
         const objectiveLabel = "เคลียร์รถทั้งหมดให้ออกจากลาน";
 
         this.objectiveText = this.add
-            .text(0, 0, objectiveLabel, {
+            .text(0, 0, objectiveLabel, createGameTextStyle({
                 fontSize: "24px",
                 color: COLORS.textMain,
-                fontStyle: "700",
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
+                fontStyle: "bold",
                 align: "center",
-                padding: { left: 8, right: 8, top: 4, bottom: 4 },
-            })
+            }))
             .setOrigin(0.5, 0)
             .setDepth(30);
 
         this.progressText = this.add
-            .text(0, 0, "", {
+            .text(0, 0, "", createGameTextStyle({
                 fontSize: "18px",
                 color: COLORS.textMuted,
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                fontStyle: "700",
-                padding: { left: 8, right: 8, top: 3, bottom: 3 },
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(0.5, 0)
             .setDepth(30);
 
         this.toastText = this.add
-            .text(0, 0, "", {
+            .text(0, 0, "", createGameTextStyle({
                 fontSize: "20px",
                 color: "#ffffff",
                 backgroundColor: "#0f172a",
-                padding: { left: 12, right: 12, top: 8, bottom: 8 },
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                fontStyle: "700",
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(0.5)
             .setDepth(60)
             .setAlpha(0);
@@ -337,13 +330,11 @@ export class ParkingJamGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         const text = this.add
-            .text(0, 0, label, {
+            .text(0, 0, label, createGameTextStyle({
                 fontSize: "22px",
                 color: COLORS.buttonText,
-                fontStyle: "700",
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                padding: { left: 4, right: 4, top: 2, bottom: 2 },
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(0.5);
 
         bg.on("pointerdown", () => {
@@ -381,13 +372,11 @@ export class ParkingJamGameScene extends Phaser.Scene {
             const details = this.add.graphics();
             const directionHint = this.add.graphics();
             const label = this.add
-                .text(0, 0, config.id, {
+                .text(0, 0, config.id, createGameTextStyle({
                     fontSize: "16px",
                     color: "#0f172a",
-                    fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                    fontStyle: "700",
-                    padding: { left: 2, right: 2, top: 1, bottom: 1 },
-                })
+                    fontStyle: "bold",
+                }))
                 .setOrigin(0.5);
 
             container.add([bg, details, directionHint, label]);
@@ -2905,15 +2894,13 @@ export class ParkingJamGameScene extends Phaser.Scene {
                 width / 2,
                 height / 2 - panelHeight * 0.38,
                 "จำทิศรถให้แม่นก่อนเริ่ม",
-                {
+                createGameTextStyle({
                     fontSize: "28px",
                     color: "#0f172a",
-                    fontStyle: "700",
-                    fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
+                    fontStyle: "bold",
                     align: "center",
-                    padding: { left: 8, right: 8, top: 4, bottom: 4 },
                     wordWrap: { width: panelWidth - 40 },
-                },
+                }),
             )
             .setOrigin(0.5, 0);
 
@@ -2922,16 +2909,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
                 width / 2,
                 height / 2 + panelHeight * 0.01,
                 "จากด่านนี้ไป ให้ดูทิศจากตัวรถเอง\nไฟหน้า (เหลือง) = ด้านหน้า\nไฟท้าย (แดง) = ด้านหลัง",
-                {
+                createGameTextStyle({
                     fontSize: "20px",
                     color: "#334155",
-                    fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                    fontStyle: "700",
+                    fontStyle: "bold",
                     align: "center",
                     lineSpacing: 6,
-                    padding: { left: 8, right: 8, top: 4, bottom: 4 },
                     wordWrap: { width: panelWidth - 48 },
-                },
+                }),
             )
             .setOrigin(0.5, 0);
 
@@ -2944,15 +2929,13 @@ export class ParkingJamGameScene extends Phaser.Scene {
                 width / 2,
                 height / 2 + panelHeight * 0.35,
                 "แตะตรงไหนก็ได้เพื่อเล่นต่อ",
-                {
+                createGameTextStyle({
                     fontSize: "19px",
                     color: "#475569",
-                    fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-                    fontStyle: "700",
+                    fontStyle: "bold",
                     align: "center",
-                    padding: { left: 8, right: 8, top: 5, bottom: 5 },
                     backgroundColor: "#e2e8f0",
-                },
+                }),
             )
             .setOrigin(0.5)
             .setAlpha(0.96);
@@ -3086,21 +3069,19 @@ export class ParkingJamGameScene extends Phaser.Scene {
         car.fillRoundedRect(40, heightPx / 2 - 6, 12, 4, 1);
 
         const frontLabel = this.add
-            .text(102, 0, "หน้ารถ", {
+            .text(102, 0, "หน้ารถ", createGameTextStyle({
                 fontSize: "18px",
                 color: "#0f172a",
-                fontStyle: "700",
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(0, 0.5);
 
         const backLabel = this.add
-            .text(-102, 0, "ท้ายรถ", {
+            .text(-102, 0, "ท้ายรถ", createGameTextStyle({
                 fontSize: "18px",
                 color: "#0f172a",
-                fontStyle: "700",
-                fontFamily: "Sarabun, Noto Sans Thai, sans-serif",
-            })
+                fontStyle: "bold",
+            }))
             .setOrigin(1, 0.5);
 
         container.add([car, frontLabel, backLabel]);

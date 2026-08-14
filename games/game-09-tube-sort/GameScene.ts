@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { TUBE_SORT_LEVELS, getTubeSortLevel, TUBE_SORT_COLORS } from './levels';
 import { calculateTubeSortStars } from '@/lib/scoring/tubeSort';
 import { calculateTubeSortLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type TubeSortStats = {
   levelPlayed: number;
@@ -236,39 +237,32 @@ export class TubeSortGameScene extends Phaser.Scene {
   private createUI() {
     const { width } = this.scale;
 
-    this.messageText = this.add.text(width / 2, 128, 'จัดเรียงสีให้เหมือนกัน', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.messageText = this.add.text(width / 2, 128, 'จัดเรียงสีให้เหมือนกัน', createGameTextStyle({
       fontSize: '28px',
       color: this.theme.text,
       fontStyle: 'bold',
-      padding: { top: 6, bottom: 6, left: 12, right: 12 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
-    this.moveText = this.add.text(24, this.scale.height - 56, this.getMoveLimitStatusText(), {
-      fontFamily: 'Sarabun, sans-serif',
+    this.moveText = this.add.text(24, this.scale.height - 56, this.getMoveLimitStatusText(), createGameTextStyle({
       fontSize: '18px',
       color: this.theme.softText,
-      padding: { top: 4, bottom: 4, left: 8, right: 8 }
-    });
+    }));
 
     this.timerContainer = this.add.container(0, 0).setDepth(12);
     this.timerBar = this.add.graphics();
     this.timerContainer.add(this.timerBar);
-    this.timerText = this.add.text(0, 0, '', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.timerText = this.add.text(0, 0, '', createGameTextStyle({
       fontSize: '16px',
       color: this.theme.text,
       fontStyle: 'bold'
-    }).setOrigin(0.5, 0.5);
+    })).setOrigin(0.5, 0.5);
     this.timerContainer.add(this.timerText);
 
     this.progressBar = this.add.graphics();
-    this.progressText = this.add.text(width / 2, this.scale.height - 100, '0% สำเร็จ', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.progressText = this.add.text(width / 2, this.scale.height - 100, '0% สำเร็จ', createGameTextStyle({
       fontSize: '16px',
       color: this.theme.softText,
-      padding: { top: 4, bottom: 4, left: 8, right: 8 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     this.layoutUI();
     this.updateProgressUI();
@@ -1060,12 +1054,11 @@ export class TubeSortGameScene extends Phaser.Scene {
     const orbGlow = this.add.circle(24, -12, 10, 0x93C5FD, 0.35);
     const orb = this.add.circle(24, -12, 6, 0xFDE68A, 1);
 
-    const label = this.add.text(0, 48, 'แช่แข็ง!', {
-      fontFamily: 'Sarabun, sans-serif',
+    const label = this.add.text(0, 48, 'แช่แข็ง!', createGameTextStyle({
       fontSize: '16px',
       color: '#0F172A',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     wizard.add([
       glow,
@@ -1325,12 +1318,11 @@ export class TubeSortGameScene extends Phaser.Scene {
     const strokeColor = isCritical ? '#F97316' : '#0F172A';
     const textColor = '#FFFFFF';
 
-    const label = this.add.text(0, 0, `${remainingMoves}`, {
-      fontFamily: 'Sarabun, sans-serif',
+    const label = this.add.text(0, 0, `${remainingMoves}`, createGameTextStyle({
       fontSize: `${Math.max(22, Math.floor(elementRadius * 1.3))}px`,
       color: textColor,
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     label.setStroke(strokeColor, Math.max(3, Math.round(elementRadius * 0.16)));
     label.setShadow(0, 3, 'rgba(0,0,0,0.45)', 6, false, true);
     label.setPosition(x, y);

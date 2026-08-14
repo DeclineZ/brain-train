@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { PIPE_PATCH_LEVELS, getPipePatchLevel } from './levels';
 import { calculatePipePatchLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { calculateUnifiedLevelScore, mapDifficultyFromScale } from '@/lib/scoring/engine/unifiedLevelScore';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 import {
   DIR,
   DIR_VECTORS,
@@ -320,9 +321,9 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const timerX = this.scale.width - 44;
     this.timerDial = this.add.graphics();
-    this.timerDialText = this.add.text(timerX, 29, '90', { fontSize: '15px', color: '#f5f5f5', fontStyle: '700' }).setOrigin(0.5);
+    this.timerDialText = this.add.text(timerX, 29, '90', createGameTextStyle({ fontSize: '15px', color: '#f5f5f5', fontStyle: '700' })).setOrigin(0.5);
 
-    this.statusText = this.add.text(18, 18, '', { fontSize: '15px', color: '#86efac' }).setOrigin(0, 0);
+    this.statusText = this.add.text(18, 18, '', createGameTextStyle({ fontSize: '15px', color: '#86efac' })).setOrigin(0, 0);
     this.drawTimerDial(100, 90);
 
     [  this.timerDial, this.timerDialText,this.statusText].forEach((g) => this.uiPersistent.add(g));
@@ -499,7 +500,7 @@ export class PipePatchGameScene extends Phaser.Scene {
         if (blockedSet.has(key)) {
           rect.setFillStyle(0x31211a, 1);
           border.setStrokeStyle(2, 0x64748b);
-          cv.overlay = this.add.text(rect.x, rect.y, '▨', { fontSize: `${Math.floor(this.cellSize * 0.48)}px`, color: '#94a3b8' }).setOrigin(0.5);
+          cv.overlay = this.add.text(rect.x, rect.y, '▨', createGameTextStyle({ fontSize: `${Math.floor(this.cellSize * 0.48)}px`, color: '#94a3b8' })).setOrigin(0.5);
           continue;
         }
         if (endpointMap.has(key)) {
@@ -513,14 +514,14 @@ export class PipePatchGameScene extends Phaser.Scene {
         if (gateMap.has(key)) {
           rect.setFillStyle(0x4a3013, 0.95);
           const gate = gateMap.get(key)!;
-          cv.overlay = this.add.text(rect.x, rect.y, this.arrowForGate(gate.entry, gate.exit), { fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#facc15' }).setOrigin(0.5);
+          cv.overlay = this.add.text(rect.x, rect.y, this.arrowForGate(gate.entry, gate.exit), createGameTextStyle({ fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#facc15' })).setOrigin(0.5);
           border.setStrokeStyle(2, COLORS.gate);
           continue;
         }
         if (lockedMap.has(key)) {
           rect.setFillStyle(0x0b3342, 0.95);
           border.setStrokeStyle(2, COLORS.locked);
-          cv.overlay = this.add.text(rect.x, rect.y, '◍', { fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#0369a1' }).setOrigin(0.5);
+          cv.overlay = this.add.text(rect.x, rect.y, '◍', createGameTextStyle({ fontSize: `${Math.floor(this.cellSize * 0.4)}px`, color: '#0369a1' })).setOrigin(0.5);
           continue;
         }
         if (fixedMap.has(key)) {

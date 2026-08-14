@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class WordRecognizeGameScene extends Phaser.Scene {
     // --- State ---
@@ -205,14 +206,13 @@ export class WordRecognizeGameScene extends Phaser.Scene {
 
         // Score (Top Right)
         const scoreSize = Math.max(28, Math.min(width * 0.07, 48));
-        this.scoreText = this.add.text(width - 20, 85, '0', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.scoreText = this.add.text(width - 20, 85, '0', createGameTextStyle({
             fontSize: `${scoreSize}px`,
             fontStyle: 'bold',
             color: '#6c5ce7',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(1, 0.5).setDepth(100);
+        })).setOrigin(1, 0.5).setDepth(100);
 
         // Hearts Container (Top Left)
         this.heartsContainer = this.add.container(40, 85);
@@ -227,9 +227,9 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         for (let i = 0; i < 3; i++) {
             const x = i * 40;
             const filled = i < this.lives;
-            const heartText = this.add.text(x, 0, filled ? '❤️' : '🖤', {
+            const heartText = this.add.text(x, 0, filled ? '❤️' : '🖤', createEmojiTextStyle({
                 fontSize: '32px'
-            }).setOrigin(0, 0.5);
+            })).setOrigin(0, 0.5);
             this.heartsContainer.add(heartText);
         }
     }
@@ -261,12 +261,11 @@ export class WordRecognizeGameScene extends Phaser.Scene {
 
         // Item Text - centered properly with more padding
         // Card is drawn from y=0 to y=cardH, so center is at cardH/2
-        this.itemText = this.add.text(0, cardH / 2 + 10, '', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.itemText = this.add.text(0, cardH / 2 + 10, '', createGameTextStyle({
             fontSize: '64px',
-            fontStyle: '900',
+            fontStyle: 'bold',
             color: '#6c5ce7'
-        }).setOrigin(0.5, 0.5).setPadding(20, 35, 20, 35);
+        })).setOrigin(0.5, 0.5);
         this.cardContainer.add(this.itemText);
 
         // Item Image - for image recognition phases
@@ -368,13 +367,12 @@ export class WordRecognizeGameScene extends Phaser.Scene {
 
         // Text
         const textSize = Math.min(btnWidth * 0.3, 36);
-        const text = this.add.text(0, 0, label, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const text = this.add.text(0, 0, label, createGameTextStyle({
             fontSize: `${textSize}px`,
-            fontStyle: '900',
+            fontStyle: 'bold',
             color: '#FFFFFF',
             shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 4, fill: true, stroke: false }
-        }).setOrigin(0.5).setPadding(10, 18, 10, 22);
+        })).setOrigin(0.5);
         faceGroup.add(text);
 
         // Hit Area
@@ -765,14 +763,13 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     private showPointPopup(points: number) {
         const { width, height } = this.scale;
 
-        const popup = this.add.text(width / 2, height / 2 - 150, `+${points}`, {
-            fontFamily: '"Mali", sans-serif',
+        const popup = this.add.text(width / 2, height / 2 - 150, `+${points}`, createGameTextStyle({
             fontSize: '48px',
             fontStyle: 'bold',
             color: '#00b894',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({
             targets: popup,
@@ -808,19 +805,17 @@ export class WordRecognizeGameScene extends Phaser.Scene {
             box.strokeRoundedRect(-boxW / 2, -80, boxW, 160, 24);
             container.add(box);
 
-            const titleText = this.add.text(0, -30, title, {
-                fontFamily: '"Mali", sans-serif',
+            const titleText = this.add.text(0, -30, title, createGameTextStyle({
                 fontSize: '42px',
                 fontStyle: 'bold',
                 color: '#6c5ce7'
-            }).setOrigin(0.5).setPadding(10, 18, 10, 22);
+            })).setOrigin(0.5);
             container.add(titleText);
 
-            const subText = this.add.text(0, 25, sub, {
-                fontFamily: '"Sarabun", sans-serif',
+            const subText = this.add.text(0, 25, sub, createGameTextStyle({
                 fontSize: '24px',
                 color: '#636e72'
-            }).setOrigin(0.5).setPadding(10, 18, 10, 22);
+            })).setOrigin(0.5);
             container.add(subText);
 
             // Animate in

@@ -68,7 +68,7 @@ export default function FriendsPageClient({
         .filter(Boolean) as (Top1GameInfo & { game: Game })[];
 
     return (
-        <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6 pb-28">
+        <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6 pb-28">
             {/* Header Row */}
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-brown-darkest">เพื่อน</h1>

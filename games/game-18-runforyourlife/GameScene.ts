@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from './Player';
 import { ObstacleManager } from './ObstacleManager';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 const ASSET_BASE = '/assets/game-18-runforyourlife/';
 
@@ -152,17 +153,14 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.starGraphics.setDepth(-5);
         this.initStarParticles();
 
-        // HUD — 8-bit style font
-        const fontFamily = '"Press Start 2P", "Courier New", monospace';
-
-        this.scoreText = this.add.text(this.CANVAS_W / 2, 20, '0', {
+        // HUD
+        this.scoreText = this.add.text(this.CANVAS_W / 2, 20, '0', createGameTextStyle({
             fontSize: '36px',
-            fontFamily,
             color: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 4,
-            padding: { top: 4, bottom: 4 },
-        }).setOrigin(0.5, 0).setDepth(60);
+            fontStyle: 'bold'
+        })).setOrigin(0.5, 0).setDepth(60);
 
         // Coin icon (image) + text
         const coinIconSize = 24;
@@ -172,23 +170,21 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setOrigin(0.5, 0.5)
             .setDepth(60);
 
-        this.coinText = this.add.text(coinIconX + 18, 56, '0', {
+        this.coinText = this.add.text(coinIconX + 18, 56, '0', createGameTextStyle({
             fontSize: '18px',
-            fontFamily,
             color: '#F1C40F',
             stroke: '#000000',
             strokeThickness: 3,
-            padding: { top: 8, bottom: 8, left: 8, right: 8 },
-        }).setOrigin(0, 0).setDepth(60);
+            fontStyle: 'bold'
+        })).setOrigin(0, 0).setDepth(60);
 
-        this.sectorText = this.add.text(this.TRACK_LEFT + 4, 70, 'SECTOR 1', {
+        this.sectorText = this.add.text(this.TRACK_LEFT + 4, 70, 'SECTOR 1', createGameTextStyle({
             fontSize: '18px',
-            fontFamily,
             color: '#AA88FF',
             stroke: '#000000',
             strokeThickness: 3,
-            padding: { top: 8, bottom: 8, left: 8, right: 8 },
-        }).setOrigin(0, 0).setDepth(60);
+            fontStyle: 'bold'
+        })).setOrigin(0, 0).setDepth(60);
 
         // Player
         const centerLaneX = this.TRACK_LEFT + 2.5 * this.LANE_WIDTH;
@@ -339,7 +335,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setDepth(60)
             .setStrokeStyle(3, 0xFFFFFF, 0.5);
         this.leftBtn = leftBtn;
-        this.add.text(leftBtnX, btnY, '◀', { fontSize: '36px', color: '#FFFFFF' })
+        this.add.text(leftBtnX, btnY, '◀', createGameTextStyle({ fontSize: '36px', color: '#FFFFFF' }))
             .setOrigin(0.5).setDepth(61);
 
         // Fire (Gun) button — red/orange
@@ -347,17 +343,17 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .setDepth(60)
             .setStrokeStyle(3, 0xFF6600, 0.8);
-        this.add.text(fireBtnX, btnY, '💥', { fontSize: '32px' })
+        this.add.text(fireBtnX, btnY, '💥', createEmojiTextStyle({ fontSize: '32px' }))
             .setOrigin(0.5).setDepth(61);
 
         // Ammo badge (top-right corner of fire button)
         const badgeBg = this.add.circle(fireBtnX + 28, btnY - 28, 14, 0xFFFF00, 1)
             .setDepth(62);
-        this.gunAmmoText = this.add.text(fireBtnX + 28, btnY - 28, String(this.gunAmmo), {
+        this.gunAmmoText = this.add.text(fireBtnX + 28, btnY - 28, String(this.gunAmmo), createGameTextStyle({
             fontSize: '16px',
-            fontFamily: '"Press Start 2P", "Courier New", monospace',
             color: '#000000',
-        }).setOrigin(0.5).setDepth(63);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(63);
 
         // Right
         const rightBtn = this.add.rectangle(rightBtnX, btnY, btnSize, btnSize, 0x263238, btnAlpha)
@@ -365,7 +361,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             .setDepth(60)
             .setStrokeStyle(3, 0xFFFFFF, 0.5);
         this.rightBtn = rightBtn;
-        this.add.text(rightBtnX, btnY, '▶', { fontSize: '36px', color: '#FFFFFF' })
+        this.add.text(rightBtnX, btnY, '▶', createGameTextStyle({ fontSize: '36px', color: '#FFFFFF' }))
             .setOrigin(0.5).setDepth(61);
 
         // Movement handlers
@@ -396,11 +392,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         // Removed speed override to match normal mode
 
         // Phase 1: Movement
-        this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'แตะปุ่มเพื่อขยับ', {
-            fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FFFFFF',
+        this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'แตะปุ่มเพื่อขยับ', createGameTextStyle({
+            fontSize: '24px', color: '#FFFFFF',
             stroke: '#000000', strokeThickness: 4,
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
-        }).setOrigin(0.5).setDepth(100);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(100);
 
         // Pulse buttons
         this.tweens.add({
@@ -424,11 +420,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             // Wait 2s then spawn obstacles
             this.time.delayedCall(2000, () => {
                 if (this.tutorialText) this.tutorialText.destroy();
-                this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'หลบก้อนหิน!', {
-                    fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FF0000',
+                this.tutorialText = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'หลบก้อนหิน!', createGameTextStyle({
+                    fontSize: '24px', color: '#FF0000',
                     stroke: '#000000', strokeThickness: 4,
-                    padding: { top: 10, bottom: 10, left: 10, right: 10 }
-                }).setOrigin(0.5).setDepth(100);
+                    fontStyle: 'bold'
+                })).setOrigin(0.5).setDepth(100);
 
                 // Spawn 2 wrecked ships
                 this.obstacleManager.spawnWreckedShip(1); // Lane 1
@@ -467,11 +463,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.controlsLocked = true;
         this.player.stopMove();
 
-        const text3 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'ยิงเพื่อทำลาย!', {
-            fontSize: '24px', fontFamily: '"Press Start 2P"', color: '#FFFF00',
+        const text3 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'ยิงเพื่อทำลาย!', createGameTextStyle({
+            fontSize: '24px', color: '#FFFF00',
             stroke: '#000000', strokeThickness: 4,
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
-        }).setOrigin(0.5).setDepth(100);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(100);
 
         // Pulse gun button
         this.tweens.add({
@@ -502,11 +498,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.tweens.killTweensOf(this.gunBtn);
         this.gunBtn.setScale(1);
 
-        const text4 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2, 'พร้อมลุย!', {
-            fontSize: '32px', fontFamily: '"Press Start 2P"', color: '#00FF00',
+        const text4 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2, 'พร้อมลุย!', createGameTextStyle({
+            fontSize: '32px', color: '#00FF00',
             stroke: '#000000', strokeThickness: 4,
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
-        }).setOrigin(0.5).setDepth(100);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(100);
 
         this.time.delayedCall(2000, () => {
             text4.destroy();
@@ -735,31 +731,29 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.physics.pause();
         const cx = this.CANVAS_W / 2;
         const cy = this.CANVAS_H / 2;
-        const fontFamily = '"Press Start 2P", "Courier New", monospace';
 
         const overlay = this.add.rectangle(cx, cy, this.CANVAS_W, this.CANVAS_H, 0x000000, 0.7).setDepth(90);
         const popupBg = this.add.rectangle(cx, cy - 50, Math.min(360, this.CANVAS_W * 0.85), 220, 0x1a1a4e, 0.95)
             .setDepth(91).setStrokeStyle(3, 0x6633CC);
 
-        const titleText = this.add.text(cx, cy - 120, title, {
-            fontSize: '24px', fontFamily, color: '#FFFF00',
+        const titleText = this.add.text(cx, cy - 120, title, createGameTextStyle({
+            fontSize: '24px', color: '#FFFF00',
             stroke: '#000000', strokeThickness: 4,
-            padding: { top: 4, bottom: 4 },
-        }).setOrigin(0.5).setDepth(92);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(92);
 
-        const bodyText = this.add.text(cx, cy - 60, body, {
+        const bodyText = this.add.text(cx, cy - 60, body, createGameTextStyle({
             fontSize: '18px', color: '#CCCCFF', align: 'center',
-            lineSpacing: 8, padding: { top: 4, bottom: 4 },
-        }).setOrigin(0.5).setDepth(92);
+            lineSpacing: 8,
+        })).setOrigin(0.5).setDepth(92);
 
         const okBtn = this.add.rectangle(cx, cy + 30, 180, 48, 0x4CAF50, 0.9)
             .setInteractive({ useHandCursor: true }).setDepth(92)
             .setStrokeStyle(2, 0xFFFFFF, 0.5);
 
-        const okText = this.add.text(cx, cy + 30, 'OK!', {
-            fontSize: '18px', fontFamily, color: '#FFFFFF',
-            padding: { top: 4, bottom: 4 },
-        }).setOrigin(0.5).setDepth(93);
+        const okText = this.add.text(cx, cy + 30, 'OK!', createGameTextStyle({
+            fontSize: '18px', color: '#FFFFFF', fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(93);
 
         okBtn.on('pointerdown', () => {
             [overlay, popupBg, titleText, bodyText, okBtn, okText].forEach(o => o.destroy());
@@ -865,7 +859,6 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.physics.pause();
         const cx = this.CANVAS_W / 2;
         const cy = this.CANVAS_H / 2;
-        const fontFamily = '"Press Start 2P", "Courier New", monospace';
 
         const overlay = this.add.rectangle(cx, cy, this.CANVAS_W, this.CANVAS_H, 0x000000, 0.7).setDepth(90);
         const popupBg = this.add.rectangle(cx, cy, Math.min(360, this.CANVAS_W * 0.85), 320, 0x1a1a4e, 0.95)
@@ -898,30 +891,29 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
                 break;
         }
 
-        const titleText = this.add.text(cx, cy - 110, title, {
-            fontSize: '24px', fontFamily, color: '#FFFF00',
+        const titleText = this.add.text(cx, cy - 110, title, createGameTextStyle({
+            fontSize: '24px', color: '#FFFF00',
             stroke: '#000000', strokeThickness: 4,
-            padding: { top: 8, bottom: 8, left: 8, right: 8 },
-        }).setOrigin(0.5).setDepth(92);
+            fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(92);
 
         // Powerup Image
         const img = this.add.image(cx, cy - 50, textureKey)
             .setDisplaySize(64, 64)
             .setDepth(92);
 
-        const bodyText = this.add.text(cx, cy + 20, body, {
+        const bodyText = this.add.text(cx, cy + 20, body, createGameTextStyle({
             fontSize: '18px', color: '#CCCCFF', align: 'center',
-            lineSpacing: 8, padding: { top: 8, bottom: 8, left: 8, right: 8 },
-        }).setOrigin(0.5).setDepth(92);
+            lineSpacing: 8,
+        })).setOrigin(0.5).setDepth(92);
 
         const okBtn = this.add.rectangle(cx, cy + 100, 180, 48, 0x4CAF50, 0.9)
             .setInteractive({ useHandCursor: true }).setDepth(92)
             .setStrokeStyle(2, 0xFFFFFF, 0.5);
 
-        const okText = this.add.text(cx, cy + 100, 'ตกลง', {
-            fontSize: '18px', fontFamily, color: '#FFFFFF',
-            padding: { top: 8, bottom: 8, left: 8, right: 8 },
-        }).setOrigin(0.5).setDepth(93);
+        const okText = this.add.text(cx, cy + 100, 'ตกลง', createGameTextStyle({
+            fontSize: '18px', color: '#FFFFFF', fontStyle: 'bold'
+        })).setOrigin(0.5).setDepth(93);
 
         const closePopup = () => {
             [overlay, popupBg, titleText, img, bodyText, okBtn, okText].forEach(o => o.destroy());

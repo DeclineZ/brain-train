@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { MYSTERY_SOUND_LEVELS } from './levels';
 import type { MysterySoundLevelConfig, MysterySoundQuestion, MysterySoundOption } from '@/types';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class MysterySoundScene extends Phaser.Scene {
     private currentLevelConfig!: MysterySoundLevelConfig;
@@ -178,13 +179,11 @@ export class MysterySoundScene extends Phaser.Scene {
         shadow.fillRoundedRect(-158, -27, 320, 60, 30);
         shadow.setPosition(3, 3);
 
-        this.titleText = this.add.text(0, 0, 'นี่คือเสียงอะไร?', {
+        this.titleText = this.add.text(0, 0, 'นี่คือเสียงอะไร?', createGameTextStyle({
             fontSize: '28px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#5b21b6',
             fontStyle: 'bold',
-            padding: { x: 10, y: 10 }, // Add padding to prevent clipping
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.titleContainer.add([shadow, titleBg, this.titleText]);
 
@@ -205,14 +204,12 @@ export class MysterySoundScene extends Phaser.Scene {
         const totalQuestions = this.currentLevelConfig.questions.length;
 
         const questionY = 135; // Moved up to save space
-        this.questionIndicator = this.add.text(width / 2, questionY, `ข้อ ${this.currentQuestionIndex + 1}/${totalQuestions}`, {
+        this.questionIndicator = this.add.text(width / 2, questionY, `ข้อ ${this.currentQuestionIndex + 1}/${totalQuestions}`, createGameTextStyle({
             fontSize: '18px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold',
             backgroundColor: '#8b5cf6',
-            padding: { x: 15, y: 6 },
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         // Add rounded corners effect via container
         this.questionIndicator.setAlpha(0);
@@ -338,14 +335,13 @@ export class MysterySoundScene extends Phaser.Scene {
             // Ensure hint is below speaker
             const hintY = Math.max(height * 0.42, speakerY + 100);
 
-            this.selectionHint = this.add.text(width / 2, hintY, `เลือก ${this.requiredSelections} ตัว`, {
+            this.selectionHint = this.add.text(width / 2, hintY, `เลือก ${this.requiredSelections} ตัว`, createGameTextStyle({
                 fontSize: '16px',
-                fontFamily: 'Sarabun, sans-serif',
                 color: '#fef3c7',
                 fontStyle: 'bold',
                 backgroundColor: '#d97706',
-                padding: { x: 12, y: 5 },
-            }).setOrigin(0.5);
+                padding: { left: 12, right: 12, top: 5, bottom: 5 },
+            })).setOrigin(0.5);
         }
     }
 
@@ -358,12 +354,11 @@ export class MysterySoundScene extends Phaser.Scene {
         btnBg.fillStyle(0x22c55e, 1);
         btnBg.fillRoundedRect(-80, -22, 160, 44, 22);
 
-        const btnText = this.add.text(0, 0, 'ยืนยัน', {
+        const btnText = this.add.text(0, 0, 'ยืนยัน', createGameTextStyle({
             fontSize: '22px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold',
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.confirmButton.add([btnBg, btnText]);
         this.confirmButton.setAlpha(0.5);
@@ -531,9 +526,9 @@ export class MysterySoundScene extends Phaser.Scene {
                 boat_train: '🚤🚂', rain_waterfall: '🌧️🌊',
                 bell_aircon: '🔔💨', laugh_door: '😆🚪',
             };
-            image = this.add.text(0, imageY, emojis[id] || '❓', {
+            image = this.add.text(0, imageY, emojis[id] || '❓', createEmojiTextStyle({
                 fontSize: `${size * (showLabel ? 0.45 : 0.55)}px`,
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
         }
 
         const labelBg = this.add.graphics();
@@ -542,32 +537,30 @@ export class MysterySoundScene extends Phaser.Scene {
         labelBg.setVisible(showLabel);
 
         const fontSize = Math.max(12, Math.min(18, size * 0.22));
-        const labelText = this.add.text(0, size / 2 + 6, label, {
+        const labelText = this.add.text(0, size / 2 + 6, label, createGameTextStyle({
             fontSize: `${fontSize}px`,
-            fontFamily: 'Sarabun, sans-serif',
             color: '#374151',
             fontStyle: 'bold',
-            padding: { x: 4, y: 6 },
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
         labelText.setVisible(showLabel);
 
         const iconSize = Math.max(30, size * 0.55);
         const iconY = showLabel ? -5 : 0;
-        const checkmark = this.add.text(0, iconY, '✓', {
+        const checkmark = this.add.text(0, iconY, '✓', createGameTextStyle({
             fontSize: `${iconSize}px`,
             color: '#16a34a',
             fontStyle: 'bold',
             stroke: '#ffffff',
             strokeThickness: 4,
-        }).setOrigin(0.5).setAlpha(0).setName('checkmark');
+        })).setOrigin(0.5).setAlpha(0).setName('checkmark');
 
-        const xmark = this.add.text(0, iconY, '✕', {
+        const xmark = this.add.text(0, iconY, '✕', createGameTextStyle({
             fontSize: `${iconSize}px`,
             color: '#dc2626',
             fontStyle: 'bold',
             stroke: '#ffffff',
             strokeThickness: 4,
-        }).setOrigin(0.5).setAlpha(0).setName('xmark');
+        })).setOrigin(0.5).setAlpha(0).setName('xmark');
 
         container.add([shadow, bg, selectionHighlight, image, labelBg, labelText, borderOverlay, checkmark, xmark]);
         container.setData('id', id);

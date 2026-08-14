@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { DreamDirectConstants, Direction, ArrowType } from './config';
 import { DREAMDIRECT_LEVELS, DreamDirectLevelConfig } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 interface Arrow {
     container: Phaser.GameObjects.Container;
@@ -401,14 +402,13 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.progressBarContainer.add(this.progressBarFill);
 
         // Score Text (centered on bar)
-        this.scoreText = this.add.text(0, 0, '0', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.scoreText = this.add.text(0, 0, '0', createGameTextStyle({
             fontSize: '18px',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 3,
             fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(101);
+        })).setOrigin(0.5).setDepth(101);
         this.progressBarContainer.add(this.scoreText);
 
         // Star Markers at thresholds: 1★ = 0% (start), 2★ = 50%, 3★ = 85%
@@ -441,13 +441,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.updateProgressBar();
 
         // Combo
-        this.comboText = this.add.text(width / 2, 110, '', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.comboText = this.add.text(width / 2, 110, '', createGameTextStyle({
             fontSize: '24px',
             color: '#ffaa00',
             stroke: '#1a1a2e',
             strokeThickness: 3,
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
     }
 
     drawStar(graphics: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, fillColor: number, strokeColor: number) {
@@ -867,35 +866,30 @@ export class DreamDirectGameScene extends Phaser.Scene {
             return;
         }
 
-        const titleText = this.add.text(width / 2, height * 0.15, info.title, {
-            fontFamily: 'Sarabun, sans-serif',
+        const titleText = this.add.text(width / 2, height * 0.15, info.title, createGameTextStyle({
             fontSize: '32px', // Smaller to fit mobile
             color: '#ffaa00',
             stroke: '#000000',
             strokeThickness: 4,
             align: 'center',
             wordWrap: { width: width * 0.9 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
-        const descText = this.add.text(width / 2, height * 0.25, info.desc, {
-            fontFamily: 'Sarabun, sans-serif',
+        const descText = this.add.text(width / 2, height * 0.25, info.desc, createGameTextStyle({
             fontSize: '24px',
             color: '#ffffff',
             align: 'center',
             wordWrap: { width: width * 0.8 },
-            padding: { top: 5, bottom: 5 } // fix thai clipping
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
-        const ruleText = this.add.text(width / 2, height * 0.70, info.rule, {
-            fontFamily: 'Sarabun, sans-serif',
+        const ruleText = this.add.text(width / 2, height * 0.70, info.rule, createGameTextStyle({
             fontSize: '32px',
             color: '#44ff44',
             stroke: '#000000',
             strokeThickness: 3,
-            padding: { top: 10, bottom: 10 }, // fix thai clipping
             align: 'center',
             wordWrap: { width: width * 0.9 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.tutorialContainer.add([titleText, descText, ruleText]);
 
@@ -1184,14 +1178,13 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         this.emitParticles(width / 2, height / 2, 0x44ff44);
 
-        const feedback = this.add.text(width / 2, height / 2, 'ยอดเยี่ยม!', {
-            fontFamily: 'Sarabun, sans-serif',
+        const feedback = this.add.text(width / 2, height / 2, 'ยอดเยี่ยม!', createGameTextStyle({
             fontSize: '80px',
             color: '#44ff44',
             stroke: '#ffffff',
             strokeThickness: 6,
             padding: { top: 20, bottom: 20 }
-        }).setOrigin(0.5).setDepth(2000).setScale(0);
+        })).setOrigin(0.5).setDepth(2000).setScale(0);
 
         this.tutorialContainer.add(feedback);
 
@@ -1943,13 +1936,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
     showTimingFeedback(x: number, y: number, grade: string, isGood: boolean) {
         const color = isGood ? '#44ff44' : '#ff4444';
-        const text = this.add.text(x, y - 30, grade, {
-            fontFamily: 'Sarabun, sans-serif',
+        const text = this.add.text(x, y - 30, grade, createGameTextStyle({
             fontSize: '32px',
             color,
             stroke: '#000000',
             strokeThickness: 4,
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({
             targets: text,

@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { getPipePatchLevel } from './levels';
 import { type Coord, type PipePatchLevelConfig, type PipePieceType } from './types';
 import { PipePatchGameScene } from './GameScene';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type TutorialAnchor = 'board' | 'tray' | 'source' | 'target' | 'status';
 type TutorialAction = 'info' | 'place';
@@ -178,37 +179,33 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
       .setOrigin(0.5)
       .setStrokeStyle(2, UI_COLORS.panelStroke, 0.95);
 
-    this.tutorialTitle = this.add.text(0, -56, '', {
-      fontFamily: 'Noto Sans Thai, sans-serif',
+    this.tutorialTitle = this.add.text(0, -56, '', createGameTextStyle({
       fontSize: '28px',
       color: UI_COLORS.textTitle,
       fontStyle: '700',
       align: 'center',
       wordWrap: { width: 360 },
-    }).setOrigin(0.5, 0);
+    })).setOrigin(0.5, 0);
 
-    this.tutorialDescription = this.add.text(0, -14, '', {
-      fontFamily: 'Noto Sans Thai, sans-serif',
+    this.tutorialDescription = this.add.text(0, -14, '', createGameTextStyle({
       fontSize: '22px',
       color: UI_COLORS.textBody,
       align: 'center',
       wordWrap: { width: 360 },
       lineSpacing: 3,
-    }).setOrigin(0.5, 0);
+    })).setOrigin(0.5, 0);
 
-    this.tutorialProgress = this.add.text(0, 70, '', {
-      fontFamily: 'Noto Sans Thai, sans-serif',
+    this.tutorialProgress = this.add.text(0, 70, '', createGameTextStyle({
       fontSize: '18px',
       color: UI_COLORS.textSubtle,
       fontStyle: '700',
-    }).setOrigin(0.5, 0.5);
+    })).setOrigin(0.5, 0.5);
 
-    this.warningText = this.add.text(0, 98, '', {
-      fontFamily: 'Noto Sans Thai, sans-serif',
+    this.warningText = this.add.text(0, 98, '', createGameTextStyle({
       fontSize: '17px',
       color: UI_COLORS.warning,
       fontStyle: '700',
-    }).setOrigin(0.5, 0.5);
+    })).setOrigin(0.5, 0.5);
 
     this.tutorialPanel.add([
       this.panelShadow,

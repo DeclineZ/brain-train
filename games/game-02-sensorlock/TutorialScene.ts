@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class TutorialScene extends Phaser.Scene {
     // UI Elements
@@ -39,8 +40,7 @@ export class TutorialScene extends Phaser.Scene {
         this.createControls();
 
         // 4. Tutorial Message Text (Top area)
-        this.messageText = this.add.text(width / 2, height * 0.2, "ยินดีต้อนรับ!", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.messageText = this.add.text(width / 2, height * 0.2, "ยินดีต้อนรับ!", createGameTextStyle({
             fontSize: '40px',
             fontStyle: 'bold',
             color: '#2d3436',
@@ -48,7 +48,7 @@ export class TutorialScene extends Phaser.Scene {
             stroke: '#ffffff',
             strokeThickness: 8,
             wordWrap: { width: width * 0.9 }
-        }).setOrigin(0.5).setDepth(20).setPadding(20);
+        })).setOrigin(0.5).setDepth(20).setPadding(20);
 
         // 5. Start Tutorial Flow
         this.startTutorial();
@@ -87,14 +87,13 @@ export class TutorialScene extends Phaser.Scene {
 
         // Label
         const labelSize = Math.min(width * 0.15, 80);
-        this.labelText = this.add.text(0, 120, "", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.labelText = this.add.text(0, 120, "", createGameTextStyle({
             fontSize: `${labelSize}px`,
-            fontStyle: '900',
+            fontStyle: 'bold',
             color: '#2d3436',
             stroke: '#ffffff',
             strokeThickness: 6
-        }).setOrigin(0.5).setPadding(10);
+        })).setOrigin(0.5).setPadding(10);
         this.arrowContainer.add(this.labelText);
 
         // Hide initially
@@ -111,14 +110,13 @@ export class TutorialScene extends Phaser.Scene {
         const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF7675)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0xD63031);
-        const noText = this.add.text(0, 0, "ไม่ตรง", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const noText = this.add.text(0, 0, "ไม่ตรง", createGameTextStyle({
             fontSize: '40px',
             fontStyle: 'bold',
             color: '#FFF',
             stroke: '#D63031',
             strokeThickness: 2
-        }).setOrigin(0.5).setPadding(5);
+        })).setOrigin(0.5);
         this.noBtn.add([noBg, noText]);
         this.noBtn.setVisible(false);
 
@@ -129,14 +127,13 @@ export class TutorialScene extends Phaser.Scene {
         const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x55EFC4)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0x00B894);
-        const yesText = this.add.text(0, 0, "ตรง", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const yesText = this.add.text(0, 0, "ตรง", createGameTextStyle({
             fontSize: '40px',
             fontStyle: 'bold',
             color: '#FFF',
             stroke: '#00B894',
             strokeThickness: 2
-        }).setOrigin(0.5).setPadding(5);
+        })).setOrigin(0.5);
         this.yesBtn.add([yesBg, yesText]);
         this.yesBtn.setVisible(false);
 

@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import { WaterPhysics } from "./utils/WaterPhysics";
 import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type Lane = 0 | 1 | 2;
 type Op = "+" | "-" | "*" | "/";
@@ -265,12 +266,11 @@ export class TutorialScene extends Phaser.Scene {
     // Target
     this.targetBox = this.add.container(width * 0.5, height * 0.18);
     const targetLabel = this.add
-      .text(0, -42, "เป้าหมาย", {
-        fontFamily: "Sarabun, Arial, sans-serif",
+      .text(0, -42, "เป้าหมาย", createGameTextStyle({
         fontSize: `${Math.min(22, width * 0.04)}px`,
         color: "#1976D2",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0.5);
 
     const targetBg = this.add.graphics();
@@ -278,12 +278,11 @@ export class TutorialScene extends Phaser.Scene {
     targetBg.fillRoundedRect(-110, -24, 220, 58, 14);
 
     this.targetText = this.add
-      .text(0, 2, String(this.target), {
-        fontFamily: "Arial, sans-serif",
+      .text(0, 2, String(this.target), createGameTextStyle({
         fontSize: `${Math.min(44, width * 0.085)}px`,
         color: "#FFFFFF",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0.5);
 
     this.targetBox.add([targetLabel, targetBg, this.targetText]);
@@ -293,21 +292,19 @@ export class TutorialScene extends Phaser.Scene {
     this.currentBox.setDepth(50);
 
     const currentLabel = this.add
-      .text(0, -30, "คะแนนปัจจุบัน", {
-        fontFamily: "Sarabun, Arial, sans-serif",
+      .text(0, -30, "คะแนนปัจจุบัน", createGameTextStyle({
         fontSize: `${Math.min(18, width * 0.032)}px`,
         color: "#2b2b2b",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0.5);
 
     this.currentText = this.add
-      .text(0, 0, String(this.current), {
-        fontFamily: "Arial, sans-serif",
+      .text(0, 0, String(this.current), createGameTextStyle({
         fontSize: `${Math.min(30, width * 0.055)}px`,
         color: "#555555",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0.5);
 
     this.currentBox.add([currentLabel, this.currentText]);
@@ -537,23 +534,21 @@ export class TutorialScene extends Phaser.Scene {
     this.panel.setDepth(0);
 
     this.panelTitle = this.add
-      .text(-width * 0.31, -height * 0.14, "แนะนำการเล่น", {
-        fontFamily: "Sarabun, Arial, sans-serif",
+      .text(-width * 0.31, -height * 0.14, "แนะนำการเล่น", createGameTextStyle({
         fontSize: `${Math.min(32, width * 0.055)}px`, // INCREASED from 24px/0.04 to 32px/0.055
         color: "#111111",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0, 0)
       .setPadding({ top: 5, bottom: 5, left: 5, right: 5 }); // Add padding for Thai text
 
     this.panelBody = this.add
-      .text(-width * 0.31, -height * 0.095, "", {
-        fontFamily: "Sarabun, Arial, sans-serif",
+      .text(-width * 0.31, -height * 0.095, "", createGameTextStyle({
         fontSize: `${Math.min(22, width * 0.4)}px`, // INCREASED from 17px/0.3 to 22px/0.4
         color: "#222222",
         wordWrap: { width: width * 0.59 },
         lineSpacing: 8,
-      })
+      }))
       .setOrigin(0, 0)
       .setPadding({ top: 5, bottom: 8, left: 5, right: 5 }); // Add padding for Thai diacritics
 
@@ -586,12 +581,11 @@ export class TutorialScene extends Phaser.Scene {
     g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
 
     const t = this.add
-      .text(0, 0, label, {
-        fontFamily: "Sarabun, Arial, sans-serif",
+      .text(0, 0, label, createGameTextStyle({
         fontSize: "20px", // INCREASED from 18px to 20px
         color: "#ffffff",
         fontStyle: "bold",
-      })
+      }))
       .setOrigin(0.5)
       .setPadding({ top: 3, bottom: 3, left: 3, right: 3 }); // Add padding for Thai text
     t.setName("label");
@@ -890,14 +884,13 @@ export class TutorialScene extends Phaser.Scene {
     let valueText: Phaser.GameObjects.Text | undefined;
     if (!opts.isBomb) {
       valueText = this.add
-        .text(0, 0, `${opts.op}${opts.value}`, {
-          fontFamily: "Arial, sans-serif",
+        .text(0, 0, `${opts.op}${opts.value}`, createGameTextStyle({
           fontSize: `${Math.min(42, this.scale.width * 0.075)}px`,
           color: "#ffffff",
           fontStyle: "bold",
           stroke: "#000000",
           strokeThickness: 3,
-        })
+        }))
         .setOrigin(0.5);
 
       container.add(valueText);

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { DoorGuardianGameScene } from './GameScene';
 import { CHARACTERS, type CharacterId } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
     private tutorialStep: 'INTRO' | 'ALLOW_PRACTICE' | 'REJECT_PRACTICE' | 'FINAL_TEST' | 'COMPLETE' = 'INTRO';
@@ -46,8 +47,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
         const { width, height } = this.scale;
 
         // Instruction Text (High depth)
-        this.instructionText = this.add.text(width / 2, height * 0.25, '', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.instructionText = this.add.text(width / 2, height * 0.25, '', createGameTextStyle({
             fontSize: '26px',
             fontStyle: 'bold',
             color: '#FFFFFF',
@@ -55,7 +55,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
             strokeThickness: 6,
             align: 'center',
             wordWrap: { width: width * 0.9 }
-        }).setOrigin(0.5).setDepth(1000).setPadding({ top: 20, bottom: 20, left: 20, right: 20 });
+        })).setOrigin(0.5).setDepth(1000);
 
         // Hand cursor removed per user request
 

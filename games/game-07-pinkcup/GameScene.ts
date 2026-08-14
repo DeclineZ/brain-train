@@ -3,6 +3,7 @@ import { getPinkCupLevel } from './levels';
 import { upsertLevelStars } from '@/lib/stars';
 import { createSeededRandom, shuffleWithSeed, SeededRandom } from '@/lib/seededRandom';
 import { calculatePinkCupLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 import type { 
   PinkCupLevelConfig, 
   CupData, 
@@ -419,15 +420,13 @@ export class PinkCupGameScene extends Phaser.Scene {
         // Create number text if cell has a number
         let numberText: Phaser.GameObjects.Text | null = null;
         if (hasNumber && numberValue !== null) {
-          numberText = this.add.text(0, 0, numberValue.toString(), {
-            fontFamily: 'Arial, sans-serif',
+          numberText = this.add.text(0, 0, numberValue.toString(), createGameTextStyle({
             fontSize: '32px',
             color: '#1A1A1A',
             fontStyle: 'bold',
             stroke: '#FFFFFF',
             strokeThickness: 4
-          })
-            .setPadding(6, 6, 6, 6)
+          }))
             .setOrigin(0.5)
             .setVisible(false)
             .setDepth(2);
@@ -668,8 +667,7 @@ export class PinkCupGameScene extends Phaser.Scene {
   createUI() {
     const { width, height } = this.scale;
 
-    this.messageText = this.add.text(width / 2, height * 0.17, '', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.messageText = this.add.text(width / 2, height * 0.17, '', createGameTextStyle({
       fontSize: '36px',
       color: '#2C3E50',
       stroke: '#FFFFFF',
@@ -677,8 +675,7 @@ export class PinkCupGameScene extends Phaser.Scene {
       fontStyle: 'bold',
       align: 'center',
       wordWrap: { width: width * 0.78, useAdvancedWrap: true }
-    })
-      .setPadding(14, 10, 14, 12)
+    }))
       .setOrigin(0.5)
       .setDepth(200);
 
@@ -742,21 +739,18 @@ export class PinkCupGameScene extends Phaser.Scene {
     hintBgGraphics.setDepth(301);
     hintBgGraphics.setPosition(width / 2, height / 2);
 
-    const hintText = this.add.text(width / 2, height / 2 - 20, message, {
-      fontFamily: 'Sarabun, sans-serif',
+    const hintText = this.add.text(width / 2, height / 2 - 20, message, createGameTextStyle({
       fontSize: '24px',
       color: '#2C3E50',
       align: 'center',
       wordWrap: { width: width * 0.8 }
-    }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
+    })).setOrigin(0.5).setDepth(302);
 
-    const tapText = this.add.text(width / 2, height / 2 + 60, '👆 แตะเพื่อเริ่มเล่น', {
-      fontFamily: 'Sarabun, sans-serif',
+    const tapText = this.add.text(width / 2, height / 2 + 60, '👆 แตะเพื่อเริ่มเล่น', createGameTextStyle({
       fontSize: '20px',
       color: '#888888',
       fontStyle: 'italic'
-    })
-      .setPadding(10, 8, 10, 8)
+    }))
       .setOrigin(0.5)
       .setDepth(302);
 
@@ -1335,39 +1329,33 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.probeUIContainer.add(this.probeUIGraphics);
 
     // Title text (smaller, cleaner)
-    const titleText = this.add.text(0, -50, title, {
-      fontFamily: 'Sarabun, sans-serif',
+    const titleText = this.add.text(0, -50, title, createGameTextStyle({
       fontSize: '18px',
       color: '#4A90E2',
       fontStyle: 'bold',
       align: 'center'
-    })
-      .setPadding(10, 8, 10, 8)
+    }))
       .setOrigin(0.5);
     this.probeUIContainer.add(titleText);
 
     // Subtitle text (number to find)
-    const subtitleText = this.add.text(0, 5, subtitle, {
-      fontFamily: 'Sarabun, sans-serif',
+    const subtitleText = this.add.text(0, 5, subtitle, createGameTextStyle({
       fontSize: '32px',
       color: '#2C3E50',
       fontStyle: 'bold',
       align: 'center',
       wordWrap: { width: panelW - 40 }
-    })
-      .setPadding(10, 8, 10, 8)
+    }))
       .setOrigin(0.5);
     this.probeUIContainer.add(subtitleText);
 
     // Instruction text
-    const instructionText = this.add.text(0, 55, instruction, {
-      fontFamily: 'Sarabun, sans-serif',
+    const instructionText = this.add.text(0, 55, instruction, createGameTextStyle({
       fontSize: '22px',
       color: '#666666',
       align: 'center',
       wordWrap: { width: panelW - 40 }
-    })
-      .setPadding(10, 8, 10, 8)
+    }))
       .setOrigin(0.5);
     this.probeUIContainer.add(instructionText);
 

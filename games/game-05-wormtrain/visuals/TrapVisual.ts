@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import GameScene from '../GameScene';
 import { WormGameConstants as WormGameConfig } from '../config';
 import { TrapConfig, LevelData, Node } from '../types/level';
+import { createGameTextStyle } from '@/games/engine/typography';
 
 interface TrapVisualData {
     trapId: string;
@@ -152,13 +153,13 @@ export class TrapVisual {
 
             // Let's create a temporary warning text if not exists
             if (!data.warningIndicator) {
-                const text = this.scene.add.text(x, y, "!", {
+                const text = this.scene.add.text(x, y, "!", createGameTextStyle({
                     fontSize: '80px',
                     fontStyle: 'bold',
                     color: '#ff0000',
                     stroke: '#ffffff',
                     strokeThickness: 6
-                }).setOrigin(0.5);
+                })).setOrigin(0.5);
                 text.setDepth(1001); // Above spider
                 data.warningIndicator = text as any;
             } else {

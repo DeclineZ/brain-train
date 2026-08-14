@@ -153,6 +153,17 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         gameInstance.current.destroy(true);
       }
 
+      // Ensure Prompt web font is fully loaded in document fonts before Phaser creates canvas text textures
+      if (typeof document !== 'undefined' && document.fonts) {
+        try {
+          await document.fonts.load('16px Prompt');
+          await document.fonts.load('bold 24px Prompt');
+          await document.fonts.ready;
+        } catch {
+          // Continue if font preloading fails
+        }
+      }
+
       const newGame = new Phaser.Game({
         ...config,
         parent: gameRef.current || 'game-container',

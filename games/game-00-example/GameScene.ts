@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { MEMORY_LEVELS } from './levels';
 import type { MemoryLevelConfig } from '@/types';
+import { createGameTextStyle } from '@/games/engine/typography';
 
 export class MemoryGameScene extends Phaser.Scene {
   private currentLevelConfig: MemoryLevelConfig = MEMORY_LEVELS[1];
@@ -34,7 +35,7 @@ export class MemoryGameScene extends Phaser.Scene {
   create() {
     this.startTime = Date.now();
     this.setupGrid();
-    this.add.text(16, 16, `Level ${this.currentLevelConfig.level}`, { fontSize: '24px', color: '#000' });
+    this.add.text(16, 16, `Level ${this.currentLevelConfig.level}`, createGameTextStyle({ fontSize: '24px', color: '#000' }));
   }
 
   setupGrid() {
