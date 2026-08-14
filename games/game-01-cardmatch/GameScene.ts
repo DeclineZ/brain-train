@@ -1,7 +1,7 @@
-//latest update 1
 import * as Phaser from 'phaser';
 import { MATCHING_LEVELS } from './levels';
 import type { MatchingLevelConfig } from '@/types';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;
@@ -1082,7 +1082,7 @@ export class MatchingGameScene extends Phaser.Scene {
             } else {
                 // Text fallback
                 const fs = Math.floor(Math.min(w, h) * 0.5 * scaleMult);
-                img = this.add.text(ox, oy, emoji || "?", { fontSize: `${fs}px` }).setOrigin(0.5);
+                img = this.add.text(ox, oy, emoji || "?", createEmojiTextStyle({ fontSize: `${fs}px` })).setOrigin(0.5);
             }
             return img;
         };
@@ -1216,25 +1216,21 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     createUI() {
-
-
-        this.messageText = this.add.text(0, 0, '', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.messageText = this.add.text(0, 0, '', createGameTextStyle({
             fontSize: '40px',
             color: '#2B2115',
             stroke: '#FFFFFF',
             strokeThickness: 6,
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(200).setPadding(10, 14, 10, 18);
+            fontStyle: 'bold',
+        })).setOrigin(0.5).setDepth(200);
 
-        this.streakText = this.add.text(0, 250, '', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.streakText = this.add.text(0, 250, '', createGameTextStyle({
             fontSize: '32px',
             color: '#FFD700',
             stroke: '#8B4513',
             strokeThickness: 4,
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(200).setVisible(false).setPadding(10, 14, 10, 18);
+            fontStyle: 'bold',
+        })).setOrigin(0.5).setDepth(200).setVisible(false);
 
         this.layoutUI();
     }
@@ -1254,21 +1250,19 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // Hint text - responsive font size
         const fontSize = Math.min(24, width * 0.055);
-        const hintText = this.add.text(width / 2, height / 2 - 15, message, {
-            fontFamily: 'Sarabun, sans-serif',
+        const hintText = this.add.text(width / 2, height / 2 - 15, message, createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: '#2B2115',
             align: 'center',
             wordWrap: { width: width * 0.88 }
-        }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
+        })).setOrigin(0.5).setDepth(302);
 
         // Tap to continue text
-        const tapText = this.add.text(width / 2, height / 2 + 60, '👆 แตะเพื่อเริ่มเล่น', {
-            fontFamily: 'Sarabun, sans-serif',
+        const tapText = this.add.text(width / 2, height / 2 + 60, '👆 แตะเพื่อเริ่มเล่น', createGameTextStyle({
             fontSize: '20px',
             color: '#888888',
-            fontStyle: 'italic'
-        }).setOrigin(0.5).setDepth(302).setPadding(10, 14, 10, 18);
+            fontStyle: 'italic',
+        })).setOrigin(0.5).setDepth(302);
 
         // Pulsing animation on tap text
         this.tweens.add({

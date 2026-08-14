@@ -6,6 +6,7 @@ import {
     type CharacterData,
     type DoorGuardianLevelConfig,
 } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 // --- Visitor data for each round ---
 interface Visitor {
@@ -862,13 +863,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.speechBubbleContainer.add(bg);
 
         // Text
-        const bubbleText = this.add.text(0, 0, text, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const bubbleText = this.add.text(0, 0, text, createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: '#333333',
             align: 'center',
             wordWrap: { width: bubbleW - 40 },
-        }).setOrigin(0.5).setPadding(5, 10, 5, 10);
+        })).setOrigin(0.5);
         this.speechBubbleContainer.add(bubbleText);
 
         // Pop-in animation
@@ -888,14 +888,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         const { width } = this.scale;
 
         // Level Indicator (Top Center)
-        this.add.text(width / 2, 35, `ด่าน ${this.levelConfig.level}`, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.add.text(width / 2, 35, `ด่าน ${this.levelConfig.level}`, createGameTextStyle({
             fontSize: '32px',
             color: '#6c5ce7',
             fontStyle: 'bold',
             stroke: '#ffffff',
             strokeThickness: 4,
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
     }
 
     private updateHeartsUI() {
@@ -909,33 +908,37 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         const btnY = height - 65;
         const btnWidth = width * 0.42;
         const btnHeight = 65;
-        const lipDepth = 8;
 
-        // Accept button (green)
-        this.acceptBtn = this.create3DButton(
-            width * 0.26, btnY, btnWidth, btnHeight, lipDepth,
-            'ให้เข้า ✓', 0x55efc4, 0x3EBFA6, true
+        // Accept Button (Green, Right)
+        const acceptX = width / 2 + btnWidth / 2 + 10;
+        this.acceptBtn = this.createButton(
+            acceptX, btnY, btnWidth, btnHeight,
+            0x00b894, 0x00a381, 'ให้เข้า ✔', true
         );
 
-        // Reject button (red)
-        this.rejectBtn = this.create3DButton(
-            width * 0.74, btnY, btnWidth, btnHeight, lipDepth,
-            'ปฏิเสธ ✗', 0xFF6B6B, 0xE05656, false
+        // Reject Button (Red, Left)
+        const rejectX = width / 2 - btnWidth / 2 - 10;
+        this.rejectBtn = this.createButton(
+            rejectX, btnY, btnWidth, btnHeight,
+            0xd63031, 0xb71540, 'ไม่ให้เข้า ✖', false
         );
     }
 
-    private create3DButton(
-        x: number, y: number, w: number, h: number, lip: number,
-        label: string, color: number, lipColor: number, isAccept: boolean
+    private createButton(
+        x: number, y: number, w: number, h: number,
+        color: number, shadowColor: number,
+        label: string, isAccept: boolean
     ): Phaser.GameObjects.Container {
         const container = this.add.container(x, y);
         container.setDepth(50);
 
-        // Lip (shadow)
-        const lipG = this.add.graphics();
-        lipG.fillStyle(lipColor, 1);
-        lipG.fillRoundedRect(-w / 2, -h / 2 + lip, w, h, 16);
-        container.add(lipG);
+        const lip = 6;
+
+        // 3D Shadow
+        const shadow = this.add.graphics();
+        shadow.fillStyle(shadowColor, 1);
+        shadow.fillRoundedRect(-w / 2, -h / 2 + lip, w, h, 16);
+        container.add(shadow);
 
         // Face
         const faceGroup = this.add.container(0, 0);
@@ -946,13 +949,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         // Label
         const textSize = Math.min(w * 0.2, 28);
-        const text = this.add.text(0, 0, label, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const text = this.add.text(0, 0, label, createGameTextStyle({
             fontSize: `${textSize}px`,
-            fontStyle: '900',
+            fontStyle: 'bold',
             color: '#FFFFFF',
             shadow: { offsetX: 0, offsetY: 2, color: '#00000044', blur: 3, fill: true, stroke: false },
-        }).setOrigin(0.5).setPadding(5, 8, 5, 10);
+        })).setOrigin(0.5);
         faceGroup.add(text);
         container.add(faceGroup);
 
@@ -1003,12 +1005,11 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.cardPanelContainer.add(bg);
 
         // Icon + Text
-        const btnText = this.add.text(0, 0, '📋 ดูรายชื่อเข้าได้', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const btnText = this.add.text(0, 0, '📋 ดูรายชื่อเข้าได้', createGameTextStyle({
             fontSize: '18px',
             color: '#6c5ce7',
             fontStyle: 'bold'
-        }).setOrigin(0.5).setPadding({ top: 8, bottom: 8 });
+        })).setOrigin(0.5);
         this.cardPanelContainer.add(btnText);
 
         const hitArea = this.add.rectangle(0, 0, panelW, panelH, 0x000000, 0)
@@ -1041,9 +1042,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         // Find existing limit text or create it
         let limitText = this.cardPanelContainer.getByName('limitText') as Phaser.GameObjects.Text;
         if (!limitText) {
-            limitText = this.add.text(0, -35, '', {
-                fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '14px', color: '#FF6B6B', fontStyle: 'bold'
-            }).setOrigin(0.5).setPadding({ top: 5, bottom: 5 }).setName('limitText');
+            limitText = this.add.text(0, -35, '', createGameTextStyle({
+                fontSize: '14px', color: '#FF6B6B', fontStyle: 'bold'
+            })).setOrigin(0.5).setName('limitText');
             this.cardPanelContainer.add(limitText);
         }
         
@@ -1086,19 +1087,18 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             fallbackBg.strokeRoundedRect(-60, imgY - 60, 120, 120, 16);
             container.add(fallbackBg);
 
-            const fallbackText = this.add.text(0, imgY, '❓', {
+            const fallbackText = this.add.text(0, imgY, '❓', createEmojiTextStyle({
                 fontSize: '48px'
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add(fallbackText);
         }
 
         // Character Name
-        const nameText = this.add.text(0, 70, char.name, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const nameText = this.add.text(0, 70, char.name, createGameTextStyle({
             fontSize: '24px', // Larger font size
             color: '#2d3436', // Dark gray
             fontStyle: 'bold'
-        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+        })).setOrigin(0.5);
         container.add(nameText);
     }
 
@@ -1203,10 +1203,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.refModalContainer.add(bgGroup);
 
         // Title
-        const titleText = this.add.text(0, -modalH / 2 + 40, 'ผู้ที่ได้รับอนุญาตให้เข้าวันนี้', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const titleText = this.add.text(0, -modalH / 2 + 40, 'ผู้ที่ได้รับอนุญาตให้เข้าวันนี้', createGameTextStyle({
             fontSize: '22px', color: '#333333', fontStyle: 'bold'
-        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+        })).setOrigin(0.5);
         this.refModalContainer.add(titleText);
 
         // Create Container for the Card Content (Image + Name)
@@ -1225,9 +1224,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         leftArrowBg.strokeCircle(0, 0, 22);
         leftArrowBtn.add(leftArrowBg);
 
-        const leftArrowIcon = this.add.text(0, 0, '◀', {
-            fontFamily: 'sans-serif', fontSize: '18px', color: '#6c5ce7'
-        }).setOrigin(0.5);
+        const leftArrowIcon = this.add.text(0, 0, '◀', createGameTextStyle({
+            fontSize: '18px', color: '#6c5ce7'
+        })).setOrigin(0.5);
         leftArrowBtn.add(leftArrowIcon);
 
         const leftArrowHit = this.add.circle(0, 0, 22, 0x000000, 0)
@@ -1260,9 +1259,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         rightArrowBg.strokeCircle(0, 0, 22);
         rightArrowBtn.add(rightArrowBg);
 
-        const rightArrowIcon = this.add.text(0, 0, '▶', {
-            fontFamily: 'sans-serif', fontSize: '18px', color: '#6c5ce7'
-        }).setOrigin(0.5);
+        const rightArrowIcon = this.add.text(0, 0, '▶', createGameTextStyle({
+            fontSize: '18px', color: '#6c5ce7'
+        })).setOrigin(0.5);
         rightArrowBtn.add(rightArrowIcon);
 
         const rightArrowHit = this.add.circle(0, 0, 22, 0x000000, 0)
@@ -1309,9 +1308,9 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         btnBg.fillRoundedRect(-closeBtnW / 2, -closeBtnH / 2, closeBtnW, closeBtnH, 14);
         btnContainer.add(btnBg);
 
-        const closeText = this.add.text(0, 0, 'จำได้แล้ว (ปิด)', {
-            fontFamily: '"Mali", "Sarabun", sans-serif', fontSize: '20px', color: '#FFFFFF', fontStyle: 'bold'
-        }).setOrigin(0.5).setPadding({ top: 10, bottom: 10 });
+        const closeText = this.add.text(0, 0, 'จำได้แล้ว (ปิด)', createGameTextStyle({
+            fontSize: '20px', color: '#FFFFFF', fontStyle: 'bold'
+        })).setOrigin(0.5);
         btnContainer.add(closeText);
 
         const closeHit = this.add.rectangle(0, 0, closeBtnW, closeBtnH, 0x000000, 0)
@@ -1685,14 +1684,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         // Show "หมดเวลา!" text
         const { width, height } = this.scale;
-        const timeoutText = this.add.text(width / 2, height / 2, '⏰ หมดเวลา!', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const timeoutText = this.add.text(width / 2, height / 2, '⏰ หมดเวลา!', createGameTextStyle({
             fontSize: '36px',
             fontStyle: 'bold',
             color: '#FF6B6B',
             stroke: '#FFFFFF',
             strokeThickness: 4,
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({
             targets: timeoutText,
@@ -1730,14 +1728,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     private showPointPopup(points: number) {
         const { width, height } = this.scale;
 
-        const popup = this.add.text(width / 2, height * 0.35, `+${points}`, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const popup = this.add.text(width / 2, height * 0.35, `+${points}`, createGameTextStyle({
             fontSize: '48px',
             fontStyle: 'bold',
             color: '#55efc4',
             stroke: '#FFFFFF',
             strokeThickness: 5,
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({
             targets: popup,

@@ -5,6 +5,7 @@ import {
   type ParkingJamCarRuntime,
   type ParkingJamDirection,
 } from './types';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type TutorialAction = 'info' | 'select_car' | 'confirm_side' | 'move_one_way';
 type TapZone = ParkingJamDirection | 'center';
@@ -180,39 +181,31 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     this.selectionFeedbackGraphics = this.add.graphics().setDepth(29);
     this.arrowGraphics = this.add.graphics().setDepth(50);
 
-    this.titleText = this.add.text(0, 60, '', {
+    this.titleText = this.add.text(0, 60, '', createGameTextStyle({
       fontSize: '28px',
       color: COLORS.textMain,
-      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
-      fontStyle: '700',
-      padding: { left: 16, right: 16, top: 8, bottom: 8 },
-    }).setOrigin(0.5, 0).setDepth(60);
+      fontStyle: 'bold',
+    })).setOrigin(0.5, 0).setDepth(60);
 
-    this.descText = this.add.text(0, 100, '', {
+    this.descText = this.add.text(0, 100, '', createGameTextStyle({
       fontSize: '20px',
       color: COLORS.textMuted,
-      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
-      fontStyle: '700',
+      fontStyle: 'bold',
       align: 'center',
       wordWrap: { width: 420 },
-      padding: { left: 12, right: 12, top: 6, bottom: 6 },
-    }).setOrigin(0.5, 0).setDepth(60);
+    })).setOrigin(0.5, 0).setDepth(60);
 
-    this.progressText = this.add.text(0, 0, '', {
+    this.progressText = this.add.text(0, 0, '', createGameTextStyle({
       fontSize: '18px',
       color: COLORS.textMuted,
-      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
-      fontStyle: '700',
-      padding: { left: 10, right: 10, top: 4, bottom: 4 },
-    }).setOrigin(0.5, 0.5).setDepth(60);
+      fontStyle: 'bold',
+    })).setOrigin(0.5, 0.5).setDepth(60);
 
-    this.tapToContinueText = this.add.text(0, 0, 'กดเพื่อไปต่อ', {
+    this.tapToContinueText = this.add.text(0, 0, 'กดเพื่อไปต่อ', createGameTextStyle({
       fontSize: '20px',
       color: COLORS.textMuted,
-      fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
-      fontStyle: '700',
-      padding: { left: 12, right: 12, top: 6, bottom: 6 },
-    }).setOrigin(0.5, 0.5).setDepth(60).setAlpha(0);
+      fontStyle: 'bold',
+    })).setOrigin(0.5, 0.5).setDepth(60).setAlpha(0);
 
     this.createCars();
     this.layout();
@@ -252,13 +245,11 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
       const container = this.add.container(0, 0).setDepth(20);
       const bg = this.add.graphics();
       const details = this.add.graphics();
-      const label = this.add.text(0, 0, finalConfig.id, {
+      const label = this.add.text(0, 0, finalConfig.id, createGameTextStyle({
         fontSize: '16px',
         color: '#0f172a',
-        fontFamily: 'Sarabun, Noto Sans Thai, sans-serif',
-        fontStyle: '700',
-        padding: { left: 2, right: 2, top: 1, bottom: 1 },
-      }).setOrigin(0.5);
+        fontStyle: 'bold',
+      })).setOrigin(0.5);
 
       container.add([bg, details, label]);
       this.cars.set(finalConfig.id, { config: finalConfig, runtime, container, bg, details, label });

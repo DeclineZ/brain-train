@@ -1,4 +1,5 @@
 import { Floatboat } from '../types';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class FloatboatController {
   private scene: Phaser.Scene;
@@ -419,12 +420,11 @@ export class FloatboatController {
     signShadow.fillRoundedRect(-signWidth / 2 + 4, -signHeight / 2 + 4, signWidth, signHeight, 10);
 
     // Target text on sign
-    this.signText = this.scene.add.text(0, 0, "เป้าหมาย 0", {
-      fontFamily: "Sarabun, sans-serif",
+    this.signText = this.scene.add.text(0, 0, "เป้าหมาย 0", createGameTextStyle({
       fontSize: `${Math.min(40, screenWidth * 0.3)}px`,
       color: "#333333",
       fontStyle: "bold",
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     container.add([signShadow, signBg, this.signText]);
 

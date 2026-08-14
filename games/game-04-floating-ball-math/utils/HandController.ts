@@ -1,4 +1,5 @@
 import { WarningHand, FloatingBall } from '../types';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class HandController {
   private scene: Phaser.Scene;
@@ -65,14 +66,13 @@ export class HandController {
     container.add(defendButton); // Add to hand container so it follows the hand
 
     // Create warning text
-    const warningText = this.scene.add.text(0, -60, '!', {
-      fontFamily: 'Arial, sans-serif',
+    const warningText = this.scene.add.text(0, -60, '!', createGameTextStyle({
       fontSize: '32px',
       color: '#FF0000',
       fontStyle: 'bold',
       stroke: '#FFFFFF',
       strokeThickness: 4,
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     container.add(warningText);
 
     // Store hand data
@@ -130,14 +130,13 @@ export class HandController {
     container.add(bg);
 
     // Button text
-    const text = this.scene.add.text(0, 0, 'ห้ามขโมย!', {
-      fontFamily: 'Arial, sans-serif',
+    const text = this.scene.add.text(0, 0, 'ห้ามขโมย!', createGameTextStyle({
       fontSize: `${Math.min(24, width * 0.05)}px`,
       color: '#FFFFFF',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2,
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     container.add(text);
 
     // Make interactive

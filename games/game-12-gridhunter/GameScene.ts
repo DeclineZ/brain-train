@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class GridHunterGameScene extends Phaser.Scene {
     // Game State
@@ -250,24 +251,22 @@ export class GridHunterGameScene extends Phaser.Scene {
         scoreBg.strokeRoundedRect(-50, -22, 100, 44, 22);
         scoreContainer.add(scoreBg);
 
-        this.scoreText = this.add.text(0, 0, '0', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.scoreText = this.add.text(0, 0, '0', createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#B5838D'
-        }).setOrigin(0.5, 0.5);
+        })).setOrigin(0.5, 0.5);
         scoreContainer.add(this.scoreText);
         scoreContainer.setDepth(100);
 
         // Combo text (below score)
-        this.comboText = this.add.text(width / 2, 140, '', {
-            fontFamily: '"Mali", sans-serif',
+        this.comboText = this.add.text(width / 2, 140, '', createGameTextStyle({
             fontSize: '32px',
             fontStyle: 'bold',
             color: '#E5989B',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(0.5).setAlpha(0).setDepth(100);
+        })).setOrigin(0.5).setAlpha(0).setDepth(100);
 
         // Timer bar
         this.timerBar = this.add.graphics().setDepth(100);
@@ -294,12 +293,11 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.instructionBg.add(pill);
 
         // Instruction text - centered in pill
-        this.instructionText = this.add.text(0, 0, 'หาเลขน้อยที่สุด', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.instructionText = this.add.text(0, 0, 'หาเลขน้อยที่สุด', createGameTextStyle({
             fontSize: '24px',
             fontStyle: 'bold',
             color: '#ffffff'
-        }).setOrigin(0.5).setPadding(10, 14, 10, 14);
+        })).setOrigin(0.5);
         this.instructionBg.add(this.instructionText);
 
         this.instructionBg.setDepth(100);
@@ -383,14 +381,13 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         const { width, height } = this.scale;
 
-        const countdownText = this.add.text(width / 2, height / 2, '3', {
-            fontFamily: '"Mali", sans-serif',
+        const countdownText = this.add.text(width / 2, height / 2, '3', createGameTextStyle({
             fontSize: '120px',
             fontStyle: 'bold',
             color: '#6c5ce7',
             stroke: '#ffffff',
             strokeThickness: 8
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         const tickSound = this.sound.add('beep');
 
@@ -553,12 +550,11 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // Number text
         const fontSize = Math.max(24, size * 0.45);
-        const text = this.add.text(0, 0, num.toString(), {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const text = this.add.text(0, 0, num.toString(), createGameTextStyle({
             fontSize: `${fontSize}px`,
             fontStyle: 'bold',
             color: isTrap ? '#ffffff' : '#2d3436'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
         container.add(text);
 
         // Trap glow animation
@@ -816,13 +812,11 @@ export class GridHunterGameScene extends Phaser.Scene {
         ];
         const msg = msgs[Math.min(this.trapAlertCount - 1, msgs.length - 1)];
 
-        const text = this.add.text(0, 0, msg, {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const text = this.add.text(0, 0, msg, createGameTextStyle({
             fontSize: '20px',
             fontStyle: 'bold',
             color: '#ffffff',
-            padding: { top: 6, bottom: 6, left: 6, right: 6 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         const pillW = text.width + 36;
         const pillH = text.height + 20;
@@ -886,7 +880,6 @@ export class GridHunterGameScene extends Phaser.Scene {
             .setDepth(190).setInteractive(); // Block clicks
 
         // Phase-specific content in Thai
-        // Phase-specific content in Thai
         let titleText: string;
         let descText: string;
 
@@ -923,25 +916,23 @@ export class GridHunterGameScene extends Phaser.Scene {
         const container = this.add.container(width / 2, height / 2).setDepth(200).setAlpha(0).setScale(0.8);
 
         // Title
-        const title = this.add.text(0, -50, titleText, {
-            fontFamily: '"Mali", sans-serif',
+        const title = this.add.text(0, -50, titleText, createGameTextStyle({
             fontSize: '48px',
             fontStyle: 'bold',
             color: '#ffffff',
             stroke: '#6D6875',
             strokeThickness: 8
-        }).setOrigin(0.5).setPadding(20);
+        })).setOrigin(0.5).setPadding(20);
         container.add(title);
 
         // Description
-        const desc = this.add.text(0, 10, descText, {
-            fontFamily: '"Mali", sans-serif',
+        const desc = this.add.text(0, 10, descText, createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#FFB5A7', // Soft pink/coral
             stroke: '#000000',
             strokeThickness: 2
-        }).setOrigin(0.5).setPadding(10, 5, 10, 5);
+        })).setOrigin(0.5);
         container.add(desc);
 
         // Continue Button
@@ -962,12 +953,11 @@ export class GridHunterGameScene extends Phaser.Scene {
         btnShadow.fillStyle(0x46A302, 1);
         btnShadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2 + 4, btnWidth, btnHeight, 16);
 
-        const btnText = this.add.text(0, 0, 'ไปต่อ >', {
-            fontFamily: '"Mali", sans-serif',
+        const btnText = this.add.text(0, 0, 'ไปต่อ >', createGameTextStyle({
             fontSize: '26px',
             fontStyle: 'bold',
             color: '#ffffff'
-        }).setOrigin(0.5).setPadding(10, 5, 10, 5);
+        })).setOrigin(0.5);
 
         btnContainer.add([btnShadow, btnBg, btnText]);
         container.add(btnContainer);
@@ -1067,14 +1057,13 @@ export class GridHunterGameScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Brief "สลับ!" indicator
-        const hint = this.add.text(width / 2, height / 2 - 180, 'สลับ!', {
-            fontFamily: '"Mali", sans-serif',
+        const hint = this.add.text(width / 2, height / 2 - 180, 'สลับ!', createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#6D6875',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(150).setAlpha(0).setPadding(10);
+        })).setOrigin(0.5).setDepth(150).setAlpha(0);
 
         // Quick flash animation
         this.tweens.add({
@@ -1202,14 +1191,13 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // 4. FLOATING SCORE TEXT ("+100" rising up)
         const points = 100 * Math.min(this.combo, 10);
-        const pointsText = this.add.text(worldPos.x, worldPos.y, `+${points}`, {
-            fontFamily: '"Mali", sans-serif',
+        const pointsText = this.add.text(worldPos.x, worldPos.y, `+${points}`, createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#B5838D',
             stroke: '#ffffff',
             strokeThickness: 4
-        }).setOrigin(0.5).setDepth(70);
+        })).setOrigin(0.5).setDepth(70);
 
         this.tweens.add({
             targets: pointsText,

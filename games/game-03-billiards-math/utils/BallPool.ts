@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import type { Ball } from '../types';
+import { createGameTextStyle } from '@/games/engine/typography';
 
 /**
  * Ball Pool - Object pooling system for efficient ball management
@@ -121,14 +122,13 @@ export class BallPool {
         } else {
             ball = scene.add.circle(0, 0, ballRadius, 0xffffff).setStrokeStyle(2, 0x000000);
             const shadow = scene.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3).setOrigin(0.5);
-            const text = scene.add.text(0, 0, value.toString(), {
-                fontFamily: "Arial, sans-serif",
+            const text = scene.add.text(0, 0, value.toString(), createGameTextStyle({
                 fontSize: `${fontSize}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
                 stroke: "#000000",
                 strokeThickness: 1,
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add([shadow, ball, text]);
         }
 

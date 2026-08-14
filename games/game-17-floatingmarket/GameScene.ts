@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { FLOATING_MARKET_LEVELS } from './levels';
 import type { FloatingMarketLevelConfig, MarketItem, ItemCategory, GameMode, LevelRule } from './types';
 import { AssetFactory } from './AssetFactory';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 // ==================== ITEM DATABASE ====================
 
@@ -388,7 +389,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         const text = document.createElement('div');
         text.innerText = 'แตะเพื่อเริ่มเกม';
         text.style.color = '#FFFFFF';
-        text.style.fontFamily = "'Noto Sans Thai', sans-serif";
+        text.style.fontFamily = GAME_FONT_FAMILY;
         text.style.fontSize = '32px';
         text.style.fontWeight = 'bold';
         text.style.textShadow = '2px 2px 4px #000000';
@@ -708,12 +709,12 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.ruleBannerBg = this.add.rectangle(width / 2, bannerY, width * 0.96, 56, 0x1A1A2E, 0.9);
         this.ruleBannerBg.setStrokeStyle(2, 0xFFD700, 0.8);
         this.ruleBannerBg.setDepth(99);
-        this.ruleBanner = this.add.text(width / 2, bannerY, this.activeRule.instructionThai, {
-            fontSize: '22px', fontFamily: "'Noto Sans Thai', sans-serif",
+        this.ruleBanner = this.add.text(width / 2, bannerY, this.activeRule.instructionThai, createGameTextStyle({
+            fontSize: '22px',
             color: '#FFD700', align: 'center', fontStyle: 'bold',
-            wordWrap: { width: width * 0.88 }, padding: { x: 12, y: 6 },
+            wordWrap: { width: width * 0.88 },
             stroke: '#000000', strokeThickness: 2,
-        });
+        }));
         this.ruleBanner.setOrigin(0.5);
         this.ruleBanner.setDepth(100);
 
@@ -726,10 +727,10 @@ export class FloatingMarketScene extends Phaser.Scene {
         });
 
         // Coin counter
-        this.coinCountText = this.add.text(width - 20, 20, '🪙 0', {
-            fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+        this.coinCountText = this.add.text(width - 20, 20, '🪙 0', createEmojiTextStyle({
+            fontSize: '20px',
             color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
-        });
+        }));
         this.coinCountText.setOrigin(1, 0);
         this.coinCountText.setDepth(100);
 
@@ -739,9 +740,9 @@ export class FloatingMarketScene extends Phaser.Scene {
         const startX = (width / 2) - heartSpacing; // Center 3 hearts
 
         for (let i = 0; i < this.maxHealth; i++) {
-            const heart = this.add.text(startX + (i * heartSpacing), healthY, '❤️', {
+            const heart = this.add.text(startX + (i * heartSpacing), healthY, '❤️', createEmojiTextStyle({
                 fontSize: '24px'
-            });
+            }));
             heart.setOrigin(0.5);
             heart.setDepth(100);
             this.healthHearts.push(heart);
@@ -756,10 +757,10 @@ export class FloatingMarketScene extends Phaser.Scene {
             this.sackIcon.setDepth(100);
             this.sackIcon.setOrigin(0.5);
 
-            this.sackCountText = this.add.text(sackX, sackY - 30, '0', {
-                fontSize: '22px', fontFamily: "'Noto Sans Thai', sans-serif",
+            this.sackCountText = this.add.text(sackX, sackY - 30, '0', createGameTextStyle({
+                fontSize: '22px',
                 color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4,
-            });
+            }));
             this.sackCountText.setOrigin(0.5);
             this.sackCountText.setDepth(100);
         }
@@ -787,10 +788,10 @@ export class FloatingMarketScene extends Phaser.Scene {
                 const target = this.targetQuantities[key];
                 const emoji = emojiMap[key] || '📦';
 
-                const textObj = this.add.text(startX + (i * spacing), 0, `${emoji} 0/${target}`, {
-                    fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+                const textObj = this.add.text(startX + (i * spacing), 0, `${emoji} 0/${target}`, createGameTextStyle({
+                    fontSize: '20px',
                     color: '#FFFFFF', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
-                });
+                }));
                 textObj.setOrigin(0.5);
                 this.quantityUITexts[key] = textObj;
                 this.quantityUIContainer.add(textObj);
@@ -912,10 +913,10 @@ export class FloatingMarketScene extends Phaser.Scene {
 
             const alertBg = this.add.rectangle(width / 2, height / 2, width * 0.85, 120, 0x000000, 0.85);
             alertBg.setDepth(200);
-            const alertText = this.add.text(width / 2, height / 2, message, {
-                fontSize: '18px', fontFamily: "'Noto Sans Thai', sans-serif",
+            const alertText = this.add.text(width / 2, height / 2, message, createGameTextStyle({
+                fontSize: '18px',
                 color: '#FFFFFF', align: 'center',
-            });
+            }));
             alertText.setOrigin(0.5);
             alertText.setDepth(201);
             this.time.delayedCall(3000, () => {
@@ -1034,10 +1035,10 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         // Flash "CHANGE RULES!" banner
         const { width, height } = this.scale;
-        const flash = this.add.text(width / 2, height / 2, '⚡ เปลี่ยนกฎ! ⚡', {
-            fontSize: '36px', fontFamily: "'Noto Sans Thai', sans-serif",
+        const flash = this.add.text(width / 2, height / 2, '⚡ เปลี่ยนกฎ! ⚡', createGameTextStyle({
+            fontSize: '36px',
             color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 5,
-        });
+        }));
         flash.setOrigin(0.5);
         flash.setDepth(150);
         this.tweens.add({
@@ -1056,10 +1057,10 @@ export class FloatingMarketScene extends Phaser.Scene {
             this.sackIcon.setDisplaySize(36, 36);
             this.sackIcon.setDepth(100);
             this.sackIcon.setOrigin(0, 0);
-            this.sackCountText = this.add.text(78, 28, '0', {
-                fontSize: '20px', fontFamily: "'Noto Sans Thai', sans-serif",
+            this.sackCountText = this.add.text(78, 28, '0', createGameTextStyle({
+                fontSize: '20px',
                 color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
-            });
+            }));
             this.sackCountText.setOrigin(0, 0);
             this.sackCountText.setDepth(100);
         }
@@ -1213,7 +1214,7 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         const coinCircle = this.add.circle(0, 0, 12, 0xFFD700);
         coinCircle.setStrokeStyle(2, 0xDAA520);
-        const coinText = this.add.text(0, 0, '฿', { fontSize: '12px', color: '#8B6914', fontStyle: 'bold' });
+        const coinText = this.add.text(0, 0, '฿', createGameTextStyle({ fontSize: '12px', color: '#8B6914', fontStyle: 'bold' }));
         coinText.setOrigin(0.5);
         container.add([coinCircle, coinText]);
         container.setSize(24, 24);
@@ -1242,19 +1243,19 @@ export class FloatingMarketScene extends Phaser.Scene {
         itemSprite.setDisplaySize(60, 60);
 
         // Label underneath — big and readable
-        const label = this.add.text(0, 38, item.nameThai, {
-            fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+        const label = this.add.text(0, 38, item.nameThai, createGameTextStyle({
+            fontSize: '16px',
             color: '#FFFFFF', stroke: '#000000', strokeThickness: 4,
             align: 'center',
-        });
+        }));
         label.setOrigin(0.5);
 
         // Price tag for level 26
         if (item.priceTag && this.levelConfig.level === 26) {
-            const priceLabel = this.add.text(0, -36, `${item.priceTag}฿`, {
-                fontSize: '14px', fontFamily: "'Noto Sans Thai', sans-serif",
+            const priceLabel = this.add.text(0, -36, `${item.priceTag}฿`, createGameTextStyle({
+                fontSize: '14px',
                 color: '#FFD700', stroke: '#000000', strokeThickness: 3,
-            });
+            }));
             priceLabel.setOrigin(0.5);
             container.add(priceLabel);
         }
@@ -1433,10 +1434,10 @@ export class FloatingMarketScene extends Phaser.Scene {
                 this.animateItemReject(fi);
 
                 // Show a brief 'full' warning
-                const warnText = this.add.text(fi.sprite.x, fi.sprite.y - 30, `ครบแล้ว!`, {
-                    fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+                const warnText = this.add.text(fi.sprite.x, fi.sprite.y - 30, `ครบแล้ว!`, createGameTextStyle({
+                    fontSize: '16px',
                     color: '#FF6B6B', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
-                });
+                }));
                 warnText.setOrigin(0.5);
                 warnText.setDepth(120);
                 this.tweens.add({
@@ -1535,10 +1536,10 @@ export class FloatingMarketScene extends Phaser.Scene {
     private showCollectFeedback(x: number, y: number, correct: boolean) {
         const text = correct ? '✓' : '✗';
         const color = correct ? '#2ECC71' : '#E74C3C';
-        const fb = this.add.text(x, y, text, {
+        const fb = this.add.text(x, y, text, createGameTextStyle({
             fontSize: '32px', color, fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 3,
-        });
+        }));
         fb.setOrigin(0.5);
         fb.setDepth(120);
         this.tweens.add({
@@ -1551,11 +1552,11 @@ export class FloatingMarketScene extends Phaser.Scene {
     }
 
     private showDuplicateWarning(x: number, y: number, item: MarketItem) {
-        const warnText = this.add.text(x, y - 30, `มีแล้ว! (${item.nameThai})`, {
-            fontSize: '16px', fontFamily: "'Noto Sans Thai', sans-serif",
+        const warnText = this.add.text(x, y - 30, `มีแล้ว! (${item.nameThai})`, createGameTextStyle({
+            fontSize: '16px',
             color: '#FF6B6B', fontStyle: 'bold',
             stroke: '#000000', strokeThickness: 3,
-        });
+        }));
         warnText.setOrigin(0.5);
         warnText.setDepth(120);
         this.tweens.add({
@@ -1628,10 +1629,10 @@ export class FloatingMarketScene extends Phaser.Scene {
 
     private resetBasket() {
         const { width, height } = this.scale;
-        const flash = this.add.text(width / 2, height / 2, '🔄 ตะกร้าว่างแล้ว!', {
-            fontSize: '28px', fontFamily: "'Noto Sans Thai', sans-serif",
+        const flash = this.add.text(width / 2, height / 2, '🔄 ตะกร้าว่างแล้ว!', createGameTextStyle({
+            fontSize: '28px',
             color: '#FFD700', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4,
-        });
+        }));
         flash.setOrigin(0.5);
         flash.setDepth(150);
         this.tweens.add({

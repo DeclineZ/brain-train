@@ -1,5 +1,5 @@
-
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class TutorialScene extends Phaser.Scene {
     // Assets
@@ -57,15 +57,13 @@ export class TutorialScene extends Phaser.Scene {
         graphics.strokePath();
 
         // 2. UI Layer
-        // 2. UI Layer
-        this.messageText = this.add.text(0, 0, "จำตำแหน่งให้ดีนะ...", {
-            fontFamily: 'Sarabun, sans-serif',
+        this.messageText = this.add.text(0, 0, "จำตำแหน่งให้ดีนะ...", createGameTextStyle({
             fontSize: '40px',
             color: '#2B2115',
             stroke: '#FFFFFF',
             strokeThickness: 6,
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(100).setPadding(10, 14, 10, 18).setVisible(false);
+            fontStyle: 'bold',
+        })).setOrigin(0.5).setDepth(100).setVisible(false);
 
         // 3. Setup Cards
         this.createCards();
@@ -383,7 +381,7 @@ export class TutorialScene extends Phaser.Scene {
         if (this.textures.exists(assetName)) {
             icon = this.add.image(0, 0, assetName).setOrigin(0.5);
         } else {
-            icon = this.add.text(0, 0, emoji, { fontSize: '40px' }).setOrigin(0.5);
+            icon = this.add.text(0, 0, emoji, createEmojiTextStyle({ fontSize: '40px' })).setOrigin(0.5);
         }
         icon.visible = false;
         icon.scaleX = 0; // Starts zero width for flip

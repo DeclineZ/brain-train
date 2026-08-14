@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type CupInfo = {
   container: Phaser.GameObjects.Container;
@@ -125,15 +126,13 @@ export class PinkCupTutorialScene extends Phaser.Scene {
         const rectangle = this.add.rectangle(0, 0, this.cellSize, this.cellSize, color).setOrigin(0.5);
         rectangle.setDepth(0);
 
-        const numberText = this.add.text(0, 0, `${y * this.gridCols + x + 1}`, {
-          fontFamily: 'Arial, sans-serif',
+        const numberText = this.add.text(0, 0, `${y * this.gridCols + x + 1}`, createGameTextStyle({
           fontSize: `${Math.floor(this.cellSize * 0.32)}px`,
           color: '#1A1A1A',
           fontStyle: 'bold',
           stroke: '#FFFFFF',
           strokeThickness: 4
-        })
-          .setPadding(6, 6, 6, 6)
+        }))
           .setOrigin(0.5)
           .setVisible(false)
           .setDepth(2);
@@ -390,15 +389,13 @@ export class PinkCupTutorialScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Title
-    this.titleText = this.add.text(width / 2, 80, 'เรียนรู้วิธีเล่น', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.titleText = this.add.text(width / 2, 80, 'เรียนรู้วิธีเล่น', createGameTextStyle({
       fontSize: '40px',
       color: '#2C3E50',
       stroke: '#FFFFFF',
       strokeThickness: 6,
       fontStyle: 'bold'
-    })
-      .setPadding(14, 10, 14, 12)
+    }))
       .setOrigin(0.5);
 
     // Instruction panel
@@ -409,22 +406,18 @@ export class PinkCupTutorialScene extends Phaser.Scene {
     this.instructionPanel.strokeRoundedRect(-width * 0.45, -70, width * 0.9, 160, 24);
     this.instructionPanel.setDepth(240);
 
-    this.tutorialText = this.add.text(width / 2, height - 165 + this.tutorialPanelOffsetY, '', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.tutorialText = this.add.text(width / 2, height - 165 + this.tutorialPanelOffsetY, '', createGameTextStyle({
       fontSize: '30px',
       color: '#2C3E50',
       align: 'center',
-      wordWrap: { width: width * 0.85 },
-      padding: { x: 20, y: 15 }
-    }).setOrigin(0.5).setDepth(250);
+      wordWrap: { width: width * 0.85 }
+    })).setOrigin(0.5).setDepth(250);
 
-    this.continueText = this.add.text(width / 2, height - 80 + this.tutorialPanelOffsetY, 'แตะเพื่อไปต่อ', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.continueText = this.add.text(width / 2, height - 80 + this.tutorialPanelOffsetY, 'แตะเพื่อไปต่อ', createGameTextStyle({
       fontSize: '26px',
       color: '#555555',
       fontStyle: 'italic'
-    })
-      .setPadding(10, 8, 10, 8)
+    }))
       .setOrigin(0.5)
       .setDepth(250);
 
@@ -436,13 +429,11 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       repeat: -1
     });
 
-    this.skipButton = this.add.text(width - 32, 20, 'ข้าม', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.skipButton = this.add.text(width - 32, 20, 'ข้าม', createGameTextStyle({
       fontSize: '20px',
       color: '#FFFFFF',
       backgroundColor: '#FF6B6B',
-      padding: { x: 18, y: 10 }
-    }).setOrigin(1, 0)
+    })).setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
       .setDepth(300);
 

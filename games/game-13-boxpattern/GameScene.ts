@@ -1,5 +1,6 @@
 
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 export class BoxPatternGameScene extends Phaser.Scene {
     // --- State ---
@@ -162,12 +163,11 @@ export class BoxPatternGameScene extends Phaser.Scene {
         const { width } = this.scale;
 
         // Score (Top Right - lowered to avoid header)
-        this.scoreText = this.add.text(width - 20, 85, 'Score: 0', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.scoreText = this.add.text(width - 20, 85, 'Score: 0', createGameTextStyle({
             fontSize: '28px',
             color: '#2d3436',
             fontStyle: 'bold'
-        }).setOrigin(1, 0.5);
+        })).setOrigin(1, 0.5);
 
         // Hearts (Top Left - lowered to avoid header)
         this.heartsContainer = this.add.container(40, 85);
@@ -182,9 +182,9 @@ export class BoxPatternGameScene extends Phaser.Scene {
             const x = i * 40;
             const filled = i < this.lives;
 
-            const heartText = this.add.text(x, 0, filled ? '❤️' : '🖤', {
+            const heartText = this.add.text(x, 0, filled ? '❤️' : '🖤', createEmojiTextStyle({
                 fontSize: '32px'
-            }).setOrigin(0, 0.5);
+            })).setOrigin(0, 0.5);
 
             this.heartsContainer.add(heartText);
         }
@@ -327,19 +327,17 @@ export class BoxPatternGameScene extends Phaser.Scene {
             box.setStrokeStyle(4, 0x6c5ce7);
             container.add(box);
 
-            const titleText = this.add.text(0, -30, title, {
-                fontFamily: '"Mali", sans-serif',
+            const titleText = this.add.text(0, -30, title, createGameTextStyle({
                 fontSize: '48px',
                 color: '#6c5ce7',
                 fontStyle: 'bold'
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add(titleText);
 
-            const subText = this.add.text(0, 30, sub, {
-                fontFamily: '"Sarabun", sans-serif',
+            const subText = this.add.text(0, 30, sub, createGameTextStyle({
                 fontSize: '32px',
                 color: '#2d3436'
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add(subText);
 
             // Pop in

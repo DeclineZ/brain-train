@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { DreamDirectConstants, Direction } from './config';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 /**
  * Tutorial Scene for Dream Direct
@@ -297,8 +298,7 @@ export class TutorialScene extends Phaser.Scene {
         panel.setDepth(90);
 
         // Instruction Text
-        this.instructionText = this.add.text(width / 2, panelY, 'ยินดีต้อนรับสู่ Dream Direct!', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.instructionText = this.add.text(width / 2, panelY, 'ยินดีต้อนรับสู่ Dream Direct!', createGameTextStyle({
             fontSize: '32px',
             color: '#ffffff',
             align: 'center',
@@ -306,7 +306,7 @@ export class TutorialScene extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 3,
             padding: { top: 15, bottom: 15, left: 10, right: 10 }
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
 
         // Phase 1 -> Phase 2
         this.time.delayedCall(3000, () => {
@@ -436,15 +436,14 @@ export class TutorialScene extends Phaser.Scene {
 
     showFeedback(text: string, color: string) {
         const { width } = this.scale;
-        const feedback = this.add.text(width / 2, this.hitZoneY - 100, text, {
-            fontFamily: 'Sarabun, sans-serif',
+        const feedback = this.add.text(width / 2, this.hitZoneY - 100, text, createGameTextStyle({
             fontSize: '48px',
             fontStyle: 'bold',
             color: color,
             stroke: '#000000',
             strokeThickness: 6,
             padding: { top: 10, bottom: 10 }
-        }).setOrigin(0.5).setDepth(300);
+        })).setOrigin(0.5).setDepth(300);
 
         this.tweens.add({
             targets: feedback,

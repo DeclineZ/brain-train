@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CASHIER_LEVELS, type CashierLevelConfig } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 const SHOP_ITEMS = [
     { id: 'apple', name: 'แอปเปิล', key: 'item-apple', basePrice: 2 },
@@ -228,10 +229,10 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Screen is white, so use dark green text
         // With a bigger monitor, we can use larger font size and wider wrap
-        this.posMonitorText = this.add.text(400 - 200, monitorY - 140, 'POS SYSTEM BOOTING...', {
-            fontSize: '28px', color: '#053305', fontFamily: 'monospace', padding: { x: 5, y: 5 }, lineSpacing: 5,
+        this.posMonitorText = this.add.text(400 - 200, monitorY - 140, 'POS SYSTEM BOOTING...', createGameTextStyle({
+            fontSize: '28px', color: '#053305', lineSpacing: 5,
             wordWrap: { width: 400 }
-        }).setOrigin(0, 0).setDepth(1);
+        })).setOrigin(0, 0).setDepth(1);
     }
 
     private createPatienceMeter() {
@@ -351,7 +352,7 @@ export class CashierGameScene extends Phaser.Scene {
         const tailFill = this.add.triangle(30, -35, 0, 0, 20, 0, 10, -20, 0xffffff).setOrigin(0, 0);
         const tailStroke = this.add.triangle(30, -35, 0, 0, 20, 0, 10, -20).setStrokeStyle(3, isUrgent ? 0xff0000 : 0x000000).setOrigin(0, 0);
 
-        const textObj = this.add.text(0, 0, text, { fontSize: '24px', color: isUrgent ? '#ff0000' : '#000000', align: 'center', wordWrap: { width: 300 } }).setOrigin(0.5);
+        const textObj = this.add.text(0, 0, text, createGameTextStyle({ fontSize: '24px', color: isUrgent ? '#ff0000' : '#000000', align: 'center', wordWrap: { width: 300 } })).setOrigin(0.5);
 
         // Render stroke tail first, then bubble, then fill tail over the bubble border
         container.add([tailStroke, bubbleBg, tailFill, textObj]);
@@ -394,7 +395,7 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Display
         const displayBg = this.add.rectangle(sx, sy - 120, 300, 70, 0x223322).setStrokeStyle(3, 0x000);
-        this.inputDisplay = this.add.text(sx + 130, sy - 120, "0", { fontSize: '54px', color: '#00ff00', fontFamily: 'monospace', padding: { x: 10, y: 10 } }).setOrigin(1, 0.5);
+        this.inputDisplay = this.add.text(sx + 130, sy - 120, "0", createGameTextStyle({ fontSize: '54px', color: '#00ff00', fontStyle: 'bold' })).setOrigin(1, 0.5);
         this.numpadGroup.add(displayBg);
         this.numpadGroup.add(this.inputDisplay);
 
@@ -420,7 +421,7 @@ export class CashierGameScene extends Phaser.Scene {
                 if (label === 'CLEAR') textLabel = 'C';
                 if (label === 'ENTER') textLabel = 'OK';
 
-                const btnText = this.add.text(bx, by, textLabel, { fontSize: '48px', color: btnTxtColor, fontStyle: 'bold', padding: { x: 5, y: 5 } }).setOrigin(0.5);
+                const btnText = this.add.text(bx, by, textLabel, createGameTextStyle({ fontSize: '48px', color: btnTxtColor, fontStyle: 'bold' })).setOrigin(0.5);
 
                 this.numpadGroup.add(btnShadow);
                 this.numpadGroup.add(btnBg);
@@ -480,7 +481,7 @@ export class CashierGameScene extends Phaser.Scene {
 
         // Submit Change Button
         const submitBg = this.add.rectangle(sx, sy + 210, 300, 50, 0x00cc00).setInteractive({ useHandCursor: true });
-        const submitText = this.add.text(sx, sy + 210, 'ส่งมอบเงินทอน', { fontSize: '28px', color: '#fff', fontStyle: 'bold', padding: { x: 5, y: 5 } }).setOrigin(0.5);
+        const submitText = this.add.text(sx, sy + 210, 'ส่งมอบเงินทอน', createGameTextStyle({ fontSize: '28px', color: '#fff', fontStyle: 'bold' })).setOrigin(0.5);
         this.cashDrawerGroup.add(submitBg);
         this.cashDrawerGroup.add(submitText);
 
@@ -546,7 +547,7 @@ export class CashierGameScene extends Phaser.Scene {
         const fontSize = denom.type === 'bill' ? '42px' : '36px'; // Increased font sizes
         const strokeColor = denom.type === 'bill' ? '#000000' : '#ffffff';
         const strokeT = denom.type === 'bill' ? 5 : 4;
-        const lbl = this.add.text(topObj.x, topObj.y, `${denom.val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT }).setOrigin(0.5);
+        const lbl = this.add.text(topObj.x, topObj.y, `${denom.val}`, createGameTextStyle({ fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT })).setOrigin(0.5);
         this.cashDrawerGroup.add(lbl);
 
         // Ensure interactive area is large enough
@@ -599,7 +600,7 @@ export class CashierGameScene extends Phaser.Scene {
         const fontSize = cType === 'bill' ? '42px' : '36px'; // Increased font sizes
         const strokeColor = cType === 'bill' ? '#000000' : '#ffffff';
         const strokeT = cType === 'bill' ? 5 : 4;
-        const flyingLbl = this.add.text(sourceObj.x, sourceObj.y, `${val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT }).setOrigin(0.5);
+        const flyingLbl = this.add.text(sourceObj.x, sourceObj.y, `${val}`, createGameTextStyle({ fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: strokeT })).setOrigin(0.5);
 
 
         // Random destination on the belt
@@ -674,7 +675,7 @@ export class CashierGameScene extends Phaser.Scene {
         const monitorCenterY = 240; // Shifted UP slightly to fit inside the monitor bezels
         const monitorCenterX = 400;
 
-        const promptText = this.add.text(monitorCenterX, monitorCenterY, "แตะสินค้า\nเพื่อดูราคา", { fontSize: '38px', color: '#053305', align: 'center', fontStyle: 'bold' }).setOrigin(0.5);
+        const promptText = this.add.text(monitorCenterX, monitorCenterY, "แตะสินค้า\nเพื่อดูราคา", createGameTextStyle({ fontSize: '38px', color: '#053305', align: 'center', fontStyle: 'bold' })).setOrigin(0.5);
         this.phase1MonitorGroup.add(promptText);
 
         let currentBeltX = 90;
@@ -785,7 +786,7 @@ export class CashierGameScene extends Phaser.Scene {
 
         if (qty > 1) {
             // Draw quantity text near the icon
-            const qtyText = this.add.text(cx + 60, iconY + 50, `x${qty}`, { fontSize: '36px', color: '#053305', fontFamily: 'monospace', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 4 }).setOrigin(0.5);
+            const qtyText = this.add.text(cx + 60, iconY + 50, `x${qty}`, createGameTextStyle({ fontSize: '36px', color: '#053305', fontStyle: 'bold', stroke: '#ffffff', strokeThickness: 4 })).setOrigin(0.5);
             this.phase1MonitorGroup.add(qtyText);
         }
 
@@ -825,7 +826,7 @@ export class CashierGameScene extends Phaser.Scene {
             const fontColor = el.denom.isCoin ? '#000000' : '#ffffff';
             const fontSize = el.denom.isCoin ? '26px' : '30px';
             const strokeColor = el.denom.isCoin ? '#ffffff' : '#000000';
-            const lbl = this.add.text(elCenterX, cashY, `${el.denom.val}`, { fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: 3 }).setOrigin(0.5);
+            const lbl = this.add.text(elCenterX, cashY, `${el.denom.val}`, createGameTextStyle({ fontSize, color: fontColor, fontStyle: 'bold', stroke: strokeColor, strokeThickness: 3 })).setOrigin(0.5);
 
             this.phase1MonitorGroup.add(denomImg);
             this.phase1MonitorGroup.add(lbl);
@@ -844,7 +845,7 @@ export class CashierGameScene extends Phaser.Scene {
         const note = this.add.rectangle(nx, ny, 220, 300, 0xfceba7).setAngle(-5).setStrokeStyle(1, 0xcca000);
         const pin = this.add.circle(nx, ny - 130, 6, 0xff0000).setAngle(-5);
 
-        const noteText = this.add.text(nx, ny, text, { fontSize: '24px', color: '#d91b1b', fontStyle: 'bold', align: 'center', padding: { x: 5, y: 5 }, lineSpacing: 5 }).setOrigin(0.5).setAngle(-5);
+        const noteText = this.add.text(nx, ny, text, createGameTextStyle({ fontSize: '24px', color: '#d91b1b', fontStyle: 'bold', align: 'center', lineSpacing: 5 })).setOrigin(0.5).setAngle(-5);
 
         this.stickyNoteGroup.add(noteShadow);
         this.stickyNoteGroup.add(note);
@@ -876,9 +877,9 @@ export class CashierGameScene extends Phaser.Scene {
     }
 
     private showFloatingFeedback(msg: string, color: number) {
-        const text = this.add.text(400, 450, msg, {
-            fontSize: '42px', color: '#fff', fontStyle: 'bold', backgroundColor: color === 0x00ff00 ? '#22c55e' : (color === 0xffa500 ? '#f59e0b' : '#ef4444'), padding: { x: 20, y: 15 }
-        }).setOrigin(0.5).setDepth(200);
+        const text = this.add.text(400, 450, msg, createGameTextStyle({
+            fontSize: '42px', color: '#fff', fontStyle: 'bold', backgroundColor: color === 0x00ff00 ? '#22c55e' : (color === 0xffa500 ? '#f59e0b' : '#ef4444')
+        })).setOrigin(0.5).setDepth(200);
 
         this.feedbackGroup.add(text);
 
@@ -962,7 +963,7 @@ export class CashierGameScene extends Phaser.Scene {
 
             // Draw visual on belt in front of hand
             const bgObj = this.add.rectangle(itemX, handY, 120, 70, bgColor).setStrokeStyle(2, borderColor).setAngle(Phaser.Math.RND.between(-15, 15));
-            const txtObj = this.add.text(bgObj.x, bgObj.y, `${sign}฿${val}`, { fontSize: '28px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5).setAngle(bgObj.angle);
+            const txtObj = this.add.text(bgObj.x, bgObj.y, `${sign}฿${val}`, createGameTextStyle({ fontSize: '28px', color: '#000', fontStyle: 'bold' })).setOrigin(0.5).setAngle(bgObj.angle);
 
             this.dynamicItemsGroup.add(bgObj);
             this.dynamicItemsGroup.add(txtObj);
@@ -1030,7 +1031,7 @@ export class CashierGameScene extends Phaser.Scene {
         else if (this.customerGivenAmount === 50) paidImg.setTint(0x6666ff);
         else if (this.customerGivenAmount === 20) paidImg.setTint(0x66ff66);
 
-        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, { fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5);
+        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, createGameTextStyle({ fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 })).setOrigin(0.5);
 
         this.dynamicItemsGroup.add(arm);
         this.dynamicItemsGroup.add(paidImg);
@@ -1056,7 +1057,7 @@ export class CashierGameScene extends Phaser.Scene {
         else if (this.customerGivenAmount === 50) paidImg.setTint(0x6666ff);
         else if (this.customerGivenAmount === 20) paidImg.setTint(0x66ff66);
 
-        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, { fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5);
+        const paidTxt = this.add.text(paidImg.x, paidImg.y, `฿${this.customerGivenAmount}`, createGameTextStyle({ fontSize: '32px', color: '#e0e0e0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4 })).setOrigin(0.5);
 
         this.dynamicItemsGroup.add(arm);
         this.dynamicItemsGroup.add(paidImg);

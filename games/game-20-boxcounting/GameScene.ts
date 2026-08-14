@@ -7,9 +7,10 @@ import {
     type Puzzle3D,
     type Puzzle2D,
 } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 // --- Constants ---
-const FONT_FAMILY = "'Noto Sans Thai', 'Segoe UI', sans-serif";
+const FONT_FAMILY = GAME_FONT_FAMILY;
 
 // 2D view cell colors
 const CELL_FILLED = 0xFFB3C6;   // pink
@@ -150,23 +151,19 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
         // Question text — pushed down to avoid LEVEL badge overlap
         const fontSize = Math.min(26, w * 0.055);
-        this.add.text(w / 2, h * 0.11, 'มีลูกบาศก์อยู่ในภาพกี่อัน?', {
-            fontFamily: FONT_FAMILY,
+        this.add.text(w / 2, h * 0.11, 'มีลูกบาศก์อยู่ในภาพกี่อัน?', createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: '#333333',
             fontStyle: 'bold',
             align: 'center',
-            padding: { top: 10, bottom: 6, left: 4, right: 4 },
-        }).setOrigin(0.5, 0);
+        })).setOrigin(0.5, 0);
 
         // Question counter
-        this.add.text(w / 2, h * 0.16, `ข้อ ${this.currentQuestionIndex + 1} / ${this.totalQuestions}`, {
-            fontFamily: FONT_FAMILY,
+        this.add.text(w / 2, h * 0.16, `ข้อ ${this.currentQuestionIndex + 1} / ${this.totalQuestions}`, createGameTextStyle({
             fontSize: `${Math.min(16, w * 0.035)}px`,
             color: '#999999',
             align: 'center',
-            padding: { top: 10, bottom: 6 },
-        }).setOrigin(0.5, 0);
+        })).setOrigin(0.5, 0);
 
         // Get current puzzle
         const puzzle = this.levelConfig.puzzles[this.currentQuestionIndex];
@@ -393,13 +390,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
         const isTutorialMode = this.levelConfig.mode === '2d' && this.levelConfig.level >= 16 && this.levelConfig.level <= 20;
 
-        this.add.text(topStartX + topGridW / 2, topStartY - labelFontSize - 4, 'ด้านบน', {
-            fontFamily: FONT_FAMILY,
+        this.add.text(topStartX + topGridW / 2, topStartY - labelFontSize - 4, 'ด้านบน', createGameTextStyle({
             fontSize: `${labelFontSize}px`,
             color: '#666666',
             fontStyle: 'bold',
-            padding: { top: 4, bottom: 2 },
-        }).setOrigin(0.5, 0);
+        })).setOrigin(0.5, 0);
 
         // Add 3D helper hint for early levels
         if (isTutorialMode) {
@@ -428,12 +423,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
             this.drawIsometricScene(hintX, hintY, hintSize, blocks, hintGridSize, 0);
 
             // Add subtitle text for the hint
-            this.add.text(hintX, hintY + hintSize * 0.45, 'ตัวช่วย 3 มิติ', {
-                fontFamily: FONT_FAMILY,
+            this.add.text(hintX, hintY + hintSize * 0.45, 'ตัวช่วย 3 มิติ', createGameTextStyle({
                 fontSize: `${Math.min(14, w * 0.035)}px`,
                 color: '#888888',
                 align: 'center'
-            }).setOrigin(0.5, 0);
+            })).setOrigin(0.5, 0);
         }
 
         // --- Front View ---
@@ -443,13 +437,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
         const frontGridW = frontViewW * cellSize;
 
         this.drawGridView(frontStartX, frontStartY, frontView, cellSize);
-        this.add.text(frontStartX + frontGridW / 2, frontStartY - labelFontSize - 4, 'ด้านหน้า', {
-            fontFamily: FONT_FAMILY,
+        this.add.text(frontStartX + frontGridW / 2, frontStartY - labelFontSize - 4, 'ด้านหน้า', createGameTextStyle({
             fontSize: `${labelFontSize}px`,
             color: '#666666',
             fontStyle: 'bold',
-            padding: { top: 4, bottom: 2 },
-        }).setOrigin(0.5, 0);
+        })).setOrigin(0.5, 0);
 
         // --- Side View ---
         const sideStartX = frontStartX + frontGridW + cellSize * 1.5;
@@ -457,13 +449,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
         const sideGridW = sideViewW * cellSize;
 
         this.drawGridView(sideStartX, sideStartY, sideView, cellSize);
-        this.add.text(sideStartX + sideGridW / 2, sideStartY - labelFontSize - 4, 'ด้านข้าง', {
-            fontFamily: FONT_FAMILY,
+        this.add.text(sideStartX + sideGridW / 2, sideStartY - labelFontSize - 4, 'ด้านข้าง', createGameTextStyle({
             fontSize: `${labelFontSize}px`,
             color: '#666666',
             fontStyle: 'bold',
-            padding: { top: 4, bottom: 2 },
-        }).setOrigin(0.5, 0);
+        })).setOrigin(0.5, 0);
     }
 
     private computeFrontView(hm: number[][], rows: number, cols: number, maxH: number): boolean[][] {
@@ -554,12 +544,11 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
             container.add(btnBg);
 
-            const numText = this.add.text(0, 0, `${value}`, {
-                fontFamily: FONT_FAMILY,
+            const numText = this.add.text(0, 0, `${value}`, createGameTextStyle({
                 fontSize: `${Math.min(30, w * 0.06)}px`,
                 color: '#333333',
                 fontStyle: 'bold',
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add(numText);
 
             const hitArea = new Phaser.Geom.Rectangle(-buttonW / 2, -buttonH / 2, buttonW, buttonH);
@@ -805,14 +794,12 @@ export class BoxCountingGameScene extends Phaser.Scene {
         const feedbackText = isCorrect ? '✓ ถูกต้อง!' : `✗ คำตอบคือ ${this.currentAnswer}`;
         const feedbackColor = isCorrect ? '#4CD964' : '#FF3B30';
 
-        const feedback = this.add.text(w / 2, h * 0.66, feedbackText, {
-            fontFamily: FONT_FAMILY,
+        const feedback = this.add.text(w / 2, h * 0.66, feedbackText, createGameTextStyle({
             fontSize: `${Math.min(24, w * 0.05)}px`,
             color: feedbackColor,
             fontStyle: 'bold',
             align: 'center',
-            padding: { top: 10, bottom: 6 },
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.tweens.add({
             targets: feedback,

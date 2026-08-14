@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 import type { Equation, ComplexEquation, Ball } from "./types";
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 // Physics constants (Matched to GameScene)
 const PHYSICS_CONFIG = {
@@ -503,12 +504,14 @@ export class TutorialScene extends Phaser.Scene {
         this.headerBg.strokeRoundedRect(width / 2 - safeWidth / 2, headerY - 50, safeWidth, 100, 16);
         this.headerBg.setDepth(90);
 
-        this.messageText = this.add.text(width / 2, headerY, "", {
-            fontFamily: "Sarabun, sans-serif", fontSize: "24px",
-            color: "#FFFFFF", fontStyle: "bold", align: 'center',
+        this.messageText = this.add.text(width / 2, headerY, "", createGameTextStyle({
+            fontSize: "24px",
+            color: "#FFFFFF",
+            fontStyle: "bold",
+            align: 'center',
             wordWrap: { width: safeWidth - 60 },
             padding: { top: 10, bottom: 10 }
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
 
         // Equation Header - Attached to Pool Table container (offset from top of felt)
         // Local Y relative to table center (0,0)
@@ -521,10 +524,13 @@ export class TutorialScene extends Phaser.Scene {
         headerBgEq.fillRoundedRect(-120, localEqY - 22, 240, 44, 12);
         this.poolTable.add(headerBgEq);
 
-        this.targetText = this.add.text(0, localEqY, "", {
-            fontFamily: "Arial", fontSize: "28px", color: "#FFF", fontStyle: "bold",
-            stroke: "#000", strokeThickness: 3
-        }).setOrigin(0.5);
+        this.targetText = this.add.text(0, localEqY, "", createGameTextStyle({
+            fontSize: "28px",
+            color: "#FFF",
+            fontStyle: "bold",
+            stroke: "#000",
+            strokeThickness: 3
+        })).setOrigin(0.5);
         this.poolTable.add(this.targetText);
 
         this.game.events.emit('tutorial-show-next-btn', false);
@@ -615,10 +621,10 @@ export class TutorialScene extends Phaser.Scene {
             // Visuals (Match GameScene)
             c.add(this.add.circle(0, 0, 33, 0x00ffff, 0.25)); // Glow
             c.add(this.add.circle(0, 0, 25, 0x1a1a2e, 0.9).setStrokeStyle(4, 0x00ffff));
-            c.add(this.add.text(0, 0, "?", { fontSize: '26px', color: '#00ffff', fontStyle: 'bold' }).setOrigin(0.5));
+            c.add(this.add.text(0, 0, "?", createGameTextStyle({ fontSize: '26px', color: '#00ffff', fontStyle: 'bold' })).setOrigin(0.5));
 
             if (i < count - 1) {
-                const opText = this.add.text(spacing / 2, 0, eq.operator, { fontSize: '32px', color: '#FFF', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+                const opText = this.add.text(spacing / 2, 0, eq.operator, createGameTextStyle({ fontSize: '32px', color: '#FFF', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 })).setOrigin(0.5);
                 c.add(opText);
             }
 

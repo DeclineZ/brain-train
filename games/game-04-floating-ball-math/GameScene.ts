@@ -4,6 +4,7 @@ import { EquationGenerator } from "./utils/EquationGenerator";
 import { WaterPhysics } from "./utils/WaterPhysics";
 import { BallSpawner } from "./utils/BallSpawner";
 import { FloatboatController } from "./utils/Floatboat";
+import { GAME_FONT_FAMILY, createGameTextStyle, THAI_TEXT_PADDING } from '@/games/engine/typography';
 import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
 import { calculateFloatingBallMathLevelScore } from "@/lib/scoring/engine/levelScoreMappers";
 import type {
@@ -635,12 +636,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         this.targetDisplay.setDepth(110); // Above balls (depth 0), boat (depth 10), shadow balls (depth 50), current (depth 100)
 
         const targetLabel = this.add
-            .text(0, -50, "เป้าหมาย", {
-                fontFamily: "Sarabun, sans-serif",
+            .text(0, -50, "เป้าหมาย", createGameTextStyle({
                 fontSize: `${Math.min(28, width * 0.05)}px`,
                 color: "#42A5F5",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
         targetLabel.setDepth(110);
 
@@ -651,12 +651,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         targetBg.setDepth(110); // Same level as label
 
         this.targetText = this.add
-            .text(0, 0, "0", {
-                fontFamily: "Arial, sans-serif",
+            .text(0, 0, "0", createGameTextStyle({
                 fontSize: `${Math.min(48, width * 0.09)}px`,
                 color: "#FFFFFF",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
         this.targetText.setDepth(110); // Same level as other target elements
 
@@ -674,12 +673,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
         // Timer text - positioned OUTSIDE target badge below it
         this.timerText = this.add
-            .text(width * 0.5, height * 0.28, "0:00", {
-                fontFamily: "Arial, sans-serif",
+            .text(width * 0.5, height * 0.28, "0:00", createGameTextStyle({
                 fontSize: `${Math.min(32, width * 0.06)}px`, // Larger font for better visibility
                 color: "#09366C",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
         this.timerText.setVisible(false); // Hidden until timer starts
         this.timerText.setDepth(115); // Above target display (110)
@@ -689,21 +687,19 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         this.currentDisplay.setDepth(100); // Above balls (depth 0) and boat (depth 10)
 
         const currentLabel = this.add
-            .text(0, -35, "ปัจจุบัน", {
-                fontFamily: "Sarabun, sans-serif",
+            .text(0, -35, "ปัจจุบัน", createGameTextStyle({
                 fontSize: `${Math.min(18, width * 0.035)}px`,
                 color: "#2b2b2b",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
 
         this.currentText = this.add
-            .text(0, 0, "0", {
-                fontFamily: "Arial, sans-serif",
+            .text(0, 0, "0", createGameTextStyle({
                 fontSize: `${Math.min(28, width * 0.05)}px`,
                 color: "#666666",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
 
         // Set depths for current display elements
@@ -740,12 +736,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
         // Text for warning message
         this.warningToastText = this.add
-            .text(0, 0, "", {
-                fontFamily: "Sarabun, sans-serif",
+            .text(0, 0, "", createGameTextStyle({
                 fontSize: "20px",
                 color: "#FFFFFF",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
 
         this.warningToast.add([this.warningToastBg, this.warningToastText]);
@@ -844,26 +839,31 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         });
     }
 
-    createBlockButton() {
+    /**
+     * Create BLOCK button with larger size and better visibility
+     */
+    private createBlockButton() {
         const { width, height } = this.scale;
 
-        this.blockButton = this.add.container(width * 0.5, height * 0.5);
+        this.blockButton = this.add.container(
+            width * 0.15,
+            height - Math.min(100, height * 0.15)
+        );
+        this.blockButton.setDepth(2000); // Top layer
         this.blockButton.setVisible(false);
-        this.blockButton.setDepth(2000); // Higher than arm sprite (950) and thief sprite (900)
 
-        // Button background - LARGER size (120x50 instead of 100x40)
+        // Button background
         const bg = this.add.graphics();
         bg.fillStyle(0xff5252, 1);
         bg.fillRoundedRect(-60, -25, 120, 50, 10);
 
         // Button text - LARGER font, Thai text
         const text = this.add
-            .text(0, 0, "หยุดโจร", {
-                fontFamily: "Sarabun, sans-serif",
+            .text(0, 0, "หยุดโจร", createGameTextStyle({
                 fontSize: "22px",
                 color: "#FFFFFF",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
 
         this.blockButton.add([bg, text]);
@@ -922,14 +922,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             .setStrokeStyle(2, 0x666666);
 
         const text = this.add
-            .text(0, 0, "?", {
-                fontFamily: "Arial, sans-serif",
+            .text(0, 0, "?", createGameTextStyle({
                 fontSize: `${Math.min(22, width * 0.045)}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
                 stroke: "#000000",
                 strokeThickness: 2,
-            })
+            }))
             .setOrigin(0.5);
 
         container.add([shadow, ball, text]);
@@ -955,12 +954,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
                 bg.fillCircle(0, 0, ballRadius);
 
                 const resultText = this.add
-                    .text(0, 0, result.toString(), {
-                        fontFamily: "Arial, sans-serif",
+                    .text(0, 0, result.toString(), createGameTextStyle({
                         fontSize: `${Math.min(24, width * 0.045)}px`,
                         color: "#ffffff",
                         fontStyle: "bold",
-                    })
+                    }))
                     .setOrigin(0.5);
 
                 shadowBall.add([bg, resultText]);

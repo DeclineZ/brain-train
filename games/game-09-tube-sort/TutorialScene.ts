@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { TUBE_SORT_COLORS } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type TubeData = {
   container: Phaser.GameObjects.Container;
@@ -169,52 +170,43 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   private createTutorialUI() {
     const { width, height } = this.scale;
 
-    this.messageText = this.add.text(width / 2, 120, 'จัดเรียงสีให้เหมือนกัน', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.messageText = this.add.text(width / 2, 120, 'จัดเรียงสีให้เหมือนกัน', createGameTextStyle({
       fontSize: '28px',
       color: this.theme.text,
       fontStyle: 'bold',
-      padding: { top: 6, bottom: 6, left: 12, right: 12 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     this.progressBar = this.add.graphics();
-    this.progressText = this.add.text(width / 2, height -80, '0% สำเร็จ', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.progressText = this.add.text(width / 2, height - 80, '0% สำเร็จ', createGameTextStyle({
       fontSize: '16px',
       color: this.theme.softText,
-      padding: { top: 4, bottom: 4, left: 8, right: 8 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     this.tutorialPanel = this.add.graphics();
-    this.tutorialText = this.add.text(width / 2, height - 150, '', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.tutorialText = this.add.text(width / 2, height - 150, '', createGameTextStyle({
       fontSize: '24px',
       color: '#2C3E50',
       align: 'center',
       wordWrap: { width: width * 0.8 },
-      padding: { top: 10, bottom: 10, left: 14, right: 14 }
-    }).setOrigin(0.5).setDepth(210);
+    })).setOrigin(0.5).setDepth(210);
 
-    this.continueText = this.add.text(width / 2, height - 90, 'แตะเพื่อไปต่อ', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.continueText = this.add.text(width / 2, height - 90, 'แตะเพื่อไปต่อ', createGameTextStyle({
       fontSize: '20px',
       color: '#64748B'
-    }).setOrigin(0.5).setDepth(210);
+    })).setOrigin(0.5).setDepth(210);
 
-    this.stepText = this.add.text(30, 24, `ขั้นตอน 1/${this.tutorialSteps.length}`, {
-      fontFamily: 'Sarabun, sans-serif',
+    this.stepText = this.add.text(30, 24, `ขั้นตอน 1/${this.tutorialSteps.length}`, createGameTextStyle({
       fontSize: '18px',
       color: this.theme.softText,
       fontStyle: 'bold'
-    }).setOrigin(0, 0).setDepth(210);
+    })).setOrigin(0, 0).setDepth(210);
 
-    this.skipButton = this.add.text(width - 24, 20, 'ข้าม', {
-      fontFamily: 'Sarabun, sans-serif',
+    this.skipButton = this.add.text(width - 24, 20, 'ข้าม', createGameTextStyle({
       fontSize: '18px',
       color: '#FFFFFF',
       backgroundColor: '#F97316',
       padding: { left: 14, right: 14, top: 8, bottom: 8 }
-    }).setOrigin(1, 0)
+    })).setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
       .setDepth(210);
 
@@ -1043,12 +1035,11 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     const strokeColor = isCritical ? '#F97316' : '#0F172A';
     const textColor = '#FFFFFF';
 
-    const label = this.add.text(0, 0, `${remainingMoves}`, {
-      fontFamily: 'Sarabun, sans-serif',
+    const label = this.add.text(0, 0, `${remainingMoves}`, createGameTextStyle({
       fontSize: `${Math.max(18, Math.floor(elementRadius * 0.95))}px`,
       color: textColor,
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     label.setStroke(strokeColor, Math.max(2, Math.round(elementRadius * 0.12)));
     label.setShadow(0, 2, 'rgba(0,0,0,0.4)', 4, false, true);
     label.setPosition(x, y);
@@ -1156,12 +1147,11 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     const orbGlow = this.add.circle(24, -12, 10, 0x93C5FD, 0.35);
     const orb = this.add.circle(24, -12, 6, 0xFDE68A, 1);
 
-    const label = this.add.text(0, 48, 'แช่แข็ง!', {
-      fontFamily: 'Sarabun, sans-serif',
+    const label = this.add.text(0, 48, 'แช่แข็ง!', createGameTextStyle({
       fontSize: '16px',
       color: '#0F172A',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     wizard.add([
       glow,

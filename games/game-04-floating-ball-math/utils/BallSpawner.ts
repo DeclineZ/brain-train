@@ -1,5 +1,6 @@
 import { FloatingBall, BallColor } from '../types';
 import type { SeededRandom } from '@/lib/seededRandom';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class BallSpawner {
   private scene: Phaser.Scene;
@@ -13,20 +14,23 @@ export class BallSpawner {
   /**
    * Create a floating ball with colored image and operation text (e.g., "+5", "-3", "*2", "/4")
    */
-  createBall(value: number, operator: '+' | '-' | '*' | '/', color: BallColor, x: number, y: number): FloatingBall {
+  createBall(
+    value: number,
+    operator: '+' | '-' | '*' | '/',
+    color: BallColor,
+    x: number,
+    y: number
+  ): FloatingBall {
     const { width } = this.scene.scale;
-    const ballRadius = Math.min(60, width * 0.12);
+    const ballRadius = Math.min(35, width * 0.08);
     const fontSize = Math.min(42, width * 0.075);
 
     const container = this.scene.add.container(x, y);
     const id = `ball-${Date.now()}-${this.rng.next()}`;
-    
-    // Set ball depth to 0 so they appear below ALL UI elements (water background at -2)
-    container.setDepth(0);
 
-    // Load and add ball image - randomly select one of 4 ball images
-    const ballKeys = ['ball-1', 'ball-2', 'ball-3', 'ball-4'];
-    const randomBallKey = ballKeys[this.rng.nextIndex(ballKeys.length)];
+    // Select random ball PNG (1-10) for visual variety
+    const randomBallNum = Math.floor(this.rng.next() * 10) + 1;
+    const randomBallKey = `ball-${randomBallNum}`;
     const ballImage = this.scene.add.image(0, 0, randomBallKey);
     ballImage.setDisplaySize(ballRadius * 2, ballRadius * 2);
     container.add(ballImage);
@@ -35,14 +39,13 @@ export class BallSpawner {
     const displayOperator = operator === '*' ? '×' : operator === '/' ? '÷' : operator;
 
     // Add operation text (black with white stroke, e.g., "+5", "-3", "×2", "÷4")
-    const text = this.scene.add.text(0, 0, `${displayOperator}${value}`, {
-      fontFamily: 'Arial, sans-serif',
+    const text = this.scene.add.text(0, 0, `${displayOperator}${value}`, createGameTextStyle({
       fontSize: `${fontSize}px`,
       color: '#000000',
       fontStyle: 'bold',
       stroke: '#FFFFFF',
       strokeThickness: 4,
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     container.add(text);
 
     // Set interactive with centered hit area for better mobile support
