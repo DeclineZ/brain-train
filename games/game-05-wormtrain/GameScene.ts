@@ -7,6 +7,7 @@ import { WinLoseSystem } from './systems/WinLoseSystem';
 import { ScoringSystem } from './systems/ScoringSystem';
 import { WormSystem } from './systems/WormSystem';
 import { WormGameConstants } from './config';
+import { createGameTextStyle } from '@/games/engine/typography';
 
 import { WormVisual } from './visuals/WormVisual';
 import { JunctionVisual } from './visuals/JunctionVisual';
@@ -159,14 +160,13 @@ export default class GameScene extends Phaser.Scene {
       const textStr = success ? 'GOOD' : 'MISS';
       const textColor = success ? '#44ff44' : '#ff4444';
 
-      const label = this.add.text(x, y - 60, textStr, { // Start higher
+      const label = this.add.text(x, y - 60, textStr, createGameTextStyle({ // Start higher
         fontSize: '56px',
         color: textColor,
         stroke: '#000000',
         strokeThickness: 8,
-        fontFamily: 'Arial',
         fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(200); // Ensure on top
+      })).setOrigin(0.5).setDepth(200); // Ensure on top
 
       this.tweens.add({
         targets: label,

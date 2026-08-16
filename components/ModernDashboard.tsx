@@ -18,12 +18,12 @@ export default function ModernDashboard({ title, totalGames, completedGames, act
             {/* Brown Backboard / Frame */}
             <div className="bg-brown-light rounded-3xl pb-2 pt-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0 mx-auto w-full flex-1 flex flex-col px-1">
                 {/* Inner Clean Board */}
-                <div className="bg-cream rounded-[20px] p-5 relative z-10 flex-1 flex flex-col">
+                <div className="bg-cream rounded-[20px] p-5 relative z-10 flex-1 flex flex-col justify-between">
 
                     {/* Header Section */}
-                    <div className="flex justify-between items-start mb-4 pb-4 border-b-2 border-line border-gray-medium">
-                        <div className="flex-1">
-                            <h2 className="text-xl font-bold text-brown-800 flex items-center gap-2">
+                    <div className="flex justify-between items-center mb-4 pb-4 border-b-2 border-line border-gray-medium gap-4">
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-xl md:text-2xl font-bold text-brown-800 flex items-center gap-2 leading-tight">
                                 {title}
                             </h2>
                             <p className="text-sm text-brown-light mt-1 mb-3">
@@ -33,44 +33,40 @@ export default function ModernDashboard({ title, totalGames, completedGames, act
                         </div>
 
                         {/* Progress Indicator */}
-                        <div className="relative w-12 h-12 flex items-center justify-center shrink-0 ml-4">
+                        <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
                             <svg className="w-full h-full transform -rotate-90">
                                 <circle
-                                    cx="24"
-                                    cy="24"
-                                    r="20"
-                                    stroke="#E5E5E5"
-                                    strokeWidth="4"
+                                    cx="28"
+                                    cy="28"
+                                    r="22"
+                                    stroke="var(--color-gray-medium)"
+                                    strokeWidth="4.5"
                                     fill="transparent"
                                 />
                                 <circle
-                                    cx="24"
-                                    cy="24"
-                                    r="20"
-                                    stroke="#E84C1C"
-                                    strokeWidth="4"
+                                    cx="28"
+                                    cy="28"
+                                    r="22"
+                                    stroke="var(--color-orange-action)"
+                                    strokeWidth="4.5"
                                     fill="transparent"
-                                    strokeDasharray={125.6}
-                                    strokeDashoffset={125.6 - (125.6 * progress) / 100}
+                                    strokeDasharray={138.2}
+                                    strokeDashoffset={138.2 - (138.2 * progress) / 100}
                                     className="transition-all duration-1000 ease-out"
                                     strokeLinecap="round"
                                 />
                             </svg>
-                            <span className="absolute text-[10px] font-bold text-orange-action">
+                            <span className="absolute text-xs font-bold text-orange-action">
                                 {progress}%
                             </span>
                         </div>
                     </div>
 
                     {/* Content Area */}
-                    <div className="relative">
+                    <div className="relative flex-1">
                         {children}
                     </div>
                 </div>
-
-                {/* Feet/Support visual (Optional, subtle) */}
-                {/*<div className="absolute -bottom-3 left-8 w-3 h-6 bg-brown-800 rounded-b-md -z-10 shadow-sm" />
-                <div className="absolute -bottom-3 right-8 w-3 h-6 bg-brown-800 rounded-b-md -z-10 shadow-sm" />*/}
             </div>
         </div>
     );

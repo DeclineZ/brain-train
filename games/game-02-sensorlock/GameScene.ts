@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle, THAI_TEXT_PADDING, EMOJI_TEXT_PADDING } from '@/games/engine/typography';
 
 export class SensorLockGameScene extends Phaser.Scene {
     // Game State
@@ -331,25 +332,23 @@ export class SensorLockGameScene extends Phaser.Scene {
         const { width } = this.scale;
 
         // Score (Top Right, Stylized)
-        // Score (Top Right, Stylized)
         const scoreSize = Math.max(32, Math.min(width * 0.08, 64)); // Responsive calculation
-        this.scoreText = this.add.text(width - 20, 20 + (scoreSize / 2), "0", {
-            fontFamily: '"Mali", "Sarabun", "Thai Sarabun New", Inter, sans-serif',
+        this.scoreText = this.add.text(width - 20, 20 + (scoreSize / 2), "0", createGameTextStyle({
             fontSize: `${scoreSize}px`,
             fontStyle: 'bold',
             color: '#6c5ce7', // Purple/Blue text
             stroke: '#ffffff',
             strokeThickness: 5
-        }).setOrigin(1, 0.5).setDepth(100);
+        })).setOrigin(1, 0.5).setDepth(100);
 
         // Streak Indicator (Center Top, initially hidden)
-        // Streak Indicator (Center Top, initially hidden)
-        this.streakText = this.add.text(width / 2, 80, "", {
-            font: 'bold 48px "Mali"',
+        this.streakText = this.add.text(width / 2, 80, "", createGameTextStyle({
+            fontSize: '48px',
+            fontStyle: 'bold',
             color: '#ff7675',
             stroke: '#ffffff',
             strokeThickness: 6
-        }).setOrigin(0.5).setPadding(40).setAlpha(0).setDepth(100);
+        })).setOrigin(0.5).setPadding(40).setAlpha(0).setDepth(100);
     }
 
     createStimulusArea() {
@@ -411,12 +410,11 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         // 4. Label Text
         // Explicitly White/High Contrast if needed, or Dark Grey
-        const labelT = this.add.text(0, 80, "", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const labelT = this.add.text(0, 80, "", createGameTextStyle({
             fontSize: "64px",
-            fontStyle: "900",
+            fontStyle: "bold",
             color: "#2d3436"
-        }).setOrigin(0.5).setPadding(30); // Added Padding
+        })).setOrigin(0.5).setPadding(30); // Added Padding
         container.add(labelT);
 
         // 5. NOT Badge (Hidden by default) - TOP of card, clearly visible
@@ -438,12 +436,12 @@ export class SensorLockGameScene extends Phaser.Scene {
         badge.add(badgeBg);
 
         // Badge text with ❌ icon - BIGGER
-        const badgeText = this.add.text(0, 0, "❌ ไม่ใช่!", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const badgeText = this.add.text(0, 0, "❌ ไม่ใช่!", createGameTextStyle({
             fontSize: "28px",
-            fontStyle: "900",
-            color: "#FFFFFF"
-        }).setOrigin(0.5);
+            fontStyle: "bold",
+            color: "#FFFFFF",
+            padding: EMOJI_TEXT_PADDING,
+        })).setOrigin(0.5);
         badge.add(badgeText);
 
         container.add(badge);
@@ -531,37 +529,35 @@ export class SensorLockGameScene extends Phaser.Scene {
         badgeDemo.add(badgeBg);
 
         // Badge text
-        const badgeDemoText = this.add.text(0, 0, '❌ ไม่ใช่!', {
-            fontFamily: 'Sarabun, sans-serif',
+        const badgeDemoText = this.add.text(0, 0, '❌ ไม่ใช่!', createGameTextStyle({
             fontSize: '26px',
             fontStyle: 'bold',
-            color: '#FFFFFF'
-        }).setOrigin(0.5);
+            color: '#FFFFFF',
+            padding: EMOJI_TEXT_PADDING,
+        })).setOrigin(0.5);
         badgeDemo.add(badgeDemoText);
 
         // Explanation title
-        const titleText = this.add.text(width / 2, height / 2 - 20, 'เมื่อเห็นป้ายนี้ ให้ตอบ "ตรงข้าม"!', {
-            fontFamily: 'Sarabun, sans-serif',
+        const titleText = this.add.text(width / 2, height / 2 - 20, 'เมื่อเห็นป้ายนี้ ให้ตอบ "ตรงข้าม"!', createGameTextStyle({
             fontSize: '24px',
             fontStyle: 'bold',
             color: '#2d3436'
-        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+        })).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
 
         // Explanation details - two lines for clarity
-        const explainText = this.add.text(width / 2, height / 2 + 30, 'ถ้าตรง → กดไม่ตรง\nถ้าไม่ตรง → กดตรง', {
-            fontFamily: 'Sarabun, sans-serif',
+        const explainText = this.add.text(width / 2, height / 2 + 30, 'ถ้าตรง → กดไม่ตรง\nถ้าไม่ตรง → กดตรง', createGameTextStyle({
             fontSize: '22px',
             color: '#636e72',
             align: 'center'
-        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+        })).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
 
         // Tap to continue
-        const tapText = this.add.text(width / 2, height / 2 + 100, '👆 แตะเพื่อเริ่มเล่น', {
-            fontFamily: 'Sarabun, sans-serif',
+        const tapText = this.add.text(width / 2, height / 2 + 100, '👆 แตะเพื่อเริ่มเล่น', createGameTextStyle({
             fontSize: '20px',
             color: '#888888',
-            fontStyle: 'italic'
-        }).setOrigin(0.5).setDepth(402);
+            fontStyle: 'italic',
+            padding: EMOJI_TEXT_PADDING,
+        })).setOrigin(0.5).setDepth(402);
 
         // Entrance animation
         explainBg.setScale(0);
@@ -645,13 +641,12 @@ export class SensorLockGameScene extends Phaser.Scene {
 
             // 3. Text (High Contrast White)
             const textSize = Math.min(btnWidth * 0.25, 45);
-            const text = this.add.text(0, 0, label, {
-                fontFamily: '"Mali", "Sarabun", sans-serif',
+            const text = this.add.text(0, 0, label, createGameTextStyle({
                 fontSize: `${textSize}px`,
-                fontStyle: '900', // Bold
+                fontStyle: 'bold',
                 color: "#FFFFFF", // White for max contrast
                 shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 4, fill: true, stroke: false }
-            }).setOrigin(0.5).setPadding(5);
+            })).setOrigin(0.5);
             faceGroup.add(text);
 
             // 4. Hit Area (Covers the whole potential area)
@@ -757,12 +752,12 @@ export class SensorLockGameScene extends Phaser.Scene {
             .setStrokeStyle(3, 0xFF6B6B);
 
         // Warning text
-        const warningText = this.add.text(width / 2, height - 100, '⚠️ ปุ่มจะสลับตำแหน่ง!', {
-            fontFamily: 'Sarabun, sans-serif',
+        const warningText = this.add.text(width / 2, height - 100, '⚠️ ปุ่มจะสลับตำแหน่ง!', createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
-            color: '#D63031'
-        }).setOrigin(0.5).setDepth(402).setPadding(10, 14, 10, 18);
+            color: '#D63031',
+            padding: EMOJI_TEXT_PADDING,
+        })).setOrigin(0.5).setDepth(402);
 
         // Entrance animation
         warningBg.setScale(0);
@@ -901,11 +896,8 @@ export class SensorLockGameScene extends Phaser.Scene {
     // --- GAMEPLAY LOGIC ---
 
     startCountdown() {
-        this.isCountdown = true;
-        this.isPlaying = false;
-        this.countdownValue = 3;
-
         const { width, height } = this.scale;
+        this.countdownValue = 3;
 
         // Ensure partial cleanup
         if (this.arrowContainer) this.arrowContainer.setVisible(false);
@@ -913,14 +905,13 @@ export class SensorLockGameScene extends Phaser.Scene {
         if (this.timerIcon) this.timerIcon.setVisible(false); // Hide icon
 
         const countSize = Math.min(width * 0.3, 180); // Max 180, significantly smaller
-        const countText = this.add.text(width / 2, height / 2, '3', {
-            fontFamily: '"Mali", sans-serif',
+        const countText = this.add.text(width / 2, height / 2, '3', createGameTextStyle({
             fontSize: `${countSize}px`,
-            fontStyle: '900',
+            fontStyle: 'bold',
             color: '#6c5ce7', // Purple
             stroke: '#ffffff',
             strokeThickness: 10
-        }).setOrigin(0.5).setPadding(60); // Generous padding for Thai accents
+        })).setOrigin(0.5).setPadding(60); // Generous padding for Thai accents
 
         this.time.addEvent({
             delay: 1000,
@@ -1495,12 +1486,13 @@ export class SensorLockGameScene extends Phaser.Scene {
     }
 
     showScorePopup(x: number, y: number, points: number) {
-        const popup = this.add.text(x, y, `+${points}`, {
-            font: 'bold 40px Inter',
+        const popup = this.add.text(x, y, `+${points}`, createGameTextStyle({
+            fontSize: '40px',
+            fontStyle: 'bold',
             color: '#00b894',
             stroke: '#ffffff',
             strokeThickness: 2
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
 
         this.tweens.add({
             targets: popup,
@@ -1569,32 +1561,32 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         const container = this.add.container(width / 2, height / 2).setAlpha(1).setDepth(200);
 
-        const titleText = this.add.text(0, -80, title, {
-            fontFamily: '"Mali", sans-serif',
+        const titleText = this.add.text(0, -80, title, createGameTextStyle({
             fontSize: '80px',
+            fontStyle: 'bold',
             color: '#fdcb6e',
             stroke: '#ffffff',
             strokeThickness: 6,
             align: 'center'
-        }).setOrigin(0.5).setScale(0).setAlpha(0).setPadding(30);
+        })).setOrigin(0.5).setScale(0).setAlpha(0).setPadding(30);
 
-        const text1 = this.add.text(0, 20, line1, {
-            fontFamily: '"Mali", sans-serif',
+        const text1 = this.add.text(0, 20, line1, createGameTextStyle({
             fontSize: '48px',
+            fontStyle: 'bold',
             color: '#ffffff',
             stroke: '#2d3436',
             strokeThickness: 3,
             align: 'center'
-        }).setOrigin(0.5).setAlpha(0).setY(50).setPadding(20);
+        })).setOrigin(0.5).setAlpha(0).setY(50).setPadding(20);
 
-        const text2 = this.add.text(0, 90, line2, {
-            fontFamily: '"Mali", sans-serif',
+        const text2 = this.add.text(0, 90, line2, createGameTextStyle({
             fontSize: '32px',
+            fontStyle: 'bold',
             color: '#dfe6e9',
             stroke: '#2d3436',
             strokeThickness: 2,
             align: 'center'
-        }).setOrigin(0.5).setAlpha(0).setY(120).setPadding(20);
+        })).setOrigin(0.5).setAlpha(0).setY(120).setPadding(20);
 
         container.add([titleText, text1, text2]);
 

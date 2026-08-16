@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class TutorialScene extends Phaser.Scene {
     // UI Elements
@@ -40,8 +41,7 @@ export class TutorialScene extends Phaser.Scene {
         this.gridContainer = this.add.container(width / 2, height / 2);
 
         // 3. Tutorial Message Text (Top area)
-        this.messageText = this.add.text(width / 2, height * 0.15, "ยินดีต้อนรับ!", {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.messageText = this.add.text(width / 2, height * 0.15, "ยินดีต้อนรับ!", createGameTextStyle({
             fontSize: '32px',
             fontStyle: 'bold',
             color: '#6D6875',
@@ -49,7 +49,7 @@ export class TutorialScene extends Phaser.Scene {
             stroke: '#ffffff',
             strokeThickness: 6,
             wordWrap: { width: width * 0.85 }
-        }).setOrigin(0.5).setDepth(20).setPadding(15);
+        })).setOrigin(0.5).setDepth(20).setPadding(15);
 
         // 4. Start Tutorial Flow
         this.startTutorial();
@@ -133,12 +133,11 @@ export class TutorialScene extends Phaser.Scene {
 
         // Number text
         const fontSize = Math.max(24, size * 0.45);
-        const text = this.add.text(0, 0, num.toString(), {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const text = this.add.text(0, 0, num.toString(), createGameTextStyle({
             fontSize: `${fontSize}px`,
             fontStyle: 'bold',
             color: isTrap ? '#ffffff' : '#2d3436'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
         container.add(text);
 
         // Interactive
@@ -284,13 +283,11 @@ export class TutorialScene extends Phaser.Scene {
         shadowG.fillRoundedRect(-btnW / 2 + 3, -btnH / 2 + 4, btnW, btnH, 14);
 
         // Label
-        const label = this.add.text(0, 0, 'ถัดไป', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        const label = this.add.text(0, 0, 'ถัดไป', createGameTextStyle({
             fontSize: '24px',
             fontStyle: 'bold',
             color: '#ffffff',
-            padding: { top: 4, bottom: 4, left: 4, right: 4 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         // Hit area
         const hitArea = this.add.rectangle(0, 0, btnW, btnH, 0xffffff, 0)

@@ -308,7 +308,7 @@ export default function StatsPageClient({
     <div className="min-h-screen bg-cream pb-32">
       {/* Rustic Header Section - Matches TopCard style */}
       <div className="bg-tan-light border-b-4 border-brown-lightest pt-8 pb-10 px-4 rounded-b-[40px] shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-start gap-6">
+        <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex items-start gap-6">
           <div
             className="w-24 h-24 relative rounded-full border-4 border-white shadow-md overflow-hidden bg-brown-lightest flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
             onClick={() => setIsAvatarModalOpen(true)}
@@ -342,9 +342,6 @@ export default function StatsPageClient({
             <p className="text-brown-medium font-medium flex items-center gap-2 text-sm">
               <span>เข้าร่วมเมื่อ {formatDate(profile.created_at)}</span>
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-2xl" role="img" aria-label="Thailand">🇹🇭</span>
-            </div>
           </div>
 
           {/* Settings Menu */}
@@ -354,7 +351,7 @@ export default function StatsPageClient({
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 mt-6 space-y-8">
+      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 mt-6 space-y-8">
         {/* Quick Stats Grid - Rustic Board */}
         <section className="relative">
           <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0">

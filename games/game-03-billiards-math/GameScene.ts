@@ -3,6 +3,7 @@ import { STATIC_LEVELS } from './levels';
 import type { StaticLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle } from './types';
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
+import { GAME_FONT_FAMILY, createGameTextStyle, THAI_TEXT_PADDING } from '@/games/engine/typography';
 
 // Physics constants for realistic billiards feel
 const PHYSICS_CONFIG = {
@@ -606,14 +607,13 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Equation text - position it inside the table area at the top
         // Since level indicator blocks top, we'll show equation result near the slots instead
         this.equationText = this.add
-            .text(width / 2, this.tableBounds.top + 25, "", {
-                fontFamily: "Arial, sans-serif",
+            .text(width / 2, this.tableBounds.top + 25, "", createGameTextStyle({
                 fontSize: `${Math.min(28, width * 0.05)}px`,
                 color: "#FFFFFF",
                 stroke: "#000000",
                 strokeThickness: 3,
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5)
             .setDepth(50);
 
@@ -623,12 +623,11 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Shot counter - will be positioned in header card in createSlotZones
         this.shotCounterText = this.add
-            .text(0, 0, "", {
-                fontFamily: "'Segoe UI', Arial, sans-serif",
+            .text(0, 0, "", createGameTextStyle({
                 fontSize: `${Math.min(22, width * 0.042)}px`,
                 color: "#FFFFFF",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5)
             .setDepth(15)
             .setVisible(false);
@@ -658,12 +657,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         bg.strokeRoundedRect(-44, -20, 88, 40, 14);
 
         // Icon + label
-        const label = this.add.text(0, 0, '↩ ย้อน', {
-            fontFamily: "'Segoe UI', Arial, sans-serif",
+        const label = this.add.text(0, 0, '↩ ย้อน', createGameTextStyle({
             fontSize: `${Math.min(18, width * 0.035)}px`,
             color: '#FFFFFF',
             fontStyle: 'bold',
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         container.add([bg, label]);
 
@@ -725,24 +723,22 @@ export class BilliardsGameScene extends Phaser.Scene {
 
             // Question mark placeholder
             const placeholder = this.add
-                .text(0, 0, "?", {
-                    fontFamily: "Arial, sans-serif",
+                .text(0, 0, "?", createGameTextStyle({
                     fontSize: `${Math.min(26, width * 0.045)}px`,
                     color: "#00ffff",
                     fontStyle: "bold",
-                })
+                }))
                 .setOrigin(0.5);
 
             // Checkmark (hidden initially)
             const checkmark = this.add
-                .text(0, -slotRadius - 20, "✓", {
-                    fontFamily: "Arial, sans-serif",
+                .text(0, -slotRadius - 20, "✓", createGameTextStyle({
                     fontSize: `${Math.min(28, width * 0.05)}px`,
                     color: "#00ff00",
                     fontStyle: "bold",
                     stroke: "#000000",
                     strokeThickness: 2,
-                })
+                }))
                 .setOrigin(0.5)
                 .setVisible(false);
 
@@ -793,14 +789,13 @@ export class BilliardsGameScene extends Phaser.Scene {
                 if (opSymbol === "*") opSymbol = "×";
                 if (opSymbol === "/") opSymbol = "÷";
 
-                const opText = this.add.text(slotSpacing / 2, 0, opSymbol, {
-                    fontFamily: "Arial, sans-serif",
+                const opText = this.add.text(slotSpacing / 2, 0, opSymbol, createGameTextStyle({
                     fontSize: `${Math.min(32, width * 0.055)}px`,
                     color: "#FFFFFF",
                     fontStyle: "bold",
                     stroke: "#000000",
                     strokeThickness: 4
-                }).setOrigin(0.5);
+                })).setOrigin(0.5);
                 slotContainer.add(opText);
             }
         }
@@ -821,12 +816,11 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         // Target value - centered in left half with Thai text
         this.targetText = this.add
-            .text(width / 2 - 80, headerY, `เป้าหมาย: ${this.currentEquation.result}`, {
-                fontFamily: "'Segoe UI', Arial, sans-serif",
+            .text(width / 2 - 80, headerY, `เป้าหมาย: ${this.currentEquation.result}`, createGameTextStyle({
                 fontSize: `${Math.min(24, width * 0.045)}px`,
                 color: "#FFFFFF",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5)
             .setDepth(15);
 
@@ -1659,12 +1653,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         } else {
             const ballCircle = this.add.circle(0, 0, radius, 0xffffff).setStrokeStyle(2, 0x000000);
             const text = this.add
-                .text(0, 0, value.toString(), {
-                    fontFamily: "Arial, sans-serif",
+                .text(0, 0, value.toString(), createGameTextStyle({
                     fontSize: `${radius * 0.8}px`,
                     color: "#000000",
                     fontStyle: "bold",
-                })
+                }))
                 .setOrigin(0.5);
             container.add([ballCircle, text]);
         }
@@ -1976,12 +1969,11 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         const ball = this.add.circle(0, 0, ballRadius, 0xcccccc).setStrokeStyle(2, 0x666666);
         const text = this.add
-            .text(0, 0, "?", {
-                fontFamily: "Arial, sans-serif",
+            .text(0, 0, "?", createGameTextStyle({
                 fontSize: `${Math.min(18, width * 0.035)}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
-            })
+            }))
             .setOrigin(0.5);
 
         container.add([ball, text]);
@@ -2004,12 +1996,11 @@ export class BilliardsGameScene extends Phaser.Scene {
             goalBall.setDisplaySize(ballRadius * 2.2, ballRadius * 2.2);
 
             const resultText = this.add
-                .text(0, 0, result.toString(), {
-                    fontFamily: "Arial, sans-serif",
+                .text(0, 0, result.toString(), createGameTextStyle({
                     fontSize: `${Math.min(18, width * 0.035)}px`,
                     color: "#ffffff",
                     fontStyle: "bold",
-                })
+                }))
                 .setOrigin(0.5);
 
             shadowBall.add([goalBall, resultText]);

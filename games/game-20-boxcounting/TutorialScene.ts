@@ -1,17 +1,16 @@
 import * as Phaser from 'phaser';
 import { CUBE_COLORS, type Block3D, type Puzzle3D } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 // ─── Thai-safe text style helper ───
-const FONT_FAMILY = "'Noto Sans Thai', 'Segoe UI', sans-serif";
+const FONT_FAMILY = GAME_FONT_FAMILY;
 function thaiStyle(overrides: Partial<Phaser.Types.GameObjects.Text.TextStyle> = {}): Phaser.Types.GameObjects.Text.TextStyle {
-    return {
-        fontFamily: FONT_FAMILY,
+    return createGameTextStyle({
         fontSize: '20px',
         color: '#333333',
         align: 'center',
-        padding: { top: 10, bottom: 8, left: 6, right: 6 },
         ...overrides,
-    };
+    });
 }
 
 // ─── Tutorial puzzle data ───

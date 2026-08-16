@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { TAXIDRIVER_LEVELS, TaxiDriverLevelConfig } from './levels';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 // Direction types
 type Direction = 'left' | 'right' | 'forward';
@@ -239,16 +240,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.createUI();
 
         // Create message text (Floating style)
-        this.messageText = this.add.text(width / 2, height * 0.15, '', {
-            fontFamily: 'Sarabun, sans-serif',
-            fontSize: '40px', // Much smaller than default (was probably huge by default elsewhere or relying on CSS)
+        this.messageText = this.add.text(width / 2, height * 0.15, '', createGameTextStyle({
+            fontSize: '40px',
             color: '#FFFFFF',
             stroke: '#2B2115',
             strokeThickness: 6,
             fontStyle: 'bold',
             shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true, fill: true },
-            padding: { x: 20, y: 20 }
-        }).setOrigin(0.5).setDepth(200);
+        })).setOrigin(0.5).setDepth(200);
 
         // Stage progress indicator moved to createUI to ensure no overlap
 
@@ -859,12 +858,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         bgCircle.setStrokeStyle(3, 0xFFFFFF);
 
         // Exclamation mark
-        const exclamation = this.add.text(0, 0, '!', {
-            fontFamily: 'Arial',
+        const exclamation = this.add.text(0, 0, '!', createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#FFFFFF'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.alertIndicator.add([bgCircle, exclamation]);
     }
@@ -941,13 +939,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             pill.setDepth(199);
 
             if (this.objectiveProgressText) this.objectiveProgressText.destroy();
-            this.objectiveProgressText = this.add.text(width / 2, pillY + pillH / 2, `ด่าน ${this.currentObjective}/${this.totalObjectives}`, {
-                fontFamily: 'Sarabun, sans-serif',
+            this.objectiveProgressText = this.add.text(width / 2, pillY + pillH / 2, `ด่าน ${this.currentObjective}/${this.totalObjectives}`, createGameTextStyle({
                 fontSize: '22px',
                 color: '#2B2115',
                 fontStyle: 'bold',
-                padding: { x: 10, y: 10 }
-            }).setOrigin(0.5).setDepth(200);
+            })).setOrigin(0.5).setDepth(200);
         }
 
         const panelBg = this.add.graphics();
@@ -1154,13 +1150,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Icon
         // Adjust font size for longer text (START) vs symbols
         const fontSize = symbol.length > 1 ? size * 0.25 : size * 0.4;
-        const text = this.add.text(0, 0, symbol, {
-            fontFamily: 'Sarabun, sans-serif',
+        const text = this.add.text(0, 0, symbol, createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: '#555555',
             fontStyle: 'bold',
-            padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         container.add([bg, text]);
 
@@ -1383,22 +1377,18 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         box.strokeRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 20);
 
         // Warning Icon or Text
-        const titleText = this.add.text(boxX, boxY - 60, 'ระวัง!', {
-            fontFamily: 'Sarabun, sans-serif',
+        const titleText = this.add.text(boxX, boxY - 60, 'ระวัง!', createGameTextStyle({
             fontSize: '48px',
             color: '#FF4444',
             fontStyle: 'bold',
-            padding: { top: 10, bottom: 10, left: 10, right: 10 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
-        const msgText = this.add.text(boxX, boxY, 'ปุ่มกดกำลังจะสลับด้าน', {
-            fontFamily: 'Sarabun, sans-serif',
+        const msgText = this.add.text(boxX, boxY, 'ปุ่มกดกำลังจะสลับด้าน', createGameTextStyle({
             fontSize: '28px',
             color: '#2B2115',
             align: 'center',
             wordWrap: { width: boxW - 40 },
-            padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         // OK Button — created OUTSIDE the popup container so the bg overlay doesn't block it
         const btnW = 160;
@@ -1410,13 +1400,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         btnBg.fillRoundedRect(boxX - btnW / 2, btnY - btnH / 2, btnW, btnH, 15);
         btnBg.setDepth(301);
 
-        const btnText = this.add.text(boxX, btnY, 'ไปต่อ', {
-            fontFamily: 'Sarabun, sans-serif',
+        const btnText = this.add.text(boxX, btnY, 'ไปต่อ', createGameTextStyle({
             fontSize: '28px',
             color: '#FFFFFF',
             fontStyle: 'bold',
-            padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }).setOrigin(0.5).setDepth(301);
+        })).setOrigin(0.5).setDepth(301);
 
         // Use a simple interactive zone for the button
         const btnZone = this.add.zone(boxX, btnY, btnW, btnH)
@@ -1480,16 +1468,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             const isGo = step === 3;
 
             this.messageText.setText(text);
-            this.messageText.setStyle({
-                fontFamily: 'Sarabun, sans-serif',
+            this.messageText.setStyle(createGameTextStyle({
                 fontSize: isGo ? '64px' : '80px',
                 color: isGo ? '#58CC02' : '#FFFFFF',
                 stroke: '#2B2115',
                 strokeThickness: 8,
                 fontStyle: 'bold',
                 shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 6, stroke: true, fill: true },
-                padding: { x: 20, y: 20 }
-            });
+            }));
             this.messageText.setVisible(true);
             this.messageText.setScale(1.5);
             this.messageText.setAlpha(1);
@@ -1512,8 +1498,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                             this.messageText.setAlpha(1);
                             this.messageText.setScale(1);
                             // Reset font style from countdown (80px) to game size
-                            this.messageText.setStyle({
-                                fontFamily: 'Sarabun, sans-serif',
+                            this.messageText.setStyle(createGameTextStyle({
                                 fontSize: '40px',
                                 color: '#FFFFFF',
                                 stroke: '#2B2115',
@@ -1521,8 +1506,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                                 fontStyle: 'bold',
                                 align: 'center',
                                 shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 4, stroke: true, fill: true },
-                                padding: { x: 10, y: 10 }
-                            });
+                            }));
                             this.launchGameAfterCountdown();
                         });
                     }
@@ -1814,12 +1798,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // "STOP" text on sign
         // In Thai, "หยุด" (Yud)
-        const stopText = this.add.text(0, 0, 'หยุด', {
-            fontFamily: 'Sarabun, sans-serif',
+        const stopText = this.add.text(0, 0, 'หยุด', createGameTextStyle({
             fontSize: '18px',
             color: '#FFFFFF',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.stopSignContainer.add([pole, octagon, stopText]);
 
@@ -2379,12 +2362,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         gfx.fillPath();
         gfx.strokePath();
 
-        const text = this.add.text(0, 0, 'หยุด', {
-            fontFamily: 'Sarabun, sans-serif',
+        const text = this.add.text(0, 0, 'หยุด', createGameTextStyle({
             fontSize: `${r * 0.65}px`,
             color: '#FFFFFF',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         container.add([gfx, text]);
 
@@ -3055,11 +3037,10 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const feedback = this.add.text(
             this.car.x, this.car.y - 50,
             text,
-            {
-                fontFamily: 'Arial',
+            createGameTextStyle({
                 fontSize: '40px',
                 color: `#${color.toString(16).padStart(6, '0')}`
-            }
+            })
         ).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({
@@ -3205,13 +3186,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             .setStrokeStyle(4, 0xFF4444);
 
         // Text
-        const title = this.add.text(0, -40, 'ระวัง!', {
-            fontFamily: 'Sarabun', fontSize: '48px', color: '#FF0000', fontStyle: 'bold'
-        }).setOrigin(0.5);
+        const title = this.add.text(0, -40, 'ระวัง!', createGameTextStyle({
+            fontSize: '48px', color: '#FF0000', fontStyle: 'bold'
+        })).setOrigin(0.5);
 
-        const subtitle = this.add.text(0, 20, 'ปุ่มกำลังจะสลับ...', {
-            fontFamily: 'Sarabun', fontSize: '24px', color: '#333333'
-        }).setOrigin(0.5);
+        const subtitle = this.add.text(0, 20, 'ปุ่มกำลังจะสลับ...', createGameTextStyle({
+            fontSize: '24px', color: '#333333'
+        })).setOrigin(0.5);
 
         popup.add([bg, title, subtitle]);
 

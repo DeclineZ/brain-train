@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 /**
  * Tutorial Scene for Taxi Driver
@@ -150,9 +151,9 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.createParticleTextures();
 
         // Create hand icon for pointing
-        this.handIcon = this.add.text(0, 0, '👆', {
+        this.handIcon = this.add.text(0, 0, '👆', createEmojiTextStyle({
             fontSize: '48px'
-        }).setOrigin(0.5).setVisible(false).setDepth(500);
+        })).setOrigin(0.5).setVisible(false).setDepth(500);
 
         // Create instruction overlay
         this.createInstructionOverlay();
@@ -357,12 +358,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         const bgCircle = this.add.circle(0, 0, 20, 0xFF4444);
         bgCircle.setStrokeStyle(3, 0xFFFFFF);
 
-        const exclamation = this.add.text(0, 0, '!', {
-            fontFamily: 'Arial',
+        const exclamation = this.add.text(0, 0, '!', createGameTextStyle({
             fontSize: '28px',
             fontStyle: 'bold',
             color: '#FFFFFF'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.alertIndicator.add([bgCircle, exclamation]);
     }
@@ -450,13 +450,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         bg.setStrokeStyle(2, COLORS.UI_STROKE);
 
         const fontSize = symbol.length > 1 ? size * 0.25 : size * 0.4;
-        const text = this.add.text(0, 0, symbol, {
-            fontFamily: 'Sarabun, sans-serif',
+        const text = this.add.text(0, 0, symbol, createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: '#555555',
             fontStyle: 'bold',
-            padding: { top: 5, bottom: 5, left: 5, right: 5 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         container.add([bg, text]);
 
@@ -589,15 +587,13 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         this.instructionPanel.lineStyle(3, 0x4285F4, 1);
         this.instructionPanel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
 
-        this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', {
-            fontFamily: 'Sarabun, sans-serif',
+        this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', createGameTextStyle({
             fontSize: `22px`,
             color: '#FFFFFF',
             align: 'center',
             wordWrap: { width: panelWidth - 40 },
             lineSpacing: 6,
-            padding: { top: 8, bottom: 8, left: 8, right: 8 }
-        }).setOrigin(0.5).setDepth(401);
+        })).setOrigin(0.5).setDepth(401);
 
         this.instructionOverlay.add([this.instructionPanel, this.instructionText]);
     }
@@ -868,12 +864,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         gfx.fillPath();
         gfx.strokePath();
 
-        const text = this.add.text(0, 0, 'หยุด', {
-            fontFamily: 'Sarabun, sans-serif',
+        const text = this.add.text(0, 0, 'หยุด', createGameTextStyle({
             fontSize: `${r * 0.65}px`,
             color: '#FFFFFF',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         container.add([gfx, text]);
 
@@ -1601,13 +1596,11 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         octagon.fillPath();
         octagon.strokePath();
 
-        const stopText = this.add.text(0, 0, 'หยุด', {
-            fontFamily: 'Sarabun, sans-serif',
+        const stopText = this.add.text(0, 0, 'หยุด', createGameTextStyle({
             fontSize: '18px',
             color: '#FFFFFF',
             fontStyle: 'bold',
-            padding: { top: 2, bottom: 2, left: 2, right: 2 }
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.stopSignContainer.add([pole, octagon, stopText]);
 
@@ -1721,11 +1714,10 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         const feedback = this.add.text(
             this.car.x, this.car.y - 50,
             text,
-            {
-                fontFamily: 'Arial',
+            createGameTextStyle({
                 fontSize: '40px',
                 color: `#${color.toString(16).padStart(6, '0')}`
-            }
+            })
         ).setOrigin(0.5).setDepth(200);
 
         this.tweens.add({

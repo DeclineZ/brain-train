@@ -1,4 +1,5 @@
 import { WordRecognizeGameScene } from './GameScene';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
     private tutorialStep = 0;
@@ -25,8 +26,7 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
         const { width, height } = this.scale;
         const cardH = 250;
         const cardTopY = height / 2 - cardH / 2; // card container Y
-        this.instructionText = this.add.text(width / 2, cardTopY - 20, '', {
-            fontFamily: '"Mali", "Sarabun", sans-serif',
+        this.instructionText = this.add.text(width / 2, cardTopY - 20, '', createGameTextStyle({
             fontSize: '26px',
             fontStyle: 'bold',
             color: '#ffffff',
@@ -35,7 +35,7 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
             strokeThickness: 4,
             wordWrap: { width: width * 0.85 },
             padding: { top: 12, bottom: 16, left: 10, right: 10 }
-        }).setOrigin(0.5, 1).setDepth(200);
+        })).setOrigin(0.5, 1).setDepth(200);
     }
 
     // Override startGame to run scripted tutorial

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import type { Ball, Equation } from '../types';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 /**
  * Shared utilities for game scenes
@@ -80,12 +81,11 @@ export class SceneUtils {
             // Create empty slot placeholder
             const shadow = scene.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.2).setOrigin(0.5);
             const ball = scene.add.circle(0, 0, ballRadius, 0xe8e8e8).setStrokeStyle(3, 0xcccccc);
-            const placeholder = scene.add.text(0, 0, "?", {
-                fontFamily: "Arial, sans-serif",
+            const placeholder = scene.add.text(0, 0, "?", createGameTextStyle({
                 fontSize: `${isLarge ? Math.min(32, width * 0.06) : Math.min(24, width * 0.04)}px`,
                 color: "#999999",
                 fontStyle: "bold",
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add([shadow, ball, placeholder]);
 
             // Add subtle idle animation for empty slots
@@ -108,12 +108,11 @@ export class SceneUtils {
             } else {
                 const shadow = scene.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, isLarge ? 0.4 : 0.2).setOrigin(0.5);
                 ball = scene.add.circle(0, 0, ballRadius, 0xffffff).setStrokeStyle(3, 0x000000);
-                const text = scene.add.text(0, 0, value.toString(), {
-                    fontFamily: "Arial, sans-serif",
+                const text = scene.add.text(0, 0, value.toString(), createGameTextStyle({
                     fontSize: `${fontSize}px`,
                     color: "#000000",
                     fontStyle: "bold",
-                }).setOrigin(0.5);
+                })).setOrigin(0.5);
                 container.add([shadow, ball, text]);
             }
 
@@ -141,14 +140,13 @@ export class SceneUtils {
         const { width } = scene.scale;
         const fontSize = isLarge ? Math.min(64, width * 0.12) : Math.min(48, width * 0.08);
 
-        return scene.add.text(0, 0, operator, {
-            fontFamily: "Sarabun, sans-serif",
+        return scene.add.text(0, 0, operator, createGameTextStyle({
             fontSize: `${fontSize}px`,
             color: "#2B2115",
             stroke: "#FFFFFF",
             strokeThickness: 3,
             fontStyle: "bold",
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
     }
 
     /**
@@ -171,26 +169,24 @@ export class SceneUtils {
             const goalBall = scene.add.image(0, 0, "goal-ball");
             goalBall.setDisplaySize(ballRadius * 2.8, ballRadius * 2.8);
             
-            const resultText = scene.add.text(0, 0, result.toString(), {
-                fontFamily: "Arial, sans-serif",
+            const resultText = scene.add.text(0, 0, result.toString(), createGameTextStyle({
                 fontSize: `${Math.min(24, width * 0.05)}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             
             container.add([goalBall, resultText]);
         } else {
             // Show incomplete gray circle
             const shadow = scene.add.circle(shadowOffset, shadowOffset, ballRadius, 0x000000, 0.3).setOrigin(0.5);
             const ball = scene.add.circle(0, 0, ballRadius, 0xcccccc).setStrokeStyle(2, 0x666666);
-            const text = scene.add.text(0, 0, "?", {
-                fontFamily: "Arial, sans-serif",
+            const text = scene.add.text(0, 0, "?", createGameTextStyle({
                 fontSize: `${Math.min(16, width * 0.03)}px`,
                 color: "#ffffff",
                 fontStyle: "bold",
                 stroke: "#000000",
                 strokeThickness: 2,
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
             container.add([shadow, ball, text]);
         }
 
@@ -262,14 +258,13 @@ export class SceneUtils {
         const goalBallBg = scene.add.image(0, 0, "goal-ball");
         goalBallBg.setDisplaySize(ballRadius * 2.2, ballRadius * 2.2);
         
-        const goalText = scene.add.text(0, 0, result.toString(), {
-            fontFamily: "Arial, sans-serif",
+        const goalText = scene.add.text(0, 0, result.toString(), createGameTextStyle({
             fontSize: `${Math.min(20, width * 0.04)}px`,
             color: "#ffffff",
             fontStyle: "bold",
             stroke: "#000000",
             strokeThickness: 2,
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
         
         goalBall.add([goalBallBg, goalText]);
         

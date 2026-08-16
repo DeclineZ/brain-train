@@ -41,7 +41,7 @@ export default async function Shop() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-2xl lg:max-w-4xl px-4 py-6">
+      <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6">
         
 
         {/* Shop Content */}

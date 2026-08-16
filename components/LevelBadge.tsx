@@ -16,22 +16,22 @@ export default function LevelBadge({
   totalStars 
 }: LevelBadgeProps) {
   if (error) {
-    return null; // Hide badge on error
+    return null;
   }
 
   if (isLoading) {
     return (
-      <div className="absolute top-2 right-2 bg-gradient-to-r from-blue-700 to-blue-800/90 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm min-w-[60px] text-center">
+      <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full font-bold border border-white/20 shadow-sm min-w-[50px] text-center">
         ...
       </div>
     );
   }
 
-  // For endless mode, show "Endless" instead of level
+  // For endless mode
   if (isEndless) {
     return (
-      <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-700 to-purple-800/90 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm min-w-[60px] text-center">
-        Endless
+      <div className="absolute top-2.5 right-2.5 bg-purple-900/80 backdrop-blur-md text-purple-100 text-xs px-2.5 py-1 rounded-full font-bold border border-purple-400/30 shadow-sm min-w-[60px] text-center">
+        ไม่รู้จบ
       </div>
     );
   }
@@ -42,19 +42,19 @@ export default function LevelBadge({
   // For non-endless games with stars, show both level and stars
   if (totalStars !== undefined) {
     return (
-      <div className="absolute top-2 right-2 bg-gradient-to-r from-blue-700 to-blue-800/90 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm flex items-center gap-1">
-        <span>Lv {displayLevel}</span>
-        <div className="w-3 h-3">
+      <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full font-bold border border-white/20 shadow-sm flex items-center gap-1.5">
+        <span>ด่าน {displayLevel}</span>
+        <div className="w-3.5 h-3.5">
           <StarIcon className="w-full h-full" />
         </div>
-        <span>{totalStars}</span>
+        <span className="text-yellow-300">{totalStars}</span>
       </div>
     );
   }
   
   return (
-    <div className="absolute top-2 right-2 bg-gradient-to-r from-blue-700 to-blue-800/90 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm min-w-[60px] text-center">
-      Level {displayLevel}
+    <div className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full font-bold border border-white/20 shadow-sm min-w-[55px] text-center">
+      ด่าน {displayLevel}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 
 // Tutorial-specific questions (different from Level 1 which uses cat/dog)
 const TUTORIAL_QUESTIONS = [
@@ -116,15 +117,13 @@ export class TutorialScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Show center message: "ฟังเสียงให้ดีๆนะ"
-        this.centerMessage = this.add.text(width / 2, height / 2, 'ฟังเสียงให้ดีๆนะ', {
+        this.centerMessage = this.add.text(width / 2, height / 2, 'ฟังเสียงให้ดีๆนะ', createGameTextStyle({
             fontSize: '36px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold',
             stroke: '#5b21b6',
             strokeThickness: 6,
-            padding: { x: 20, y: 16 },
-        }).setOrigin(0.5).setDepth(100);
+        })).setOrigin(0.5).setDepth(100);
 
         // Animate center message
         this.centerMessage.setScale(0);
@@ -206,13 +205,11 @@ export class TutorialScene extends Phaser.Scene {
         shadow.fillRoundedRect(-158, -27, 320, 60, 30);
         shadow.setPosition(3, 3);
 
-        this.titleText = this.add.text(0, 0, 'นี่คือเสียงอะไร?', {
+        this.titleText = this.add.text(0, 0, 'นี่คือเสียงอะไร?', createGameTextStyle({
             fontSize: '28px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#5b21b6',
             fontStyle: 'bold',
-            padding: { x: 10, y: 14 },
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.titleContainer.add([shadow, titleBg, this.titleText]);
 
@@ -231,14 +228,13 @@ export class TutorialScene extends Phaser.Scene {
     private createQuestionIndicator() {
         const { width } = this.scale;
 
-        this.questionIndicator = this.add.text(width / 2, 165, `ข้อ ${this.currentQuestionIndex + 1}/2`, {
+        this.questionIndicator = this.add.text(width / 2, 165, `ข้อ ${this.currentQuestionIndex + 1}/2`, createGameTextStyle({
             fontSize: '18px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#ffffff',
             fontStyle: 'bold',
             backgroundColor: '#8b5cf6',
-            padding: { x: 15, y: 8 },
-        }).setOrigin(0.5);
+            padding: { left: 15, right: 15, top: 8, bottom: 8 },
+        })).setOrigin(0.5);
 
         this.questionIndicator.setAlpha(0);
         this.tweens.add({
@@ -355,21 +351,20 @@ export class TutorialScene extends Phaser.Scene {
         hintCircle.strokeCircle(this.speakerContainer.x, this.speakerContainer.y, 80);
 
         // Create hint text below speaker
-        const hintText = this.add.text(this.speakerContainer.x, this.speakerContainer.y + 110, 'กดเพื่อฟังอีกรอบ', {
+        const hintText = this.add.text(this.speakerContainer.x, this.speakerContainer.y + 110, 'กดเพื่อฟังอีกรอบ', createGameTextStyle({
             fontSize: '20px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#fbbf24',
             fontStyle: 'bold',
             backgroundColor: '#1f2937',
-            padding: { x: 16, y: 10 },
-        }).setOrigin(0.5);
+            padding: { left: 16, right: 16, top: 10, bottom: 10 },
+        })).setOrigin(0.5);
 
         // Arrow pointing up
-        const arrow = this.add.text(this.speakerContainer.x, this.speakerContainer.y + 75, '↑', {
+        const arrow = this.add.text(this.speakerContainer.x, this.speakerContainer.y + 75, '↑', createGameTextStyle({
             fontSize: '32px',
             color: '#fbbf24',
             fontStyle: 'bold',
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
         this.replayHintContainer.add([hintCircle, arrow, hintText]);
 
@@ -574,38 +569,36 @@ export class TutorialScene extends Phaser.Scene {
                 pig: '🐷', cow: '🐄', chicken: '🐔', frog: '🐸',
                 bear: '🐻', snake: '🐍', parrot: '🦜', fly: '🪰',
             };
-            image = this.add.text(0, imageY, emojis[id] || '❓', {
+            image = this.add.text(0, imageY, emojis[id] || '❓', createEmojiTextStyle({
                 fontSize: `${size * 0.4}px`,
-            }).setOrigin(0.5);
+            })).setOrigin(0.5);
         }
 
         const labelBg = this.add.graphics();
         labelBg.fillStyle(0xf3f4f6, 1);
         labelBg.fillRoundedRect(-size / 2 + 6, size / 2 - 10, size - 12, 36, 8);
 
-        const labelText = this.add.text(0, size / 2 + 6, label, {
+        const labelText = this.add.text(0, size / 2 + 6, label, createGameTextStyle({
             fontSize: '18px',
-            fontFamily: 'Sarabun, sans-serif',
             color: '#374151',
             fontStyle: 'bold',
-            padding: { x: 4, y: 8 },
-        }).setOrigin(0.5);
+        })).setOrigin(0.5);
 
-        const checkmark = this.add.text(0, -5, '✓', {
+        const checkmark = this.add.text(0, -5, '✓', createGameTextStyle({
             fontSize: '60px',
             color: '#16a34a',
             fontStyle: 'bold',
             stroke: '#ffffff',
             strokeThickness: 4,
-        }).setOrigin(0.5).setAlpha(0).setName('checkmark');
+        })).setOrigin(0.5).setAlpha(0).setName('checkmark');
 
-        const xmark = this.add.text(0, -5, '✕', {
+        const xmark = this.add.text(0, -5, '✕', createGameTextStyle({
             fontSize: '60px',
             color: '#dc2626',
             fontStyle: 'bold',
             stroke: '#ffffff',
             strokeThickness: 4,
-        }).setOrigin(0.5).setAlpha(0).setName('xmark');
+        })).setOrigin(0.5).setAlpha(0).setName('xmark');
 
         container.add([shadow, bg, image, labelBg, labelText, borderOverlay, checkmark, xmark]);
         container.setData('id', id);

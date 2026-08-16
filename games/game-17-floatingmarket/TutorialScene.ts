@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { FloatingMarketScene } from './GameScene';
 import type { MarketItem } from './types';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class FloatingMarketTutorialScene extends FloatingMarketScene {
     private tutorialPhase = 0;
@@ -51,15 +52,13 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         this.instructionPanel.lineStyle(3, 0xFFD700, 1);
         this.instructionPanel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
 
-        this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', {
-            fontFamily: "'Noto Sans Thai', sans-serif",
+        this.instructionText = this.add.text(width / 2, panelY + panelHeight / 2, '', createGameTextStyle({
             fontSize: '24px',
             color: '#FFFFFF',
             align: 'center',
             wordWrap: { width: panelWidth - 40 },
             lineSpacing: 8,
-            padding: { top: 12, bottom: 20, left: 10, right: 10 }
-        }).setOrigin(0.5).setDepth(401);
+        })).setOrigin(0.5).setDepth(401);
 
         this.instructionOverlay.add([this.instructionPanel, this.instructionText]);
         this.instructionOverlay.setVisible(false);

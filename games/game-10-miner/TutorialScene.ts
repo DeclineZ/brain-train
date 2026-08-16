@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type TutorialTargetType = 'gold_large' | 'gem' | 'rock';
 type HookState = 'swing' | 'dropping' | 'pulling';
@@ -235,31 +236,25 @@ export class MinerTutorialScene extends Phaser.Scene {
     const objectiveProgressX = objectiveX + objectiveCardWidth * 0.06;
     const objectiveIconX = objectiveX - objectiveCardWidth * 0.24;
 
-    const scoreLabel = this.add.text(scoreX, scoreLabelY, 'คะแนน', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const scoreLabel = this.add.text(scoreX, scoreLabelY, 'คะแนน', createGameTextStyle({
       fontSize: `${metrics.hudLabelFont}px`,
       color: '#7b5b3e',
-      padding: { x: 2, y: 2 }
-    }).setOrigin(0.5);
-    this.hudScoreText = this.add.text(scoreX, scoreValueY, `${this.score}/${this.goal}`, {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    })).setOrigin(0.5);
+    this.hudScoreText = this.add.text(scoreX, scoreValueY, `${this.score}/${this.goal}`, createGameTextStyle({
       fontSize: `${metrics.hudValueFont}px`,
       color: '#d17300',
       fontStyle: '700',
-      padding: { x: 2, y: 2 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     const objectiveCard = this.add.graphics();
     objectiveCard.fillStyle(0xf5edd4, 0.95);
     objectiveCard.lineStyle(1.5, 0xe2c78b, 0.85);
     objectiveCard.fillRoundedRect(objectiveX - objectiveCardWidth / 2, objectiveCardTop, objectiveCardWidth, objectiveCardHeight, 12);
     objectiveCard.strokeRoundedRect(objectiveX - objectiveCardWidth / 2, objectiveCardTop, objectiveCardWidth, objectiveCardHeight, 12);
-    const objectiveLabel = this.add.text(objectiveX, objectiveCardTop + 11, 'เป้าหมายแร่', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const objectiveLabel = this.add.text(objectiveX, objectiveCardTop + 11, 'เป้าหมายแร่', createGameTextStyle({
       fontSize: `${metrics.hudLabelFont}px`,
       color: '#7b5b3e',
-      padding: { x: 2, y: 2 }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     const objectiveIcon = this.add.polygon(objectiveIconX, objectiveRowY, [
       0, -16,
       12, -4,
@@ -269,20 +264,18 @@ export class MinerTutorialScene extends Phaser.Scene {
       -12, -4
     ], COLORS.gold, 1);
     objectiveIcon.setStrokeStyle(2, 0x6d4f1f, 0.7);
-    this.hudObjectiveText = this.add.text(objectiveProgressX, objectiveRowY, '0/1', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    this.hudObjectiveText = this.add.text(objectiveProgressX, objectiveRowY, '0/1', createGameTextStyle({
       fontSize: `${metrics.hudObjectiveFont}px`,
       color: '#7b5b3e',
       fontStyle: '700'
-    }).setOrigin(0.5);
-    this.hudObjectiveBadge = this.add.text(objectiveBadgeX, objectiveRowY + 2, '?', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    })).setOrigin(0.5);
+    this.hudObjectiveBadge = this.add.text(objectiveBadgeX, objectiveRowY + 2, '?', createGameTextStyle({
       fontSize: `${metrics.hudBadgeFont}px`,
       color: '#725400',
       fontStyle: '700',
       backgroundColor: '#f3c94b',
-      padding: { x: metrics.compact ? 5 : 6, y: 2 }
-    }).setOrigin(0.5);
+      padding: { left: metrics.compact ? 5 : 6, right: metrics.compact ? 5 : 6, top: 2, bottom: 2 }
+    })).setOrigin(0.5);
 
     panel.add([
       bg,
@@ -298,13 +291,12 @@ export class MinerTutorialScene extends Phaser.Scene {
 
     this.hookCostBubble = this.add.container(width * 0.1, this.hookBaseY + 108).setDepth(12);
     this.hookCostBubbleBg = this.add.graphics();
-    this.hookCostText = this.add.text(0, 0, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    this.hookCostText = this.add.text(0, 0, '', createGameTextStyle({
       fontSize: `${metrics.hookCostFont}px`,
       color: '#4a3b2a',
       align: 'center',
       wordWrap: { width: metrics.hookCostWrapWidth, useAdvancedWrap: true }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
     this.hookCostBubble.add([this.hookCostBubbleBg, this.hookCostText]);
     this.updateHookCostText();
     this.updateObjectiveHUD();
@@ -412,19 +404,17 @@ export class MinerTutorialScene extends Phaser.Scene {
       ], COLORS.gold, 1);
       body.setStrokeStyle(2, 0x6d4f1f, 0.7);
       const shine = this.add.circle(-object.size * 0.28, -object.size * 0.25, object.size * 0.35, 0xffffff, 0.45);
-      const valueLabel = this.add.text(0, 0, `${object.value}`, {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      const valueLabel = this.add.text(0, 0, `${object.value}`, createGameTextStyle({
         fontSize: `${Math.max(15, object.size * 0.42)}px`,
         color: '#f7e2a1',
         fontStyle: '700'
-      }).setOrigin(0.5);
-      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      })).setOrigin(0.5);
+      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], createGameTextStyle({
         fontSize: `${metrics.oreLabelFont}px`,
         color: '#fff2cd',
         backgroundColor: 'rgba(41, 28, 17, 0.72)',
-        padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
-      }).setOrigin(0.5);
+        padding: { left: metrics.oreLabelPaddingX, right: metrics.oreLabelPaddingX, top: metrics.oreLabelPaddingY, bottom: metrics.oreLabelPaddingY }
+      })).setOrigin(0.5);
       sprite.add([body, shine, valueLabel, nameLabel]);
       return { sprite, nameLabel };
     }
@@ -445,19 +435,17 @@ export class MinerTutorialScene extends Phaser.Scene {
         0, object.size * 0.4,
         -object.size * 0.28, -object.size * 0.1
       ], 0xffffff, 0.35);
-      const valueLabel = this.add.text(0, 0, `${object.value}`, {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      const valueLabel = this.add.text(0, 0, `${object.value}`, createGameTextStyle({
         fontSize: `${Math.max(15, object.size * 0.42)}px`,
         color: '#f4f8ff',
         fontStyle: '700'
-      }).setOrigin(0.5);
-      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      })).setOrigin(0.5);
+      const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], createGameTextStyle({
         fontSize: `${metrics.oreLabelFont}px`,
         color: '#ebe6ff',
         backgroundColor: 'rgba(31, 31, 60, 0.72)',
-        padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
-      }).setOrigin(0.5);
+        padding: { left: metrics.oreLabelPaddingX, right: metrics.oreLabelPaddingX, top: metrics.oreLabelPaddingY, bottom: metrics.oreLabelPaddingY }
+      })).setOrigin(0.5);
       sprite.add([body, facet, valueLabel, nameLabel]);
       return { sprite, nameLabel };
     }
@@ -474,19 +462,17 @@ export class MinerTutorialScene extends Phaser.Scene {
     rock.setStrokeStyle(2, 0x303030, 0.8);
     const crack = this.add.rectangle(0, 0, object.size * 0.9, 3, 0x3f3022, 0.6);
     crack.setRotation(Phaser.Math.DegToRad(20));
-    const valueLabel = this.add.text(0, 0, `${object.value}`, {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const valueLabel = this.add.text(0, 0, `${object.value}`, createGameTextStyle({
       fontSize: `${Math.max(15, object.size * 0.42)}px`,
       color: '#f0dede',
       fontStyle: '700'
-    }).setOrigin(0.5);
-    const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    })).setOrigin(0.5);
+    const nameLabel = this.add.text(0, object.size + metrics.oreLabelGap, nameMap[object.type], createGameTextStyle({
       fontSize: `${metrics.oreLabelFont}px`,
       color: '#f5e8d4',
       backgroundColor: 'rgba(36, 28, 20, 0.7)',
-      padding: { x: metrics.oreLabelPaddingX, y: metrics.oreLabelPaddingY }
-    }).setOrigin(0.5);
+      padding: { left: metrics.oreLabelPaddingX, right: metrics.oreLabelPaddingX, top: metrics.oreLabelPaddingY, bottom: metrics.oreLabelPaddingY }
+    })).setOrigin(0.5);
     sprite.add([rock, crack, valueLabel, nameLabel]);
 
     return { sprite, nameLabel };
@@ -500,36 +486,28 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.tutorialPanel = this.add.container(width / 2, height - metrics.tutorialPanelMinHeight / 2 - 10).setDepth(40);
     this.tutorialPanelBg = this.add.graphics();
 
-    this.tutorialStepText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    this.tutorialStepText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', createGameTextStyle({
       fontSize: `${metrics.tutorialStepFont}px`,
       color: '#ffe8bc',
       fontStyle: '700',
-      padding: { x: 4, y: 3 }
-    }).setOrigin(0, 0);
-    this.tutorialInstructionText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    })).setOrigin(0, 0);
+    this.tutorialInstructionText = this.add.text(-panelWidth / 2 + metrics.tutorialPanelPaddingX, 0, '', createGameTextStyle({
       fontSize: `${metrics.tutorialInstructionFont}px`,
       color: '#fff8e9',
       wordWrap: { width: panelWidth - metrics.tutorialPanelPaddingX * 2, useAdvancedWrap: true },
-      padding: { x: 4, y: 4 }
-    }).setOrigin(0, 0);
+    })).setOrigin(0, 0);
 
-    this.tutorialContinueText = this.add.text(0, 0, 'แตะเพื่อไปต่อ', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    this.tutorialContinueText = this.add.text(0, 0, 'แตะเพื่อไปต่อ', createGameTextStyle({
       fontSize: `${metrics.tutorialContinueFont}px`,
       color: '#f6d991',
-      padding: { x: 4, y: 3 }
-    }).setOrigin(0.5, 1);
+    })).setOrigin(0.5, 1);
 
-    this.tutorialHelperText = this.add.text(0, 0, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    this.tutorialHelperText = this.add.text(0, 0, '', createGameTextStyle({
       fontSize: `${metrics.tutorialHelperFont}px`,
       color: '#ffd4d4',
       align: 'center',
       wordWrap: { width: panelWidth - metrics.tutorialPanelPaddingX * 2, useAdvancedWrap: true },
-      padding: { x: 4, y: 3 }
-    }).setOrigin(0.5, 1);
+    })).setOrigin(0.5, 1);
 
     this.tutorialPanel.add([
       this.tutorialPanelBg,
@@ -1137,13 +1115,11 @@ export class MinerTutorialScene extends Phaser.Scene {
   private spawnScorePopup(x: number, y: number, value: number) {
     const isPenalty = value < 0;
     const display = isPenalty ? `${value}` : `+${value}`;
-    const popup = this.add.text(x, y - 10, display, {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const popup = this.add.text(x, y - 10, display, createGameTextStyle({
       fontSize: '24px',
       color: isPenalty ? '#f47e7e' : '#f4d47c',
       fontStyle: '700',
-      padding: { x: 3, y: 3 }
-    }).setOrigin(0.5).setDepth(36);
+    })).setOrigin(0.5).setDepth(36);
 
     this.tweens.add({
       targets: popup,

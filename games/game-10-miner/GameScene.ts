@@ -4,6 +4,7 @@ import { calculateMinerStars } from '@/lib/scoring/miner';
 import { calculateMinerLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig, MinerObjectType } from './levels';
 import { createSeededRandom } from '@/lib/seededRandom';
+import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 type MinerObject = MinerObjectConfig & {
   id: number;
@@ -333,15 +334,13 @@ export class MinerGameScene extends Phaser.Scene {
     this.createBombSlowText();
 
     this.eventBanner = this.add
-      .text(width / 2, height * 0.24, '', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      .text(width / 2, height * 0.24, '', createGameTextStyle({
         fontSize: `${this.getHudMetrics().eventBannerFont}px`,
         color: '#4a3b2a',
         backgroundColor: 'rgba(244, 230, 196, 0.9)',
         align: 'center',
         wordWrap: { width: this.getHudMetrics().eventBannerWrapWidth, useAdvancedWrap: true },
-        padding: { x: 12, y: 6 }
-      })
+      }))
       .setOrigin(0.5)
       .setDepth(7)
       .setAlpha(0);
@@ -465,18 +464,16 @@ export class MinerGameScene extends Phaser.Scene {
 
     const objectiveCardBg = this.add.graphics();
 
-    const labelStyle = {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const labelStyle = createGameTextStyle({
       fontSize: `${metrics.scoreLabelFont}px`,
       color: '#7b5b3e',
       fontStyle: '600'
-    };
-    const valueStyle = {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    });
+    const valueStyle = createGameTextStyle({
       fontSize: `${metrics.scoreValueFont}px`,
       color: '#d17300',
       fontStyle: '700'
-    };
+    });
     const scoreX = -sectionWidth / 2;
     const objectiveX = sectionWidth / 2;
     this.objectivePanelX = objectiveX;
@@ -499,27 +496,24 @@ export class MinerGameScene extends Phaser.Scene {
 
     const objectiveLabel = this.add.text(objectiveX, metrics.objectiveTitleY, 'เป้าหมายแร่', labelStyle).setOrigin(0.5, 0.5);
     const objectiveIconContainer = this.add.container(objectiveX + metrics.objectiveIconOffsetX, metrics.objectiveRowY);
-    const objectiveProgress = this.add.text(objectiveX + metrics.objectiveProgressOffsetX, metrics.objectiveRowY, '0/1', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const objectiveProgress = this.add.text(objectiveX + metrics.objectiveProgressOffsetX, metrics.objectiveRowY, '0/1', createGameTextStyle({
       fontSize: `${metrics.objectiveProgressFont}px`,
       color: '#7b5b3e',
       fontStyle: '700'
-    }).setOrigin(0.5, 0.5);
-    const objectiveHint = this.add.text(objectiveX, metrics.objectiveHintY, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    })).setOrigin(0.5, 0.5);
+    const objectiveHint = this.add.text(objectiveX, metrics.objectiveHintY, '', createGameTextStyle({
       fontSize: `${metrics.objectiveHintFont}px`,
       color: '#90724d',
       fontStyle: '600',
       align: 'center',
       wordWrap: { width: metrics.objectiveHintMaxWidth, useAdvancedWrap: true }
-    }).setOrigin(0.5, 0.5);
+    })).setOrigin(0.5, 0.5);
     const objectiveBadgeBg = this.add.circle(objectiveX + metrics.objectiveBadgeOffsetX, metrics.objectiveRowY, metrics.compact ? 10 : 11, 0xf3c94b, 1).setStrokeStyle(2, 0xe0b12e, 0.9);
-    const objectiveBadge = this.add.text(objectiveX + metrics.objectiveBadgeOffsetX, metrics.objectiveRowY, '?', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const objectiveBadge = this.add.text(objectiveX + metrics.objectiveBadgeOffsetX, metrics.objectiveRowY, '?', createGameTextStyle({
       fontSize: `${metrics.objectiveBadgeFont}px`,
       color: '#725400',
       fontStyle: '700'
-    }).setOrigin(0.5, 0.5);
+    })).setOrigin(0.5, 0.5);
 
     panel.add([
       panelBg,
@@ -809,8 +803,8 @@ export class MinerGameScene extends Phaser.Scene {
     const stackedDepthThreshold = Math.max(68, combinedSize * 1.55);
     const lowPriorityAngleThreshold =
       options.relaxLowPriorityLane &&
-      candidateLaneClass === 'neutral_low' &&
-      existingLaneClass === 'neutral_low'
+        candidateLaneClass === 'neutral_low' &&
+        existingLaneClass === 'neutral_low'
         ? Phaser.Math.DegToRad(2.6)
         : Phaser.Math.DegToRad(2.1);
     const baseAngleThreshold =
@@ -989,7 +983,7 @@ export class MinerGameScene extends Phaser.Scene {
         0, -size
       ], 0xc79b5e, 1);
       bag.setStrokeStyle(2, 0x8a6a3f, 0.8);
-      const tie = this.add.rectangle(-size * 0.82, -size , size * 0.95, 3, 0x8b5a2b, 1);
+      const tie = this.add.rectangle(-size * 0.82, -size, size * 0.95, 3, 0x8b5a2b, 1);
       container.add([bag, tie]);
       return;
     }
@@ -1089,12 +1083,11 @@ export class MinerGameScene extends Phaser.Scene {
     this.timerBar.setVisible(true);
     if (!this.timerText) {
       this.timerText = this.add
-        .text(0, 0, '', {
-          fontFamily: 'Sarabun, Arial, sans-serif',
+        .text(0, 0, '', createGameTextStyle({
           fontSize: '16px',
           color: '#3b2d22',
-          fontStyle: '700'
-        })
+          fontStyle: 'bold'
+        }))
         .setOrigin(0.5)
         .setDepth(21);
       this.timerContainer.add(this.timerText);
@@ -1488,14 +1481,13 @@ export class MinerGameScene extends Phaser.Scene {
     const bubble = this.add.container(baseX, baseY - 94).setDepth(7);
     const bubbleBg = this.add.graphics();
 
-    const bubbleText = this.add.text(0, 0, '', {
-      fontFamily: 'Sarabun, Arial, sans-serif',
+    const bubbleText = this.add.text(0, 0, '', createGameTextStyle({
       fontSize: `${this.getHudMetrics().hookCostFont}px`,
       color: '#4a3b2a',
       fontStyle: '700',
       align: 'center',
       wordWrap: { width: this.getHudMetrics().hookCostWrapWidth, useAdvancedWrap: true }
-    }).setOrigin(0.5);
+    })).setOrigin(0.5);
 
     bubble.add([bubbleBg, bubbleText]);
 
@@ -1905,13 +1897,11 @@ export class MinerGameScene extends Phaser.Scene {
     const offsetX = 38;
     const offsetY = -16;
     this.bombSlowPullText = this.add
-      .text(this.hookCenterX + offsetX, this.hookBaseY + offsetY, '', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      .text(this.hookCenterX + offsetX, this.hookBaseY + offsetY, '', createGameTextStyle({
         fontSize: '14px',
         color: '#d14b4b',
         backgroundColor: 'rgba(255, 240, 230, 0.9)',
-        padding: { x: 6, y: 3 }
-      })
+      }))
       .setOrigin(0, 0.5)
       .setDepth(15)
       .setVisible(false);
@@ -2216,11 +2206,10 @@ export class MinerGameScene extends Phaser.Scene {
       const crack = this.add.rectangle(0, 0, config.size * 0.8, 3, 0x3b2a1a, 0.65);
       crack.setRotation(Phaser.Math.DegToRad(18));
       const pebble = this.add.circle(-config.size * 0.25, config.size * 0.2, config.size * 0.22, 0x4b4b4b, 0.55);
-      const penalty = this.add.text(0, 0, `${config.value}`, {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      const penalty = this.add.text(0, 0, `${config.value}`, createGameTextStyle({
         fontSize: `${Math.max(11, config.size * 0.45)}px`,
         color: '#f0dede'
-      }).setOrigin(0.5).setAlpha(0.8);
+      })).setOrigin(0.5).setAlpha(0.8);
       sprite.add([body, crack, pebble, penalty]);
     } else if (config.type.startsWith('bomb')) {
       const body = this.add.circle(0, 0, config.size, baseColor, 1);
@@ -2231,7 +2220,7 @@ export class MinerGameScene extends Phaser.Scene {
       const fuse = this.add.rectangle(0, -config.size - 4, 4, 10, 0xd9a441, 1);
       const fuseTip = this.add.circle(0, -config.size - 10, 4, 0xff5a5a, 1);
       const bolt = this.add.circle(-config.size * 0.2, -config.size * 0.15, config.size * 0.18, 0x2b2b2b, 0.8);
-     
+
       sprite.add([body, seam, highlight, bolt, fuse, fuseTip]);
       this.tweens.add({
         targets: fuseTip,
@@ -2305,12 +2294,11 @@ export class MinerGameScene extends Phaser.Scene {
     if (showValueLabel) {
       const labelRadius = Math.max(11, config.size * 0.44);
       const labelBg = this.add.circle(0, 0, labelRadius, 0x2f1b0c, 0.75);
-      const label = this.add.text(0, 0, `${config.value}`, {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      const label = this.add.text(0, 0, `${config.value}`, createGameTextStyle({
         fontSize: `${Math.max(13, config.size * 0.42)}px`,
         color: '#f7e2a1',
         fontStyle: '700'
-      }).setOrigin(0.5);
+      })).setOrigin(0.5);
       sprite.add([labelBg, label]);
     }
 
@@ -2394,13 +2382,11 @@ export class MinerGameScene extends Phaser.Scene {
     const isPenalty = value < 0;
     const displayValue = isPenalty ? `${value}` : `+${value}`;
     const text = this.add
-      .text(x, y - 10, displayValue,
-        {
-          fontFamily: 'Sarabun, Arial, sans-serif',
-          fontSize: '22px',
-          color: isPenalty ? '#f26d6d' : '#f4d47c',
-          fontStyle: '600'
-        })
+      .text(x, y - 10, displayValue, createGameTextStyle({
+        fontSize: '22px',
+        color: isPenalty ? '#f26d6d' : '#f4d47c',
+        fontStyle: '600'
+      }))
       .setOrigin(0.5)
       .setDepth(15);
 
@@ -2467,12 +2453,11 @@ export class MinerGameScene extends Phaser.Scene {
         .setDepth(18);
     }
     if (!this.warningIcon) {
-      this.warningIcon = this.add.text(width / 2, height * 0.11, 'แจ้งเตือน: แผ่นดินไหว แร่กำลังขยับ', {
-        fontFamily: 'Sarabun, Arial, sans-serif',
+      this.warningIcon = this.add.text(width / 2, height * 0.11, 'แจ้งเตือน: แผ่นดินไหว แร่กำลังขยับ', createGameTextStyle({
         fontSize: '19px',
         color: '#fdf2df',
         fontStyle: '700'
-      }).setOrigin(0.5).setDepth(19);
+      })).setOrigin(0.5).setDepth(19);
     }
 
     this.warningTween?.stop();
@@ -2632,7 +2617,7 @@ export class MinerGameScene extends Phaser.Scene {
 
     const targetCount = Math.max(1, Math.round(candidates.length * Phaser.Math.FloatBetween(0.4, 0.7)));
     const selected = Phaser.Utils.Array.Shuffle(candidates).slice(0, targetCount);
-      const moveDurationMs = Phaser.Math.Between(10000, 20000);
+    const moveDurationMs = Phaser.Math.Between(10000, 20000);
 
     this.activeVeinTweens.forEach((tween) => tween.stop());
     this.activeVeinTweens.clear();

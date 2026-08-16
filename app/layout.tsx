@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sarabun, Geist_Mono, Mali } from "next/font/google";
+import { Sarabun, Geist_Mono, Mali, Prompt } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
@@ -10,6 +10,12 @@ import TopBarWrapper from "@/components/TopBarWrapper";
 
 
 import { MotionProvider } from "@/app/providers/MotionProvider";
+
+const prompt = Prompt({
+  variable: "--font-prompt",
+  weight: ["400", "500", "600", "700", "800"],
+  subsets: ["thai", "latin"],
+});
 
 const sarabun = Sarabun({
   variable: "--font-sarabun",
@@ -44,7 +50,7 @@ export default async function RootLayout({
   return (
     <html lang="th" suppressHydrationWarning>
       <body
-        className={`${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
+        className={`${prompt.variable} ${sarabun.variable} ${geistMono.variable} ${mali.variable} antialiased`}
       >
         <ThemeProvider initialTheme={(themeCookie?.value as "default" | "pastel") || "default"}>
           <MotionProvider>
