@@ -35,7 +35,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brain Train - เกมฝึกสมอง",
+  title: "RunJump - เกมฝึกสมอง",
   description: "เกมฝึกสมองเพื่อพัฒนาทักษะการใช้เหตุผลและการประมวลผลข้อมูล",
 };
 
