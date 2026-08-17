@@ -305,7 +305,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div
         id="game-container"
         ref={gameRef}
-        className="absolute inset-0 w-full h-full z-0"
+        className="absolute inset-0 w-full h-full z-0 touch-none select-none"
       />
 
       {/* React UI Overlay - Top Layer */}

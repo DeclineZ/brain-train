@@ -70,7 +70,6 @@ export class TutorialScene extends Phaser.Scene {
         this.load.audio('correct', '/assets/sounds/cardmatch/match-success.mp3');
         this.load.audio('wrong', '/assets/sounds/cardmatch/match-fail.mp3');
         this.load.audio('level-complete', '/assets/sounds/global/level-pass.mp3');
-        this.load.audio('click', '/assets/sounds/global/click.mp3');
     }
 
     create() {
@@ -399,10 +398,6 @@ export class TutorialScene extends Phaser.Scene {
             this.hasReplayedInPhase2 = true;
             this.hideReplayHint();
 
-            try {
-                this.sound.play('click', { volume: 0.3 });
-            } catch (e) { }
-
             this.playSoundWithAnimation();
 
             // Enable choices after replay and make them fully visible
@@ -421,9 +416,6 @@ export class TutorialScene extends Phaser.Scene {
 
         // Phase 1: Already showing choices, replay sound
         if (this.choicesVisible) {
-            try {
-                this.sound.play('click', { volume: 0.3 });
-            } catch (e) { }
             this.playSoundWithAnimation();
         }
     }

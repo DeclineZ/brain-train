@@ -83,8 +83,16 @@ export const useGameSession = () => {
       clinicalStats = calculateCashierStats(rawData as CashierGameStats);
     } else if (gameId === 'game-21-parking-jam') {
       clinicalStats = calculateParkingJamStats(rawData as ParkingJamGameStats);
+    } else {
+      clinicalStats = {
+        stat_memory: rawData.stat_memory ?? null,
+        stat_speed: rawData.stat_speed ?? null,
+        stat_visual: rawData.stat_visual ?? null,
+        stat_focus: rawData.stat_focus ?? null,
+        stat_planning: rawData.stat_planning ?? null,
+        stat_emotion: rawData.stat_emotion ?? null
+      };
     }
-    // Add 'else if' for other games here later...
 
     if (process.env.NODE_ENV === "development") {
         console.log("[submitGameSession] clinicalStats:", clinicalStats);
