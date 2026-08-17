@@ -105,16 +105,16 @@ export default function OnboardingPage() {
                                 >
                                     <div className={`aspect-square w-full rounded-2xl border-3 flex flex-col items-center justify-center transition-all duration-200 relative overflow-hidden
                                         ${isSelected
-                                            ? 'border-orange-action bg-orange-50/80 ring-4 ring-orange-action/25 scale-105 shadow-lg'
-                                            : 'border-brown-200 bg-white hover:border-orange-action/40 hover:bg-orange-50/20 hover:scale-[1.02]'
+                                            ? 'border-orange-action ring-4 ring-orange-action/25 scale-105 shadow-lg'
+                                            : 'border-brown-200 hover:border-orange-action/40 hover:scale-[1.02]'
                                         }
                                     `}>
-                                        <div className="w-full h-full relative p-2">
+                                        <div className="w-full h-full relative">
                                             <Image
                                                 src={opt.src}
                                                 alt={`Avatar ${opt.label}`}
                                                 fill
-                                                className="object-contain p-1"
+                                                className="object-cover scale-108"
                                                 priority
                                             />
                                         </div>
