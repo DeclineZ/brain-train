@@ -98,7 +98,6 @@ export class MysterySoundScene extends Phaser.Scene {
         this.load.audio('correct', '/assets/sounds/cardmatch/match-success.mp3');
         this.load.audio('wrong', '/assets/sounds/cardmatch/match-fail.mp3');
         this.load.audio('level-complete', '/assets/sounds/global/level-pass.mp3');
-        this.load.audio('click', '/assets/sounds/global/click.mp3');
     }
 
     create() {
@@ -628,11 +627,6 @@ export class MysterySoundScene extends Phaser.Scene {
                 button.setData('selected', true);
                 selectionHighlight.setAlpha(1);
                 this.selectedAnswers.push(id);
-
-                // Play click sound
-                try {
-                    this.sound.play('click', { volume: 0.3 });
-                } catch (e) { }
             }
         }
 
@@ -781,10 +775,6 @@ export class MysterySoundScene extends Phaser.Scene {
 
         this.replaysRemaining--;
         this.totalReplaysUsed++;
-
-        try {
-            this.sound.play('click', { volume: 0.5 });
-        } catch (e) { }
 
         this.tweens.add({
             targets: this.speakerContainer,
