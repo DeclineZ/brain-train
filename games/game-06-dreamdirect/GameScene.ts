@@ -755,39 +755,14 @@ export class DreamDirectGameScene extends Phaser.Scene {
             this.processArrowHit(targetArrow, dir, currentBeatTime);
         } else {
             // Check if this input is already "busy" holding another arrow
-            // If we are actively holding an arrow with this target direction, 
-            // then this input is likely a key repeat or accidental press -> IGNORE IT.
-            // Do NOT punish the closest arrow.
             const isHoldingThisDir = this.arrows.some(a => a.isBeingHeld && a.targetDirection === dir);
             if (isHoldingThisDir) {
                 return;
             }
 
-            // Miss logic? 
-            // Only if closest arrow is NOT a Ghost (Ghost target is opposite, so input != arrow.dir)
-            // Actually, a.targetDirection IS calculated.
-            // So if I press UP, and there are NO arrows expecting UP, I missed/spammed.
-            // For now, simple approach: check if any arrow is 'close' enough to be a "Wrong Direction" miss?
-            // "Closest arrow needs DOWN, but I pressed UP" -> Miss?
-            // "Closest arrow needs LEFT, I pressed UP" -> Miss?
-
-            // To prevent "mashing", we can find the closest arrow overall and if it's NOT the right direction, punish it?
-            // BUT for Chords, there might be Arrow A (Up) and Arrow B (Left).
-            // If I press Up, I hit Arrow A.
-            // If I press Right... I hit nothing.
-            // Closest might be Arrow A. Should checking Arrow A penalize me? 
-            // Probably yes, if I press Right when I needed Up/Left.
-
-            // Let's implement a simple "Miss" if there's a hittable arrow but I pressed wrong.
-            // Pick closest arrow
-            const closest = candidates.reduce((prev, curr) => {
-                return Math.abs(curr.targetBeatTime - currentBeatTime) < Math.abs(prev.targetBeatTime - currentBeatTime) ? curr : prev;
-            });
-
-            // If I pressed a button that is NOT valid for this arrow...
-            // AND there wasn't another arrow that WAS valid...
-            // It's a miss on the closest candidate.
-            this.handleMiss(closest);
+            // Unmatched input in hit window: reset combo without destroying upcoming arrows
+            this.combo = 0;
+            this.updateComboDisplay();
         }
     }
 
