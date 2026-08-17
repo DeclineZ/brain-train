@@ -240,6 +240,22 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
     // Cleanup
     return () => {
       if (gameInstance.current) {
+        try {
+          if (gameInstance.current.sound) {
+            gameInstance.current.sound.stopAll();
+            gameInstance.current.sound.removeAll();
+          }
+        } catch (e) {
+          console.warn("[GameCanvas] Error stopping audio:", e);
+        }
+        try {
+          if (gameInstance.current.scene) {
+            const scenes = gameInstance.current.scene.getScenes(true);
+            scenes.forEach((s: any) => {
+              try { s.scene.stop(); } catch (e) {}
+            });
+          }
+        } catch (e) {}
         gameInstance.current.events.off('timer-update'); // Clean listener
         gameInstance.current.events.off('game-timeout');
         gameInstance.current.events.off('tutorial-show-next-btn');
