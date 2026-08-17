@@ -67,6 +67,8 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   }, [mode]);
 
   useEffect(() => {
+    let isMounted = true; // ✅ เพิ่ม Flag ป้องกัน Race Condition
+
     // Reset state on new level/game
     setCurrentLevel(level);
     setTimerData(0);
@@ -164,8 +166,14 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
         }
       }
 
+      if (!isMounted) return; // ✅ ถ้า Component โดนทำลายไปแล้วก่อนโหลดเสร็จ ห้ามสร้างเกม!
+
       const newGame = new Phaser.Game({
         ...config,
+        scale: {
+          ...config.scale,
+          min: { width: 10, height: 10 }
+        },
         parent: gameRef.current || 'game-container',
         render: {
           pixelArt: false,
@@ -239,6 +247,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
     // Cleanup
     return () => {
+      isMounted = false; // ✅ ปรับ Flag ว่าโดนทำลายแล้ว
       if (gameInstance.current) {
         try {
           if (gameInstance.current.sound) {
@@ -321,7 +330,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
       <div
         id="game-container"
         ref={gameRef}
-        className="absolute inset-0 w-full h-full z-0 touch-none select-none"
+        className="absolute inset-0 w-full h-full min-w-[10px] min-h-[10px] z-0 touch-none select-none"
       />
 
       {/* React UI Overlay - Top Layer */}

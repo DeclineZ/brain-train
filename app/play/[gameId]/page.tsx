@@ -515,13 +515,13 @@ export default function GamePage({ params }: PageProps) {
 
     if (isLoadingLevel)
         return (
-            <div className="w-full h-screen h-[100dvh] bg-game-bg flex items-center justify-center text-brown-primary font-bold">
+            <div className="w-full h-dvh min-h-[100px] bg-game-bg flex items-center justify-center text-brown-primary font-bold">
                 Loading...
             </div>
         );
 
     return (
-        <div className="w-full h-screen h-[100dvh] relative bg-game-bg overflow-hidden select-none">
+        <div className="w-full h-dvh min-h-[100px] relative bg-game-bg overflow-hidden select-none">
             {/* Header with Buttons */}
             <div className="absolute top-4 left-4 z-10 flex gap-2">
                 <button
