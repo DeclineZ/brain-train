@@ -14,6 +14,8 @@ import QuestNotificationManager from "@/components/QuestNotificationManager";
 import WeaknessNotification from "@/components/WeaknessNotification";
 import { Trophy, Grid3X3 } from "lucide-react";
 
+import { getHomeRecommendationMessage } from "@/lib/recommendations";
+
 export default async function Home() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,58 +37,14 @@ export default async function Home() {
     .eq("user_id", user.id)
     .single();
 
-  const statsList = [
-    { key: "global_memory", val: profile?.global_memory ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านความจำ เพื่อเพิ่มทักษะด้านนี้" },
-    { key: "global_speed", val: profile?.global_speed ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับความเร็วในการคิด เพื่อเพิ่มทักษะด้านนี้" },
-    { key: "global_visual", val: profile?.global_visual ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับมิติสัมพันธ์ เพื่อเพิ่มทักษะด้านนี้" },
-    { key: "global_focus", val: profile?.global_focus ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านสมาธิและการจดจ่อ เพื่อเพิ่มทักษะด้านนี้" },
-    { key: "global_planning", val: profile?.global_planning ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านการวางแผนและแก้ปัญหา เพื่อเพิ่มทักษะด้านนี้" },
-    { key: "global_emotion", val: profile?.global_emotion ?? 0, shortSuggestion: "ลองเล่นเกมเกี่ยวกับด้านภาษาและการนึกคำ เพื่อเพิ่มทักษะด้านนี้" },
-  ];
-
   // Fetch played game sessions to find played categories
   const { data: sessionsData } = await supabase
     .from("game_sessions")
     .select("game_id")
     .eq("user_id", user.id);
 
-  const playedGameIds = new Set((sessionsData || []).map(s => s.game_id));
-
-  const DIMENSION_GAMES: Record<string, string[]> = {
-    global_memory: ["game-01-cardmatch", "game-13-boxpattern", "game-14-wordrecognize"],
-    global_focus: ["game-02-sensorlock", "game-06-dreamdirect", "game-18-runforyourlife"],
-    global_planning: ["game-09-tube-sort", "game-21-parking-jam", "game-05-wormtrain"],
-    global_speed: ["game-02-sensorlock", "game-06-dreamdirect", "game-12-gridhunter"],
-    global_visual: ["game-20-boxcounting", "game-11-pipe-patch", "game-10-miner"],
-    global_emotion: ["game-08-mysterysound"],
-  };
-
-  // Identify unplayed categories from gameplay history
-  const unplayedStats = statsList.filter(s => {
-    const games = DIMENSION_GAMES[s.key] || [];
-    return !games.some(gameId => playedGameIds.has(gameId));
-  });
-
-  const hasUnplayed = unplayedStats.length > 0;
-  let shortRecommendation = "ลองเล่นเกมพัฒนาทักษะสมองกันเถอะ";
-
-  if (hasUnplayed) {
-    const nextToPlay = unplayedStats[0];
-    const categoryNames: Record<string, string> = {
-      global_memory: "ความจำ",
-      global_speed: "ความเร็วในการคิด",
-      global_visual: "มิติสัมพันธ์",
-      global_focus: "สมาธิและการจดจ่อ",
-      global_planning: "การวางแผนและแก้ปัญหา",
-      global_emotion: "ภาษาและการนึกคำ",
-    };
-    const catName = categoryNames[nextToPlay.key] || "";
-    shortRecommendation = `ลองเล่นเกมด้าน${catName} ที่ยังไม่ได้ลองเล่น เพื่อช่วยให้ระบบวิเคราะห์สมองของคุณได้ครบถ้วน!`;
-  } else {
-    statsList.sort((a, b) => a.val - b.val);
-    const weakest = statsList[0];
-    shortRecommendation = weakest ? weakest.shortSuggestion : "ลองเล่นเกมพัฒนาทักษะสมองกันเถอะ";
-  }
+  const playedGameIds = (sessionsData || []).map((s: any) => s.game_id);
+  const shortRecommendation = getHomeRecommendationMessage(profile, playedGameIds);
 
   // Filter games that are part of today's missions
   const dailyQuestGames = games.filter(game => missions.some(m => m.game_id === game.gameId));
