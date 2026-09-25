@@ -13,6 +13,7 @@ export class CardMatchTimer {
   private startTime = 0;
   private totalPausedMs = 0;
   private pauseStartTime: number | null = null;
+  private pauseReasons = new Set<string>();
   private finalizedDuration: number | null = null;
   private nowFn: () => number;
 
@@ -27,37 +28,57 @@ export class CardMatchTimer {
     this.startTime = timestamp ?? this.nowFn();
     this.totalPausedMs = 0;
     this.pauseStartTime = null;
+    this.pauseReasons.clear();
     this.finalizedDuration = null;
   }
 
   /**
-   * Pauses timing if running and not already paused.
-   * Repeated or overlapping pause calls are safely ignored without double-counting.
+   * Pauses timing for a specific reason (source).
+   * Multiple reasons can be active concurrently (e.g. 'scene', 'game', 'timeout_modal').
+   * If timing is already paused by another reason, the existing pause window continues.
+   * Repeated calls with the same reason are idempotent.
    */
-  pause(timestamp?: number): void {
+  pause(reason: string = 'default', timestamp?: number): void {
     if (this.startTime === 0 || this.finalizedDuration !== null) return;
-    if (this.pauseStartTime !== null) return; // Already paused
-    this.pauseStartTime = timestamp ?? this.nowFn();
+    if (this.pauseReasons.size === 0) {
+      this.pauseStartTime = timestamp ?? this.nowFn();
+    }
+    this.pauseReasons.add(reason);
   }
 
   /**
-   * Resumes timing if currently paused.
-   * Repeated or redundant resume calls are safely ignored without double-counting.
+   * Resumes timing for a specific reason (source).
+   * The timer only actually resumes active accumulation when all reasons have resumed.
+   * Repeated calls with the same reason or non-existent reasons are idempotent.
    */
-  resume(timestamp?: number): void {
+  resume(reason: string = 'default', timestamp?: number): void {
     if (this.startTime === 0 || this.finalizedDuration !== null) return;
-    if (this.pauseStartTime === null) return; // Not paused
-    const now = timestamp ?? this.nowFn();
-    const pausedDuration = Math.max(0, now - this.pauseStartTime);
-    this.totalPausedMs += pausedDuration;
-    this.pauseStartTime = null;
+    if (!this.pauseReasons.has(reason)) return;
+
+    this.pauseReasons.delete(reason);
+    if (this.pauseReasons.size === 0 && this.pauseStartTime !== null) {
+      const now = timestamp ?? this.nowFn();
+      const pausedDuration = Math.max(0, now - this.pauseStartTime);
+      this.totalPausedMs += pausedDuration;
+      this.pauseStartTime = null;
+    }
   }
 
   /**
-   * Returns whether the timer is currently in a paused state.
+   * Returns whether the timer is currently paused (by any reason, or optionally a specific reason).
    */
-  isPaused(): boolean {
-    return this.pauseStartTime !== null;
+  isPaused(reason?: string): boolean {
+    if (reason !== undefined) {
+      return this.pauseReasons.has(reason);
+    }
+    return this.pauseReasons.size > 0;
+  }
+
+  /**
+   * Returns the list of currently active pause reasons.
+   */
+  getPauseReasons(): string[] {
+    return Array.from(this.pauseReasons);
   }
 
   /**
@@ -70,7 +91,7 @@ export class CardMatchTimer {
     if (this.finalizedDuration !== null) return this.finalizedDuration;
 
     const now = timestamp ?? this.nowFn();
-    if (this.pauseStartTime !== null) {
+    if (this.pauseReasons.size > 0 && this.pauseStartTime !== null) {
       // Currently paused: freeze active time at the moment pause began
       return Math.max(0, this.pauseStartTime - this.startTime - this.totalPausedMs);
     }
@@ -99,6 +120,7 @@ export class CardMatchTimer {
     this.startTime = 0;
     this.totalPausedMs = 0;
     this.pauseStartTime = null;
+    this.pauseReasons.clear();
     this.finalizedDuration = null;
   }
 

@@ -284,3 +284,243 @@ test("Batch 3 - Requirement 7: Background/blur time handling only when game actu
   currentTime = 23000;
   assert.strictEqual(timer.getUserTimeMs(), 12000);
 });
+
+test("Batch 3 - Gap Closure: Exact overlapping pause sequence (Scene pause -> Game pause -> Game resumes -> Time passes -> Scene resumes)", () => {
+  let currentTime = 1000;
+  const timer = new CardMatchTimer(() => currentTime);
+
+  // 1. Active play: starts at t = 1000, runs until t = 5000 (4,000 ms active play)
+  timer.start();
+  currentTime = 5000;
+  assert.strictEqual(timer.getUserTimeMs(), 4000, "Active duration before pause is 4000 ms");
+
+  // 2. Scene pause at t = 5000
+  timer.pause('scene');
+  assert.strictEqual(timer.isPaused(), true);
+  assert.deepStrictEqual(timer.getPauseReasons(), ['scene']);
+
+  // 3. Game pause at t = 6000
+  currentTime = 6000;
+  timer.pause('game');
+  assert.strictEqual(timer.isPaused(), true);
+  assert.deepStrictEqual(timer.getPauseReasons(), ['scene', 'game']);
+  assert.strictEqual(timer.getUserTimeMs(), 4000, "Active duration frozen at 4000 ms during pause");
+
+  // 4. Game resumes while the scene remains paused at t = 7000
+  currentTime = 7000;
+  timer.resume('game');
+  assert.strictEqual(timer.isPaused(), true, "Timer remains paused because scene is still paused");
+  assert.deepStrictEqual(timer.getPauseReasons(), ['scene']);
+
+  // 5. More time passes: active duration must remain unchanged at t = 9000
+  currentTime = 9000;
+  assert.strictEqual(
+    timer.getUserTimeMs(),
+    4000,
+    "Active duration must remain unchanged (4000 ms) while scene remains paused"
+  );
+
+  // 6. Scene resumes: active duration advances again at t = 9000
+  timer.resume('scene');
+  assert.strictEqual(timer.isPaused(), false, "Timer is now unpaused as all pause sources resumed");
+  assert.deepStrictEqual(timer.getPauseReasons(), []);
+  assert.strictEqual(timer.getTotalPausedMs(), 4000, "Total paused time is 5000 to 9000 = 4000 ms");
+  assert.strictEqual(timer.getUserTimeMs(), 4000, "Active duration starts from 4000 ms");
+
+  // Active play continues for 2000 ms until t = 11000
+  currentTime = 11000;
+  assert.strictEqual(
+    timer.getUserTimeMs(),
+    6000,
+    "Active duration advances again (4000 ms initial + 2000 ms = 6000 ms)"
+  );
+});
+
+test("Batch 3 - Gap Closure: Timeout modal overlapping a game pause, plus reset and finalized-duration behavior", () => {
+  let currentTime = 1000;
+  const timer = new CardMatchTimer(() => currentTime);
+
+  // Start at t = 1000
+  timer.start();
+
+  // Active play for 10s (t = 11000)
+  currentTime = 11000;
+  assert.strictEqual(timer.getUserTimeMs(), 10000);
+
+  // Timeout modal pops up at t = 11000
+  timer.pause('timeout_modal');
+  assert.strictEqual(timer.isPaused(), true);
+
+  // Repeated pause from timeout_modal should be idempotent
+  timer.pause('timeout_modal');
+  assert.deepStrictEqual(timer.getPauseReasons(), ['timeout_modal']);
+
+  // While timeout modal is open, user switches tab (game pause) at t = 15000
+  currentTime = 15000;
+  timer.pause('game');
+  assert.deepStrictEqual(timer.getPauseReasons(), ['timeout_modal', 'game']);
+
+  // User returns to tab (game resumes) at t = 20000, but modal is still open
+  currentTime = 20000;
+  timer.resume('game');
+  // Redundant game resume should be idempotent
+  timer.resume('game');
+  assert.strictEqual(timer.isPaused(), true, "Still paused by timeout modal");
+  assert.deepStrictEqual(timer.getPauseReasons(), ['timeout_modal']);
+
+  // Time passes to t = 25000: active duration still 10000 ms
+  currentTime = 25000;
+  assert.strictEqual(timer.getUserTimeMs(), 10000);
+
+  // User clicks continue on modal at t = 25000
+  timer.resume('timeout_modal');
+  assert.strictEqual(timer.isPaused(), false);
+  assert.strictEqual(timer.getTotalPausedMs(), 14000, "11000 to 25000 is 14000 ms paused");
+
+  // Active play continues for 5s to t = 30000
+  currentTime = 30000;
+  assert.strictEqual(timer.getUserTimeMs(), 15000);
+
+  // Finalize round at t = 30000
+  const finalDuration = timer.finalize();
+  assert.strictEqual(finalDuration, 15000);
+  assert.strictEqual(timer.isFinalized(), true);
+
+  // Finalized duration behavior: subsequent time advances or pause/resume events cannot alter it
+  currentTime = 50000;
+  timer.pause('game');
+  timer.pause('scene');
+  assert.strictEqual(timer.getUserTimeMs(), 15000);
+  assert.strictEqual(timer.finalize(), 15000);
+  timer.resume('game');
+  assert.strictEqual(timer.getUserTimeMs(), 15000);
+
+  // Reset behavior
+  timer.reset();
+  assert.strictEqual(timer.getStartTime(), 0);
+  assert.strictEqual(timer.getTotalPausedMs(), 0);
+  assert.strictEqual(timer.getUserTimeMs(), 0);
+  assert.strictEqual(timer.isPaused(), false);
+  assert.strictEqual(timer.isFinalized(), false);
+  assert.deepStrictEqual(timer.getPauseReasons(), []);
+
+  // New round starts clean
+  currentTime = 60000;
+  timer.start();
+  currentTime = 65000;
+  assert.strictEqual(timer.getUserTimeMs(), 5000);
+  assert.strictEqual(timer.finalize(), 5000);
+});
+
+test("Batch 3 - Gap Closure: Finalized duration while currently paused", () => {
+  let currentTime = 1000;
+  const timer = new CardMatchTimer(() => currentTime);
+
+  timer.start();
+  currentTime = 4000; // 3000 ms active
+  timer.pause('timeout_modal');
+
+  // Player quits / game over while modal is open at t = 8000
+  currentTime = 8000;
+  const finalized = timer.finalize();
+  assert.strictEqual(finalized, 3000, "Finalized duration freezes at the moment pause began");
+  assert.strictEqual(timer.isFinalized(), true);
+
+  // Time keeps passing
+  currentTime = 12000;
+  assert.strictEqual(timer.getUserTimeMs(), 3000, "Active duration remains frozen after finalization while paused");
+});
+
+test("Batch 3 - Gap Closure: Test-only harness workflow (pause -> wait -> continue -> finish) checking resulting userTimeMs and continuation penalty", () => {
+  let currentTime = 1000;
+  const timer = new CardMatchTimer(() => currentTime);
+
+  // Scene simulation matching GameScene.ts
+  let continuedAfterTimeout = false;
+  let isPaused = false;
+  let lastGameOverData: any = null;
+
+  const handleTimeout = () => {
+    isPaused = true;
+    timer.pause('timeout_modal');
+  };
+
+  const resumeGame = (applyPenalty: boolean) => {
+    isPaused = false;
+    timer.resume('timeout_modal');
+    if (applyPenalty) {
+      continuedAfterTimeout = true;
+    }
+  };
+
+  const calculateStars = (duration: number) => {
+    if (continuedAfterTimeout) {
+      return 1;
+    }
+    const parExceeded = duration > 45000;
+    if (!parExceeded) return 3;
+    return 2;
+  };
+
+  const endGame = () => {
+    const duration = timer.finalize();
+    lastGameOverData = {
+      level: 1,
+      userTimeMs: duration,
+      stars: calculateStars(duration),
+      continuedAfterTimeout,
+      success: true,
+    };
+  };
+
+  // 1. Play actively for 5,000 ms (t = 1000 to t = 6000)
+  timer.start();
+  currentTime = 6000;
+  assert.strictEqual(timer.getUserTimeMs(), 5000);
+
+  // 2. Pause triggered via test-only harness (__triggerCardMatchTimeout)
+  handleTimeout();
+  assert.strictEqual(timer.isPaused(), true);
+  assert.strictEqual(isPaused, true);
+
+  // 3. Player waits on the modal for 15,000 ms (t = 6000 to t = 21000)
+  currentTime = 21000;
+  assert.strictEqual(
+    timer.getUserTimeMs(),
+    5000,
+    "userTimeMs must remain frozen at 5000 ms during modal wait"
+  );
+
+  // 4. Continue clicked ("เล่นต่อ" with continuation penalty)
+  resumeGame(true);
+  assert.strictEqual(timer.isPaused(), false);
+  assert.strictEqual(continuedAfterTimeout, true);
+
+  // 5. Active play resumes: player takes 4,000 ms to finish cards (t = 21000 to t = 25000)
+  currentTime = 25000;
+  assert.strictEqual(
+    timer.getUserTimeMs(),
+    9000,
+    "Active play duration is 5000 ms (before pause) + 4000 ms (after resume) = 9000 ms"
+  );
+
+  // 6. Round completed -> endGame()
+  endGame();
+  assert.strictEqual(
+    lastGameOverData.userTimeMs,
+    9000,
+    "Finalized userTimeMs accurately excludes the 15,000 ms modal wait"
+  );
+  assert.strictEqual(lastGameOverData.continuedAfterTimeout, true);
+  assert.strictEqual(
+    lastGameOverData.stars,
+    1,
+    "Existing continuation penalty is strictly preserved (enforcing max 1 star)"
+  );
+
+  // Wall-clock time was 25000 - 1000 = 24,000 ms
+  const wallClockMs = currentTime - timer.getStartTime();
+  assert.strictEqual(wallClockMs, 24000);
+  assert.strictEqual(timer.getTotalPausedMs(), 15000);
+});
+
