@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { MATCHING_LEVELS } from './levels';
 import type { MatchingLevelConfig } from '@/types';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { CardMatchTimer } from './CardMatchTimer';
 
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;
@@ -18,6 +19,7 @@ export class MatchingGameScene extends Phaser.Scene {
     private totalPairs = 0;
     private isLocked = true; // Start locked for preview
     private startTime = 0;
+    private timer = new CardMatchTimer();
     private timerEvent!: Phaser.Time.TimerEvent;
     private customTimerBar!: Phaser.GameObjects.Graphics;
     private lastTimerPct: number = 100; // Store for redraw handling
@@ -167,8 +169,30 @@ export class MatchingGameScene extends Phaser.Scene {
             }
         });
 
+        this.timer.reset();
+
+        // Handle Scene and Game Pause/Resume events
+        const onScenePause = () => this.timer.pause();
+        const onSceneResume = () => {
+            if (!this.isPaused) this.timer.resume();
+        };
+        const onGamePause = () => this.timer.pause();
+        const onGameResume = () => {
+            if (!this.isPaused) this.timer.resume();
+        };
+
+        this.events.on(Phaser.Scenes.Events.PAUSE, onScenePause);
+        this.events.on(Phaser.Scenes.Events.RESUME, onSceneResume);
+        this.game.events.on(Phaser.Core.Events.PAUSE, onGamePause);
+        this.game.events.on(Phaser.Core.Events.RESUME, onGameResume);
+
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.stopWarningSound();
+            this.events.off(Phaser.Scenes.Events.PAUSE, onScenePause);
+            this.events.off(Phaser.Scenes.Events.RESUME, onSceneResume);
+            this.game.events.off(Phaser.Core.Events.PAUSE, onGamePause);
+            this.game.events.off(Phaser.Core.Events.RESUME, onGameResume);
+            this.game.events.off('resume-game');
         });
 
         // Listen for Resume Event from React
@@ -192,7 +216,7 @@ export class MatchingGameScene extends Phaser.Scene {
         if (!this.customTimerBar || !this.customTimerBar.visible || this.isPaused || this.continuedAfterTimeout || this.startTime === 0) return;
 
         const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
-        const elapsed = Date.now() - this.startTime;
+        const elapsed = this.timer.getUserTimeMs();
         const remainingMs = Math.max(0, limitMs - elapsed);
         const pct = Math.max(0, (remainingMs / limitMs) * 100);
 
@@ -657,12 +681,14 @@ export class MatchingGameScene extends Phaser.Scene {
                 // Perform "Nice" Shuffle 1-by-1
                 this.performCardSwap(swapCount, () => {
                     this.isLocked = false;
-                    this.startTime = Date.now();
+                    this.timer.start();
+                    this.startTime = this.timer.getStartTime();
                     this.startTimer();
                 });
             } else {
                 this.isLocked = false;
-                this.startTime = Date.now();
+                this.timer.start();
+                this.startTime = this.timer.getStartTime();
                 this.startTimer();
             }
         });
@@ -679,7 +705,7 @@ export class MatchingGameScene extends Phaser.Scene {
             callback: () => {
                 if (this.isPaused) return;
 
-                const elapsed = Date.now() - this.startTime;
+                const elapsed = this.timer.getUserTimeMs();
                 const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
 
                 // If we are in "continued" mode, we shouldn't be here (timerEvent should be removed), 
@@ -707,9 +733,9 @@ export class MatchingGameScene extends Phaser.Scene {
                     this.sound.play('timer-warning', { volume: 0.6 });
                 }
 
-                // if (remainingMs <= 0) {
-                //     this.handleTimeout();
-                // }
+                if (remainingMs <= 0) {
+                    this.handleTimeout();
+                }
             },
             loop: true
         });
@@ -762,8 +788,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.isPaused = true;
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.paused = true;
-
-        if (this.timerEvent) this.timerEvent.paused = true;
+        this.timer.pause();
 
         this.stopWarningSound();
         if (this.bgMusic && this.bgMusic.isPlaying) {
@@ -800,6 +825,7 @@ export class MatchingGameScene extends Phaser.Scene {
     resumeGame(applyPenalty: boolean) {
         this.isPaused = false;
         this.input.enabled = true;
+        this.timer.resume();
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;
@@ -840,6 +866,7 @@ export class MatchingGameScene extends Phaser.Scene {
         if (this.customTimerBar) {
             this.customTimerBar.setVisible(false);
         }
+        this.timer.finalize();
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
@@ -956,8 +983,7 @@ export class MatchingGameScene extends Phaser.Scene {
     endGame() {
         this.input.enabled = false; // Stop all input
         if (this.timerEvent) this.timerEvent.remove();
-        const endTime = Date.now();
-        const duration = endTime - this.startTime;
+        const duration = this.timer.finalize();
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
