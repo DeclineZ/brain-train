@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
 import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels";
+import { getLatestCompletedSession, resolveGameProgression } from "@/lib/sessionProgression";
 // import GameCanvas from '@/components/game/GameCanvas';
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
@@ -138,77 +139,21 @@ export default function GamePage({ params }: PageProps) {
             }
 
             try {
-                const { data, error } = await supabase
-                    .from("game_sessions")
-                    .select("current_played, played_at")
-                    .eq("user_id", user.id)
-                    .eq("game_id", gameId)
-                    .order("played_at", { ascending: false })
-                    .limit(1)
-                    .single();
+                // Fetch recent game sessions to find the latest genuinely completed session (paginated to avoid query cap hiding older completions)
+                const completedSession = await getLatestCompletedSession(supabase, user.id, gameId);
 
-                let nextLevel = 1;
-                if (data && data.current_played) {
-                    // Prevent going beyond max level
-                    nextLevel = clampGameLevel(gameId, data.current_played + 1);
-                }
-
-                if (gameId === 'game-14-wordrecognize') {
-                    nextLevel = 1;
-                } else if (gameId === 'game-18-runforyourlife') {
-                    // Force tutorial for first time
-                    if (!data) nextLevel = 0;
-                }
+                const { activeLevel: resolvedActiveLevel, nextLevel } = resolveGameProgression({
+                    gameId,
+                    completedSession,
+                    hasValidParamLevel,
+                    safeParamLevel,
+                });
 
                 setResumeLevel(nextLevel);
 
                 // Only override activeLevel if no valid level param was provided
                 if (!hasValidParamLevel) {
-                    if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
-                        setActiveLevel(nextLevel);
-                    } else if (gameId === 'game-14-wordrecognize') {
-                        // Game 14 logic:
-                        // If returning player (data exists), start at Level 1
-                        // If new player (!data), start at tutorial (Level 0)
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-18-runforyourlife') {
-                        // Game 18 logic: Same as 14
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-17-floatingmarket') {
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-19-cashier') {
-                        if (data && data.current_played) {
-                            setActiveLevel(nextLevel);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else {
-                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
-                        // if (
-                        //     gameId === "game-01-cardmatch" ||
-                        //     gameId === "game-02-sensorlock" ||
-                        //     gameId === "game-03-billiards-math" ||
-                        //     gameId === "game-04-floating-ball-math" ||
-                        //     gameId === "game-07-pinkcup" ||
-                        //     gameId === "game-08-mysterysound" ||
-                        //     gameId === "game-09-tube-sort"
-                        // ) {
-
-                        // }
-                        setActiveLevel(0);
-                    }
+                    setActiveLevel(resolvedActiveLevel);
                 }
 
                 // Also fetch stars

@@ -19,6 +19,8 @@ import type { CashierGameStats } from '@/games/game-19-cashier/types';
 import { calculateMinerStats } from '@/lib/scoring/miner';
 import type { MinerGameStats } from '@/lib/scoring/miner';
 
+import { isTutorialPayload } from '@/lib/sessionProgression';
+
 export const useGameSession = () => {
 
   const submitSession = async (gameId: string, rawData: any) => {
@@ -33,8 +35,19 @@ export const useGameSession = () => {
       stat_emotion: null
     };
 
-    // 1. Calculate stats based on Game ID
-    if (gameId === 'game-00-example') {
+    const isTutorial = isTutorialPayload(rawData);
+
+    // 1. Calculate stats based on Game ID (skip for tutorials)
+    if (isTutorial) {
+      clinicalStats = {
+        stat_memory: null,
+        stat_speed: null,
+        stat_visual: null,
+        stat_focus: null,
+        stat_planning: null,
+        stat_emotion: null
+      };
+    } else if (gameId === 'game-00-example') {
       clinicalStats = calculateClinicalStats(rawData as CardGameRawStats);
     } else if (gameId === 'game-01-cardmatch') {
       clinicalStats = { ...calculateMatchingStats(rawData as MatchingGameStats), stat_emotion: rawData.stat_emotion ?? null };

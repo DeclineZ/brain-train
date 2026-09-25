@@ -2,6 +2,7 @@ import type { Game } from "@/types/game";
 import { createClient } from "@/utils/supabase/server";
 import { getUserStars, getGameStars } from "@/lib/stars";
 import { getGameMaxLevel } from "@/lib/gameLevels";
+import { isCompletedSession, getLatestCompletedSession } from "@/lib/sessionProgression";
 
 export interface GameLevel {
   level: number;
@@ -52,11 +53,14 @@ export async function getGames(userId?: string): Promise<Game[]> {
     if (currentUserId) {
       const { data: levels, error: levelsError } = await supabase
         .from('game_sessions')
-        .select('game_id, current_played')
+        .select('game_id, current_played, raw_data')
         .eq('user_id', currentUserId);
       if (!levelsError && levels) {
-        // Group by game_id and get max level for each game
+        // Group by game_id and get max completed level for each game
         levelsByGame = levels.reduce((acc: Record<string, number>, session: any) => {
+          if (!isCompletedSession(session)) {
+            return acc;
+          }
           const gameId = session.game_id;
           const currentLevel = session.current_played || 1;
           acc[gameId] = Math.max(acc[gameId] || 1, currentLevel);
@@ -118,19 +122,20 @@ export async function getGameLevels(gameId: string, userId?: string): Promise<Ga
       // The logic below uses user.id for stars fetch, so currentUserId is enough.
     }
 
-    // Fetch user's current level for this game
-    const { data: session, error: sessionError } = await supabase
+    // Fetch user's completed sessions for this game
+    const { data: sessions, error: sessionError } = await supabase
       .from('game_sessions')
-      .select('current_played')
+      .select('current_played, raw_data')
       .eq('user_id', currentUserId)
       .eq('game_id', gameId)
-      .order('current_played', { ascending: false })
-      .limit(1)
-      .single();
+      .order('current_played', { ascending: false });
 
     let userCurrentLevel = 0;
-    if (session && session.current_played) {
-      userCurrentLevel = session.current_played;
+    if (sessions) {
+      const validCompleted = sessions.find(isCompletedSession);
+      if (validCompleted && validCompleted.current_played) {
+        userCurrentLevel = validCompleted.current_played;
+      }
     }
 
     // Fetch user's stars for this game
@@ -182,14 +187,9 @@ export async function hasUserPlayed(gameId: string, userId?: string): Promise<bo
       currentUserId = user.id;
     }
 
-    // Check game sessions
-    const { count: sessionCount } = await supabase
-      .from('game_sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', currentUserId)
-      .eq('game_id', gameId);
-
-    if (sessionCount && sessionCount > 0) return true;
+    // Check game sessions for a genuinely completed session
+    const completedSession = await getLatestCompletedSession(supabase, currentUserId, gameId);
+    if (completedSession) return true;
 
     // Check stars (just in case session is missing but stars exist)
     const { count: starCount } = await supabase
