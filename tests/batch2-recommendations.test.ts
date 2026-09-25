@@ -7,11 +7,14 @@ import {
   getUnplayedCategories,
   getHomeRecommendationMessage,
   selectDailyMissionGames,
+  getCategoryContextualExplanation,
   RECOMMENDATIONS,
   MEDICAL_DISCLAIMER_TEXT,
   CATEGORY_KEYS,
   DIMENSION_GAMES,
+  GameOption,
 } from "../lib/recommendations";
+import { getDailyMissions } from "../lib/dailyMissions";
 
 // Mock games dataset for testing
 const MOCK_GAMES: GameOption[] = [
@@ -157,41 +160,65 @@ test("Batch 2 - Case 3: Genuine zero score vs missing score", () => {
   assert.strictEqual(displayScore, "—", "Missing score must show neutral unavailable state, not 500");
 });
 
-test("Batch 2 - Case 4: Existing daily missions preservation", async () => {
+test("Batch 2 - Case 4: Exercise getDailyMissions to assert existing 3-mission set is preserved without regeneration or writes", async () => {
+  const today = new Date().toISOString().split("T")[0];
   const existingMissionsData = [
-    { id: "m1", user_id: "user-1", date: "2026-09-25", slot_index: 0, label: "เกมจับคู่การ์ด", game_id: "game-01-cardmatch", completed: false },
-    { id: "m2", user_id: "user-1", date: "2026-09-25", slot_index: 1, label: "เกมตรงไม่ตรง", game_id: "game-02-sensorlock", completed: true },
-    { id: "m3", user_id: "user-1", date: "2026-09-25", slot_index: 2, label: "ท่องอวกาศ", game_id: "game-18-runforyourlife", completed: false },
+    { id: "m1", user_id: "user-1", date: today, slot_index: 0, label: "เกมจับคู่การ์ด", game_id: "game-01-cardmatch", completed: false },
+    { id: "m2", user_id: "user-1", date: today, slot_index: 1, label: "เกมตรงไม่ตรง", game_id: "game-02-sensorlock", completed: true },
+    { id: "m3", user_id: "user-1", date: today, slot_index: 2, label: "ท่องอวกาศ", game_id: "game-18-runforyourlife", completed: false },
   ];
 
-  // Mock Supabase returning existing 3 missions for today
+  const dbOperations: { table: string; action: string }[] = [];
+
   const mockSupabase = {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
+    from: (table: string) => ({
+      select: () => {
+        dbOperations.push({ table, action: "select" });
+        return {
           eq: () => ({
-            order: async () => ({
-              data: existingMissionsData,
-              error: null,
+            eq: () => ({
+              order: async () => {
+                if (table === "daily_missions") {
+                  return { data: existingMissionsData, error: null };
+                }
+                return { data: [], error: null };
+              },
             }),
           }),
-        }),
-      }),
+        };
+      },
+      upsert: async () => {
+        dbOperations.push({ table, action: "upsert" });
+        return { select: () => ({ order: async () => ({ data: [], error: null }) }) };
+      },
+      insert: async () => {
+        dbOperations.push({ table, action: "insert" });
+        return { select: () => ({ order: async () => ({ data: [], error: null }) }) };
+      },
     }),
   };
 
-  // When 3 missions exist for today, getDailyMissions preserves them exactly
-  const { data: result } = await mockSupabase
-    .from()
-    .select()
-    .eq()
-    .eq()
-    .order();
+  // Directly exercise production getDailyMissions with the mock client
+  const missions = await getDailyMissions("user-1", mockSupabase);
 
-  assert.strictEqual(result.length, 3);
-  assert.strictEqual(result[0].game_id, "game-01-cardmatch");
-  assert.strictEqual(result[1].completed, true, "Preserves completion state of existing missions");
-  assert.strictEqual(result[2].game_id, "game-18-runforyourlife");
+  // Assert existing 3-mission set is returned unchanged
+  assert.strictEqual(missions.length, 3);
+  assert.deepStrictEqual(missions, existingMissionsData);
+  assert.strictEqual(missions[0].game_id, "game-01-cardmatch");
+  assert.strictEqual(missions[1].completed, true, "Preserves completion state of existing missions");
+  assert.strictEqual(missions[2].game_id, "game-18-runforyourlife");
+
+  // Assert NO writes occurred (neither upsert nor insert)
+  const writes = dbOperations.filter((op) => op.action === "upsert" || op.action === "insert");
+  assert.strictEqual(writes.length, 0, "No writes must occur when existing 3 missions exist");
+
+  // Assert NO regeneration occurred (games and user_profiles were never queried)
+  const nonMissionQueries = dbOperations.filter((op) => op.table !== "daily_missions");
+  assert.strictEqual(
+    nonMissionQueries.length,
+    0,
+    "No games or user_profiles queries should occur if 3 missions already exist"
+  );
 });
 
 test("Batch 2 - Case 5: Fully populated profile", () => {
@@ -233,6 +260,163 @@ test("Batch 2 - Case 5: Fully populated profile", () => {
   const focusGames = new Set(DIMENSION_GAMES.global_focus);
   assert.ok(memoryGames.has(missions[1].game_id), "Mission 2 must be from global_memory");
   assert.ok(focusGames.has(missions[2].game_id), "Mission 3 must be from global_focus");
+});
+
+test("Batch 2 - Mission variety with controllable randomness and no duplicate games", () => {
+  const profile = {
+    global_planning: 60,
+    global_memory: 25, // Weakest
+    global_visual: 90,
+    global_focus: 45, // 2nd weakest
+    global_speed: 70,
+    global_emotion: 85,
+  };
+
+  // Run 1 with randomFn returning 0.0 (picks first eligible game)
+  const run1 = selectDailyMissionGames(MOCK_GAMES, profile, () => 0.0);
+  assert.strictEqual(run1.length, 3);
+  assert.strictEqual(new Set(run1.map((g) => g.game_id)).size, 3, "No duplicate games in run 1");
+
+  // Run 2 with randomFn returning 0.99 (picks last eligible game)
+  const run2 = selectDailyMissionGames(MOCK_GAMES, profile, () => 0.99);
+  assert.strictEqual(run2.length, 3);
+  assert.strictEqual(new Set(run2.map((g) => g.game_id)).size, 3, "No duplicate games in run 2");
+
+  // Verify variety: different eligible games are selected between run 1 and run 2
+  const run1Ids = run1.map((g) => g.game_id);
+  const run2Ids = run2.map((g) => g.game_id);
+  assert.notDeepStrictEqual(
+    run1Ids,
+    run2Ids,
+    "Varying random inputs must produce varied game selections rather than always picking index 0"
+  );
+
+  // Both runs respect category rules:
+  // Game 2 must be from global_memory (weakest)
+  const memoryGames = new Set(DIMENSION_GAMES.global_memory);
+  assert.ok(memoryGames.has(run1[1].game_id));
+  assert.ok(memoryGames.has(run2[1].game_id));
+  assert.notStrictEqual(run1[1].game_id, run2[1].game_id, "Different eligible memory games should be chosen");
+
+  // Game 3 must be from global_focus (2nd weakest)
+  const focusGames = new Set(DIMENSION_GAMES.global_focus);
+  assert.ok(focusGames.has(run1[2].game_id));
+  assert.ok(focusGames.has(run2[2].game_id));
+  assert.notStrictEqual(run1[2].game_id, run2[2].game_id, "Different eligible focus games should be chosen");
+
+  // Starter variety test (unscored profile)
+  const emptyProfile = {
+    global_memory: null,
+    global_speed: null,
+    global_visual: null,
+    global_focus: null,
+    global_planning: null,
+    global_emotion: null,
+  };
+  const starter1 = selectDailyMissionGames(MOCK_GAMES, emptyProfile, () => 0.0);
+  const starter2 = selectDailyMissionGames(MOCK_GAMES, emptyProfile, () => 0.99);
+  assert.strictEqual(new Set(starter1.map((g) => g.game_id)).size, 3);
+  assert.strictEqual(new Set(starter2.map((g) => g.game_id)).size, 3);
+  assert.notDeepStrictEqual(
+    starter1.map((g) => g.game_id),
+    starter2.map((g) => g.game_id),
+    "Starter selection must produce varied games across different random inputs"
+  );
+
+  // Stress-test duplicate prevention across 100 randomized runs
+  for (let i = 0; i < 100; i++) {
+    const randomRun = selectDailyMissionGames(MOCK_GAMES, profile);
+    assert.strictEqual(new Set(randomRun.map((g) => g.game_id)).size, 3, "Must never produce duplicate games");
+  }
+});
+
+test("Batch 2 - Shared category descriptions are neutral without comparative claims", () => {
+  for (const key of CATEGORY_KEYS) {
+    const rec = RECOMMENDATIONS[key];
+    // Must NOT contain comparative claims like "มีคะแนนน้อยกว่าด้านอื่น"
+    assert.doesNotMatch(
+      rec.suggestion,
+      /มีคะแนนน้อยกว่าด้านอื่น/,
+      `General description for ${key} must be neutral and not contain comparative score claims`
+    );
+  }
+});
+
+test("Batch 2 - Contextual category explanations: highest-scoring, tied, missing, and lowest-scoring", () => {
+  // Scenario A: Profile with distinct scores and one missing score
+  const profile = {
+    global_planning: 60,
+    global_memory: 20, // Strictly lowest
+    global_visual: 95, // Strictly highest
+    global_focus: 60, // Mid-tier
+    global_speed: 70, // Mid-tier
+    global_emotion: null, // Missing
+  };
+
+  // 1. Missing score explanation: explains unplayed/missing state without claiming deficit
+  const missingExp = getCategoryContextualExplanation("global_emotion", profile);
+  assert.strictEqual(missingExp.type, "missing");
+  assert.ok(missingExp.text.includes("ยังไม่มีคะแนน"));
+  assert.doesNotMatch(missingExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
+
+  // 2. Lowest-scoring explanation: supported by actual data
+  const lowestExp = getCategoryContextualExplanation("global_memory", profile);
+  assert.strictEqual(lowestExp.type, "lowest");
+  assert.ok(lowestExp.text.includes("มีคะแนนน้อยกว่าด้านอื่น"));
+
+  // 3. Highest-scoring explanation: describes area of strength to maintain
+  const highestExp = getCategoryContextualExplanation("global_visual", profile);
+  assert.strictEqual(highestExp.type, "highest");
+  assert.ok(highestExp.text.includes("คะแนนโดดเด่นสูงสุด") || highestExp.text.includes("คะแนนสูงสุด"));
+  assert.doesNotMatch(highestExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
+
+  // 4. Mid-tier explanation: steady score
+  const midExp = getCategoryContextualExplanation("global_speed", profile);
+  assert.strictEqual(midExp.type, "mid_tier");
+  assert.ok(midExp.text.includes("ปานกลาง"));
+  assert.doesNotMatch(midExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
+
+  // Scenario B: Tied lowest scores
+  const tiedLowestProfile = {
+    global_planning: 80,
+    global_memory: 30, // Tied lowest
+    global_visual: 30, // Tied lowest
+    global_focus: 80,
+    global_speed: 80,
+    global_emotion: 80,
+  };
+  const tiedExp = getCategoryContextualExplanation("global_memory", tiedLowestProfile);
+  assert.strictEqual(tiedExp.type, "tied_lowest");
+  assert.ok(tiedExp.text.includes("กลุ่มต่ำสุดร่วมกับด้านอื่น"));
+  assert.doesNotMatch(tiedExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
+
+  // Scenario C: All categories tied
+  const allTiedProfile = {
+    global_planning: 50,
+    global_memory: 50,
+    global_visual: 50,
+    global_focus: 50,
+    global_speed: 50,
+    global_emotion: 50,
+  };
+  const allTiedExp = getCategoryContextualExplanation("global_memory", allTiedProfile);
+  assert.strictEqual(allTiedExp.type, "tied_lowest");
+  assert.ok(allTiedExp.text.includes("คะแนนเท่ากัน"));
+  assert.doesNotMatch(allTiedExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
+
+  // Scenario D: Tied highest scores
+  const tiedHighestProfile = {
+    global_planning: 50,
+    global_memory: 90, // Tied highest
+    global_visual: 90, // Tied highest
+    global_focus: 50,
+    global_speed: 50,
+    global_emotion: 50,
+  };
+  const tiedHighExp = getCategoryContextualExplanation("global_memory", tiedHighestProfile);
+  assert.strictEqual(tiedHighExp.type, "highest");
+  assert.ok(tiedHighExp.text.includes("หนึ่งในกลุ่มที่มีคะแนนสูงสุด"));
+  assert.doesNotMatch(tiedHighExp.text, /มีคะแนนน้อยกว่าด้านอื่น/);
 });
 
 test("Batch 2 - Wording: No claims of cognitive decline, everyday deficits, or medical diagnosis", () => {

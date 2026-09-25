@@ -52,7 +52,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_memory: {
     title: "ด้านความจำ",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านความจำมีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมจับคู่ภาพและเกมจำตำแหน่งเพื่อพัฒนาความแม่นยำในการเล่น",
+      "การฝึกฝนทักษะด้านความจำด้วยเกมจับคู่ภาพและจำตำแหน่ง ช่วยเสริมสร้างความคุ้นเคยในการสังเกตและจดจำรูปแบบข้อมูลอย่างเป็นระบบ",
     practice: [
       "สังเกตรูปแบบและตำแหน่งของภาพก่อนเริ่มเปิดการ์ด",
       "เริ่มฝึกจากระดับความยากที่คุ้นเคย แล้วค่อย ๆ เพิ่มระดับความท้าทาย",
@@ -67,7 +67,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_focus: {
     title: "ด้านสมาธิและการจดจ่อ",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านสมาธิและการจดจ่อมีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมที่ต้องคอยสังเกตและจับจังหวะเป้าหมายอย่างต่อเนื่อง",
+      "การฝึกฝนทักษะด้านสมาธิและการจดจ่อด้วยเกมจับจังหวะและสังเกตสัญลักษณ์ ช่วยพัฒนาการมุ่งความสนใจไปยังเป้าหมายอย่างต่อเนื่อง",
     practice: [
       "สังเกตความเปลี่ยนแปลงของเป้าหมายบนหน้าจออย่างตั้งใจ",
       "รอจังหวะที่ถูกต้องก่อนกด แทนการกดปุ่มอย่างเร่งรีบ",
@@ -82,7 +82,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_planning: {
     title: "ด้านการวางแผนและแก้ปัญหา",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านการวางแผนมีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมจัดเรียงและเกมแก้ปัญหาแบบมีลำดับขั้นตอน",
+      "การฝึกฝนทักษะด้านการวางแผนและแก้ปัญหาด้วยเกมจัดเรียงและเกมวางกลยุทธ์ ช่วยฝึกการคิดวิเคราะห์ขั้นตอนและการตัดสินใจอย่างมีลำดับ",
     practice: [
       "มองภาพรวมของกระดานและวางแผนลำดับการเดินล่วงหน้า",
       "คิดเปรียบเทียบทางเลือกก่อนย้ายสิ่งของเพื่อลดจำนวนก้าวที่ไม่จำเป็น",
@@ -97,7 +97,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_speed: {
     title: "ความเร็วในการคิด การตอบสนอง",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านความเร็วในการตอบสนองมีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมค้นหาและเกมตอบสนองตามเวลาที่กำหนด",
+      "การฝึกฝนทักษะด้านความเร็วในการตอบสนองด้วยเกมค้นหาและเกมตอบสนองตามเวลา ช่วยพัฒนาความคล่องแคล่วในการประมวลผลสิ่งกระตุ้น",
     practice: [
       "ฝึกกวาดสายตามองหาเป้าหมายหลักทันทีที่ปรากฏบนหน้าจอ",
       "ตอบสนองต่อสัญลักษณ์อย่างกระชับและแม่นยำ",
@@ -112,7 +112,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_visual: {
     title: "มิติสัมพันธ์",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านมิติสัมพันธ์มีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมวิเคราะห์ภาพ โครงสร้าง และการกะระยะทางสายตา",
+      "การฝึกฝนทักษะด้านมิติสัมพันธ์ด้วยเกมวิเคราะห์ภาพ โครงสร้าง และการกะระยะ ช่วยเสริมสร้างความเข้าใจเกี่ยวกับรูปทรงและตำแหน่งเชิงพื้นที่",
     practice: [
       "สังเกตมุมมอง โครงสร้าง และทิศทางของสิ่งของในแต่ละด่าน",
       "ฝึกนับจำนวนสิ่งของที่ซ้อนทับกันอย่างเป็นระบบ",
@@ -127,7 +127,7 @@ export const RECOMMENDATIONS: Record<CategoryKey, RecommendationInfo> = {
   global_emotion: {
     title: "ด้านภาษาและการนึกคำ",
     suggestion:
-      "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านภาษาและการนึกคำมีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมเชื่อมโยงเสียง รูปภาพ และคำศัพท์",
+      "การฝึกฝนทักษะด้านภาษาและการนึกคำด้วยเกมเชื่อมโยงเสียง รูปภาพ และคำศัพท์ ช่วยส่งเสริมความคล่องแคล่วในการนึกคำและความจำทางภาษา",
     practice: [
       "ฝึกจับคู่เสียงกับคำศัพท์ให้แม่นยำ",
       "สังเกตความเชื่อมโยงระหว่างภาพและเสียงที่ได้ยินในเกม",
@@ -173,6 +173,94 @@ export function getRankedWeakestDomains(
   const parsed = parseDomainScores(profile);
   const scored = parsed.filter((d): d is ParsedDomainScore & { val: number } => d.isScored);
   return scored.sort((a, b) => a.val - b.val);
+}
+
+export type CategoryExplanationType =
+  | "missing"
+  | "lowest"
+  | "tied_lowest"
+  | "highest"
+  | "mid_tier"
+  | "only_scored";
+
+export interface CategoryExplanation {
+  type: CategoryExplanationType;
+  text: string;
+}
+
+/**
+ * Returns a contextual explanation for a given domain based strictly on actual user score data:
+ * - Missing (null/undefined): explains that this category has not been played yet and recommends trying it.
+ * - Lowest: explains that this category has a lower score than other categories based on past gameplay.
+ * - Tied lowest: explains that this category is in the lower group alongside other tied categories.
+ * - Highest: explains that this category is a high-scoring/strong area to maintain.
+ * - Mid-tier: explains that this category has a steady score.
+ */
+export function getCategoryContextualExplanation(
+  key: CategoryKey,
+  profile: Partial<Record<CategoryKey, number | null>> | null | undefined
+): CategoryExplanation {
+  const parsed = parseDomainScores(profile);
+  const target = parsed.find((d) => d.key === key);
+
+  if (!target || !target.isScored || target.val === null) {
+    return {
+      type: "missing",
+      text: "ยังไม่มีคะแนนจากการเล่นเกมในหมวดนี้ แนะนำให้ลองเล่นเกมเพื่อบันทึกคะแนนและฝึกทักษะด้านนี้",
+    };
+  }
+
+  const scored = parsed.filter((d): d is ParsedDomainScore & { val: number } => d.isScored);
+
+  if (scored.length === 1) {
+    return {
+      type: "only_scored",
+      text: "บันทึกคะแนนจากการเล่นเกมแล้ว สามารถฝึกฝนเพิ่มเติมเพื่อพัฒนาความแม่นยำได้",
+    };
+  }
+
+  const scores = scored.map((d) => d.val);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  const tiedLowestCount = scored.filter((d) => d.val === minScore).length;
+  const tiedHighestCount = scored.filter((d) => d.val === maxScore).length;
+
+  if (target.val === minScore) {
+    if (minScore === maxScore) {
+      return {
+        type: "tied_lowest",
+        text: "ทักษะทุกด้านที่เล่นมีคะแนนเท่ากัน แนะนำให้ฝึกฝนแต่ละหมวดสลับกันเพื่อพัฒนาอย่างรอบด้าน",
+      };
+    }
+    if (tiedLowestCount > 1) {
+      return {
+        type: "tied_lowest",
+        text: "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านนี้มีคะแนนอยู่ในกลุ่มต่ำสุดร่วมกับด้านอื่น แนะนำให้ฝึกฝนสลับกัน",
+      };
+    }
+    return {
+      type: "lowest",
+      text: "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านนี้มีคะแนนน้อยกว่าด้านอื่น แนะนำให้ฝึกฝนเพิ่มเติมด้วยเกมที่แนะนำ",
+    };
+  }
+
+  if (target.val === maxScore) {
+    if (tiedHighestCount > 1) {
+      return {
+        type: "highest",
+        text: "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านนี้เป็นหนึ่งในกลุ่มที่มีคะแนนสูงสุด สามารถฝึกฝนเพื่อรักษาความคล่องแคล่ว",
+      };
+    }
+    return {
+      type: "highest",
+      text: "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านนี้เป็นด้านที่มีคะแนนโดดเด่นสูงสุด สามารถฝึกฝนเพื่อรักษาความคล่องแคล่วได้อย่างต่อเนื่อง",
+    };
+  }
+
+  return {
+    type: "mid_tier",
+    text: "จากคะแนนการเล่นเกมที่ผ่านมา ทักษะด้านนี้มีคะแนนอยู่ในระดับปานกลาง สามารถฝึกฝนเพิ่มเติมเพื่อเสริมความชำนาญ",
+  };
 }
 
 /**
@@ -227,15 +315,25 @@ export interface GameOption {
  * Selects 3 daily mission games according to profile state:
  * - If profile has scored domains: picks weakest, 2nd weakest (or unplayed), and 1 varied game.
  * - If profile has NO usable scores (all missing): picks a varied starter selection from 3 different categories.
- * - Avoids duplicate games where possible.
+ * - Retains category selection rules and duplicate prevention while choosing among eligible games using randomFn.
  */
 export function selectDailyMissionGames(
   allGames: GameOption[],
-  profile: Partial<Record<CategoryKey, number | null>> | null | undefined
+  profile: Partial<Record<CategoryKey, number | null>> | null | undefined,
+  randomFn: () => number = Math.random
 ): GameOption[] {
   if (!allGames || allGames.length < 3) {
     return allGames || [];
   }
+
+  const pickFrom = <T>(arr: T[]): T => {
+    if (arr.length === 0) throw new Error("Cannot pick from empty array");
+    const raw = randomFn();
+    const normalized = typeof raw === "number" && !isNaN(raw) ? raw : Math.random();
+    const clamped = Math.max(0, Math.min(0.999999, normalized));
+    const index = Math.floor(clamped * arr.length);
+    return arr[index];
+  };
 
   const gamesById = new Map<string, GameOption>();
   allGames.forEach((g) => gamesById.set(g.game_id, g));
@@ -264,21 +362,21 @@ export function selectDailyMissionGames(
 
     for (const cat of starterCategories) {
       if (pickedGames.length >= 3) break;
-      const games = getGamesForDimension(cat).filter((g) => !usedGameIds.has(g.game_id));
-      if (games.length > 0) {
-        const game = games[0];
+      const eligible = getGamesForDimension(cat).filter((g) => !usedGameIds.has(g.game_id));
+      if (eligible.length > 0) {
+        const game = pickFrom(eligible);
         pickedGames.push(game);
         usedGameIds.add(game.game_id);
       }
     }
 
     // Fallback if needed
-    for (const game of allGames) {
-      if (pickedGames.length >= 3) break;
-      if (!usedGameIds.has(game.game_id)) {
-        pickedGames.push(game);
-        usedGameIds.add(game.game_id);
-      }
+    while (pickedGames.length < 3) {
+      const fallbackEligible = allGames.filter((g) => !usedGameIds.has(g.game_id));
+      if (fallbackEligible.length === 0) break;
+      const game = pickFrom(fallbackEligible);
+      pickedGames.push(game);
+      usedGameIds.add(game.game_id);
     }
 
     return pickedGames.slice(0, 3);
@@ -294,23 +392,24 @@ export function selectDailyMissionGames(
   const gamesForWeakness1 = getGamesForDimension(weakest1);
   const gamesForWeakness2 = getGamesForDimension(weakest2);
 
-  // Pick Game 2 (from Weakest 1)
+  // Pick Game 2 (from Weakest 1) choosing among eligible games
   const chosenGame2 =
-    gamesForWeakness1.length > 0 ? gamesForWeakness1[0] : allGames[0];
+    gamesForWeakness1.length > 0 ? pickFrom(gamesForWeakness1) : pickFrom(allGames);
 
-  // Pick Game 3 (from Weakest 2) - avoid duplicate of Game 2
+  // Pick Game 3 (from Weakest 2) choosing among eligible games (avoiding duplicate of Game 2)
   const filteredWeakness2 = gamesForWeakness2.filter((g) => g.game_id !== chosenGame2.game_id);
   const fallbackGames2 = allGames.filter((g) => g.game_id !== chosenGame2.game_id);
   const chosenGame3 =
     filteredWeakness2.length > 0
-      ? filteredWeakness2[0]
-      : fallbackGames2[0] || allGames[0];
+      ? pickFrom(filteredWeakness2)
+      : pickFrom(fallbackGames2);
 
-  // Pick Game 1 (varied game) - avoid duplicates of Game 2 and Game 3
+  // Pick Game 1 (varied game) choosing among eligible games (avoiding duplicates of Game 2 and Game 3)
   const remainingGames = allGames.filter(
     (g) => g.game_id !== chosenGame2.game_id && g.game_id !== chosenGame3.game_id
   );
-  const chosenGame1 = remainingGames[0] || allGames[0];
+  const chosenGame1 =
+    remainingGames.length > 0 ? pickFrom(remainingGames) : pickFrom(allGames);
 
   return [chosenGame1, chosenGame2, chosenGame3];
 }

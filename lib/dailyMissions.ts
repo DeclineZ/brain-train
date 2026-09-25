@@ -2,8 +2,12 @@ import { createClient } from "@/utils/supabase/server";
 import { DailyMission } from "@/types";
 import { selectDailyMissionGames } from "@/lib/recommendations";
 
-export async function getDailyMissions(userId: string): Promise<DailyMission[]> {
-    const supabase = await createClient();
+export async function getDailyMissions(
+    userId: string,
+    supabaseClient?: any,
+    randomFn: () => number = Math.random
+): Promise<DailyMission[]> {
+    const supabase = supabaseClient || (await createClient());
     const today = new Date().toISOString().split("T")[0];
 
     // 1. Fetch existing missions for today
@@ -37,7 +41,7 @@ export async function getDailyMissions(userId: string): Promise<DailyMission[]> 
         .eq("user_id", userId)
         .single();
 
-    const selectedGames = selectDailyMissionGames(allGames, profile);
+    const selectedGames = selectDailyMissionGames(allGames, profile, randomFn);
 
     const missionsToInsert = selectedGames.map((game, index) => ({
         user_id: userId,

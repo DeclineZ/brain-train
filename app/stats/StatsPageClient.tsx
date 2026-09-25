@@ -18,6 +18,7 @@ import {
   MEDICAL_DISCLAIMER_TEXT,
   DIMENSION_GAMES,
   CategoryKey,
+  getCategoryContextualExplanation,
 } from "@/lib/recommendations";
 
 interface ProfileData {
@@ -86,10 +87,14 @@ export default function StatsPageClient({
   const weakestStat = scoredStats.length > 0 ? [...scoredStats].sort((a, b) => a.val - b.val)[0] : null;
   const weakestKey = (weakestStat ? weakestStat.key : "global_memory") as CategoryKey;
   const recommendation = RECOMMENDATIONS[weakestKey] || RECOMMENDATIONS.global_memory;
+  const weakestExplanation = weakestStat ? getCategoryContextualExplanation(weakestKey, profile) : null;
 
   // Derived values for category detail popup
   const selectedRecommendation = selectedCategoryKey ? RECOMMENDATIONS[selectedCategoryKey as CategoryKey] : null;
   const selectedStat = selectedCategoryKey ? cognitiveStats.find(s => s.key === selectedCategoryKey) : null;
+  const selectedExplanation = selectedCategoryKey
+    ? getCategoryContextualExplanation(selectedCategoryKey as CategoryKey, profile)
+    : null;
 
   // Helper to format join date
   const formatDate = (dateString: string | null) => {
@@ -442,6 +447,11 @@ export default function StatsPageClient({
                         <span>{recommendation.title}</span>
                       )}
                     </h3>
+                    {weakestExplanation && (
+                      <p className="text-sm text-brown-darkest font-medium leading-relaxed mb-2">
+                        {weakestExplanation.text}
+                      </p>
+                    )}
                     <p className="text-sm text-brown-medium font-medium leading-relaxed">
                       {recommendation.suggestion}
                     </p>
@@ -655,6 +665,11 @@ export default function StatsPageClient({
                 {/* Suggestion */}
                 <div>
                   <h4 className="text-xs font-bold text-brown-light uppercase mb-2">ข้อเสนอแนะ</h4>
+                  {selectedExplanation && (
+                    <p className="text-sm text-brown-darkest font-medium leading-relaxed mb-2 bg-white/70 border border-gray-medium rounded-xl p-3">
+                      {selectedExplanation.text}
+                    </p>
+                  )}
                   <p className="text-sm text-brown-darkest font-medium leading-relaxed">
                     {selectedRecommendation.suggestion}
                   </p>
