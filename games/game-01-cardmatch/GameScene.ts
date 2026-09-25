@@ -182,8 +182,8 @@ export class MatchingGameScene extends Phaser.Scene {
         this.game.events.on(Phaser.Core.Events.PAUSE, onGamePause);
         this.game.events.on(Phaser.Core.Events.RESUME, onGameResume);
 
-        // Test-only harness to exercise timeout modal and inspect scene state without altering production gameplay policy
-        if (typeof window !== 'undefined') {
+        // Development/test-only harness to exercise timeout modal and inspect scene state without altering production gameplay policy
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
             (window as any).__triggerCardMatchTimeout = () => {
                 this.handleTimeout();
             };
@@ -198,7 +198,7 @@ export class MatchingGameScene extends Phaser.Scene {
             this.game.events.off(Phaser.Core.Events.PAUSE, onGamePause);
             this.game.events.off(Phaser.Core.Events.RESUME, onGameResume);
             this.game.events.off('resume-game');
-            if (typeof window !== 'undefined') {
+            if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
                 delete (window as any).__triggerCardMatchTimeout;
                 delete (window as any).__cardMatchScene;
                 delete (window as any).__cardMatchTimer;
@@ -1012,7 +1012,7 @@ export class MatchingGameScene extends Phaser.Scene {
             continuedAfterTimeout: this.continuedAfterTimeout
         };
 
-        if (typeof window !== 'undefined') {
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
             (window as any).__lastCardMatchGameOver = gameOverData;
         }
 
