@@ -10,6 +10,7 @@ import { calculateGridHunterStats } from '@/lib/scoring/gridhunter';
 import { calculateTaxiDriverStats } from '@/lib/scoring/taxidriver';
 import { calculateFloatingMarketStats, type FloatingMarketGameStats } from '@/lib/scoring/floatingmarket';
 import { calculateCashierStats } from '@/lib/scoring/cashier';
+import { calculateMysterySoundStats } from '@/lib/scoring/mysterysound';
 import { calculatePipePatchStats, type PipePatchGameStats } from '@/lib/scoring/pipepatch';
 import { calculateParkingJamStats } from '@/lib/scoring/parking-jam';
 import { calculateMinerStats, type MinerGameStats } from '@/lib/scoring/miner';
@@ -27,6 +28,7 @@ import type {
   TubeSortGameStats,
   GridHunterGameStats,
   TaxiDriverGameStats,
+  MysterySoundGameStats,
 } from '@/types';
 import { isTutorialPayload } from '@/lib/sessionProgression';
 
@@ -73,14 +75,7 @@ export function calculateGameClinicalStats(gameId: string, rawData: any): Clinic
   } else if (gameId === 'game-07-pinkcup') {
     return calculatePinkCupStats(rawData as PinkCupGameStats);
   } else if (gameId === 'game-08-mysterysound') {
-    return {
-      stat_memory: rawData.stat_memory ?? null,
-      stat_speed: rawData.stat_speed ?? null,
-      stat_visual: rawData.stat_visual ?? null,
-      stat_focus: rawData.stat_focus ?? null,
-      stat_planning: rawData.stat_planning ?? null,
-      stat_emotion: rawData.stat_emotion ?? null,
-    };
+    return calculateMysterySoundStats(rawData as MysterySoundGameStats);
   } else if (gameId === 'game-09-tube-sort') {
     return calculateTubeSortStats(rawData as TubeSortGameStats);
   } else if (gameId === 'game-10-miner') {
