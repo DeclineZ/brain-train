@@ -261,13 +261,20 @@ export interface MysterySoundLevelConfig {
 }
 
 export interface MysterySoundGameStats {
-  levelPlayed: number;
-  difficultyMultiplier: number;
-  questionsCorrect: number;   // How many questions answered correctly
-  totalQuestions: number;     // Total questions in level
-  replaysUsed: number;
-  responseTimeMs: number;
-  timeLimitMs: number;
+  levelPlayed?: number;
+  level?: number;
+  difficultyMultiplier?: number;
+  questionsCorrect?: number;   // How many questions answered correctly
+  totalQuestions?: number;     // Total questions in level
+  replaysUsed?: number;
+  responseTimeMs?: number;
+  timeLimitMs?: number;
+  stars?: number;
+  score?: number;
+  stat_emotion?: number | null;
+  stat_focus?: number | null;
+  stat_speed?: number | null;
+  stat_memory?: number | null;
 }
 
 export interface TubeSortGameStats {

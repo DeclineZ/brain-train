@@ -142,4 +142,63 @@ test("Stat Chip during saving shows measured skill name without ^ even with posi
     );
 });
 
+test("calculateGameClinicalStats - Mystery Sound (game-08) trains stat_emotion (ภาษาและการนึกคำ), focus, and speed", () => {
+    // Normal game completed payload with explicit stat_emotion
+    const rawData = {
+        level: 1,
+        stars: 3,
+        score: 350,
+        stat_emotion: 100,
+        stat_focus: 100,
+        stat_speed: 85,
+        questionsCorrect: 2,
+        totalQuestions: 2,
+        replaysUsed: 0,
+        responseTimeMs: 8000,
+        timeLimitMs: 30000,
+    };
+
+    const stats = calculateGameClinicalStats("game-08-mysterysound", rawData);
+    assert.equal(stats.stat_emotion, 100, "stat_emotion (ภาษาและการนึกคำ) must be 100");
+    assert.equal(stats.stat_focus, 100, "stat_focus must be 100");
+    assert.equal(stats.stat_speed, 85, "stat_speed must be 85");
+    assert.equal(stats.stat_memory, null, "stat_memory should be null");
+    assert.equal(stats.stat_visual, null, "stat_visual should be null");
+    assert.equal(stats.stat_planning, null, "stat_planning should be null");
+});
+
+test("calculateGameClinicalStats - Mystery Sound computes stat_emotion from gameplay metrics when not explicit", () => {
+    const rawData = {
+        level: 2,
+        stars: 2,
+        score: 250,
+        questionsCorrect: 2,
+        totalQuestions: 2,
+        replaysUsed: 2, // Replay penalty should apply
+        responseTimeMs: 15000,
+        timeLimitMs: 30000,
+    };
+
+    const stats = calculateGameClinicalStats("game-08-mysterysound", rawData);
+    assert.ok(stats.stat_emotion !== null && stats.stat_emotion > 0, "stat_emotion must be computed");
+    assert.ok(stats.stat_focus !== null && stats.stat_focus > 0, "stat_focus must be computed");
+    assert.ok(stats.stat_speed !== null && stats.stat_speed > 0, "stat_speed must be computed");
+    assert.equal(stats.stat_memory, null);
+});
+
+test("calculateGameClinicalStats - Mystery Sound recovers stat_emotion from legacy stat_memory payload", () => {
+    const legacyRawData = {
+        level: 1,
+        stars: 3,
+        score: 300,
+        stat_memory: 100, // old field used by legacy builds
+        stat_focus: 90,
+        stat_speed: 80,
+    };
+
+    const stats = calculateGameClinicalStats("game-08-mysterysound", legacyRawData);
+    assert.equal(stats.stat_emotion, 100, "Legacy stat_memory should recover into stat_emotion");
+    assert.equal(stats.stat_memory, null, "Domain stat_memory should be null");
+});
+
 

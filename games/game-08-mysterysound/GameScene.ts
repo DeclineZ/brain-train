@@ -982,8 +982,8 @@ export class MysterySoundScene extends Phaser.Scene {
         const score = baseScore + timeBonus;
 
         // Calculate Stats (0-100)
-        // Memory: Identifying sounds
-        const stat_memory = 60 + (this.questionsCorrect / totalQuestions) * 40;
+        // Language & Verbal Recall (ภาษาและการนึกคำ): Identifying sounds and linking to concepts
+        const stat_emotion = 60 + (this.questionsCorrect / totalQuestions) * 40;
         // Focus: Distinguishing mixed sounds
         const stat_focus = 60 + (stars / 3) * 40;
         // Speed: Reaction time
@@ -997,7 +997,7 @@ export class MysterySoundScene extends Phaser.Scene {
                 level: this.level,
                 stars: stars,
                 score: score,
-                stat_memory: Math.round(stat_memory),
+                stat_emotion: Math.round(stat_emotion),
                 stat_focus: Math.round(stat_focus),
                 stat_speed: Math.round(stat_speed),
                 // Optional detailed stats for logging
@@ -1005,6 +1005,8 @@ export class MysterySoundScene extends Phaser.Scene {
                 totalQuestions: totalQuestions,
                 replaysUsed: this.totalReplaysUsed,
                 responseTimeMs,
+                timeLimitMs,
+                difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
                 starHint: stars < 3 ? 'ลองฟังให้ดีและตอบให้ถูกมากขึ้น' : null
             });
         }
