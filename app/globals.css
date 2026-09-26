@@ -61,6 +61,8 @@
   --color-chip-focus-text: var(--color-chip-focus-text);
   --color-chip-planning-bg: var(--color-chip-planning-bg);
   --color-chip-planning-text: var(--color-chip-planning-text);
+  --color-chip-visual-bg: var(--color-chip-visual-bg);
+  --color-chip-visual-text: var(--color-chip-visual-text);
   --color-chip-emotion-bg: var(--color-chip-emotion-bg);
   --color-chip-emotion-text: var(--color-chip-emotion-text);
   --color-streak-fill: var(--color-streak-fill);
@@ -192,6 +194,8 @@
   --color-chip-focus-text: #4527A0;
   --color-chip-planning-bg: #B3E5FC;
   --color-chip-planning-text: #01579B;
+  --color-chip-visual-bg: #C5CAE9;
+  --color-chip-visual-text: #283593;
   --color-chip-emotion-bg: #FFCCBC;
   /* Warm Deep Orange/Pinkish */
   --color-chip-emotion-text: #BF360C;

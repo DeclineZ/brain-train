@@ -6,7 +6,8 @@ import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
 import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels";
 import { getLatestCompletedSession, resolveGameProgression, isTutorialPayload, normalizeLevelPlayed } from "@/lib/sessionProgression";
-// import GameCanvas from '@/components/game/GameCanvas';
+import { calculateGameClinicalStats } from "@/lib/clinicalStats";
+import type { ClinicalStats } from "@/types";
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
     ssr: false,
@@ -27,6 +28,15 @@ import { Home, Coins, Volume2, VolumeX } from "lucide-react";
 interface PageProps {
     params: Promise<{ gameId: string }>;
 }
+
+const SKILL_BADGES = [
+    { key: "stat_memory", label: "ความจำ", bgClass: "bg-chip-memory-bg", textClass: "text-chip-memory-text" },
+    { key: "stat_speed", label: "ความเร็ว", bgClass: "bg-chip-speed-bg", textClass: "text-chip-speed-text" },
+    { key: "stat_visual", label: "มิติสัมพันธ์", bgClass: "bg-chip-visual-bg", textClass: "text-chip-visual-text" },
+    { key: "stat_focus", label: "สมาธิ", bgClass: "bg-chip-focus-bg", textClass: "text-chip-focus-text" },
+    { key: "stat_planning", label: "การวางแผน", bgClass: "bg-chip-planning-bg", textClass: "text-chip-planning-text" },
+    { key: "stat_emotion", label: "ภาษาและการนึกคำ", bgClass: "bg-chip-emotion-bg", textClass: "text-chip-emotion-text" },
+] as const;
 
 export default function GamePage({ params }: PageProps) {
     const { gameId } = use(params);
@@ -371,7 +381,7 @@ export default function GamePage({ params }: PageProps) {
 
             // Calculate Optimistic Stat Changes
             const optimisticStatChanges: any = {};
-            const clinicalStats: any = rawData; // rawData contains the stats from game
+            const clinicalStats: ClinicalStats = calculateGameClinicalStats(gameId, rawData);
 
             if (activeLevel > 0 && userProfileStats) {
                 const statToGlobal: any = {
@@ -387,7 +397,7 @@ export default function GamePage({ params }: PageProps) {
                 const learningRate = isReplay ? 0.05 : 0.1;
 
                 ["stat_memory", "stat_speed", "stat_visual", "stat_focus", "stat_planning", "stat_emotion"].forEach(key => {
-                    const gameResult = clinicalStats[key];
+                    const gameResult = clinicalStats[key as keyof ClinicalStats];
                     const dbKey = statToGlobal[key];
                     const currentVal = userProfileStats[dbKey];
 
@@ -407,11 +417,12 @@ export default function GamePage({ params }: PageProps) {
                 success: true,
                 stars: rawData.stars,
                 score: rawData.score, // Capture Score
-                stat_memory: rawData.stat_memory, // Use actual game results for display if needed
-                stat_speed: rawData.stat_speed,
-                stat_focus: rawData.stat_focus,
-                stat_planning: rawData.stat_planning,
-                stat_emotion: rawData.stat_emotion,
+                stat_memory: clinicalStats.stat_memory, // Use actual game results for display
+                stat_speed: clinicalStats.stat_speed,
+                stat_visual: clinicalStats.stat_visual,
+                stat_focus: clinicalStats.stat_focus,
+                stat_planning: clinicalStats.stat_planning,
+                stat_emotion: clinicalStats.stat_emotion,
                 statChanges: optimisticStatChanges, // Inject Optimistic Changes
                 starHint: rawData.starHint, // Capture Hint
                 earnedCoins: optimisticCoins,
@@ -473,6 +484,7 @@ export default function GamePage({ params }: PageProps) {
                         stat_planning: prev.stat_planning ?? stats?.stat_planning,
                         stat_memory: prev.stat_memory ?? stats?.stat_memory,
                         stat_speed: prev.stat_speed ?? stats?.stat_speed,
+                        stat_visual: prev.stat_visual ?? stats?.stat_visual,
                         stat_focus: prev.stat_focus ?? stats?.stat_focus,
                         stat_emotion: prev.stat_emotion ?? stats?.stat_emotion,
                         earnedCoins: stats?.earnedCoins !== undefined ? stats.earnedCoins : prev.earnedCoins
@@ -517,10 +529,10 @@ export default function GamePage({ params }: PageProps) {
         } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
-            // Force reload by pushing new URL or just state update?
-            // Since GameCanvas uses 'key={activeLevel}', state update works.
-            // But we prefer URL for shareability.
-            router.push(`/play/${gameId}?level=${clampGameLevel(gameId, activeLevel + 1)}`);
+            // Synchronously update activeLevel to immediately remount GameCanvas with new level
+            const nextLvl = clampGameLevel(gameId, activeLevel + 1);
+            setActiveLevel(nextLvl);
+            router.push(`/play/${gameId}?level=${nextLvl}`);
         }
     };
 
@@ -529,7 +541,9 @@ export default function GamePage({ params }: PageProps) {
         setSaveStatus("idle");
         setSaveErrorMessage(null);
         setTutorialSaveStatus("idle");
-        router.push(`/play/${gameId}?level=${activeLevel - 1}`);
+        const prevLvl = Math.max(1, activeLevel - 1);
+        setActiveLevel(prevLvl);
+        router.push(`/play/${gameId}?level=${prevLvl}`);
     };
 
     // Calculate stats progress
@@ -643,9 +657,11 @@ export default function GamePage({ params }: PageProps) {
                                         if (tutorialMode === "review") {
                                             // Manual review -> Go to saved resume level (or max level)
                                             setActiveLevel(resumeLevel);
+                                            router.replace(`/play/${gameId}?level=${resumeLevel}`);
                                         } else {
                                             // First time tutorial -> Go to Level 1
                                             setActiveLevel(1);
+                                            router.replace(`/play/${gameId}?level=1`);
                                         }
                                     }}
                                     className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
@@ -747,23 +763,26 @@ export default function GamePage({ params }: PageProps) {
                                                     </span>
                                                 </div>
                                             )}
-                                            {saveStatus !== "failed" && result.statChanges?.stat_speed > 0 && (
-                                                <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ ความเร็ว
-                                                </div>
-                                            )}
+                                            {saveStatus !== "failed" && SKILL_BADGES.map((badge) => {
+                                                const statVal = result[badge.key];
+                                                const statChange = result.statChanges?.[badge.key];
+                                                const hasMeasuredStat = statVal !== null && statVal !== undefined;
+                                                const isPositiveChange =
+                                                    saveStatus === "saved" &&
+                                                    typeof statChange === "number" &&
+                                                    statChange > 0;
 
-                                            {saveStatus !== "failed" && result.statChanges?.stat_focus > 0 && (
-                                                <div className="bg-chip-focus-bg text-chip-focus-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ สมาธิ
-                                                </div>
-                                            )}
-                                            {saveStatus !== "failed" && (result.statChanges?.stat_planning > 0 ||
-                                                (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
-                                                    <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                        ^ การวางแผน
+                                                if (!isPositiveChange && !hasMeasuredStat) return null;
+
+                                                return (
+                                                    <div
+                                                        key={badge.key}
+                                                        className={`${badge.bgClass} ${badge.textClass} px-3 py-1 rounded-full text-sm font-bold shadow-sm`}
+                                                    >
+                                                        {isPositiveChange ? "^ " : ""}{badge.label}
                                                     </div>
-                                                )}
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
@@ -800,13 +819,16 @@ export default function GamePage({ params }: PageProps) {
                                         (result.stat_speed !== null ||
                                             result.stat_focus !== null ||
                                             result.stat_planning !== null ||
+                                            result.stat_memory !== null ||
+                                            result.stat_visual !== null ||
+                                            result.stat_emotion !== null ||
                                             gameId === 'game-05-wormtrain' ||
                                             gameId === 'game-16-doorguardian' ||
                                             gameId === 'game-17-floatingmarket' ||
                                             saveStatus === "failed" ||
                                             saveStatus === "saved")) ||
                                         (isEndless &&
-                                            (result.stat_focus !== null || !isSaving || saveStatus === "failed" || saveStatus === "saved"))) && (
+                                            (result.stat_focus !== null || result.stat_speed !== null || !isSaving || saveStatus === "failed" || saveStatus === "saved"))) && (
                                             <div className="flex flex-col gap-3 w-full">
                                                 {saveStatus === "saving" && (
                                                     <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">

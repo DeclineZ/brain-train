@@ -342,14 +342,15 @@ test("Batch 1 - Requirement 4: Normal gameplay remaining unchanged", () => {
   assert.strictEqual(g18New.nextLevel, 0);
   assert.strictEqual(g18New.activeLevel, 0);
 
-  // Game 17 (floatingmarket): returning player activeLevel is 1
+  // Game 17 (floatingmarket): returning player activeLevel is nextLevel
   const g17Returning = resolveGameProgression({
     gameId: "game-17-floatingmarket",
     completedSession: { current_played: 2 },
     hasValidParamLevel: false,
     safeParamLevel: null,
   });
-  assert.strictEqual(g17Returning.activeLevel, 1);
+  assert.strictEqual(g17Returning.activeLevel, 3);
+  assert.strictEqual(g17Returning.nextLevel, 3);
 
   // Game 19 (cashier): returning player activeLevel is nextLevel
   const g19Returning = resolveGameProgression({

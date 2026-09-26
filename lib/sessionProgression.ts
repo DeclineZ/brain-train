@@ -210,8 +210,6 @@ export function resolveGameProgression({
       activeLevel = completedSession ? 1 : 0;
     } else if (gameId === "game-18-runforyourlife") {
       activeLevel = completedSession ? 1 : 0;
-    } else if (gameId === "game-17-floatingmarket") {
-      activeLevel = completedSession ? 1 : 0;
     } else if (gameId === "game-19-cashier") {
       activeLevel = completedSession ? nextLevel : 0;
     } else if (completedSession) {

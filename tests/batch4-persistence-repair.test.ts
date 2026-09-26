@@ -441,6 +441,7 @@ test("Batch 4 - Production Code: Floating Market progression (Tutorial -> Level 
     safeParamLevel: null,
   });
   assert.equal(p2.nextLevel, 2, "After completed Level 1, next level must be 2");
+  assert.equal(p2.activeLevel, 2, "After completed Level 1, active level must resume at next level available (2)");
 
   // Player reopens from level selector with explicit level param
   const pSelect = resolveGameProgression({
