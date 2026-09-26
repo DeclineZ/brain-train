@@ -11,7 +11,7 @@ export type VitalmindVerifyResponse = {
 
 export type VitalmindPatientUpdate = {
   patient_id: string;
-  current: { name: string; surname: string };
+  current: { name: string; surname: string; user_type?: string };
 };
 
 export function parseVerifyResponse(
@@ -51,7 +51,8 @@ export function parsePatientUpdate(
   if (
     !isNonBlankString(value.patient_id) ||
     !isNonBlankString(current.name) ||
-    !isNonBlankString(current.surname)
+    !isNonBlankString(current.surname) ||
+    (current.user_type !== undefined && !isNonBlankString(current.user_type))
   ) {
     return null;
   }
@@ -61,6 +62,9 @@ export function parsePatientUpdate(
     current: {
       name: current.name.trim(),
       surname: current.surname.trim(),
+      ...(isNonBlankString(current.user_type)
+        ? { user_type: current.user_type.trim() }
+        : {}),
     },
   };
 }

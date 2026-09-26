@@ -13,6 +13,13 @@ import { getAvatarSrc } from "@/lib/utils";
 import { useTheme } from "@/app/providers/ThemeProvider";
 import type { ShopItemWithOwnership } from "@/types";
 import { Palette } from "lucide-react";
+import {
+  RECOMMENDATIONS,
+  MEDICAL_DISCLAIMER_TEXT,
+  DIMENSION_GAMES,
+  CategoryKey,
+  getCategoryContextualExplanation,
+} from "@/lib/recommendations";
 
 interface ProfileData {
   full_name: string;
@@ -38,97 +45,6 @@ interface StatsPageClientProps {
   playedGameIds: string[];
 }
 
-const RECOMMENDATIONS: Record<string, {
-  title: string;
-  suggestion: string;
-  practice: string[];
-  games: { name: string; id: string }[];
-}> = {
-  global_memory: {
-    title: "ด้านความจำ",
-    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านความจำมีแนวโน้มที่ลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาในการจำข้อมูลในชีวิตประจำวัน เช่น ลืมสิ่งของ ลืมนัด หรือจำสิ่งที่เพิ่งได้ยินหรือเห็นได้ไม่นาน",
-    practice: [
-      "ฝึกจำข้อมูลเล็กๆ เช่น รายการของใช้ก่อนออกจากบ้าน โดยพยายามไม่จดทันที",
-      "ใช้วิธี \"การจัดกลุ่มข้อมูลเพื่อช่วยจำ\" เช่น การจัดของเป็นหมวดหมู่",
-      "ฝึกเล่าเหตุการณ์ที่เกิดขึ้นในแต่ละวันย้อนหลัง"
-    ],
-    games: [
-      { name: "เกมจับคู่การ์ด", id: "game-01-cardmatch" },
-      { name: "เกมลูกไหนต่อดี", id: "game-13-boxpattern" },
-      { name: "เกมคุ้นๆนะเนี่ย", id: "game-14-wordrecognize" }
-    ]
-  },
-  global_focus: {
-    title: "ด้านสมาธิและการจดจ่อ",
-    suggestion: "จากผลการเล่นเกม พบว่าความสามารถในด้านสมาธิ หรือการจดจ่อกับสิ่งใดสิ่งหนึ่งลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาเรื่องการวอกแวกง่าย ทำให้ทำกิจกรรมอื่นๆได้ไม่ต่อเนื่อง",
-    practice: [
-      "ทำกิจกรรมทีละอย่าง ไม่ทำหลายอย่างพร้อมกัน",
-      "ลดสิ่งรบกวน เช่น เสียงโทรศัพท์ หรือโทรทัศน์",
-      "ฝึกฟังแล้วสรุป เช่น ฟังเรื่องแล้วเล่าให้ผู้อื่นฟัง"
-    ],
-    games: [
-      { name: "เกมตรงไม่ตรง", id: "game-02-sensorlock" },
-      { name: "เกมลูกศรชี้โน้ต", id: "game-06-dreamdirect" },
-      { name: "ท่องอวกาศ", id: "game-18-runforyourlife" }
-    ]
-  },
-  global_planning: {
-    title: "ด้านการวางแผนและแก้ปัญหา",
-    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการวางแผนลดลง ควรได้รับการฝึกฝนเพิ่มเติม อาจมีปัญหาเรื่องการทำงานเป็นลำดับขั้นตอน เช่น ทำกิจกรรมหลายขั้นตอนไม่ครบหรือสับสนลำดับ",
-    practice: [
-      "เขียนรายการสิ่งที่ต้องทำในแต่ละวัน",
-      "แบ่งงานออกเป็นขั้นตอนเล็ก ๆ แล้วทำทีละขั้น",
-      "ฝึกคิดล่วงหน้าก่อนลงมือทำ เช่น จะไปไหน ต้องเตรียมอะไรบ้าง",
-      "ฝึกแก้ปัญห่ายากๆ หรือเรื่องง่ายๆ ในชีวิตประจำวัน"
-    ],
-    games: [
-      { name: "เกมเรียงสีหลอดแก้ว", id: "game-09-tube-sort" },
-      { name: "เกมแก้รถติด", id: "game-21-parking-jam" },
-      { name: "เกมกลับหลุม", id: "game-05-wormtrain" }
-    ]
-  },
-  global_speed: {
-    title: "ความเร็วในการคิด การตอบสนอง",
-    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการคิดหรือการตอบสนองอยู่ในระดับที่ควรได้รับการฝึกฝนเพิ่มเติม อาจมีการตอบสนองที่ช้าหรือใช้เวลาในการทำสิ่งใดนานกว่าปกติ",
-    practice: [
-      "ฝึกทำกิจกรรมที่ต้องใช้ความเร็ว เช่น อ่านแล้วตอบคำถามทันที",
-      "ฝึกมองหาสิ่งของหรือสัญลักษณ์ในเวลาจำกัด",
-      "จัดสภาพแวดล้อมให้เรียบง่าย ไม่ซับซ้อน"
-    ],
-    games: [
-      { name: "เกมตรงไม่ตรง", id: "game-02-sensorlock" },
-      { name: "เกมลูกศรชี้โน้ต", id: "game-06-dreamdirect" },
-      { name: "เกมนักล่าตัวเลข", id: "game-12-gridhunter" }
-    ]
-  },
-  global_visual: {
-    title: "มิติสัมพันธ์",
-    suggestion: "จากผลการเล่นเกม พบว่าความสามารถด้านการมองภาพรวม การกะระยะ หรือการจำตำแหน่งของสิ่งของอยู่ในระดับที่ควรฝึกฝนเพิ่ม",
-    practice: [
-      "ฝึกสังเกตรอบตัว เช่น จำตำแหน่งของสิ่งของในบ้าน",
-      "ฝึกดูเส้นทาง เช่น จำทางไปสถานที่ที่ไปบ่อย",
-      "จัดของให้เป็นระเบียบและเป็นหมวดหมู่"
-    ],
-    games: [
-      { name: "เกมกล่องเยอะจัง", id: "game-20-boxcounting" },
-      { name: "เกมท่อน้ำของการประปา", id: "game-11-pipe-patch" },
-      { name: "เกมลงเหมืองหาทอง", id: "game-10-miner" }
-    ]
-  },
-  global_emotion: {
-    title: "ด้านภาษาและการนึกคำ",
-    suggestion: "จากผลการเล่นเกม พบว่า ความสามารถด้านภาษาอยู่ในระดับที่ควรได้รับการฝึกเพิ่มเติม เนื่องจากอาจมีความยากในการนึกคำหรือเรียกชื่อสิ่งต่าง ๆ",
-    practice: [
-      "ฝึกเรียกชื่อสิ่งของรอบตัว",
-      "ฝึกพูดหรือเล่าเรื่องในแต่ละวัน",
-      "ฝึกจัดกลุ่มคำ เช่น สัตว์ อาหาร สิ่งของ"
-    ],
-    games: [
-      { name: "เกมเสียงอะไรเอ่ย", id: "game-08-mysterysound" }
-    ]
-  }
-};
-
 export default function StatsPageClient({
   profile,
   balance,
@@ -147,40 +63,38 @@ export default function StatsPageClient({
   const [currentAvatar, setCurrentAvatar] = useState(profile?.avatar_url || null);
   const [selectedCategoryKey, setSelectedCategoryKey] = useState<string | null>(null);
 
-  // Mock total XP since we don't have a direct field for it yet, or use sum of stats
+  // Preserve genuine numeric zero and distinguish from missing (null/undefined)
   const cognitiveStats = [
-    { key: "global_planning", label: "การวางแผน", color: "bg-green", icon: Map, val: profile?.global_planning || 0 },
-    { key: "global_memory", label: "ความจำ", color: "bg-yellow", icon: Brain, val: profile?.global_memory || 0 },
-    { key: "global_visual", label: "มิติสัมพันธ์", color: "bg-blue", icon: Eye, val: profile?.global_visual || 0 },
-    { key: "global_focus", label: "สมาธิ", color: "bg-red", icon: Target, val: profile?.global_focus || 0 },
-    { key: "global_speed", label: "ความเร็ว", color: "bg-blue-dark", icon: Zap, val: profile?.global_speed || 0 },
-    { key: "global_emotion", label: "ภาษาและการนึกคำ", color: "bg-purple", icon: MessageSquare, val: profile?.global_emotion || 0 },
+    { key: "global_planning", label: "การวางแผน", color: "bg-green", icon: Map, val: typeof profile?.global_planning === "number" && !isNaN(profile.global_planning) ? profile.global_planning : null },
+    { key: "global_memory", label: "ความจำ", color: "bg-yellow", icon: Brain, val: typeof profile?.global_memory === "number" && !isNaN(profile.global_memory) ? profile.global_memory : null },
+    { key: "global_visual", label: "มิติสัมพันธ์", color: "bg-blue", icon: Eye, val: typeof profile?.global_visual === "number" && !isNaN(profile.global_visual) ? profile.global_visual : null },
+    { key: "global_focus", label: "สมาธิ", color: "bg-red", icon: Target, val: typeof profile?.global_focus === "number" && !isNaN(profile.global_focus) ? profile.global_focus : null },
+    { key: "global_speed", label: "ความเร็ว", color: "bg-blue-dark", icon: Zap, val: typeof profile?.global_speed === "number" && !isNaN(profile.global_speed) ? profile.global_speed : null },
+    { key: "global_emotion", label: "ภาษาและการนึกคำ", color: "bg-purple", icon: MessageSquare, val: typeof profile?.global_emotion === "number" && !isNaN(profile.global_emotion) ? profile.global_emotion : null },
   ];
 
-  const DIMENSION_GAMES: Record<string, string[]> = {
-    global_memory: ["game-01-cardmatch", "game-13-boxpattern", "game-14-wordrecognize"],
-    global_focus: ["game-02-sensorlock", "game-06-dreamdirect", "game-18-runforyourlife"],
-    global_planning: ["game-09-tube-sort", "game-21-parking-jam", "game-05-wormtrain"],
-    global_speed: ["game-02-sensorlock", "game-06-dreamdirect", "game-12-gridhunter"],
-    global_visual: ["game-20-boxcounting", "game-11-pipe-patch", "game-10-miner"],
-    global_emotion: ["game-08-mysterysound"],
-  };
-
-  // Find which categories are unplayed (using actual played game IDs from sessions)
+  // Find which categories are unplayed (using actual played game IDs and missing scores)
   const unplayedStats = cognitiveStats.filter(stat => {
-    const games = DIMENSION_GAMES[stat.key] || [];
+    if (stat.val !== null) return false;
+    const games = DIMENSION_GAMES[stat.key as CategoryKey] || [];
     return !games.some(gameId => playedGameIds.includes(gameId));
   });
   const hasUnplayed = unplayedStats.length > 0;
 
-  // Find the weakest skill key from cognitiveStats
-  const weakestStat = [...cognitiveStats].sort((a, b) => a.val - b.val)[0];
-  const weakestKey = weakestStat ? weakestStat.key : "global_memory";
+  // Find the weakest skill strictly among scored stats (val !== null)
+  // Unknown / unplayed domains are NEVER ranked as weakest
+  const scoredStats = cognitiveStats.filter((s): s is typeof s & { val: number } => s.val !== null);
+  const weakestStat = scoredStats.length > 0 ? [...scoredStats].sort((a, b) => a.val - b.val)[0] : null;
+  const weakestKey = (weakestStat ? weakestStat.key : "global_memory") as CategoryKey;
   const recommendation = RECOMMENDATIONS[weakestKey] || RECOMMENDATIONS.global_memory;
+  const weakestExplanation = weakestStat ? getCategoryContextualExplanation(weakestKey, profile) : null;
 
   // Derived values for category detail popup
-  const selectedRecommendation = selectedCategoryKey ? RECOMMENDATIONS[selectedCategoryKey] : null;
+  const selectedRecommendation = selectedCategoryKey ? RECOMMENDATIONS[selectedCategoryKey as CategoryKey] : null;
   const selectedStat = selectedCategoryKey ? cognitiveStats.find(s => s.key === selectedCategoryKey) : null;
+  const selectedExplanation = selectedCategoryKey
+    ? getCategoryContextualExplanation(selectedCategoryKey as CategoryKey, profile)
+    : null;
 
   // Helper to format join date
   const formatDate = (dateString: string | null) => {
@@ -425,17 +339,21 @@ export default function StatsPageClient({
                           <span className="text-xs font-bold leading-none">?</span>
                         </button>
                       </div>
-                      <span className="text-brown-darkest">{getScaledScore(stat.val)}</span>
+                      <span className="text-brown-darkest">
+                        {stat.val !== null ? getScaledScore(stat.val) : "—"}
+                      </span>
                     </div>
                     {/* Progress Bar Container */}
                     <div className="h-4 w-full bg-gray-medium rounded-full overflow-hidden relative shadow-inner">
                       {/* Progress Bar Fill */}
                       <div
                         className={`h-full ${stat.color} rounded-full transition-all duration-1000 ease-out`}
-                        style={{ width: `${Math.max(5, stat.val)}%` }}
+                        style={{ width: stat.val !== null ? `${Math.max(5, stat.val)}%` : "0%" }}
                       />
                       {/* Highlight effect */}
-                      <div className="absolute top-1 left-2 right-2 h-1 bg-white opacity-20 rounded-full" />
+                      {stat.val !== null && (
+                        <div className="absolute top-1 left-2 right-2 h-1 bg-white opacity-20 rounded-full" />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -448,24 +366,27 @@ export default function StatsPageClient({
         <section className="relative">
           <div className="bg-brown-light rounded-3xl pb-2 pt-1 px-1 shadow-[0_8px_0_var(--shadow-card-color)] relative z-0">
             <div className="bg-cream rounded-[20px] p-6 relative z-10 text-left">
-              <h2 className="text-xl font-bold text-brown-800 mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-brown-800 mb-1 flex items-center gap-2">
                 <Lightbulb className="w-6 h-6 text-yellow-500 fill-yellow-500/20" />
                 คำแนะนำพัฒนาทักษะสมอง
               </h2>
+              <p className="text-xs text-brown-light mb-4 font-medium leading-relaxed">
+                {MEDICAL_DISCLAIMER_TEXT}
+              </p>
 
               {hasUnplayed ? (
                 <>
                   <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4 shadow-sm mb-6">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-bold uppercase bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <Brain className="w-3.5 h-3.5" /> ข้อมูลยังไม่เพียงพอ
+                        <Brain className="w-3.5 h-3.5" /> ข้อมูลยังไม่ครบถ้วน
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-brown-darkest mb-2">
-                      วิเคราะห์ทักษะสมองของคุณ
+                      หมวดหมู่ที่ยังไม่มีคะแนน
                     </h3>
                     <p className="text-sm text-brown-medium font-medium leading-relaxed">
-                      กรุณาเล่นเกมให้ครบทุกหมวดหมู่ เพื่อให้ระบบสามารถวิเคราะห์ทักษะสมองด้านที่ควรพัฒนามากที่สุดของคุณได้อย่างแม่นยำ (ขณะนี้เหลืออีก {unplayedStats.length} ด้านที่ยังไม่ได้ทดสอบ)
+                      แนะนำให้ลองเล่นเกมในหมวดที่ยังไม่เคยเล่น เพื่อบันทึกคะแนนให้ครบทุกทักษะ (ขณะนี้เหลืออีก {unplayedStats.length} ด้านที่ยังไม่มีคะแนน)
                     </p>
                   </div>
 
@@ -475,7 +396,7 @@ export default function StatsPageClient({
                     </h4>
                     <div className="space-y-3">
                       {unplayedStats.map((stat) => {
-                        const rec = RECOMMENDATIONS[stat.key];
+                        const rec = RECOMMENDATIONS[stat.key as CategoryKey];
                         if (!rec) return null;
                         return (
                           <div key={stat.key} className="border-2 border-gray-medium rounded-2xl p-4 bg-white/60 shadow-sm">
@@ -512,8 +433,8 @@ export default function StatsPageClient({
                 <>
                   <div className="bg-[var(--color-card-item-bg)] border-2 border-gray-medium rounded-2xl p-4 shadow-sm mb-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-bold uppercase bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
-                        ด้านที่ควรพัฒนามากที่สุด
+                      <span className="text-xs font-bold uppercase bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">
+                        ด้านที่แนะนำให้ฝึกเพิ่มเติม
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-brown-darkest mb-2 flex items-center gap-2">
@@ -526,15 +447,20 @@ export default function StatsPageClient({
                         <span>{recommendation.title}</span>
                       )}
                     </h3>
+                    {weakestExplanation && (
+                      <p className="text-sm text-brown-darkest font-medium leading-relaxed mb-2">
+                        {weakestExplanation.text}
+                      </p>
+                    )}
                     <p className="text-sm text-brown-medium font-medium leading-relaxed">
                       {recommendation.suggestion}
                     </p>
                   </div>
 
-                  {/* Daily Practice Guideline */}
+                  {/* Practice Guidelines */}
                   <div className="mb-4">
                     <h4 className="text-sm font-bold text-brown-light uppercase mb-2">
-                      แนวทางการฝึกในชีวิตประจำวัน
+                      แนวทางการฝึกฝนในการเล่นเกม
                     </h4>
                     <ul className="space-y-2">
                       {recommendation.practice.map((item, idx) => (
@@ -729,7 +655,9 @@ export default function StatsPageClient({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-brown-light uppercase">คะแนนปัจจุบัน</div>
-                      <div className="text-xl font-bold text-brown-darkest">{getScaledScore(selectedStat.val)}</div>
+                      <div className="text-xl font-bold text-brown-darkest">
+                        {selectedStat.val !== null ? getScaledScore(selectedStat.val) : "— (ยังไม่มีคะแนน)"}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -737,14 +665,19 @@ export default function StatsPageClient({
                 {/* Suggestion */}
                 <div>
                   <h4 className="text-xs font-bold text-brown-light uppercase mb-2">ข้อเสนอแนะ</h4>
+                  {selectedExplanation && (
+                    <p className="text-sm text-brown-darkest font-medium leading-relaxed mb-2 bg-white/70 border border-gray-medium rounded-xl p-3">
+                      {selectedExplanation.text}
+                    </p>
+                  )}
                   <p className="text-sm text-brown-darkest font-medium leading-relaxed">
                     {selectedRecommendation.suggestion}
                   </p>
                 </div>
 
-                {/* Daily Practice */}
+                {/* Practice */}
                 <div>
-                  <h4 className="text-xs font-bold text-brown-light uppercase mb-2">แนวทางการฝึกในชีวิตประจำวัน</h4>
+                  <h4 className="text-xs font-bold text-brown-light uppercase mb-2">แนวทางการฝึกฝนในการเล่นเกม</h4>
                   <ul className="space-y-2">
                     {selectedRecommendation.practice.map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2.5 text-sm text-brown-darkest font-medium">
@@ -753,6 +686,13 @@ export default function StatsPageClient({
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                {/* Disclaimer in Modal */}
+                <div className="pt-2 border-t border-brown-lightest">
+                  <p className="text-[11px] text-brown-light font-medium leading-relaxed">
+                    * {MEDICAL_DISCLAIMER_TEXT}
+                  </p>
                 </div>
 
                 {/* Recommended Games */}

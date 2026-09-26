@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { MATCHING_LEVELS } from './levels';
 import type { MatchingLevelConfig } from '@/types';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { CardMatchTimer } from './CardMatchTimer';
 
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;
@@ -18,6 +19,7 @@ export class MatchingGameScene extends Phaser.Scene {
     private totalPairs = 0;
     private isLocked = true; // Start locked for preview
     private startTime = 0;
+    private timer = new CardMatchTimer();
     private timerEvent!: Phaser.Time.TimerEvent;
     private customTimerBar!: Phaser.GameObjects.Graphics;
     private lastTimerPct: number = 100; // Store for redraw handling
@@ -167,8 +169,41 @@ export class MatchingGameScene extends Phaser.Scene {
             }
         });
 
+        this.timer.reset();
+
+        // Handle Scene and Game Pause/Resume events independently
+        const onScenePause = () => this.timer.pause('scene');
+        const onSceneResume = () => this.timer.resume('scene');
+        const onGamePause = () => this.timer.pause('game');
+        const onGameResume = () => this.timer.resume('game');
+
+        this.events.on(Phaser.Scenes.Events.PAUSE, onScenePause);
+        this.events.on(Phaser.Scenes.Events.RESUME, onSceneResume);
+        this.game.events.on(Phaser.Core.Events.PAUSE, onGamePause);
+        this.game.events.on(Phaser.Core.Events.RESUME, onGameResume);
+
+        // Development/test-only harness to exercise timeout modal and inspect scene state without altering production gameplay policy
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+            (window as any).__triggerCardMatchTimeout = () => {
+                this.handleTimeout();
+            };
+            (window as any).__cardMatchScene = this;
+            (window as any).__cardMatchTimer = this.timer;
+        }
+
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
             this.stopWarningSound();
+            this.events.off(Phaser.Scenes.Events.PAUSE, onScenePause);
+            this.events.off(Phaser.Scenes.Events.RESUME, onSceneResume);
+            this.game.events.off(Phaser.Core.Events.PAUSE, onGamePause);
+            this.game.events.off(Phaser.Core.Events.RESUME, onGameResume);
+            this.game.events.off('resume-game');
+            if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+                delete (window as any).__triggerCardMatchTimeout;
+                delete (window as any).__cardMatchScene;
+                delete (window as any).__cardMatchTimer;
+                delete (window as any).__lastCardMatchGameOver;
+            }
         });
 
         // Listen for Resume Event from React
@@ -192,7 +227,7 @@ export class MatchingGameScene extends Phaser.Scene {
         if (!this.customTimerBar || !this.customTimerBar.visible || this.isPaused || this.continuedAfterTimeout || this.startTime === 0) return;
 
         const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
-        const elapsed = Date.now() - this.startTime;
+        const elapsed = this.timer.getUserTimeMs();
         const remainingMs = Math.max(0, limitMs - elapsed);
         const pct = Math.max(0, (remainingMs / limitMs) * 100);
 
@@ -657,12 +692,14 @@ export class MatchingGameScene extends Phaser.Scene {
                 // Perform "Nice" Shuffle 1-by-1
                 this.performCardSwap(swapCount, () => {
                     this.isLocked = false;
-                    this.startTime = Date.now();
+                    this.timer.start();
+                    this.startTime = this.timer.getStartTime();
                     this.startTimer();
                 });
             } else {
                 this.isLocked = false;
-                this.startTime = Date.now();
+                this.timer.start();
+                this.startTime = this.timer.getStartTime();
                 this.startTimer();
             }
         });
@@ -679,7 +716,7 @@ export class MatchingGameScene extends Phaser.Scene {
             callback: () => {
                 if (this.isPaused) return;
 
-                const elapsed = Date.now() - this.startTime;
+                const elapsed = this.timer.getUserTimeMs();
                 const limitMs = this.currentLevelConfig.timeLimitSeconds * 1000;
 
                 // If we are in "continued" mode, we shouldn't be here (timerEvent should be removed), 
@@ -762,8 +799,7 @@ export class MatchingGameScene extends Phaser.Scene {
         this.isPaused = true;
         this.input.enabled = false;
         if (this.timerEvent) this.timerEvent.paused = true;
-
-        if (this.timerEvent) this.timerEvent.paused = true;
+        this.timer.pause('timeout_modal');
 
         this.stopWarningSound();
         if (this.bgMusic && this.bgMusic.isPlaying) {
@@ -800,6 +836,7 @@ export class MatchingGameScene extends Phaser.Scene {
     resumeGame(applyPenalty: boolean) {
         this.isPaused = false;
         this.input.enabled = true;
+        this.timer.resume('timeout_modal');
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;
@@ -840,6 +877,7 @@ export class MatchingGameScene extends Phaser.Scene {
         if (this.customTimerBar) {
             this.customTimerBar.setVisible(false);
         }
+        this.timer.finalize();
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
@@ -956,26 +994,31 @@ export class MatchingGameScene extends Phaser.Scene {
     endGame() {
         this.input.enabled = false; // Stop all input
         if (this.timerEvent) this.timerEvent.remove();
-        const endTime = Date.now();
-        const duration = endTime - this.startTime;
+        const duration = this.timer.finalize();
+
+        const gameOverData = {
+            current_played: this.currentLevelConfig.level,
+            difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
+            totalPairs: this.totalPairs,
+            wrongFlips: this.wrongFlips,
+            consecutiveErrors: this.consecutiveErrors,
+            repeatedErrors: this.repeatedErrors,
+            userTimeMs: duration,
+            parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
+            attempts: this.attempts,
+            stars: this.calculateStars(duration),
+            starHint: this.calculateStars(duration) < 3 ? this.getStarHint(duration) : null,
+            success: true,
+            continuedAfterTimeout: this.continuedAfterTimeout
+        };
+
+        if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+            (window as any).__lastCardMatchGameOver = gameOverData;
+        }
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
-            onGameOver({
-                current_played: this.currentLevelConfig.level,
-                difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
-                totalPairs: this.totalPairs,
-                wrongFlips: this.wrongFlips,
-                consecutiveErrors: this.consecutiveErrors,
-                repeatedErrors: this.repeatedErrors,
-                userTimeMs: duration,
-                parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
-                attempts: this.attempts,
-                stars: this.calculateStars(duration),
-                starHint: this.calculateStars(duration) < 3 ? this.getStarHint(duration) : null,
-                success: true,
-                continuedAfterTimeout: this.continuedAfterTimeout
-            });
+            onGameOver(gameOverData);
             this.stopWarningSound();
             if (this.bgMusic && this.bgMusic.isPlaying) {
                 this.bgMusic.pause();

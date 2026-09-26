@@ -7,12 +7,13 @@ export interface CoinCalculationParams {
     gameId: string;
     level: number;
     starsEarned: number;
-    previousStars: number;
+    previousStars?: number | null;
     score?: number;
 }
 
 export function calculateCoinReward(params: CoinCalculationParams): number {
     const { gameId, level, starsEarned, previousStars, score } = params;
+    const safePreviousStars = typeof previousStars === 'number' && !isNaN(previousStars) ? previousStars : 0;
 
     // Edge case: Invalid level (negative or tutorial)
     if (!level || level <= 0 || isNaN(level)) {
@@ -78,7 +79,7 @@ export function calculateCoinReward(params: CoinCalculationParams): number {
 
     // Replay penalty: If this level was already played (previousStars > 0),
     // divide the reward by 4
-    const isReplay = (previousStars || 0) > 0;
+    const isReplay = (safePreviousStars || 0) > 0;
     if (isReplay) {
         totalReward = Math.floor(totalReward / 4);
     }

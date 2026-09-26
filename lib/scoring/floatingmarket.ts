@@ -3,6 +3,7 @@ import type { ClinicalStats } from '@/types';
 export interface FloatingMarketGameStats {
     difficultyMultiplier: number;
     mode: string;
+    ruleMode?: string;
     correctCollections: number;
     incorrectCollections: number;
     missedItems: number;
@@ -31,6 +32,7 @@ export interface FloatingMarketGameStats {
 export function calculateFloatingMarketStats(data: FloatingMarketGameStats): ClinicalStats {
     const { difficultyMultiplier = 1.0 } = data;
     const clamp = (val: number) => Math.max(0, Math.min(100, Math.round(val)));
+    const effectiveMode = data.ruleMode || data.mode;
 
     // === STAT_SPEED: Processing Speed ===
     let stat_speed: number | null = null;
@@ -50,7 +52,7 @@ export function calculateFloatingMarketStats(data: FloatingMarketGameStats): Cli
     // === STAT_MEMORY: Working Memory ===
     // Based on Mode B performance — duplicate avoidance and correct collection rate
     let stat_memory: number | null = null;
-    if (data.mode === 'modeB' || data.mode === 'hybrid') {
+    if (effectiveMode === 'modeB' || effectiveMode === 'hybrid') {
         const totalAttempted = data.correctCollections + data.incorrectCollections;
         if (totalAttempted > 0) {
             const accuracy = data.correctCollections / totalAttempted;
@@ -64,7 +66,7 @@ export function calculateFloatingMarketStats(data: FloatingMarketGameStats): Cli
     // === STAT_FOCUS: Inhibition / Sustained Attention ===
     // Based on Mode A performance — avoiding incorrect collections
     let stat_focus: number | null = null;
-    if (data.mode === 'modeA' || data.mode === 'hybrid' || data.mode === 'tutorial' || data.mode === 'quantityMode') {
+    if (effectiveMode === 'modeA' || effectiveMode === 'hybrid' || effectiveMode === 'tutorial' || effectiveMode === 'quantityMode') {
         const totalAttempted = data.correctCollections + data.incorrectCollections;
         if (totalAttempted > 0) {
             const inhibitionRate = 1 - (data.incorrectCollections / totalAttempted);

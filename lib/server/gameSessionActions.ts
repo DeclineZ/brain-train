@@ -8,6 +8,7 @@ import { upsertLevelStars } from "@/lib/stars";
 import { addCoins } from "@/lib/server/shopAction";
 import { calculateCoinReward } from "@/lib/coinCalculation";
 import { performDailyCheckin } from "@/lib/server/dailystreakAction";
+import { normalizeLevelPlayed } from "@/lib/sessionProgression";
 
 export async function submitGameSession(
     gameId: string,
@@ -25,33 +26,39 @@ export async function submitGameSession(
 
     try {
         // 1. Check for Replay (Learning Rate Logic)
-        // We check if a session already exists for this game and level *before* inserting the new one.
-        // The 'level' is usually in rawData.levelPlayed or rawData.current_played.
-        // We'll try to find a consistent level indicator.
-        // Input Sanitization & Clamping
-        const levelPlayed = Math.max(
-            0,
-            Math.floor(Number(rawData?.level ?? rawData?.levelPlayed ?? rawData?.current_played ?? 1)) || 0
-        );
+        // Normalize tutorial payloads so { isTutorial: true, level: 1 } strictly persists as level 0
+        const { levelPlayed, isTutorial, normalizedRawData } = normalizeLevelPlayed(rawData);
+        const finalRawData = { ...normalizedRawData };
 
         // Sanitize raw stats
-        if (rawData) {
-            if (rawData.stars !== undefined) {
-                rawData.stars = Math.max(0, Math.min(3, Math.floor(Number(rawData.stars) || 0)));
-            }
-            if (rawData.score !== undefined) {
-                rawData.score = Math.max(0, Math.floor(Number(rawData.score) || 0));
-            }
+        if (finalRawData.stars !== undefined) {
+            finalRawData.stars = Math.max(0, Math.min(3, Math.floor(Number(finalRawData.stars) || 0)));
+        }
+        if (finalRawData.score !== undefined) {
+            finalRawData.score = Math.max(0, Math.floor(Number(finalRawData.score) || 0));
         }
 
         // Sanitize clinicalStats (clamp non-null values to 0-100)
-        const sanitizedClinicalStats: ClinicalStats = { ...clinicalStats };
-        (Object.keys(sanitizedClinicalStats) as (keyof ClinicalStats)[]).forEach((key) => {
-            const val = sanitizedClinicalStats[key];
-            if (val !== null && val !== undefined) {
-                sanitizedClinicalStats[key] = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+        // Enforce null domain stats for tutorial payloads at server save boundary
+        const sanitizedClinicalStats: ClinicalStats = isTutorial
+            ? {
+                stat_memory: null,
+                stat_speed: null,
+                stat_visual: null,
+                stat_focus: null,
+                stat_planning: null,
+                stat_emotion: null,
             }
-        });
+            : { ...clinicalStats };
+
+        if (!isTutorial) {
+            (Object.keys(sanitizedClinicalStats) as (keyof ClinicalStats)[]).forEach((key) => {
+                const val = sanitizedClinicalStats[key];
+                if (val !== null && val !== undefined) {
+                    sanitizedClinicalStats[key] = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+                }
+            });
+        }
 
         const { count: priorSessionCount, error: countError } = await supabase
             .from("game_sessions")
@@ -70,7 +77,7 @@ export async function submitGameSession(
         // 2. Fetch Current User Profile Stats
         // SKIP if Tutorial (Level 0) - We don't want tutorials to affect global stats
         let currentProfile: UserProfileStats | null = null;
-        if (levelPlayed > 0) {
+        if (levelPlayed > 0 && !isTutorial) {
             const { data, error: profileError } = await supabase
                 .from("user_profiles")
                 .select(
@@ -108,7 +115,7 @@ export async function submitGameSession(
             stat_emotion: "global_emotion",
         };
 
-        if (levelPlayed > 0) {
+        if (levelPlayed > 0 && !isTutorial) {
             const statKeys: (keyof ClinicalStats)[] = [
                 "stat_memory",
                 "stat_speed",
@@ -175,12 +182,12 @@ export async function submitGameSession(
                 stat_emotion: sanitizedClinicalStats.stat_emotion,
 
                 // Metadata
-                duration_seconds: rawData.userTimeMs
-                    ? Math.max(0, Number(rawData.userTimeMs) / 1000)
+                duration_seconds: finalRawData.userTimeMs
+                    ? Math.max(0, Number(finalRawData.userTimeMs) / 1000)
                     : 0,
                 current_played: levelPlayed,
-                raw_data: rawData,
-                score: rawData.score || 0,
+                raw_data: finalRawData,
+                score: finalRawData.score || 0,
             })
             .select("id")
             .single();
@@ -197,7 +204,7 @@ export async function submitGameSession(
         let previousStars: number = 0;
 
         // Skip stars for Tutorial (Level 0)
-        if (levelPlayed > 0) {
+        if (levelPlayed > 0 && !isTutorial) {
             // A. Fetch Previous Stars logic (Moved UP)
             try {
                 const { data } = await supabase
@@ -215,9 +222,9 @@ export async function submitGameSession(
             }
 
             // B. Upsert new Stars
-            if (rawData.stars !== undefined) {
+            if (finalRawData.stars !== undefined) {
                 try {
-                    const starsEarned = Number(rawData.stars);
+                    const starsEarned = Number(finalRawData.stars);
                     if (!isNaN(starsEarned)) {
                         starInfo = await upsertLevelStars(
                             user.id,
@@ -228,7 +235,7 @@ export async function submitGameSession(
                         );
                     } else {
                         console.warn(
-                            `[submitGameSession] Stars is NaN: ${rawData.stars}`
+                            `[submitGameSession] Stars is NaN: ${finalRawData.stars}`
                         );
                     }
                 } catch (starErr) {
@@ -256,11 +263,11 @@ export async function submitGameSession(
             error?: any;
         } = { ok: true, data: { new_balance: undefined } };
         let rewardAmount = 0;
-        if (levelPlayed > 0) {
+        if (levelPlayed > 0 && !isTutorial) {
             // Validate inputs before calculation
             const validLevel = Math.max(1, levelPlayed || 1);
-            const starsEarned = Math.max(0, Math.min(3, Number(rawData.stars) || 0));
-            const score = Math.max(0, Number(rawData.score) || 0);
+            const starsEarned = Math.max(0, Math.min(3, Number(finalRawData.stars) || 0));
+            const score = Math.max(0, Number(finalRawData.score) || 0);
 
             // Previous stars already fetched above in block 6.
 
@@ -296,7 +303,7 @@ export async function submitGameSession(
         let missionCompleted = false;
         let completedMission = null;
 
-        if (levelPlayed > 0) {
+        if (levelPlayed > 0 && !isTutorial) {
             const res = await checkMissionCompletion(
                 user.id,
                 gameId,
