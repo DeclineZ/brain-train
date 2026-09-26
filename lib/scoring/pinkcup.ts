@@ -34,7 +34,7 @@ export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
   const planningBlendCore = 0.6 * spatialCore + 0.4 * planningCore;
 
   return {
-    stat_memory: toPercentScaled(memoryCore, difficultyMultiplier),
+    stat_memory: memoryCore === null ? null : toPercentScaled(memoryCore, difficultyMultiplier),
     stat_speed: toPercentScaled(speedCore, difficultyMultiplier),
     stat_planning: toPercentScaled(planningBlendCore, difficultyMultiplier),
     stat_visual: null,
@@ -45,7 +45,7 @@ export function calculatePinkCupStats(data: PinkCupGameStats): ClinicalStats {
 
 function getZeroStats(): ClinicalStats {
   return {
-    stat_memory: 0,
+    stat_memory: null,
     stat_speed: 0,
     stat_planning: 0,
     stat_visual: null,
@@ -80,11 +80,11 @@ function calculateSpatialCore(telemetry: RoundTelemetry): number {
   return 0.6 * goodMoveRate + 0.4 * pathEfficiency;
 }
 
-function calculateMemoryCore(telemetry: RoundTelemetry, success: boolean): number {
+function calculateMemoryCore(telemetry: RoundTelemetry, success: boolean): number | null {
   const { probes } = telemetry;
 
-  if (probes.length === 0) {
-    return 0;
+  if (!probes || probes.length === 0) {
+    return null;
   }
 
   const correctProbes = probes.filter(p => p.correct).length;

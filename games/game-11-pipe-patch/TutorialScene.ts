@@ -736,4 +736,30 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
       this.input.setDraggable(value.container);
     });
   }
+
+  protected override emitLevelSolvedGameOver() {
+    this.sceneState = 'session_complete';
+    this.cleanupAudio();
+
+    const onTutorialComplete = this.registry.get('onTutorialComplete');
+    if (onTutorialComplete) {
+      onTutorialComplete();
+      return;
+    }
+
+    const onGameOver = this.registry.get('onGameOver');
+    if (onGameOver) {
+      onGameOver({
+        level: 0,
+        current_played: 0,
+        levelPlayed: 0,
+        isTutorial: true,
+        mode: 'tutorial',
+        success: true,
+        score: 0,
+        stars: 3,
+        userTimeMs: 0,
+      });
+    }
+  }
 }

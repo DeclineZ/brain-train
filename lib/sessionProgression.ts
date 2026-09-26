@@ -51,9 +51,12 @@ export function isCompletedSession(
 /**
  * Recognizes tutorial payloads consistently using explicit flags and level fields.
  * Handles conflicting level fields where any level field indicates level 0.
+ * Distinguishes game internal rule modes (e.g. Floating Market Level 1 rule mode)
+ * from actual session tutorial identity when positive levels are present.
  */
 export function isTutorialPayload(rawData: any): boolean {
   if (!rawData) return false;
+
   if (
     rawData.mode === "tutorial" ||
     rawData.isTutorial === true ||
@@ -61,6 +64,7 @@ export function isTutorialPayload(rawData: any): boolean {
   ) {
     return true;
   }
+
   if (
     (rawData.level !== undefined && rawData.level !== null && Number(rawData.level) === 0) ||
     (rawData.levelPlayed !== undefined && rawData.levelPlayed !== null && Number(rawData.levelPlayed) === 0) ||
@@ -68,6 +72,7 @@ export function isTutorialPayload(rawData: any): boolean {
   ) {
     return true;
   }
+
   return false;
 }
 
