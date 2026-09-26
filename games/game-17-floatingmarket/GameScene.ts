@@ -1797,10 +1797,14 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
+            const isTutorial = this.levelConfig.level === 0;
             onGameOver({
+                level: this.levelConfig.level,
                 current_played: this.levelConfig.level,
                 difficultyMultiplier: this.levelConfig.difficultyMultiplier,
-                mode: this.levelConfig.mode,
+                mode: isTutorial ? 'tutorial' : (this.levelConfig.mode === 'tutorial' ? 'normal' : this.levelConfig.mode),
+                ruleMode: this.levelConfig.mode,
+                isTutorial,
                 correctCollections: this.correctCollections,
                 incorrectCollections: this.incorrectCollections,
                 missedItems: this.missedItems,

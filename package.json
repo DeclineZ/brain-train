@@ -14,7 +14,7 @@
     "solve:pipe-patch": "node games/game-11-pipe-patch/scripts/solve-levels.cjs",
     "audit:pipe-patch": "node games/game-11-pipe-patch/scripts/audit-levels.cjs",
     "test": "echo 'No tests yet'",
-    "test:vitalmind": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/vitalmind-types.test.mjs"
+    "test:vitalmind": "node --test tests/vitalmind-*.test.cjs"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.1.1",

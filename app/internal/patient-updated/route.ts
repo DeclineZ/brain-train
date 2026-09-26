@@ -31,6 +31,27 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
+    // Registration notifications can precede the first launch and Auth identity creation.
+    if (payload.current.user_type) {
+      const { error: registrationError } = await admin
+        .from("vitalmind_patients")
+        .upsert(
+          {
+            patient_id: payload.patient_id,
+            name: payload.current.name,
+            surname: payload.current.surname,
+            user_type: payload.current.user_type,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "patient_id", ignoreDuplicates: true },
+        );
+      if (registrationError) {
+        console.error("[Vitalmind patient update] Registration failed", {
+          code: registrationError.code,
+        });
+        return json({ error: "Unable to update patient" }, 500);
+      }
+    }
     const { data: existing, error: updateError } = await admin
       .rpc("update_vitalmind_patient_profile", {
         p_patient_id: payload.patient_id,

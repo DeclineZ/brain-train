@@ -108,12 +108,19 @@ export class WinLoseSystem {
 
         const onGameOver = this.scene.game.registry.get('onGameOver');
         if (onGameOver) {
+            const regLevel = this.scene.game.registry.get('level');
+            const level = typeof regLevel === 'number' ? regLevel : 1;
+            const isTutorial = level === 0;
+
             onGameOver({
                 success: isSuccess,
-                level: this.scene.game.registry.get('level') || 1,
+                level,
+                current_played: level,
+                isTutorial,
+                mode: isTutorial ? 'tutorial' : 'normal',
                 stars: finalStars,
-                score: scoreResult.score,
-                stat_planning: scoreResult.score,
+                score: isTutorial ? 0 : scoreResult.score,
+                stat_planning: isTutorial ? null : scoreResult.score,
                 stat_memory: null,
                 stat_speed: null,
                 stat_focus: null,

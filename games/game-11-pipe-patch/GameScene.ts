@@ -124,7 +124,7 @@ const COLORS = {
 const DIRS = [DIR.UP, DIR.RIGHT, DIR.DOWN, DIR.LEFT];
 
 export class PipePatchGameScene extends Phaser.Scene {
-  private sceneState: SceneState = 'boot';
+  protected sceneState: SceneState = 'boot';
   private reduceMotion = false;
   private bgMusic?: Phaser.Sound.BaseSound;
   private lastLeakSfxAt = 0;
@@ -376,7 +376,7 @@ export class PipePatchGameScene extends Phaser.Scene {
     this.playSfx(this.soundKeys.leak, { volume: 0.55 });
   }
 
-  private cleanupAudio() {
+  protected cleanupAudio() {
     if (this.bgMusic?.isPlaying) {
       this.bgMusic.stop();
     }
@@ -1138,7 +1138,7 @@ export class PipePatchGameScene extends Phaser.Scene {
    * Match other games behavior: each solved level immediately reports game-over payload
    * so React page can show result popup and control next-level navigation.
    */
-  private emitLevelSolvedGameOver() {
+  protected emitLevelSolvedGameOver() {
     this.sceneState = 'session_complete';
     this.cleanupAudio();
 

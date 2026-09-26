@@ -5,7 +5,9 @@ import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
 import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels";
-// import GameCanvas from '@/components/game/GameCanvas';
+import { getLatestCompletedSession, resolveGameProgression, isTutorialPayload, normalizeLevelPlayed } from "@/lib/sessionProgression";
+import { calculateGameClinicalStats } from "@/lib/clinicalStats";
+import type { ClinicalStats } from "@/types";
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
     ssr: false,
@@ -27,6 +29,15 @@ interface PageProps {
     params: Promise<{ gameId: string }>;
 }
 
+const SKILL_BADGES = [
+    { key: "stat_memory", label: "ความจำ", bgClass: "bg-chip-memory-bg", textClass: "text-chip-memory-text" },
+    { key: "stat_speed", label: "ความเร็ว", bgClass: "bg-chip-speed-bg", textClass: "text-chip-speed-text" },
+    { key: "stat_visual", label: "มิติสัมพันธ์", bgClass: "bg-chip-visual-bg", textClass: "text-chip-visual-text" },
+    { key: "stat_focus", label: "สมาธิ", bgClass: "bg-chip-focus-bg", textClass: "text-chip-focus-text" },
+    { key: "stat_planning", label: "การวางแผน", bgClass: "bg-chip-planning-bg", textClass: "text-chip-planning-text" },
+    { key: "stat_emotion", label: "ภาษาและการนึกคำ", bgClass: "bg-chip-emotion-bg", textClass: "text-chip-emotion-text" },
+] as const;
+
 export default function GamePage({ params }: PageProps) {
     const { gameId } = use(params);
     const router = useRouter();
@@ -44,6 +55,12 @@ export default function GamePage({ params }: PageProps) {
 
     // Add isSaving state to block UI while saving
     const [isSaving, setIsSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+    const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+    const [tutorialSaveStatus, setTutorialSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+
+    // Synchronous guard against duplicate callback submissions for the same mounted attempt
+    const attemptSubmittedRef = useRef(false);
 
     // Global Mute State
     const [isMuted, setIsMuted] = useState(false);
@@ -138,77 +155,21 @@ export default function GamePage({ params }: PageProps) {
             }
 
             try {
-                const { data, error } = await supabase
-                    .from("game_sessions")
-                    .select("current_played, played_at")
-                    .eq("user_id", user.id)
-                    .eq("game_id", gameId)
-                    .order("played_at", { ascending: false })
-                    .limit(1)
-                    .single();
+                // Fetch recent game sessions to find the latest genuinely completed session (paginated to avoid query cap hiding older completions)
+                const completedSession = await getLatestCompletedSession(supabase, user.id, gameId);
 
-                let nextLevel = 1;
-                if (data && data.current_played) {
-                    // Prevent going beyond max level
-                    nextLevel = clampGameLevel(gameId, data.current_played + 1);
-                }
-
-                if (gameId === 'game-14-wordrecognize') {
-                    nextLevel = 1;
-                } else if (gameId === 'game-18-runforyourlife') {
-                    // Force tutorial for first time
-                    if (!data) nextLevel = 0;
-                }
+                const { activeLevel: resolvedActiveLevel, nextLevel } = resolveGameProgression({
+                    gameId,
+                    completedSession,
+                    hasValidParamLevel,
+                    safeParamLevel,
+                });
 
                 setResumeLevel(nextLevel);
 
                 // Only override activeLevel if no valid level param was provided
                 if (!hasValidParamLevel) {
-                    if (data && data.current_played && gameId !== 'game-14-wordrecognize' && gameId !== 'game-18-runforyourlife') {
-                        setActiveLevel(nextLevel);
-                    } else if (gameId === 'game-14-wordrecognize') {
-                        // Game 14 logic:
-                        // If returning player (data exists), start at Level 1
-                        // If new player (!data), start at tutorial (Level 0)
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-18-runforyourlife') {
-                        // Game 18 logic: Same as 14
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-17-floatingmarket') {
-                        if (data && data.current_played) {
-                            setActiveLevel(1);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else if (gameId === 'game-19-cashier') {
-                        if (data && data.current_played) {
-                            setActiveLevel(nextLevel);
-                        } else {
-                            setActiveLevel(0);
-                        }
-                    } else {
-                        // No history -> Start Tutorial (Level 0) for cardmatch, sensorlock, billiards, floating ball math, and mysterysound
-                        // if (
-                        //     gameId === "game-01-cardmatch" ||
-                        //     gameId === "game-02-sensorlock" ||
-                        //     gameId === "game-03-billiards-math" ||
-                        //     gameId === "game-04-floating-ball-math" ||
-                        //     gameId === "game-07-pinkcup" ||
-                        //     gameId === "game-08-mysterysound" ||
-                        //     gameId === "game-09-tube-sort"
-                        // ) {
-
-                        // }
-                        setActiveLevel(0);
-                    }
+                    setActiveLevel(resolvedActiveLevel);
                 }
 
                 // Also fetch stars
@@ -266,12 +227,16 @@ export default function GamePage({ params }: PageProps) {
         fetchLevel();
     }, [gameId, hasValidParamLevel, maxLevel, safeParamLevel]);
 
-    // Clear popups when level changes
+    // Clear popups and reset attempt submission guard when level or retry count changes
     useEffect(() => {
+        attemptSubmittedRef.current = false;
+        setSaveStatus("idle");
+        setSaveErrorMessage(null);
+        setTutorialSaveStatus("idle");
         setResult(null);
         setIsTimeout(false);
         setShowTutorialPopup(false);
-    }, [activeLevel]);
+    }, [activeLevel, retryCount]);
 
     /*
      * CRITICAL: These handlers must be memoized with useCallback.
@@ -292,20 +257,42 @@ export default function GamePage({ params }: PageProps) {
     }, []);
 
     const handleTutorialComplete = useCallback(async () => {
+        // Synchronous guard against duplicate callback submissions for the same attempt
+        if (attemptSubmittedRef.current) {
+            return;
+        }
+        attemptSubmittedRef.current = true;
+
         setShowTutorialPopup(true);
+        setTutorialSaveStatus("saving");
+
         try {
-            await submitSession(gameId, {
+            const stats = await submitSession(gameId, {
                 level: 0,
+                current_played: 0,
                 score: 0,
                 stars: 3,
                 success: true,
+                isTutorial: true,
+                mode: "tutorial",
             });
+
+            if (stats?.saveStatus === "failed") {
+                setTutorialSaveStatus("failed");
+            } else {
+                setTutorialSaveStatus("saved");
+            }
         } catch (e) {
             console.error("Failed to submit tutorial session", e);
+            setTutorialSaveStatus("failed");
         }
     }, [gameId, submitSession]);
 
     const handleReplay = useCallback(() => {
+        attemptSubmittedRef.current = false;
+        setSaveStatus("idle");
+        setSaveErrorMessage(null);
+        setTutorialSaveStatus("idle");
         // Update local high score if the game just played beat it
         if (result?.score && result.score > highScore) {
             setHighScore(result.score);
@@ -316,6 +303,10 @@ export default function GamePage({ params }: PageProps) {
     }, [result, highScore]);
 
     const handleRestartLevel = useCallback(() => {
+        attemptSubmittedRef.current = false;
+        setSaveStatus("idle");
+        setSaveErrorMessage(null);
+        setTutorialSaveStatus("idle");
         if (isEndless) {
             if (activeLevel !== 1) {
                 router.replace(`/play/${gameId}?level=1`);
@@ -336,11 +327,38 @@ export default function GamePage({ params }: PageProps) {
                 return;
             }
 
-            // Tutorial Completion is now handled by handleTutorialComplete
-            // But keeping this as safeguard if old logic persists
-            if (activeLevel === 0) {
+            // Synchronous guard against duplicate callback submissions for the same attempt
+            if (attemptSubmittedRef.current) {
+                return;
+            }
+            attemptSubmittedRef.current = true;
+
+            // Tutorial Completion handling:
+            // Check normalized tutorial identity while preserving endless runners like Run For Your Life
+            const isTutorialAttempt = isTutorialPayload(rawData) || (activeLevel === 0 && !isEndless);
+
+            if (isTutorialAttempt) {
                 setShowTutorialPopup(true);
-                await submitSession(gameId, rawData);
+                setTutorialSaveStatus("saving");
+                try {
+                    const normalizedPayload = {
+                        ...rawData,
+                        level: 0,
+                        current_played: 0,
+                        score: 0,
+                        isTutorial: true,
+                        mode: "tutorial",
+                    };
+                    const stats = await submitSession(gameId, normalizedPayload);
+                    if (stats?.saveStatus === "failed") {
+                        setTutorialSaveStatus("failed");
+                    } else {
+                        setTutorialSaveStatus("saved");
+                    }
+                } catch (e) {
+                    console.error("Failed to submit tutorial session", e);
+                    setTutorialSaveStatus("failed");
+                }
                 return;
             }
 
@@ -363,7 +381,7 @@ export default function GamePage({ params }: PageProps) {
 
             // Calculate Optimistic Stat Changes
             const optimisticStatChanges: any = {};
-            const clinicalStats: any = rawData; // rawData contains the stats from game
+            const clinicalStats: ClinicalStats = calculateGameClinicalStats(gameId, rawData);
 
             if (activeLevel > 0 && userProfileStats) {
                 const statToGlobal: any = {
@@ -375,30 +393,19 @@ export default function GamePage({ params }: PageProps) {
                     stat_emotion: "global_emotion",
                 };
 
-                // Check Replay Status (Simplified: if we have stars for this level, it's a replay)
-                // Or better: check if existing score > 0.
-                // We'll use a heuristic: if we have previous stars, it's a replay.
                 const isReplay = (gameStars?.[`level_${activeLevel}_stars`] !== undefined);
                 const learningRate = isReplay ? 0.05 : 0.1;
 
                 ["stat_memory", "stat_speed", "stat_visual", "stat_focus", "stat_planning", "stat_emotion"].forEach(key => {
-                    const gameResult = clinicalStats[key];
+                    const gameResult = clinicalStats[key as keyof ClinicalStats];
                     const dbKey = statToGlobal[key];
                     const currentVal = userProfileStats[dbKey];
 
                     if (gameResult !== null && gameResult !== undefined) {
                         if (currentVal === null || currentVal === undefined) {
-                            // First time -> Increase is full value (or treating 0->Value)
-                            // But usually we just show "Value"
-                            // For UI "Change", let's show it as full value gain if it was null
                             optimisticStatChanges[key] = gameResult;
                         } else {
                             const delta = gameResult - currentVal;
-                            const change = Math.max(0, Math.round(delta * learningRate)); // Ensure we don't show negative change for now? Or do we? Server logic allows negative but UI usually shows "^ Memory" if > 0.
-                            // Server logic: newVal = currentVal + change. 
-                            // statChanges returned from server is: newVal - currentVal = change.
-
-                            // Let's match server logic exactly for sign
                             const calculatedChange = Math.round(delta * learningRate);
                             optimisticStatChanges[key] = calculatedChange;
                         }
@@ -410,32 +417,49 @@ export default function GamePage({ params }: PageProps) {
                 success: true,
                 stars: rawData.stars,
                 score: rawData.score, // Capture Score
-                stat_memory: rawData.stat_memory, // Use actual game results for display if needed
-                stat_speed: rawData.stat_speed,
-                stat_focus: rawData.stat_focus,
-                stat_planning: rawData.stat_planning,
-                stat_emotion: rawData.stat_emotion,
+                stat_memory: clinicalStats.stat_memory, // Use actual game results for display
+                stat_speed: clinicalStats.stat_speed,
+                stat_visual: clinicalStats.stat_visual,
+                stat_focus: clinicalStats.stat_focus,
+                stat_planning: clinicalStats.stat_planning,
+                stat_emotion: clinicalStats.stat_emotion,
                 statChanges: optimisticStatChanges, // Inject Optimistic Changes
                 starHint: rawData.starHint, // Capture Hint
                 earnedCoins: optimisticCoins,
             });
 
-            // Save Level Progress (Implementation simplified)
-            // We should save this to DB here.
-
             // 2. Submit Game Stats (Async)
             // Start blocking UI
             setIsSaving(true);
+            setSaveStatus("saving");
+            setSaveErrorMessage(null);
 
             try {
                 const stats = await submitSession(gameId, rawData);
+
+                if (stats?.saveStatus === "failed") {
+                    setSaveStatus("failed");
+                    setSaveErrorMessage(stats.saveError || "บันทึกข้อมูลไม่สำเร็จ");
+                    // Do not present optimistic coins or stat changes as confirmed when saving failed
+                    setResult((prev: any) => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            earnedCoins: 0,
+                            statChanges: null,
+                        };
+                    });
+                    return;
+                }
+
+                setSaveStatus("saved");
 
                 // 3. Perform Daily Check-in (Handled by submitSession now)
                 // Optimistically increment daily count (clamped by UI logic anyway)
                 setDailyCount((prev) => prev + 1);
 
                 // Handle Server Response (stats already awaited above, but checkinResult needs processing)
-                if (stats.checkinResult) {
+                if (stats?.checkinResult) {
                     setStreakInfo(stats.checkinResult);
                     if (stats.checkinResult.new_checkin) {
                         sessionStorage.setItem(
@@ -446,45 +470,55 @@ export default function GamePage({ params }: PageProps) {
                 }
 
                 // Re-sync authoritative daily count
-                if (stats.dailyPlayedCount !== undefined) {
+                if (stats?.dailyPlayedCount !== undefined) {
                     setDailyCount(stats.dailyPlayedCount);
                 }
 
                 // 4. Update Popup with REAL stats (Merge in case of discrepancy, but keep UI fluid)
                 setResult((prev: any) => {
-                    if (!prev) return stats; // If for some reason result was cleared
+                    if (!prev) return stats;
                     return {
                         ...prev,
                         ...stats,
-                        // Preserve optimistic statChanges if server doesn't return them
-                        statChanges: stats.statChanges || prev.statChanges,
-                        // Preserve stat values from game result
-                        stat_planning: prev.stat_planning ?? stats.stat_planning,
-                        stat_memory: prev.stat_memory ?? stats.stat_memory,
-                        stat_speed: prev.stat_speed ?? stats.stat_speed,
-                        stat_focus: prev.stat_focus ?? stats.stat_focus,
-                        stat_emotion: prev.stat_emotion ?? stats.stat_emotion,
-                        // Prefer optimistic coins if server returns 0/undefined for some reason, or vice versa
-                        // But server is truth.
-                        earnedCoins: stats.earnedCoins !== undefined ? stats.earnedCoins : prev.earnedCoins
+                        statChanges: stats?.statChanges || prev.statChanges,
+                        stat_planning: prev.stat_planning ?? stats?.stat_planning,
+                        stat_memory: prev.stat_memory ?? stats?.stat_memory,
+                        stat_speed: prev.stat_speed ?? stats?.stat_speed,
+                        stat_visual: prev.stat_visual ?? stats?.stat_visual,
+                        stat_focus: prev.stat_focus ?? stats?.stat_focus,
+                        stat_emotion: prev.stat_emotion ?? stats?.stat_emotion,
+                        earnedCoins: stats?.earnedCoins !== undefined ? stats.earnedCoins : prev.earnedCoins
                     };
                 });
 
                 // 5. Trigger TopBar Refresh
-                // This event name 'balanceUpdate' is listened to by TopBar to refetch user stats (including stars)
                 window.dispatchEvent(new Event("balanceUpdate"));
 
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Save failed", err);
+                setSaveStatus("failed");
+                setSaveErrorMessage(err?.message || "บันทึกข้อมูลไม่สำเร็จ");
+                setResult((prev: any) => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        earnedCoins: 0,
+                        statChanges: null,
+                    };
+                });
             } finally {
                 // Stop blocking UI
                 setIsSaving(false);
             }
         },
-        [activeLevel, gameId, submitSession, dailyCount, gameStars, isEndless]
+        [activeLevel, gameId, submitSession, gameStars, isEndless, userProfileStats]
     );
 
     const handleNextLevel = () => {
+        attemptSubmittedRef.current = false;
+        setSaveStatus("idle");
+        setSaveErrorMessage(null);
+        setTutorialSaveStatus("idle");
         setResult(null); // Explicitly clear before push
 
         if (isEndless) {
@@ -495,15 +529,21 @@ export default function GamePage({ params }: PageProps) {
         } else if (activeLevel >= maxLevel) {
             router.push('/allgames');
         } else {
-            // Force reload by pushing new URL or just state update?
-            // Since GameCanvas uses 'key={activeLevel}', state update works.
-            // But we prefer URL for shareability.
-            router.push(`/play/${gameId}?level=${clampGameLevel(gameId, activeLevel + 1)}`);
+            // Synchronously update activeLevel to immediately remount GameCanvas with new level
+            const nextLvl = clampGameLevel(gameId, activeLevel + 1);
+            setActiveLevel(nextLvl);
+            router.push(`/play/${gameId}?level=${nextLvl}`);
         }
     };
 
     const handlePreviousLevel = () => {
-        router.push(`/play/${gameId}?level=${activeLevel - 1}`);
+        attemptSubmittedRef.current = false;
+        setSaveStatus("idle");
+        setSaveErrorMessage(null);
+        setTutorialSaveStatus("idle");
+        const prevLvl = Math.max(1, activeLevel - 1);
+        setActiveLevel(prevLvl);
+        router.push(`/play/${gameId}?level=${prevLvl}`);
     };
 
     // Calculate stats progress
@@ -584,6 +624,21 @@ export default function GamePage({ params }: PageProps) {
                             <p className="text-brown-primary font-bold text-lg mb-6">
                                 เราไปเริ่มเล่นเกมจริงกัน
                             </p>
+                            {tutorialSaveStatus === "saving" && (
+                                <div className="text-brown-primary/70 font-bold mb-3 text-sm animate-pulse">
+                                    กำลังบันทึกข้อมูลด่านฝึกสอน...
+                                </div>
+                            )}
+                            {tutorialSaveStatus === "saved" && (
+                                <div className="text-green-700 font-bold mb-3 text-sm">
+                                    บันทึกด่านฝึกสอนเรียบร้อย
+                                </div>
+                            )}
+                            {tutorialSaveStatus === "failed" && (
+                                <div className="text-red-600 font-bold mb-3 text-sm">
+                                    บันทึกด่านฝึกสอนไม่สำเร็จ
+                                </div>
+                            )}
                             <div className="flex gap-4 w-full justify-center">
                                 <button
                                     onClick={() => {
@@ -597,12 +652,16 @@ export default function GamePage({ params }: PageProps) {
                                 <button
                                     onClick={() => {
                                         setShowTutorialPopup(false);
+                                        attemptSubmittedRef.current = false;
+                                        setTutorialSaveStatus("idle");
                                         if (tutorialMode === "review") {
                                             // Manual review -> Go to saved resume level (or max level)
                                             setActiveLevel(resumeLevel);
+                                            router.replace(`/play/${gameId}?level=${resumeLevel}`);
                                         } else {
                                             // First time tutorial -> Go to Level 1
                                             setActiveLevel(1);
+                                            router.replace(`/play/${gameId}?level=1`);
                                         }
                                     }}
                                     className="flex-1 bg-[#58CC02] hover:bg-[#46A302] border-b-4 border-[#46A302] text-white rounded-2xl flex items-center justify-center text-xl font-bold shadow-lg active:border-b-0 active:translate-y-1 transition-all py-3"
@@ -683,15 +742,20 @@ export default function GamePage({ params }: PageProps) {
                                     <div className="bg-stats-bg w-full rounded-2xl p-4 mb-4 flex flex-col gap-2">
                                         <div className="flex flex-wrap justify-center gap-2">
                                             {/* Loading State */}
-                                            {((!isEndless && !result.statChanges) ||
+                                            {((!isEndless && !result.statChanges && saveStatus !== "failed") ||
                                                 (isEndless &&
                                                     result.stat_focus ===
-                                                    null)) && (
+                                                    null && saveStatus !== "failed")) && (
                                                     <div className="text-brown-primary animate-pulse font-bold text-sm">
                                                         กำลังคำนวณคะแนน...
                                                     </div>
                                                 )}
-                                            {result.earnedCoins > 0 && (
+                                            {saveStatus === "failed" && (
+                                                <div className="text-red-600 font-medium text-xs">
+                                                    บันทึกผลการเล่นไม่สำเร็จ ข้อมูลคะแนนและเหรียญยังไม่ได้รับการยืนยัน
+                                                </div>
+                                            )}
+                                            {result.earnedCoins > 0 && saveStatus !== "failed" && (
                                                 <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1">
                                                     <Coins className="w-5 h-5 text-yellow-600 fill-yellow-600/20" />
                                                     <span>
@@ -699,23 +763,26 @@ export default function GamePage({ params }: PageProps) {
                                                     </span>
                                                 </div>
                                             )}
-                                            {result.statChanges?.stat_speed > 0 && (
-                                                <div className="bg-chip-speed-bg text-chip-speed-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ ความเร็ว
-                                                </div>
-                                            )}
+                                            {saveStatus !== "failed" && SKILL_BADGES.map((badge) => {
+                                                const statVal = result[badge.key];
+                                                const statChange = result.statChanges?.[badge.key];
+                                                const hasMeasuredStat = statVal !== null && statVal !== undefined;
+                                                const isPositiveChange =
+                                                    saveStatus === "saved" &&
+                                                    typeof statChange === "number" &&
+                                                    statChange > 0;
 
-                                            {result.statChanges?.stat_focus > 0 && (
-                                                <div className="bg-chip-focus-bg text-chip-focus-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                    ^ สมาธิ
-                                                </div>
-                                            )}
-                                            {(result.statChanges?.stat_planning > 0 ||
-                                                (gameId === 'game-05-wormtrain' && result.stat_planning !== null)) && (
-                                                    <div className="bg-chip-planning-bg text-chip-planning-text px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-                                                        ^ การวางแผน
+                                                if (!isPositiveChange && !hasMeasuredStat) return null;
+
+                                                return (
+                                                    <div
+                                                        key={badge.key}
+                                                        className={`${badge.bgClass} ${badge.textClass} px-3 py-1 rounded-full text-sm font-bold shadow-sm`}
+                                                    >
+                                                        {isPositiveChange ? "^ " : ""}{badge.label}
                                                     </div>
-                                                )}
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
@@ -747,21 +814,35 @@ export default function GamePage({ params }: PageProps) {
                                         </div>
                                     </div>
 
-                                    {/* Buttons Row (Success) */}
-                                    {/* Buttons Row (Success) - Only show after stats loaded */}
+                                    {/* Buttons Row (Success) - Only show after stats loaded or save settled */}
                                     {((!isEndless &&
                                         (result.stat_speed !== null ||
                                             result.stat_focus !== null ||
                                             result.stat_planning !== null ||
+                                            result.stat_memory !== null ||
+                                            result.stat_visual !== null ||
+                                            result.stat_emotion !== null ||
                                             gameId === 'game-05-wormtrain' ||
                                             gameId === 'game-16-doorguardian' ||
-                                            gameId === 'game-17-floatingmarket')) ||
+                                            gameId === 'game-17-floatingmarket' ||
+                                            saveStatus === "failed" ||
+                                            saveStatus === "saved")) ||
                                         (isEndless &&
-                                            (result.stat_focus !== null || !isSaving))) && (
+                                            (result.stat_focus !== null || result.stat_speed !== null || !isSaving || saveStatus === "failed" || saveStatus === "saved"))) && (
                                             <div className="flex flex-col gap-3 w-full">
-                                                {isSaving && (
+                                                {saveStatus === "saving" && (
                                                     <div className="text-center text-brown-primary/60 font-bold mb-2 animate-pulse">
                                                         กำลังบันทึกข้อมูล...
+                                                    </div>
+                                                )}
+                                                {saveStatus === "saved" && (
+                                                    <div className="text-center text-green-700 font-bold mb-2 text-sm">
+                                                        บันทึกข้อมูลเรียบร้อย
+                                                    </div>
+                                                )}
+                                                {saveStatus === "failed" && (
+                                                    <div className="text-center text-red-600 font-bold mb-2 text-sm">
+                                                        บันทึกข้อมูลไม่สำเร็จ (ผลการเล่นอาจไม่ถูกบันทึก)
                                                     </div>
                                                 )}
 
