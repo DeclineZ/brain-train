@@ -4,6 +4,16 @@ import { getAuthMode } from "@/lib/server/vitalmind/config";
 
 export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
+    const isOaRoute = pathname === "/auth/line-bot" || pathname.startsWith("/auth/line-bot/");
+    if (isOaRoute) {
+        // The entry handler validates fresh OA context. Never refresh/redirect
+        // using an unrelated user's cookies before that validation completes.
+        const response = NextResponse.next({ request });
+        response.headers.set("Cache-Control", "no-store, private");
+        response.headers.set("Referrer-Policy", "no-referrer");
+        response.headers.set("X-Robots-Tag", "noindex, nofollow");
+        return response;
+    }
     const isVitalmindAuthRoute = pathname.startsWith("/auth/launch") || pathname.startsWith("/auth/required");
     const isLegacyAuthRoute =
         pathname.startsWith("/login") ||
