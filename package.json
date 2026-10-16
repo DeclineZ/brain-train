@@ -14,7 +14,8 @@
     "solve:pipe-patch": "node games/game-11-pipe-patch/scripts/solve-levels.cjs",
     "audit:pipe-patch": "node games/game-11-pipe-patch/scripts/audit-levels.cjs",
     "test": "echo 'No tests yet'",
-    "test:vitalmind": "node --test tests/vitalmind-*.test.cjs"
+    "test:vitalmind": "node --test tests/vitalmind-*.test.cjs",
+    "test:braintrian": "node --test tests/braintrian-*.test.cjs"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.1.1",

@@ -6,6 +6,10 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    // The parent directory has a lockfile but is not this app's root.
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       {
