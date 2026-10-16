@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 
 export default function TopBarWrapper({ children }: { children: ReactNode }) {
     const pathname = usePathname();
-    const hiddenPaths = ["/login", "/signup", "/onboarding", "/stats", "/play"];
+    const hiddenPaths = ["/login", "/signup", "/onboarding", "/stats", "/play", "/auth/line-bot"];
 
     // Hide if path starts with any of hidden paths (to handle sub-routes like /onboarding/step1)
     const shouldHide = hiddenPaths.some((path) => pathname.startsWith(path));
