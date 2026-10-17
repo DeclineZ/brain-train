@@ -15,7 +15,9 @@
     "audit:pipe-patch": "node games/game-11-pipe-patch/scripts/audit-levels.cjs",
     "test": "echo 'No tests yet'",
     "test:vitalmind": "node --test tests/vitalmind-*.test.cjs",
-    "test:braintrian": "node --test tests/braintrian-*.test.cjs"
+    "test:braintrian": "node --test tests/braintrian-*.test.cjs",
+    "analytics:snapshot": "node analytics/snapshot.mjs",
+    "analytics:export": "node analytics/export-oa.mjs"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.1.1",

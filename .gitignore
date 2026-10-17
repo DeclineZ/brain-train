@@ -36,4 +36,5 @@ ts-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/docs
+# Generated analytics dashboard (contains live aggregate numbers)
+analytics/out/

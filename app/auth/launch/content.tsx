@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { flush, track } from "@/lib/analytics/track";
 
 type LaunchResult = {
   session?: { access_token?: string; refresh_token?: string };
@@ -95,10 +96,13 @@ function VitalmindLaunchInner() {
         });
         if (sessionError) throw sessionError;
 
+        track("login_succeeded", { method: "vitalmind" });
+        await flush();
         router.replace(data.onboardingComplete ? "/" : "/onboarding");
         router.refresh();
       } catch (cause) {
         console.error("[VitalMind launch] Authentication failed", cause);
+        track("login_failed", { method: "vitalmind", error_category: "launch" });
         setError(
           cause instanceof Error
             ? cause.message

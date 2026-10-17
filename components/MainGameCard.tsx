@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LevelBadge from "./LevelBadge";
 import { useRef } from "react";
+import { track } from "@/lib/analytics/track";
 
 interface MainGameCardProps {
   gameName: string;
@@ -23,6 +24,7 @@ export default function MainGameCard({ gameName, image, index, durationMin, game
   const router = useRouter();
 
   const handleCardClick = () => {
+    track("game_selected", { source: "daily_mission", mission_completed: !!isCompleted }, { gameId });
     router.push(`/play/${gameId}`);
   };
 

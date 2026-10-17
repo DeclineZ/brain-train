@@ -2,12 +2,13 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { m } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
 import LineLoginButton from "@/components/Login/LineLoginButton";
+import { markPendingLogin, track, trackStep } from "@/lib/analytics/track";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -18,6 +19,10 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    useEffect(() => {
+        trackStep("signup");
+    }, []);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,6 +43,7 @@ export default function SignupPage() {
 
             if (error) throw error;
             if (!error) {
+                track("signup_succeeded", { method: "email" });
                 setSuccess(true);
             }
         } catch (err: any) {
@@ -49,6 +55,8 @@ export default function SignupPage() {
 
     const handleOAuth = async (provider: "google" | "facebook") => {
         setLoading(true);
+        track("login_method_selected", { method: provider });
+        markPendingLogin(provider);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider,

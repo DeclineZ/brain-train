@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useRef, useCallback } from "react";
+import { use, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useGameSession } from "@/hooks/useGameSession";
 import { calculateCoinReward } from "@/lib/coinCalculation";
@@ -8,6 +8,8 @@ import { clampGameLevel, getGameMaxLevel, isEndlessGame } from "@/lib/gameLevels
 import { getLatestCompletedSession, resolveGameProgression, isTutorialPayload, normalizeLevelPlayed } from "@/lib/sessionProgression";
 import { calculateGameClinicalStats } from "@/lib/clinicalStats";
 import type { ClinicalStats } from "@/types";
+import { GameAttempt } from "@/lib/analytics/attempt";
+import { track, trackStep } from "@/lib/analytics/track";
 
 const GameCanvas = dynamic(() => import("@/components/game/GameCanvas"), {
     ssr: false,
@@ -73,6 +75,7 @@ export default function GamePage({ params }: PageProps) {
     }, []);
 
     const toggleMute = () => {
+        track("mute_toggled", { muted: !isMuted }, attemptRef.current?.ctx());
         setIsMuted(prev => {
             const newValue = !prev;
             localStorage.setItem("game_global_mute", String(newValue));
@@ -99,6 +102,7 @@ export default function GamePage({ params }: PageProps) {
     const fromSource = searchParams.get("from");
 
     const handleHomeClick = () => {
+        attemptRef.current?.end("exited", "user_exit", { via: "home_button" });
         if (fromSource === 'levels') {
             router.push(`/levels/${gameId}`);
         } else {
@@ -120,6 +124,35 @@ export default function GamePage({ params }: PageProps) {
     const [activeLevel, setActiveLevel] = useState<number>(1);
     const [resumeLevel, setResumeLevel] = useState<number>(1);
     const [highScore, setHighScore] = useState<number>(0);
+
+    // Analytics: one attempt per GameCanvas mount (same key as the canvas below).
+    const attempt = useMemo(
+        () => new GameAttempt(gameId, activeLevel, activeLevel === 0 ? "tutorial" : "normal"),
+        // retryCount forces a new attempt on replay, matching the canvas remount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [gameId, activeLevel, retryCount]
+    );
+    const attemptRef = useRef(attempt);
+
+    useEffect(() => {
+        track("game_page_viewed", { from: fromSource, tutorial_mode: tutorialMode }, { gameId });
+        // Once per page visit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameId]);
+
+    useEffect(() => {
+        attemptRef.current = attempt;
+        if (isLoadingLevel) return;
+        if (attempt.mode === "tutorial") {
+            trackStep("tutorial", { phase: "instruction", tutorial_mode: tutorialMode }, attempt.ctx());
+        } else {
+            trackStep("game_play", { phase: "actual" }, attempt.ctx());
+        }
+        // Leaving mid-level through in-app navigation (back button, links).
+        // Closing the tab records no end (PRD AC-19).
+        return () => attempt.end("exited", "user_exit", { via: "navigation" });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [attempt, isLoadingLevel]);
 
     // 1. Fetch persistent level on mount
     useEffect(() => {
@@ -245,6 +278,7 @@ export default function GamePage({ params }: PageProps) {
      */
 
     const handleTimeout = useCallback((data: { level: number }) => {
+        track("timeout_popup_shown", {}, attemptRef.current.ctx());
         setIsTimeout(true);
     }, []);
 
@@ -262,12 +296,14 @@ export default function GamePage({ params }: PageProps) {
             return;
         }
         attemptSubmittedRef.current = true;
+        track("tutorial_completed", { tutorial_mode: tutorialMode }, attemptRef.current.ctx());
 
         setShowTutorialPopup(true);
         setTutorialSaveStatus("saving");
 
         try {
             const stats = await submitSession(gameId, {
+                attempt_id: attemptRef.current.id,
                 level: 0,
                 current_played: 0,
                 score: 0,
@@ -278,15 +314,17 @@ export default function GamePage({ params }: PageProps) {
             });
 
             if (stats?.saveStatus === "failed") {
+                track("error_occurred", { error_code: "result_save_failed" }, attemptRef.current.ctx());
                 setTutorialSaveStatus("failed");
             } else {
                 setTutorialSaveStatus("saved");
             }
         } catch (e) {
             console.error("Failed to submit tutorial session", e);
+            track("error_occurred", { error_code: "result_save_failed" }, attemptRef.current.ctx());
             setTutorialSaveStatus("failed");
         }
-    }, [gameId, submitSession]);
+    }, [gameId, submitSession, tutorialMode]);
 
     const handleReplay = useCallback(() => {
         attemptSubmittedRef.current = false;
@@ -303,6 +341,7 @@ export default function GamePage({ params }: PageProps) {
     }, [result, highScore]);
 
     const handleRestartLevel = useCallback(() => {
+        track("replay_clicked", {}, attemptRef.current.ctx());
         attemptSubmittedRef.current = false;
         setSaveStatus("idle");
         setSaveErrorMessage(null);
@@ -318,11 +357,18 @@ export default function GamePage({ params }: PageProps) {
     }, [handleReplay, isEndless, activeLevel, gameId, router]);
 
     const handleGameOver = useCallback(
-        async (rawData: any) => {
+        async (gameRawData: any) => {
+            const currentAttempt = attemptRef.current;
+            // attempt_id joins game_sessions to analytics_events. In-game telemetry may already set it.
+            const rawData = { ...gameRawData, attempt_id: gameRawData?.attempt_id ?? currentAttempt.id };
+            const resultProps = { score: rawData.score ?? null, stars: rawData.stars ?? null, success: rawData.success ?? null };
+
             // 0. Handle Failure Case (but now "Timeout" handles the soft fail)
             // If we get here with success=false, it means a HARD fail or restart
             if (rawData.success === false && !isEndless) {
                 // Typically shouldn't happen with timeout logic unless forced
+                currentAttempt.end("failed", "failed", resultProps);
+                track("result_viewed", resultProps, { ...currentAttempt.ctx(), stepId: "results" });
                 setResult({ success: false });
                 return;
             }
@@ -338,6 +384,7 @@ export default function GamePage({ params }: PageProps) {
             const isTutorialAttempt = isTutorialPayload(rawData) || (activeLevel === 0 && !isEndless);
 
             if (isTutorialAttempt) {
+                track("tutorial_completed", { tutorial_mode: tutorialMode }, currentAttempt.ctx());
                 setShowTutorialPopup(true);
                 setTutorialSaveStatus("saving");
                 try {
@@ -351,15 +398,24 @@ export default function GamePage({ params }: PageProps) {
                     };
                     const stats = await submitSession(gameId, normalizedPayload);
                     if (stats?.saveStatus === "failed") {
+                        track("error_occurred", { error_code: "result_save_failed" }, currentAttempt.ctx());
                         setTutorialSaveStatus("failed");
                     } else {
                         setTutorialSaveStatus("saved");
                     }
                 } catch (e) {
                     console.error("Failed to submit tutorial session", e);
+                    track("error_occurred", { error_code: "result_save_failed" }, currentAttempt.ctx());
                     setTutorialSaveStatus("failed");
                 }
                 return;
+            }
+
+            // Endless games end on game over by design; level games pass with at least one star.
+            if (isEndless) {
+                currentAttempt.end("completed", "completed", resultProps);
+            } else {
+                currentAttempt.end("completed", Number(rawData.stars) > 0 ? "passed" : "completed", resultProps);
             }
 
             // Calculate Earned Coins Optimistically using shared function
@@ -427,6 +483,7 @@ export default function GamePage({ params }: PageProps) {
                 starHint: rawData.starHint, // Capture Hint
                 earnedCoins: optimisticCoins,
             });
+            track("result_viewed", resultProps, { ...currentAttempt.ctx(), stepId: "results" });
 
             // 2. Submit Game Stats (Async)
             // Start blocking UI
@@ -438,6 +495,7 @@ export default function GamePage({ params }: PageProps) {
                 const stats = await submitSession(gameId, rawData);
 
                 if (stats?.saveStatus === "failed") {
+                    track("error_occurred", { error_code: "result_save_failed" }, currentAttempt.ctx());
                     setSaveStatus("failed");
                     setSaveErrorMessage(stats.saveError || "บันทึกข้อมูลไม่สำเร็จ");
                     // Do not present optimistic coins or stat changes as confirmed when saving failed
@@ -496,6 +554,7 @@ export default function GamePage({ params }: PageProps) {
 
             } catch (err: any) {
                 console.error("Save failed", err);
+                track("error_occurred", { error_code: "result_save_failed" }, currentAttempt.ctx());
                 setSaveStatus("failed");
                 setSaveErrorMessage(err?.message || "บันทึกข้อมูลไม่สำเร็จ");
                 setResult((prev: any) => {
@@ -511,10 +570,11 @@ export default function GamePage({ params }: PageProps) {
                 setIsSaving(false);
             }
         },
-        [activeLevel, gameId, submitSession, gameStars, isEndless, userProfileStats]
+        [activeLevel, gameId, submitSession, gameStars, isEndless, userProfileStats, tutorialMode]
     );
 
     const handleNextLevel = () => {
+        track("next_level_clicked", {}, attemptRef.current.ctx());
         attemptSubmittedRef.current = false;
         setSaveStatus("idle");
         setSaveErrorMessage(null);
@@ -537,6 +597,7 @@ export default function GamePage({ params }: PageProps) {
     };
 
     const handlePreviousLevel = () => {
+        track("previous_level_clicked", {}, attemptRef.current.ctx());
         attemptSubmittedRef.current = false;
         setSaveStatus("idle");
         setSaveErrorMessage(null);
@@ -597,6 +658,7 @@ export default function GamePage({ params }: PageProps) {
                 level={activeLevel}
                 stars={gameStars}
                 isMuted={isMuted}
+                attempt={attempt}
             />
 
             {/* TIMEOUT POPUP */}

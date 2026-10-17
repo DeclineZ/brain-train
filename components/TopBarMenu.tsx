@@ -5,6 +5,7 @@ import { Settings, LogOut, MoreHorizontal } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeProvider";
+import { flush, track } from "@/lib/analytics/track";
 
 interface TopBarMenuProps {
     variant?: "default" | "dark";
@@ -34,6 +35,8 @@ export default function TopBarMenu({ variant = "default" }: TopBarMenuProps) {
 
     const handleLogout = async () => {
         try {
+            track("logged_out");
+            await flush();
             await supabase.auth.signOut();
             setTheme("default"); // Reset theme to default on logout
             router.push("/login");

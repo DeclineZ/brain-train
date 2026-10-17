@@ -5,6 +5,7 @@ import LevelSelectionClient from '@/components/LevelSelectionClient';
 import BottomNav from '@/components/BottomNav';
 import { Home, Play, Trophy, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import TrackStep from '@/lib/analytics/TrackStep';
 
 interface PageProps {
   params: Promise<{ gameId: string }>;
@@ -13,6 +14,7 @@ interface PageProps {
 function NoLevelsUI({ game }: { game: any }) {
   return (
     <div className="h-auto bg-cream flex flex-col justify-between min-h-screen">
+      <TrackStep stepId="level_selection" gameId={game?.gameId} props={{ endless: true }} />
       {/* Header (15%) */}
       <header className="h-[15vh] flex items-center justify-center px-4 relative">
         {/* Back Button - Top Left */}

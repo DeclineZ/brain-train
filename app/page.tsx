@@ -15,6 +15,8 @@ import WeaknessNotification from "@/components/WeaknessNotification";
 import { Trophy, Grid3X3 } from "lucide-react";
 
 import { getHomeRecommendationMessage } from "@/lib/recommendations";
+import TrackStep from "@/lib/analytics/TrackStep";
+import TrackedLink from "@/lib/analytics/TrackedLink";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -67,6 +69,7 @@ export default async function Home() {
   return (
     <div className="bg-cream overflow-hidden">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6">
+        <TrackStep stepId="home" props={{ missions_completed: completedCount }} />
         <QuestNotificationManager />
         <WeaknessNotification message={shortRecommendation} />
         {/* TopCard */}
@@ -90,13 +93,16 @@ export default async function Home() {
                   </Link>
                 </div>
               ) : (
-                <Link
+                <TrackedLink
+                  event="game_selected"
+                  gameId={currentMission?.game_id}
+                  eventProps={{ source: "mission_start" }}
                   href={currentMission ? `/play/${currentMission.game_id}` : "#"}
                   className="inline-flex items-center gap-2 bg-orange-action hover:bg-orange-hover-2 text-white px-5 py-2 rounded-xl text-sm md:text-base font-bold shadow-sm hover:shadow-md active:translate-y-0.5 transition-all"
                 >
                   <span>เริ่มภารกิจ</span>
                   <span className="text-xs">→</span>
-                </Link>
+                </TrackedLink>
               )
             }
           >

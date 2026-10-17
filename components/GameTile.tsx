@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { Game } from "@/types/game";
 import LevelBadge from "./LevelBadge";
 import { useState, useEffect, useRef } from "react";
+import { track } from "@/lib/analytics/track";
 
 interface GameTileProps {
   game: Game;
@@ -88,14 +89,17 @@ export default function GameTile({ game, totalStars }: GameTileProps) {
   };
 
   const handlePlayNow = () => {
+    track("game_selected", { source: "catalog", action: "play_now" }, { gameId: game.gameId });
     router.push(`/play/${game.gameId}`);
   };
 
   const handleSelectLevel = () => {
+    track("game_selected", { source: "catalog", action: "select_level" }, { gameId: game.gameId });
     router.push(`/levels/${game.gameId}`);
   };
 
   const handleTutorial = () => {
+    track("game_selected", { source: "catalog", action: "tutorial" }, { gameId: game.gameId });
     router.push(`/play/${game.gameId}?level=0`);
   };
 
