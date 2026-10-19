@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Loader2 } from 'lucide-react'
+import { flush, takePendingLogin, track } from '@/lib/analytics/track'
 
 function LineCallbackInner() {
     const router = useRouter()
@@ -17,6 +18,8 @@ function LineCallbackInner() {
             const errorParam = searchParams.get('error')
 
             if (errorParam) {
+                takePendingLogin()
+                track('login_failed', { method: 'line', error_category: 'cancelled' })
                 setError('LINE Login failed or was cancelled.')
                 return
             }
@@ -50,6 +53,9 @@ function LineCallbackInner() {
 
                     if (sessionError) throw sessionError
 
+                    takePendingLogin()
+                    track('login_succeeded', { method: 'line' })
+                    await flush()
                     router.push('/')
                     router.refresh()
                 } else {
@@ -58,6 +64,8 @@ function LineCallbackInner() {
 
             } catch (err: any) {
                 console.error('Login Error:', err)
+                takePendingLogin()
+                track('login_failed', { method: 'line', error_category: 'server' })
                 setError(err.message || 'An unexpected error occurred.')
             }
         }

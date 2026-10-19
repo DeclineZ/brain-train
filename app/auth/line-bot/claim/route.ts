@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { attachLaunch, setJourneyCookie } from "@/lib/server/analytics/journey";
 import {
   getBraintrianConfig,
   isOaEnabled,
@@ -137,9 +138,24 @@ export async function POST(request: NextRequest) {
       .eq("participant_id", mapping.participant_id)
       .in("status", ["redeemed", "attached"])
       .gt("expires_at", new Date().toISOString())
-      .select("id")
+      .select("id, launch_id")
       .single();
     if (attachError || !attached) return failure("unavailable", 503, true);
+    // Analytics must never block entry; a missing journey is recreated on the
+    // first event batch, without the launch association.
+    let journeyId: string | null = null;
+    if (typeof attached.launch_id === "string" && UUID_PATTERN.test(attached.launch_id)) {
+      try {
+        const journey = await attachLaunch(admin, {
+          userId: data.user.id,
+          participantId: mapping.participant_id,
+          launchId: attached.launch_id,
+        });
+        journeyId = journey.journeyId;
+      } catch {
+        console.error("[Braintrian claim] Journey attachment failed");
+      }
+    }
     const response = NextResponse.json(
       {
         next:
@@ -151,6 +167,7 @@ export async function POST(request: NextRequest) {
     );
     for (const cookie of staged)
       response.cookies.set(cookie.name, cookie.value, cookie.options);
+    if (journeyId) setJourneyCookie(response, journeyId);
     return response;
   } catch {
     console.error("[Braintrian claim] Session attachment unavailable");

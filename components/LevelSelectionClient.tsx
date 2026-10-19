@@ -7,6 +7,7 @@ import type { Game } from '@/types/game';
 import StarIcon from '@/components/game/StarIcon';
 import { Lock, ChevronLeft, ChevronRight, Home, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { track, trackStep } from '@/lib/analytics/track';
 
 interface LevelSelectionClientProps {
   gameId: string;
@@ -18,6 +19,11 @@ interface LevelSelectionClientProps {
 export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBefore = false }: LevelSelectionClientProps) {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(0);
+
+  useEffect(() => {
+    trackStep('level_selection', { levels_unlocked: levels.filter((l) => l.unlocked).length }, { gameId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId]);
 
   // Dynamic levels per page based on viewport - no fixed constraint
   const [levelsPerPage, setLevelsPerPage] = useState(12);
@@ -50,6 +56,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
   };
 
   const handleLevelClick = (level: GameLevel) => {
+    track('level_chosen', { unlocked: level.unlocked, first_time_tutorial: level.level === 1 && hasPlayedBefore === false }, { gameId, level: level.level });
     if (level.unlocked) {
       // If clicking level 1 and hasn't played before, go to tutorial (level 0)
       if (level.level === 1 && hasPlayedBefore === false) {
@@ -193,6 +200,7 @@ export default function LevelSelectionClient({ gameId, levels, game, hasPlayedBe
       <div className="fixed bottom-25 right-4 z-50 flex flex-col items-center gap-1 group">
         <Link
           href={`/play/${gameId}?level=0&tutorial_mode=review&from=levels`}
+          onClick={() => track('tutorial_review_clicked', {}, { gameId })}
           className="bg-white hover:bg-gray-50 text-brown-primary border-4 border-brown-primary rounded-full w-14 h-14 flex items-center justify-center shadow-xl transition-transform hover:scale-110 active:scale-95"
         >
           <span className="text-2xl font-bold">?</span>

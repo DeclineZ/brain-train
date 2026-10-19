@@ -2,12 +2,13 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { m } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
+import { flush, track, trackStep } from "@/lib/analytics/track";
 
 const AVATAR_OPTIONS = [
     { id: 'avatar-1', src: '/avatars/avatar-1.webp', label: 'หมาป่า ยอดนักไหวพริบ' },
@@ -20,6 +21,10 @@ export default function OnboardingPage() {
     const supabase = createClient();
     const [avatar, setAvatar] = useState("avatar-1");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        trackStep("onboarding_avatar");
+    }, []);
 
     const handleFinish = async () => {
         if (!avatar) {
@@ -42,6 +47,7 @@ export default function OnboardingPage() {
             const result = await response.json();
 
             if (!result.ok) {
+                track("error_occurred", { error_code: "avatar_save_failed" }, { stepId: "onboarding_avatar" });
                 alert(result.error || 'ไม่สามารถเลือกอวาตาร์ได้');
                 return;
             }
@@ -52,6 +58,10 @@ export default function OnboardingPage() {
             });
 
             if (metaError) throw metaError;
+
+            track("avatar_selected", { avatar_id: avatar });
+            trackStep("onboarding_completed");
+            await flush();
 
             // 2. Redirect to dashboard
             router.refresh();

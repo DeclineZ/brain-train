@@ -1,0 +1,414 @@
+<title>BrainTrain Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a coverage strip summarises the player journey, then live numbers, inventory, gaps and the build estimate. */
+:root {
+  --bg: #fffdf6;
+  --surface: #ffffff;
+  --sunk: #f7f1e3;
+  --ink: #3e2723;
+  --muted: #6f6158;
+  --line: #e7dec6;
+  --accent: #e84c1c;
+  --data: #2a78d6;
+  --data-soft: #cde2fb;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --bad: #d03b3b;
+  --font-display: "Prompt", "Sarabun", system-ui, sans-serif;
+  --font-body: "Sarabun", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1613; --surface: #251e1a; --sunk: #2d2520; --ink: #f6eee6; --muted: #bba99b;
+    --line: #3b312b; --accent: #ff6b3d; --data: #3987e5; --data-soft: #1f3550; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1613; --surface: #251e1a; --sunk: #2d2520; --ink: #f6eee6; --muted: #bba99b;
+  --line: #3b312b; --accent: #ff6b3d; --data: #3987e5; --data-soft: #1f3550; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; }
+.wrap { max-width: 72rem; margin: 0 auto; padding-inline: 1.25rem; padding-block: 0 4rem; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.5rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; }
+.lede { max-width: 65ch; color: var(--muted); font-size: 1.08rem; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: 0.85em; }
+code { background: var(--sunk); border-radius: 4px; padding: 0.05em 0.35em; overflow-wrap: anywhere; }
+.num { font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+.nav .wrap { padding-block: 0; display: flex; gap: 1.25rem; align-items: center; overflow-x: auto; scrollbar-width: none; }
+.nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; padding: 0.8rem 0; white-space: nowrap; border-bottom: 2px solid transparent; }
+.nav a:hover { color: var(--ink); border-color: var(--accent); }
+.logo { height: 2rem; width: auto; flex: none; }
+.brand { font-family: var(--font-display); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.brand b { color: var(--accent); }
+
+header.hero { padding-block: 2.75rem 1.5rem; display: grid; gap: 1rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: 0.9rem; color: var(--muted); }
+.meta strong { color: var(--ink); font-weight: 600; }
+
+section { padding-block: 2.5rem 0.5rem; scroll-margin-top: 3.5rem; display: grid; gap: 1.25rem; }
+.section-head { display: grid; gap: 0.4rem; }
+.section-head p { max-width: 65ch; color: var(--muted); }
+
+/* status marks */
+.status { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.status svg { width: 0.85rem; height: 0.85rem; flex: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; }
+
+/* journey strip */
+.journey { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: 0.6rem; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 0.85rem; display: grid; gap: 0.3rem; align-content: start; }
+.stage .step { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+.stage h3 { font-size: 0.98rem; }
+.stage p { font-size: 0.85rem; color: var(--muted); }
+.tally { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: baseline; }
+.tally .big { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.75rem; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9rem 1rem; display: grid; gap: 0.15rem; }
+.kpi .v { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi .l { font-size: 0.85rem; color: var(--muted); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; display: grid; gap: 0.75rem; min-width: 0; align-content: start; }
+.panel .sub { font-size: 0.85rem; color: var(--muted); }
+.panel-head { display: flex; justify-content: space-between; align-items: start; gap: 0.75rem; flex-wrap: wrap; }
+
+/* horizontal bars */
+.hbars { display: grid; gap: 0.45rem; }
+.hbar { display: grid; grid-template-columns: minmax(7rem, 38%) 1fr auto; gap: 0.6rem; align-items: center; font-size: 0.88rem; }
+.hbar .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar .track { height: 0.9rem; position: relative; }
+.hbar .fill { position: absolute; inset: 0 auto 0 0; background: var(--data); border-radius: 0 4px 4px 0; min-width: 2px; }
+.hbar .val { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.82rem; min-width: 4.5rem; text-align: right; }
+.hbar:hover .fill { filter: brightness(1.12); }
+
+.chart { width: 100%; min-height: 12rem; position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--muted); font-family: var(--font-mono); font-size: 10.5px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 0.82rem; background: transparent; color: var(--muted); border: 0; padding: 0.35rem 0.75rem; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--sunk); color: var(--ink); font-weight: 600; }
+
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); font-size: 0.8rem; padding: 0.35rem 0.55rem; border-radius: 6px; font-variant-numeric: tabular-nums; max-width: 16rem; }
+
+/* tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--sunk); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .muted, .muted { color: var(--muted); }
+.cellbar { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+.cellbar i { display: block; height: 0.5rem; background: var(--data); border-radius: 0 3px 3px 0; }
+
+/* inventory */
+.area { display: grid; gap: 0.6rem; }
+.area h3 { display: flex; gap: 0.5rem; align-items: baseline; }
+.area h3 .eyebrow { font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.chip { font-family: var(--font-mono); font-size: 0.72rem; background: var(--sunk); border-radius: 4px; padding: 0.1rem 0.4rem; color: var(--ink); }
+
+/* game telemetry grid */
+.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 0.6rem; }
+.game { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.8rem 0.9rem; display: grid; gap: 0.45rem; align-content: start; }
+.game-top { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+.game-top h3 { font-size: 0.95rem; }
+.depth { font-size: 0.72rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 999px; white-space: nowrap; border: 1px solid var(--line); }
+.depth[data-d="3"] { background: var(--data); color: #fff; border-color: var(--data); }
+.depth[data-d="2"] { background: var(--data-soft); color: var(--ink); border-color: transparent; }
+.depth[data-d="1"] { color: var(--muted); }
+
+/* findings */
+.findings { display: grid; gap: 0.6rem; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9rem 1rem; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; }
+.finding .status { grid-row: span 2; align-self: start; padding-top: 0.15rem; }
+.finding p { color: var(--muted); max-width: 70ch; }
+
+/* estimate */
+.range { position: relative; height: 0.7rem; min-width: 8rem; background: var(--sunk); border-radius: 3px; }
+.range i { position: absolute; top: 0; bottom: 0; background: var(--data); border-radius: 3px; }
+.range b { position: absolute; top: 0; bottom: 0; background: var(--data-soft); border-radius: 3px; }
+.phase-tag { font-family: var(--font-mono); font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: var(--sunk); white-space: nowrap; }
+tr.phase td { background: var(--sunk); font-weight: 600; }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.75rem; }
+
+#live-body { display: grid; gap: 1rem; min-width: 0; }
+.empty { border: 1px dashed var(--line); border-radius: var(--radius); padding: 1.25rem; display: grid; gap: 0.6rem; background: var(--surface); }
+.empty pre { margin: 0; background: var(--sunk); border-radius: 6px; padding: 0.6rem 0.8rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.85rem; }
+.btn { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--ink); background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 0.45rem 0.9rem; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.sample-banner { border: 2px dashed var(--warn); border-radius: var(--radius); padding: 0.6rem 0.9rem; font-size: 0.9rem; background: var(--surface); }
+.note { font-size: 0.85rem; color: var(--muted); max-width: 70ch; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.82rem; color: var(--muted); }
+
+@media (max-width: 34rem) {
+  .hbar { grid-template-columns: minmax(5.5rem, 40%) 1fr auto; }
+  .finding { grid-template-columns: 1fr; }
+  .finding .status { grid-row: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="s-good" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="var(--good)"/><path d="M4.6 8.2l2.2 2.2 4.6-4.8" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="s-part" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--warn)" stroke-width="1.6"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="var(--warn)"/></symbol>
+  <symbol id="s-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--bad)" stroke-width="1.6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="var(--bad)" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <img class="logo" src="logo.webp" alt="BrainTrain">
+    <a href="#coverage">Coverage</a>
+    <a href="#tracked">What we track</a>
+    <a href="#games">In-game data</a>
+    <a href="#findings">Highlights</a>
+    <a href="#gaps">Gaps</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Product analytics review · October 2026</span>
+    <h1>BrainTrain Analytics</h1>
+    <p class="lede">What we record about how players use BrainTrain today, what that data already tells us, and what it would take to follow a player from the login screen to every tap inside a game.</p>
+  </header>
+
+  <!-- COVERAGE -->
+  <section id="coverage">
+    <div class="section-head">
+      <span class="eyebrow">Summary</span>
+      <h2>Coverage across the player journey</h2>
+      <p>Gameplay, progression, cognitive scores and the reward loops are recorded in detail today. The next phase adds behavioural events around them: how players log in, which screens they visit, which buttons they press and when they leave a level.</p>
+    </div>
+    <div class="tally" id="tally"></div>
+    <div class="legend">
+      <span class="status"><svg><use href="#s-good"/></svg>Tracked</span>
+      <span class="status"><svg><use href="#s-part"/></svg>Partial</span>
+      <span class="status"><svg><use href="#s-none"/></svg>Next phase</span>
+    </div>
+    <div class="journey" id="journey"></div>
+  </section>
+
+  <!-- TRACKED -->
+  <section id="tracked">
+    <div class="section-head">
+      <span class="eyebrow">Inventory</span>
+      <h2>What we track today</h2>
+      <p>Tracking today lives in our own Supabase database: 15 tables, the Supabase auth log and 5 database functions. Keeping it in-house keeps player and patient data under our control.</p>
+    </div>
+    <div class="grid2" id="inventory"></div>
+  </section>
+
+  <!-- GAME TELEMETRY -->
+  <section id="games">
+    <div class="section-head">
+      <span class="eyebrow">Inside the games</span>
+      <h2>What each game records when a level ends</h2>
+      <p>Every finished level saves one row to <code>game_sessions</code> with a <code>raw_data</code> payload. The payload is different for each of the 21 games. Most store totals for the whole level; three store a timeline of individual actions.</p>
+    </div>
+    <div class="legend">
+      <span class="depth" data-d="3">Action timeline</span><span class="muted" style="font-size:.85rem">timestamps per move or reaction</span>
+      <span class="depth" data-d="2">Detailed counts</span><span class="muted" style="font-size:.85rem">errors, streaks, reaction averages</span>
+      <span class="depth" data-d="1">Score only</span><span class="muted" style="font-size:.85rem">score, stars and pre-computed domain scores</span>
+    </div>
+    <div class="games" id="game-grid"></div>
+  </section>
+
+  <!-- FINDINGS -->
+  <section id="findings">
+    <div class="section-head">
+      <span class="eyebrow">Insights</span>
+      <h2>Highlights</h2>
+      <p>What the code and schema tell us about our data.</p>
+    </div>
+    <div class="findings" id="findings-list"></div>
+  </section>
+
+  <!-- GAPS -->
+  <section id="gaps">
+    <div class="section-head">
+      <span class="eyebrow">Roadmap</span>
+      <h2>What we are adding next</h2>
+      <p>Each row is a part of the journey, the product question it will answer, and the events we are adding. Event names follow one pattern: <code>object_action</code> with a timestamp, session id and device info on every event.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Area</th><th>Today</th><th>Question it will answer</th><th>Events to add</th></tr></thead>
+        <tbody id="gap-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const icon = { good: "s-good", part: "s-part", none: "s-none" };
+  const label = { good: "Tracked", part: "Partial", none: "Next phase" };
+  const status = (k, text) => `<span class="status"><svg aria-hidden="true"><use href="#${icon[k]}"/></svg>${esc(text ?? label[k])}</span>`;
+  const fmt = (n) => (n == null ? "–" : Number(n).toLocaleString("en-US"));
+  const pct = (n, d = 0) => (n == null || !isFinite(n) ? "–" : (n * 100).toFixed(d) + "%");
+
+  /* ---------- journey ---------- */
+  const journey = [
+    ["Sign-in & sign-up", "part", "Account creation time, last sign-in time and provider. Six entry points (email, Google, Facebook, LINE, guest, VitalMind launch). Next: attempts and failures per method."],
+    ["Onboarding", "part", "Final avatar choice and the free-avatar flag. Next: step timing and drop-off."],
+    ["Home & navigation", "none", "Next: page views and clicks on game tiles, search, bottom nav and recommendation cards."],
+    ["Starting a level", "none", "Next: a level-start event, so abandoned levels can be counted."],
+    ["Inside a level", "part", "End-of-level results for all 21 games, with full action timelines in 3. Next: tap timing in every game."],
+    ["Timeouts, quits, restarts", "part", "A 'continued after timeout' flag in several games. Next: quit and restart events."],
+    ["Results & progression", "good", "Every finished level: score, stars, duration, six domain scores, replay detection."],
+    ["Tutorials", "part", "Completion is saved for every tutorial. Next: start, skip and step events."],
+    ["Daily missions & streaks", "good", "Three missions per day with completion time; daily check-ins, streaks and badges."],
+    ["Coins & shop", "part", "Full coin ledger and items owned. Next: shop browsing and failed purchases."],
+    ["Friends & leaderboards", "part", "Friend requests and friendships. Next: leaderboard and ranking views."],
+    ["Stats page & recommendations", "none", "Next: whether players open their cognitive profile and follow the weakness suggestions."],
+    ["Errors & performance", "none", "Next: failed-save counts, load times and device info."],
+  ];
+  $("#journey").innerHTML = journey.map(([t, s, d], i) => `
+    <div class="stage"><span class="step">${String(i + 1).padStart(2, "0")}</span><h3>${esc(t)}</h3>${status(s)}<p>${esc(d)}</p></div>`).join("");
+  const count = (k) => journey.filter((j) => j[1] === k).length;
+  $("#tally").innerHTML = `
+    <span><span class="big num">${count("good")}</span> tracked</span>
+    <span><span class="big num">${count("part")}</span> partial</span>
+    <span><span class="big num">${count("none")}</span> next phase</span>
+    <span class="muted">of ${journey.length} journey stages</span>`;
+
+  /* ---------- inventory ---------- */
+  const inventory = [
+    ["Gameplay", "2 tables", [
+      ["game_sessions", "One row per finished level or tutorial.", ["game_id", "current_played (level)", "score", "duration_seconds", "stat_memory … stat_emotion", "raw_data (game telemetry)", "played_at"]],
+      ["user_game_stars", "Best star rating per game and level, linked to the session that earned it.", ["game_id", "level", "star", "game_session_id", "updated_at"]],
+    ], "Which games and levels get played, how long they take, how hard they are, replay rate."],
+    ["Cognitive profile", "1 table", [
+      ["user_profiles", "Rolling score per brain domain. Each level moves it 10% toward the result (5% on replays).", ["global_memory", "global_speed", "global_visual", "global_focus", "global_planning", "global_emotion", "last_updated", "timezone"]],
+    ], "Where players are strong or weak, and how that changes over time (current value only, no history table)."],
+    ["Engagement loops", "4 tables", [
+      ["daily_missions", "Three game assignments per player per day.", ["date", "slot_index", "game_id", "completed", "completed_at"]],
+      ["checkin_days", "First and last check-in on each active day.", ["checkin_date", "first_checkin_at", "last_checkin_at"]],
+      ["checkin_summary", "Streak counters per player.", ["current_streak", "longest_streak", "total_checkins"]],
+      ["user_badges", "Streak badges earned.", ["badge_id", "earned_at"]],
+    ], "Daily return habits, mission completion, streak length."],
+    ["Economy", "4 tables", [
+      ["coin_transactions", "Ledger of every coin change, with idempotency key.", ["delta", "balance_after", "action_key", "ref_id", "metadata", "created_at"]],
+      ["wallets", "Current coin balance.", ["balance", "updated_at"]],
+      ["player_inventory", "Items owned and when they were bought.", ["item_id", "quantity", "created_at"]],
+      ["items", "Shop catalog.", ["type", "price", "item_key"]],
+    ], "Earn and spend rates, what people buy, whether coins pile up unspent."],
+    ["Social", "2 tables", [
+      ["friend_requests", "Sent requests and their outcome.", ["status", "created_at"]],
+      ["friendships", "Accepted friend pairs.", ["created_at"]],
+    ], "How many players connect, request acceptance rate."],
+    ["Identity & clinical link", "Auth + 1 table", [
+      ["auth.users", "Supabase's own account log.", ["created_at", "last_sign_in_at", "provider"]],
+      ["vitalmind_patients", "Link between a VitalMind patient and a BrainTrain account.", ["user_type", "created_at", "updated_at"]],
+    ], "Sign-up volume, login method, how many players come through VitalMind."],
+  ];
+  $("#inventory").innerHTML = inventory.map(([area, n, tables, answers]) => `
+    <div class="panel area">
+      <h3>${esc(area)} <span class="eyebrow">${esc(n)}</span></h3>
+      ${tables.map(([t, d, cols]) => `<div style="display:grid;gap:.3rem"><div><code>${esc(t)}</code> <span class="muted" style="font-size:.88rem">${esc(d)}</span></div><div class="chips">${cols.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div></div>`).join("")}
+      <p class="sub"><strong style="color:var(--ink)">Answers:</strong> ${esc(answers)}</p>
+    </div>`).join("");
+
+  /* ---------- games ---------- */
+  const games = [
+    ["01", "Card Match", 2, "wrongFlips, consecutiveErrors, repeatedErrors, userTimeMs vs parTimeMs, attempts, continuedAfterTimeout"],
+    ["02", "Sensor Lock", 2, "totalCorrect / totalAttempts, maxStreak, reactionTimeAvg, mismatch accuracy"],
+    ["03", "Billiards Math", 2, "correct / wrong equations, totalTimeMs vs par, consecutive and repeated errors"],
+    ["04", "Floating Ball Math", 2, "thief events, block / adapt success, on-time vs late decisions, panic streaks, bomb hits"],
+    ["05", "Worm Train", 1, "score, stars, mode, six domain scores computed in-game"],
+    ["06", "Dream Direct", 2, "accuracy per arrow type (ghost, anchor, wiggler, fade, spinner, double, hold), rule-switch errors, avg timing offset, max combo"],
+    ["07", "Pink Cup", 3, "every move with timestamp, from / to cell, validity and backtracking; reveal timing; memory probes with answer times"],
+    ["08", "Mystery Sound", 1, "questions correct, replays used, score, pre-computed domain scores"],
+    ["09", "Tube Sort", 2, "correct / incorrect / illegal pours, player vs optimal moves, redundant moves"],
+    ["10", "Miner", 2, "avg decision time, crack attempts, valuable grabs, mistakes, value vs best possible"],
+    ["11", "Pipe Patch", 1, "score, stars, completion time"],
+    ["12", "Grid Hunter", 2, "correct / attempts, reaction time avg, traps avoided vs hit, phase reached"],
+    ["13", "Box Pattern", 1, "score, stars, pre-computed domain scores"],
+    ["14", "Word Recognize", 1, "score, stars, pre-computed memory and focus"],
+    ["15", "Taxi Driver", 3, "turn accuracy by heading, blind turns, list of reaction times to sudden changes, distance before each turn, game-over reason"],
+    ["16", "Door Guardian", 1, "score, stars, pre-computed domain scores"],
+    ["17", "Floating Market", 3, "list of reaction times, correct / incorrect / missed / duplicate pickups, hesitations, memory capacity"],
+    ["18", "Run For Your Life", 1, "score, stars, pre-computed domain scores"],
+    ["19", "Cashier", 2, "correct tallies, deceptive and operator errors, distractor clicks, forgotten rules, visual hesitation time"],
+    ["20", "Box Counting", 1, "correct answers / total questions, score"],
+    ["21", "Parking Jam", 2, "start and end time, attempts, levels solved / failed / skipped, objective type"],
+  ];
+  const depthName = { 3: "Action timeline", 2: "Detailed counts", 1: "Score only" };
+  $("#game-grid").innerHTML = games.map(([n, t, d, f]) => `
+    <div class="game"><div class="game-top"><h3><span class="mono muted">${n}</span> ${esc(t)}</h3><span class="depth" data-d="${d}">${depthName[d]}</span></div><p class="muted" style="font-size:.85rem">${esc(f)}</p></div>`).join("");
+
+  /* ---------- static findings ---------- */
+  const staticFindings = [
+    ["good", "Deep cognitive data from every finished level", "Each of the 21 games saves its own result payload with the level, score, stars, duration and six brain-skill scores. Pink Cup, Taxi Driver and Floating Market already save a timeline of individual moves and reaction times."],
+    ["good", "The coin economy is fully auditable", "coin_transactions is a proper ledger with the balance after each change, an action key and an idempotency key. Earn and spend analysis works today."],
+    ["good", "Habit loops are measured", "Daily missions, check-ins, streaks and badges are all recorded with timestamps, so return behaviour and mission completion can be analysed now."],
+    ["part", "Next: level starts and exits", "Levels are saved when they finish. Adding start, quit and restart events will show where players give up and which levels are too hard."],
+    ["part", "Next: the login and onboarding funnel", "Accounts, sign-in times and providers are recorded. Adding events for each of the six entry points will show drop-off and failures before the first game."],
+    ["part", "Next: richer in-game timing for every game", "A shared tap recorder will capture the timestamp of every action in all 21 games, extending what the three timeline games already do."],
+  ];
+
+  /* ---------- gaps ---------- */
+  const gaps = [
+    ["Sign-in & sign-up", "part", "Where do people drop off before playing? Which login method fails most?", "login_viewed, login_method_selected {method}, login_succeeded, login_failed {method, error}, signup_completed, vitalmind_launch_failed"],
+    ["Onboarding", "part", "How long does onboarding take and where do people leave?", "onboarding_step_viewed {step}, avatar_selected {avatar_id}, onboarding_completed {ms}"],
+    ["Navigation", "none", "Which screens do players visit and in what order? How long do they stay?", "page_viewed {path, referrer}, page_left {ms_visible}, nav_clicked {target}"],
+    ["Home screen", "none", "Do players follow recommendations or browse on their own? What do they search for?", "game_tile_clicked {game_id, position, source}, recommendation_clicked, search_submitted {query_length, results}"],
+    ["Level start and exit", "none", "Which levels make players quit? How long until they give up?", "level_started {game_id, level, attempt}, level_quit {ms_in_level}, level_restarted, next_level_clicked"],
+    ["Timeouts", "part", "When time runs out, do players continue with the penalty or leave?", "timeout_shown {game_id, level}, timeout_choice {continue | quit}"],
+    ["Inside a level", "part", "Exactly when does a player press each button, and how does reaction time change within a level?", "game_action {game_id, level, action, target, correct, t_ms since level start}"],
+    ["Tutorials", "part", "Which tutorials get skipped and at which step do players get stuck?", "tutorial_started, tutorial_step {n, ms}, tutorial_skipped {step}, tutorial_completed"],
+    ["Missions, streaks, badges", "part", "Do players notice notifications? Do they open the streak calendar?", "notification_shown {type}, notification_clicked {type}, streak_calendar_opened, badge_viewed"],
+    ["Shop", "part", "What do players look at but not buy? How often does a purchase fail for lack of coins?", "shop_viewed {tab}, item_previewed {item_id}, purchase_failed {reason}, theme_changed"],
+    ["Friends", "part", "Do leaderboards drive play?", "friend_code_copied, leaderboard_viewed {game_id}, ranking_opened, friend_request_sent"],
+    ["Stats page", "none", "Do players look at their cognitive profile, and does it bring them back to weak areas?", "stats_viewed, domain_tapped {domain}, badge_section_viewed"],
+    ["Errors & performance", "none", "How many sessions fail to save? How long do games take to load on low-end phones?", "session_save_failed {error}, js_error {message, path}, game_loaded {ms, game_id}, web_vitals {lcp, inp, cls}, device {os, browser, screen}"],
+    ["Settings", "none", "Is sound muted? Does that change outcomes in audio games like Mystery Sound?", "mute_toggled {on}, avatar_changed"],
+  ];
+  $("#gap-rows").innerHTML = gaps.map(([a, s, q, e]) => `
+    <tr><td><strong>${esc(a)}</strong></td><td>${status(s)}</td><td style="min-width:14rem">${esc(q)}</td><td style="min-width:16rem"><span class="mono" style="font-size:.78rem">${esc(e)}</span></td></tr>`).join("");
+
+  /* ---------- tooltip ---------- */
+  const tip = $("#tip");
+  const showTip = (e, html) => { tip.innerHTML = html; tip.hidden = false; moveTip(e); };
+  const moveTip = (e) => {
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = e.clientX + 12, y = e.clientY - h - 10;
+    if (x + w > innerWidth - 8) x = e.clientX - w - 12;
+    if (y < 8) y = e.clientY + 16;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  };
+  const hideTip = () => (tip.hidden = true);
+  const bindTips = (root) => root.querySelectorAll("[data-tip]").forEach((el) => {
+    el.addEventListener("mouseenter", (e) => showTip(e, el.dataset.tip));
+    el.addEventListener("mousemove", moveTip);
+    el.addEventListener("mouseleave", hideTip);
+  });
+
+  document.querySelector("#findings-list").innerHTML = staticFindings.map(([s, t, d]) => `<div class="finding">${status(s, label[s])}<h3>${esc(t)}</h3><p>${esc(d)}</p></div>`).join("");
+})();
+</script>

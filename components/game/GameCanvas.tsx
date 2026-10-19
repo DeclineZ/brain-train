@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import type { Game } from 'phaser';
+import type { Game, Scene, Input, GameObjects } from 'phaser';
+import type { GameAttempt } from '@/lib/analytics/attempt';
+import { track } from '@/lib/analytics/track';
 
 export interface GameCanvasHandle {
   resumeGame: (penalty: boolean) => void;
@@ -14,9 +16,10 @@ interface GameCanvasProps {
   onTutorialComplete?: () => void;
   mode?: 'normal' | 'tutorial';
   isMuted?: boolean;
+  attempt?: GameAttempt;
 }
 
-const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, stars = {}, onGameOver, onTimeout, onTutorialComplete, mode = 'normal', isMuted = false }, ref) => {
+const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, level = 1, stars = {}, onGameOver, onTimeout, onTutorialComplete, mode = 'normal', isMuted = false, attempt }, ref) => {
   const gameRef = useRef<HTMLDivElement>(null);
   const gameInstance = useRef<any>(null);
 
@@ -38,6 +41,10 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
   // Intro Popup State
   const [showIntroPopup, setShowIntroPopup] = useState(false);
   const [introData, setIntroData] = useState<{ title: string; description: string; imageKey?: string } | null>(null);
+
+  // Analytics: the attempt is fixed for this mount (the play page remounts per attempt).
+  const attemptRef = useRef(attempt);
+  const introShownAt = useRef<number | null>(null);
 
   // Latest Ref Pattern to prevent game re-initialization when handlers change
   const onGameOverRef = useRef(onGameOver);
@@ -74,6 +81,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
     setTimerData(0);
 
     async function initGame() {
+      const initStartedAt = performance.now();
       // Dynamic imports to avoid SSR issues
       const Phaser = await import('phaser');
       const { getGameConfig } = await import('@/games/registry');
@@ -203,7 +211,56 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
               if (onTutorialCompleteRef.current) onTutorialCompleteRef.current();
             });
 
+            // 5. Attempt id shared with in-game telemetry (games/engine/telemetry.ts)
+            if (attemptRef.current) game.registry.set('attemptId', attemptRef.current.id);
+
             console.log("Game initialized with level:", level, "stars:", stars, "mode:", mode);
+          },
+          postBoot: (game: Game) => {
+            const current = attemptRef.current;
+            if (!current) return;
+            game.registry.events.on('changedata-attemptId', (_parent: unknown, value: unknown) => {
+              if (typeof value === 'string') current.rotate(value);
+            });
+            // First scene created = game loaded. Scenes that open the intro popup
+            // emit SHOW_INTRO inside create(), so check for it on the next tick.
+            let loaded = false;
+            const onCreated = () => {
+              if (loaded || !isMounted) return;
+              loaded = true;
+              setTimeout(() => {
+                if (!isMounted) return;
+                const hasIntro = introShownAt.current !== null;
+                track('game_loaded', { load_ms: Math.round(performance.now() - initStartedAt), has_intro: hasIntro, mode }, current.ctx());
+                if (!hasIntro) current.start();
+              }, 0);
+            };
+            for (const scene of game.scene.scenes) {
+              if (scene.sys.settings.status === Phaser.Scenes.RUNNING) onCreated();
+              else scene.sys.events.once('create', onCreated);
+            }
+
+            // Generic tap capture (handoff 2.4). The scene's input plugin drops
+            // its listeners on shutdown, so re-attach every time a scene is created.
+            const attachPointer = (scene: Scene) => {
+              scene.input?.on('pointerdown', (pointer: Input.Pointer, over: GameObjects.GameObject[]) => {
+                const width = scene.scale.width || 1;
+                const height = scene.scale.height || 1;
+                track('input_raw', {
+                  kind: 'pointer',
+                  x: Math.round(pointer.x),
+                  y: Math.round(pointer.y),
+                  x_pct: Math.round((pointer.x / width) * 1000) / 1000,
+                  y_pct: Math.round((pointer.y / height) * 1000) / 1000,
+                  key: null,
+                  target: over[0]?.name || null,
+                }, current.ctx());
+              });
+            };
+            for (const scene of game.scene.scenes) {
+              if (scene.sys.settings.status === Phaser.Scenes.RUNNING) attachPointer(scene);
+              scene.sys.events.on('create', () => attachPointer(scene));
+            }
           }
         }
       } as any);
@@ -237,10 +294,22 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
 
       // Listen for Level Intro (Start Pause)
       newGame.events.on('SHOW_INTRO', (data: any) => {
+        introShownAt.current = performance.now();
+        if (attemptRef.current) track('intro_popup_shown', {}, attemptRef.current.ctx());
         setIntroData(data);
         setShowIntroPopup(true);
       });
     }
+
+    // Generic key capture (handoff 2.4), only while this canvas is mounted.
+    const onKeyDown = (e: KeyboardEvent) => {
+      const current = attemptRef.current;
+      if (!current || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      track('input_raw', { kind: 'key', x: null, y: null, x_pct: null, y_pct: null, key: e.key, target: null }, current.ctx());
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     // Initialize
     initGame();
@@ -248,6 +317,7 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
     // Cleanup
     return () => {
       isMounted = false; // ✅ ปรับ Flag ว่าโดนทำลายแล้ว
+      window.removeEventListener('keydown', onKeyDown);
       if (gameInstance.current) {
         try {
           if (gameInstance.current.sound) {
@@ -423,6 +493,12 @@ const GameCanvas = forwardRef<GameCanvasHandle, GameCanvasProps>(({ gameId, leve
                 <button
                   onClick={() => {
                     setShowIntroPopup(false);
+                    const current = attemptRef.current;
+                    if (current) {
+                      const shownMs = introShownAt.current !== null ? Math.round(performance.now() - introShownAt.current) : null;
+                      track('intro_popup_closed', { shown_ms: shownMs }, current.ctx());
+                      current.start({ after_intro: true });
+                    }
                     if (gameInstance.current) {
                       gameInstance.current.events.emit('START_LEVEL');
                     }

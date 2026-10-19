@@ -3,6 +3,7 @@ import { getMultipleGameTotalStars } from "@/lib/stars";
 import { createClient } from "@/utils/supabase/server";
 import GameTile from "@/components/GameTile";
 import BottomNav from "@/components/BottomNav";
+import TrackStep from "@/lib/analytics/TrackStep";
 
 export default async function AllGamesPage() {
   const supabase = await createClient();
@@ -23,6 +24,7 @@ export default async function AllGamesPage() {
   return (
     <div className="min-h-screen bg-cream pb-24">
       <div className="mx-auto max-w-md sm:max-w-lg md:max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 py-6">
+        <TrackStep stepId="game_catalog" />
         {/* Title */}
         <h1 className="text-2xl font-bold text-brown-darkest mb-6">เกมทั้งหมด</h1>
 

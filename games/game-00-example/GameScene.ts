@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { MEMORY_LEVELS } from './levels';
 import type { MemoryLevelConfig } from '@/types';
 import { createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class MemoryGameScene extends Phaser.Scene {
   private currentLevelConfig: MemoryLevelConfig = MEMORY_LEVELS[1];
@@ -18,6 +19,7 @@ export class MemoryGameScene extends Phaser.Scene {
   private startTime = 0;
   private isLocked = false;
   private seenCards = new Set<number>();
+  private telemetry!: GameTelemetry;
 
   constructor() { super({ key: 'MemoryGameScene' }); }
 
@@ -34,8 +36,10 @@ export class MemoryGameScene extends Phaser.Scene {
 
   create() {
     this.startTime = Date.now();
+    this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-00-example' });
     this.setupGrid();
     this.add.text(16, 16, `Level ${this.currentLevelConfig.level}`, createGameTextStyle({ fontSize: '24px', color: '#000' }));
+    this.telemetry.levelStarted({ total_pairs: this.totalPairs, difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier, time_limit_ms: this.currentLevelConfig.timeLimitSeconds * 1000, seed: null });
   }
 
   setupGrid() {
@@ -55,7 +59,7 @@ export class MemoryGameScene extends Phaser.Scene {
       const x = startX + (col * (cardWidth + gap));
       const y = 200 + (row * (cardWidth + gap));
 
-      const card = this.add.sprite(x, y, 'card-back').setInteractive();
+      const card = this.add.sprite(x, y, 'card-back').setInteractive().setName(`card_${index}`);
       card.setData('id', val);
       card.setData('index', index);
       card.setData('isFlipped', false);
@@ -65,7 +69,10 @@ export class MemoryGameScene extends Phaser.Scene {
   }
 
   handleCardClick(card: Phaser.GameObjects.Sprite) {
-    if (this.isLocked || card.getData('isFlipped')) return;
+    if (this.isLocked || card.getData('isFlipped')) {
+      this.telemetry.action('input_ignored', { reason: this.isLocked ? 'locked' : 'already_selected', target: card.name });
+      return;
+    }
 
     card.setTexture('card-faces', card.getData('id'));
     card.setData('isFlipped', true);
@@ -103,6 +110,7 @@ export class MemoryGameScene extends Phaser.Scene {
 
   endGame() {
     const endTime = Date.now();
+    this.telemetry.levelEnded({ outcome: 'success', score: this.matchedPairs, stars: null });
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({

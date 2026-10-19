@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { markPendingLogin, track } from '@/lib/analytics/track'
 
 export default function LineLoginButton() {
     const [loading, setLoading] = useState(false)
 
     const handleLineLogin = () => {
         setLoading(true)
+        track('login_method_selected', { method: 'line' })
+        markPendingLogin('line')
         // Construct the LINE authorization URL
         const lineAuthUrl = new URL('https://access.line.me/oauth2/v2.1/authorize')
         const params = new URLSearchParams({

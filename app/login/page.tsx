@@ -2,12 +2,13 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, ArrowRight, User } from "lucide-react";
 import { m } from "framer-motion";
 import Image from "next/image";
 import LogoHeader from "@/components/LogoHeader";
 import LineLoginButton from "@/components/Login/LineLoginButton";
+import { flush, markPendingLogin, takePendingLogin, track, trackStep } from "@/lib/analytics/track";
 
 
 export default function LoginPage() {
@@ -18,10 +19,20 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        trackStep("login");
+        // /auth/callback sends failed OAuth exchanges back here with ?error=auth.
+        if (new URLSearchParams(window.location.search).get("error") === "auth") {
+            const method = takePendingLogin();
+            if (method) track("login_failed", { method, error_category: "oauth_exchange" });
+        }
+    }, []);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        track("login_method_selected", { method: "email" });
 
         try {
             const { error } = await supabase.auth.signInWithPassword({
@@ -29,7 +40,12 @@ export default function LoginPage() {
                 password,
             });
 
-            if (error) throw error;
+            if (error) {
+                track("login_failed", { method: "email", error_category: error.code ?? "unknown" });
+                throw error;
+            }
+            track("login_succeeded", { method: "email" });
+            await flush();
             router.refresh();
             router.push("/");
         } catch (err: any) {
@@ -41,6 +57,8 @@ export default function LoginPage() {
 
     const handleOAuth = async (provider: "google" | "facebook") => {
         setLoading(true);
+        track("login_method_selected", { method: provider });
+        markPendingLogin(provider);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider,
@@ -51,6 +69,8 @@ export default function LoginPage() {
             });
             if (error) throw error;
         } catch (err: any) {
+            takePendingLogin();
+            track("login_failed", { method: provider, error_category: err?.code ?? "unknown" });
             setError(err.message);
             setLoading(false);
         }
@@ -59,6 +79,7 @@ export default function LoginPage() {
     const handleGuestLogin = async () => {
         setLoading(true);
         setError(null);
+        track("login_method_selected", { method: "guest" });
         try {
             const { error } = await supabase.auth.signInAnonymously({
                 options: {
@@ -69,11 +90,14 @@ export default function LoginPage() {
             });
 
             if (error) {
+                track("login_failed", { method: "guest", error_category: error.code ?? "unknown" });
                 if (error.message.includes("not enabled")) {
                     throw new Error("ระบบล็อกอินผู้เยี่ยมชมยังไม่เปิดใช้งานใน Supabase Dashboard (กรุณาไปที่ Auth -> Providers -> Anonymous และเปิดใช้งาน)");
                 }
                 throw error;
             }
+            track("login_succeeded", { method: "guest" });
+            await flush();
             router.refresh();
             router.push("/");
         } catch (err: unknown) {

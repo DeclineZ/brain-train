@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { flush, markPendingLogin, track } from "@/lib/analytics/track";
 
 export default function ClaimContent() {
   const search = useSearchParams();
@@ -24,6 +25,8 @@ export default function ClaimContent() {
     busy.current = true;
     setError(null);
     setRetryable(false);
+    // Send the previous user's queued events before the session switches.
+    await flush();
     try {
       const response = await fetch("/auth/line-bot/claim", {
         method: "POST",
@@ -38,10 +41,15 @@ export default function ClaimContent() {
         response.ok &&
         (result.next === "/" || result.next === "/onboarding")
       ) {
+        markPendingLogin("line_oa");
         // Full navigation discards the previous participant's in-memory client state.
         window.location.replace(result.next);
         return;
       }
+      track("login_failed", {
+        method: "line_oa",
+        error_category: typeof result.error === "string" ? result.error : "unknown",
+      });
       setRetryable(result.retryable === true);
       setError(
         result.retryable === true
