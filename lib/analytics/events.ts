@@ -65,6 +65,19 @@ export const GAME_EVENTS = [
   "response_timeout",
   "buttons_swapped",
   "phase_changed",
+
+  // Game 03 - Billiards Math
+  "equation_shown",
+  "aim_started",
+  "ball_shot",
+  "ball_slotted",
+  "ball_ejected",
+  "revert_pressed",
+  "answer_checked",
+  "equation_timed_out",
+  "mine_hit",
+  "obstacle_hit",
+  "out_of_shots",
 ] as const;
 
 export const EVENT_NAMES = [
