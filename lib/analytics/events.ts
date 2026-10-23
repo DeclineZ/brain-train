@@ -51,7 +51,21 @@ export const GAME_COMMON_EVENTS = [
 ] as const;
 
 // Per-game events (handoff section 5) go here.
-export const GAME_EVENTS = [] as const;
+export const GAME_EVENTS = [
+  // Game 01 - Card Match
+  "preview_started",
+  "card_flipped",
+  "pair_checked",
+  "hint_shown",
+  "hint_closed",
+
+  // Game 02 - Sensor Lock
+  "stimulus_shown",
+  "response_given",
+  "response_timeout",
+  "buttons_swapped",
+  "phase_changed",
+] as const;
 
 export const EVENT_NAMES = [
   ...CANONICAL_EVENTS,

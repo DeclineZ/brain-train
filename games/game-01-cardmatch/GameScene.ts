@@ -3,9 +3,13 @@ import { MATCHING_LEVELS } from './levels';
 import type { MatchingLevelConfig } from '@/types';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
 import { CardMatchTimer } from './CardMatchTimer';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class MatchingGameScene extends Phaser.Scene {
     private currentLevelConfig!: MatchingLevelConfig;
+    private telemetry!: GameTelemetry;
+    private cardSeenCount = new Map<number, number>();
+    private hintShownAt: number | null = null;
 
     // Audio Settings
     private bgMusic!: Phaser.Sound.BaseSound;
@@ -128,6 +132,8 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-01-cardmatch' });
+        this.cardSeenCount.clear();
         const { width, height } = this.scale;
 
         // 1. Background (Warm Cream)
@@ -153,6 +159,17 @@ export class MatchingGameScene extends Phaser.Scene {
         this.customTimerBar.setVisible(false); // Hide initially
 
         // 5. Start Sequence (Check for Level Hint first, then Preview)
+        this.telemetry.levelStarted({
+            total_pairs: this.totalPairs,
+            grid_rows: Math.ceil((this.totalPairs * 2) / (this.currentLevelConfig.gridCols || 1)),
+            grid_cols: this.currentLevelConfig.gridCols,
+            preview_ms: this.currentLevelConfig.previewTimeMs,
+            par_time_ms: this.currentLevelConfig.parTimeSeconds * 1000,
+            difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier,
+            time_limit_ms: this.currentLevelConfig.timeLimitSeconds * 1000,
+            seed: null,
+        });
+
         const hintMessage = this.levelHints[this.currentLevelConfig.level];
         if (hintMessage) {
             this.showLevelHint(hintMessage);
@@ -379,6 +396,9 @@ export class MatchingGameScene extends Phaser.Scene {
         this.cards.forEach((cardObj, i) => {
             const col = i % cols;
             const row = Math.floor(i / cols);
+
+            cardObj.row = row;
+            cardObj.col = col;
 
             const x = startX + col * (cardW + gap);
             const y = startY + row * (cardH + gap);
@@ -635,6 +655,10 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     startPreviewPhase() {
+        this.telemetry.action('preview_started', {
+            preview_ms: this.currentLevelConfig.previewTimeMs,
+        });
+
         this.messageText.setText("จำตำแหน่งให้ดีนะ...");
         this.messageText.setVisible(true);
         this.messageText.setScale(0);
@@ -694,12 +718,14 @@ export class MatchingGameScene extends Phaser.Scene {
                     this.isLocked = false;
                     this.timer.start();
                     this.startTime = this.timer.getStartTime();
+                    this.telemetry.stimulus('turn_start');
                     this.startTimer();
                 });
             } else {
                 this.isLocked = false;
                 this.timer.start();
                 this.startTime = this.timer.getStartTime();
+                this.telemetry.stimulus('turn_start');
                 this.startTimer();
             }
         });
@@ -742,6 +768,7 @@ export class MatchingGameScene extends Phaser.Scene {
                 if (pct <= 25 && !this.hasPlayedLowTimeWarning && !this.continuedAfterTimeout) {
                     this.hasPlayedLowTimeWarning = true;
                     this.sound.play('timer-warning', { volume: 0.6 });
+                    this.telemetry.action('time_warning', { remaining_ms: remainingMs });
                 }
 
                 // if (remainingMs <= 0) {
@@ -801,6 +828,9 @@ export class MatchingGameScene extends Phaser.Scene {
         if (this.timerEvent) this.timerEvent.paused = true;
         this.timer.pause('timeout_modal');
 
+        this.telemetry.action('time_up', {});
+        this.telemetry.action('level_paused', { reason: 'timeout_popup' });
+
         this.stopWarningSound();
         if (this.bgMusic && this.bgMusic.isPlaying) {
             this.bgMusic.pause();
@@ -837,6 +867,12 @@ export class MatchingGameScene extends Phaser.Scene {
         this.isPaused = false;
         this.input.enabled = true;
         this.timer.resume('timeout_modal');
+
+        this.telemetry.action('level_resumed', {
+            reason: 'timeout_modal',
+            penalty: applyPenalty,
+        });
+        this.telemetry.stimulus('turn_start');
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;
@@ -879,6 +915,12 @@ export class MatchingGameScene extends Phaser.Scene {
         }
         this.timer.finalize();
 
+        this.telemetry.levelEnded({
+            outcome: 'fail',
+            score: 0,
+            stars: 0,
+        });
+
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
@@ -896,8 +938,18 @@ export class MatchingGameScene extends Phaser.Scene {
     // --- CORE GAMEPLAY ---
 
     handleCardClick(card: any) {
-        if (this.isLocked) return;
-        if (card.isFlipped || card.isMatched) return;
+        if (this.isLocked) {
+            this.telemetry.action('input_ignored', { reason: 'locked', card_index: card.index });
+            return;
+        }
+        if (card.isFlipped) {
+            this.telemetry.action('input_ignored', { reason: 'already_selected', card_index: card.index });
+            return;
+        }
+        if (card.isMatched) {
+            this.telemetry.action('input_ignored', { reason: 'already_matched', card_index: card.index });
+            return;
+        }
 
         // Logic: Only play 'card-flip' for the first card.
         // For the second card, we suppress 'card-flip' because 'match-success' or 'match-fail' 
@@ -907,6 +959,28 @@ export class MatchingGameScene extends Phaser.Scene {
         const shouldPlayFlipSound = isFirstCard;
 
         this.flipCard(card, true, shouldPlayFlipSound);
+
+        const flipInTurn = isFirstCard ? 1 : 2;
+        const timesSeen = this.cardSeenCount.get(card.id) ?? (this.currentLevelConfig.previewTimeMs > 0 ? 1 : 0);
+        this.cardSeenCount.set(card.id, timesSeen + 1);
+
+        const rtMs = isFirstCard
+            ? this.telemetry.rtFrom('turn_start')
+            : this.telemetry.rtFrom('first_card_flip');
+
+        this.telemetry.action('card_flipped', {
+            card_index: card.index,
+            row: card.row ?? 0,
+            col: card.col ?? 0,
+            pair_id: card.matchId,
+            flip_in_turn: flipInTurn,
+            times_seen_before: timesSeen,
+            rt_ms: rtMs,
+        });
+
+        if (isFirstCard) {
+            this.telemetry.stimulus('first_card_flip');
+        }
 
         this.openedCards.push(card);
 
@@ -923,6 +997,20 @@ export class MatchingGameScene extends Phaser.Scene {
         // Strict match on matchId (handles Hard Variations)
         const match = c1.matchId === c2.matchId;
 
+        const wasRepeatedError = !match && (this.seenCards.has(c1.id) || this.seenCards.has(c2.id));
+        const pairsRemaining = this.totalPairs - (this.matchedPairs + (match ? 1 : 0));
+        const rtMs = this.telemetry.rtFrom('first_card_flip');
+
+        this.telemetry.action('pair_checked', {
+            card_a_index: c1.index,
+            card_b_index: c2.index,
+            correct: match,
+            was_repeated_error: wasRepeatedError,
+            consecutive_errors: match ? 0 : this.consecutiveErrors + 1,
+            pairs_remaining: pairsRemaining,
+            rt_ms: rtMs,
+        });
+
         // Callback to run after feedback animations
         const finalizeTurn = () => {
             this.openedCards = [];
@@ -936,11 +1024,13 @@ export class MatchingGameScene extends Phaser.Scene {
 
                 this.performCardSwap(count, () => {
                     this.isLocked = false;
+                    this.telemetry.stimulus('turn_start');
                 }, true); // true = only unopened cards
                 return;
             }
 
             this.isLocked = false;
+            this.telemetry.stimulus('turn_start');
         };
 
         if (match) {
@@ -995,6 +1085,14 @@ export class MatchingGameScene extends Phaser.Scene {
         this.input.enabled = false; // Stop all input
         if (this.timerEvent) this.timerEvent.remove();
         const duration = this.timer.finalize();
+        const stars = this.calculateStars(duration);
+
+        this.telemetry.levelEnded({
+            outcome: 'success',
+            score: this.currentLevelConfig.level,
+            stars: stars,
+            duration_ms: duration,
+        });
 
         const gameOverData = {
             current_played: this.currentLevelConfig.level,
@@ -1006,10 +1104,11 @@ export class MatchingGameScene extends Phaser.Scene {
             userTimeMs: duration,
             parTimeMs: this.currentLevelConfig.parTimeSeconds * 1000,
             attempts: this.attempts,
-            stars: this.calculateStars(duration),
-            starHint: this.calculateStars(duration) < 3 ? this.getStarHint(duration) : null,
+            stars: stars,
+            starHint: stars < 3 ? this.getStarHint(duration) : null,
             success: true,
-            continuedAfterTimeout: this.continuedAfterTimeout
+            continuedAfterTimeout: this.continuedAfterTimeout,
+            attempt_id: this.telemetry.attemptId ?? undefined,
         };
 
         if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
@@ -1150,6 +1249,7 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // HITZONE: Transparent Interactive Layer
         const hitZone = this.add.rectangle(0, 0, w, h, 0x000000, 0).setOrigin(0.5);
+        hitZone.setName(`card_${index}`);
         hitZone.setInteractive({ useHandCursor: true });
 
         container.add([shadow, back, face, iconContainer, hitZone]);
@@ -1158,7 +1258,7 @@ export class MatchingGameScene extends Phaser.Scene {
         // Store Logic Data
         const cardObj = {
             container, back, face, icon: iconContainer, hitZone,
-            id, matchId, emoji, // matchId is key now
+            id, matchId, emoji, index, row: 0, col: 0, // matchId is key now
             isFlipped: true, isMatched: false, baseScale: iconContainer.scaleX
         };
 
@@ -1279,6 +1379,11 @@ export class MatchingGameScene extends Phaser.Scene {
     }
 
     showLevelHint(message: string) {
+        this.hintShownAt = performance.now();
+        this.telemetry.action('hint_shown', {
+            hint_key: `level_${this.currentLevelConfig.level}`
+        });
+
         const { width, height } = this.scale;
 
         // Semi-transparent overlay
@@ -1337,6 +1442,12 @@ export class MatchingGameScene extends Phaser.Scene {
 
         // Tap to dismiss
         overlay.on('pointerdown', () => {
+            const shownMs = this.hintShownAt !== null ? Math.round(performance.now() - this.hintShownAt) : null;
+            this.telemetry.action('hint_closed', {
+                hint_key: `level_${this.currentLevelConfig.level}`,
+                shown_ms: shownMs
+            });
+
             // Exit animation - simple fade
             this.tweens.add({
                 targets: [overlay, hintBg, hintText, tapText],
