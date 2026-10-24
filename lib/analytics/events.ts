@@ -88,6 +88,18 @@ export const GAME_EVENTS = [
   "reset_pressed",
   "direction_guide_shown",
   "direction_guide_closed",
+  // 15 Taxi Driver
+  "intersection_approaching",
+  "direction_pressed",
+  "turn_resolved",
+  "brake_stop_shown",
+  "brake_resolved",
+  "road_closed",
+  "controls_swapped",
+  "path_faded",
+  "path_shown",
+  "life_lost",
+  "objective_completed",
 ] as const;
 
 export const EVENT_NAMES = [

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { TAXIDRIVER_LEVELS, TaxiDriverLevelConfig } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // Direction types
 type Direction = 'left' | 'right' | 'forward';
@@ -139,6 +140,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     // Life System
     private lives = 3;
     private livesContainer!: Phaser.GameObjects.Container;
+
+    // Telemetry
+    private telemetry!: GameTelemetry;
+    private objectiveStartedAt = 0;
+    private roadClosedAt: number | null = null;
     private lifeIcons: Phaser.GameObjects.Image[] = [];
 
     constructor() {
@@ -208,6 +214,9 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-15-taxidriver' });
+        this.roadClosedAt = null;
 
         // Calculate grid dimensions
         this.calculateGridDimensions();
@@ -1048,6 +1057,8 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.lives--;
         this.updateLivesDisplay();
 
+        this.telemetry.action('life_lost', { reason, lives_left: this.lives });
+
         // Immediately stop the car
         this.isMoving = false;
         this.targetPosition = null;
@@ -1276,6 +1287,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             });
         }
 
+        this.telemetry.action('brake_stop_shown', {
+            kind: 'swap',
+            segment_index: this.currentPathIndex,
+            time_limit_ms: Math.max(this.currentLevelConfig.brakeStopTimeMs, 4000),
+        });
+        this.telemetry.stimulus('brake');
+
         // Brake stop — car must stop, user presses forward, THEN buttons swap
         this.isBrakeStopped = true;
         this.isSwapBrake = true;
@@ -1304,6 +1322,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             Math.max(this.currentLevelConfig.brakeStopTimeMs, 4000),
             () => {
                 if (this.isBrakeStopped) {
+                    this.telemetry.action('brake_resolved', { kind: 'swap', rt_ms: null, timed_out: true });
                     // Auto-resume: perform swap and continue
                     this.resumeAfterSwapBrake();
                 }
@@ -1324,6 +1343,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Now perform the actual button swap
         this.controlsSwapped = !this.controlsSwapped;
+        this.telemetry.action('controls_swapped', { controls_swapped: this.controlsSwapped });
 
         const leftX = this.leftButton.x;
         const rightX = this.rightButton.x;
@@ -1430,6 +1450,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
 
         // Swap logic
         this.controlsSwapped = !this.controlsSwapped;
+        this.telemetry.action('controls_swapped', { controls_swapped: this.controlsSwapped });
 
         // Animate buttons switching positions
         const leftX = this.leftButton.x;
@@ -1522,6 +1543,25 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.startTime = Date.now();
         this.approachTimeMs = Math.max(2500, this.currentLevelConfig.decisionTimeMs);
 
+        this.objectiveStartedAt = performance.now();
+        if (!this.telemetry.isActive) {
+            this.telemetry.levelStarted({
+                grid_w: this.GRID_SIZE,
+                grid_h: this.GRID_SIZE,
+                lives: this.lives,
+                objectives: this.totalObjectives,
+                path_length: this.path.length,
+                path_fade: !!this.currentLevelConfig.pathFadeEnabled,
+                brake_stops: !!this.currentLevelConfig.brakeStopEnabled,
+                road_closures: !!this.currentLevelConfig.roadClosureEnabled,
+                swap_controls: !!this.currentLevelConfig.swapControls,
+                decision_time_ms: this.currentLevelConfig.decisionTimeMs,
+                difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier,
+                time_limit_ms: null,
+                seed: null,
+            });
+        }
+
         // Find first upcoming intersection
         this.findNextIntersection();
 
@@ -1609,6 +1649,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
             this.currentTurnStartTime = Date.now();
             this.currentTurnDistance = distance;
             this.highlightButtons(true);
+
+            this.telemetry.action('intersection_approaching', {
+                intersection_index: this.upcomingIntersectionIndex,
+                required_dir: intersection.turnRequired || 'forward',
+                car_heading: intersection.direction,
+                path_visible: this.isPathVisible,
+                time_to_intersection_ms: Math.round(timeToIntersectionMs),
+            });
+            this.telemetry.stimulus('intersection');
         }
     }
 
@@ -1633,6 +1682,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private fadeOutPath() {
+        this.telemetry.action('path_faded', {});
         this.isPathVisible = false;
         this.pathGraphics.clear();
 
@@ -1655,6 +1705,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private fadeInPath() {
+        this.telemetry.action('path_shown', {});
         this.isPathVisible = true;
         this.drawPath();
     }
@@ -1727,6 +1778,13 @@ export class TaxiDriverGameScene extends Phaser.Scene {
                 ease: 'Sine.easeInOut'
             });
         }
+
+        this.telemetry.action('brake_stop_shown', {
+            kind: 'stop',
+            segment_index: this.currentPathIndex,
+            time_limit_ms: this.currentLevelConfig.brakeStopTimeMs,
+        });
+        this.telemetry.stimulus('brake');
 
         // Show STOP message
         this.messageText.setText('หยุด!');
@@ -1843,6 +1901,7 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleBrakeTimeout() {
+        this.telemetry.action('brake_resolved', { kind: 'stop', rt_ms: null, timed_out: true, correct: false });
         this.isBrakeStopped = false;
         this.messageText.setVisible(false);
         this.highlightForwardButton(false);
@@ -1853,13 +1912,32 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleForwardPress() {
-        if (!this.isBrakeStopped || this.isPaused) return;
+        if (!this.isBrakeStopped || this.isPaused) {
+            if (this.telemetry.isActive) this.telemetry.action('input_ignored', { reason: 'paused', target: 'forward_button' });
+            return;
+        }
+
+        const rtToNextInput = this.takeRoadClosedRt();
 
         // If this is a swap brake, route to swap resume instead
         if (this.isSwapBrake) {
+            this.telemetry.action('brake_resolved', {
+                kind: 'swap',
+                rt_ms: this.telemetry.rtFrom('brake'),
+                timed_out: false,
+                ...rtToNextInput,
+            });
             this.resumeAfterSwapBrake();
             return;
         }
+
+        this.telemetry.action('brake_resolved', {
+            kind: 'stop',
+            rt_ms: this.telemetry.rtFrom('brake'),
+            timed_out: false,
+            correct: true,
+            ...rtToNextInput,
+        });
 
         // Player pressed Forward - continue driving!
         if (this.brakeStopTimer) {
@@ -1950,6 +2028,12 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.targetPosition = null;
         this.roadClosuresTriggered++;
         this.hasSuddenChangeOccurred = true;
+
+        this.telemetry.action('road_closed', {
+            segment_index: this.currentPathIndex,
+            closures_so_far: this.roadClosuresTriggered,
+        });
+        this.roadClosedAt = performance.now();
 
         // Play brake sound
         this.playSound('brake');
@@ -2623,6 +2707,16 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         const timeToInput = Date.now() - this.currentTurnStartTime;
         const isCorrect = this.queuedDirection === currentSeg.turnRequired;
 
+        this.telemetry.action('turn_resolved', {
+            intersection_index: this.currentPathIndex,
+            pressed_dir: this.queuedDirection,
+            required_dir: currentSeg.turnRequired || 'forward',
+            correct: isCorrect,
+            car_heading: this.carHeading,
+            was_blind: !this.isPathVisible,
+            timed_out: false,
+        });
+
         // Record turn data for stats
         const turnData: TurnData = {
             carHeading: this.carHeading,
@@ -2657,16 +2751,47 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     }
 
     private handleDirectionInput(direction: Direction) {
-        if (this.gameOver || this.isPaused) return;
+        if (this.gameOver || this.isPaused) {
+            if (!this.gameOver && this.telemetry.isActive) {
+                this.telemetry.action('input_ignored', { reason: 'paused', target: `${direction}_button` });
+            }
+            return;
+        }
 
         // Only accept input when approaching an intersection
-        if (!this.isApproachingIntersection) return;
+        if (!this.isApproachingIntersection) {
+            if (this.telemetry.isActive) {
+                this.telemetry.action('input_ignored', { reason: 'locked', target: `${direction}_button`, ...this.takeRoadClosedRt() });
+            }
+            return;
+        }
 
         // If already queued, ignore (first input wins)
-        if (this.queuedDirection) return;
+        if (this.queuedDirection) {
+            this.telemetry.action('input_ignored', { reason: 'already_selected', target: `${direction}_button` });
+            return;
+        }
 
         // Queue the direction
         this.queuedDirection = direction;
+
+        const intersection = this.path[this.upcomingIntersectionIndex];
+        let distanceCells: number | null = null;
+        if (intersection) {
+            const pos = this.gridToWorld(intersection.x, intersection.y);
+            distanceCells = Math.round((Math.hypot(pos.x - this.car.x, pos.y - this.car.y) / this.cellSize) * 100) / 100;
+        }
+        this.telemetry.action('direction_pressed', {
+            dir: direction,
+            required_dir: intersection ? (intersection.turnRequired || 'forward') : null,
+            car_heading: intersection ? intersection.direction : this.carHeading,
+            distance_to_intersection: distanceCells,
+            path_visible: this.isPathVisible,
+            controls_swapped: this.controlsSwapped,
+            queued: true,
+            rt_ms: this.telemetry.rtFrom('intersection'),
+            ...this.takeRoadClosedRt(),
+        });
 
         // Visual feedback
         this.showFeedback(direction === 'left' ? '◀' : direction === 'right' ? '▶' : '▲', 0x4285F4);
@@ -2682,6 +2807,15 @@ export class TaxiDriverGameScene extends Phaser.Scene {
     private handleTimeout() {
         // Record failed turn data
         const currentSeg = this.path[this.currentPathIndex];
+        this.telemetry.action('turn_resolved', {
+            intersection_index: this.currentPathIndex,
+            pressed_dir: null,
+            required_dir: currentSeg.turnRequired || 'forward',
+            correct: false,
+            car_heading: this.carHeading,
+            was_blind: !this.isPathVisible,
+            timed_out: true,
+        });
         this.turnData.push({
             carHeading: this.carHeading,
             correctDirection: currentSeg.turnRequired || 'forward',
@@ -2723,6 +2857,11 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         this.isMoving = false;
         this.targetPosition = null;
         this.gameStarted = false;
+
+        this.telemetry.action('objective_completed', {
+            objective_index: this.currentObjective,
+            duration_ms: Math.round(performance.now() - this.objectiveStartedAt),
+        });
 
         // Play success sound
         this.playSound('level-pass');
@@ -2906,6 +3045,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         // Generate star hint
         const starHint = this.getStarHint(stars, reason);
 
+        this.telemetry.levelEnded({
+            outcome: reason === 'completed' ? 'success' : 'game_over',
+            end_reason: reason,
+            score: null,
+            stars,
+            lives_left: this.lives,
+        });
+
         // Show end message
         if (reason === 'completed') {
             this.playSound('level-pass');
@@ -3060,6 +3207,14 @@ export class TaxiDriverGameScene extends Phaser.Scene {
         } catch (e) {
             console.warn(`Sound ${key} failed to play`, e);
         }
+    }
+
+    /** rt_ms_to_next_input for the first input after a road closure, then cleared. */
+    private takeRoadClosedRt(): { rt_ms_to_next_input?: number } {
+        if (this.roadClosedAt === null) return {};
+        const rt = Math.round(performance.now() - this.roadClosedAt);
+        this.roadClosedAt = null;
+        return { rt_ms_to_next_input: rt };
     }
 
     private resumeFromPause() {
