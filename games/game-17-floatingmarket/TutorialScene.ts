@@ -10,6 +10,9 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
     private instructionOverlay!: Phaser.GameObjects.Container;
     private instructionText!: Phaser.GameObjects.Text;
     private instructionPanel!: Phaser.GameObjects.Graphics;
+    private trackedStep = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
 
     // Override starting behavior to run scripted tutorial
     constructor() {
@@ -98,6 +101,9 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         this.gameStartTime = Date.now();
         const { width, height } = this.scale;
 
+        this.trackedStep = 0;
+        this.telemetry.levelStarted({ time_limit_ms: null, seed: null });
+
         this.setupInput(width, height);
 
         this.physics.add.overlap(this.boat, this.obstacleGroup, this.handleObstacleCollision, undefined, this);
@@ -116,6 +122,7 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         const dt = delta / 1000;
 
         // Custom update logic for tutorial: allow moving, scroll background, but no random object spawner
+        this.trackSteering();
         this.moveBoat(dt);
         this.scrollY += this.scrollSpeed * dt;
         this.moveScrollables(dt);
@@ -132,6 +139,7 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
             const center = this.scale.width / 2;
             if (this.boat.x < center - 60 || this.boat.x > center + 60) {
                 this.tutorialPhase = 1.5;
+                this.trackStepDone();
                 this.hideInstruction();
                 this.time.delayedCall(1000, () => this.startPhase2());
             }
@@ -144,12 +152,14 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
                 const obs = this.obstacles[0];
                 if (obs.sprite.y > this.boat.y + 100) {
                     this.tutorialPhase = 2.5;
+                    this.trackStepDone();
                     this.hideInstruction();
                     this.time.delayedCall(1000, () => this.startPhase3());
                 }
             } else if (this.obstacles.length === 0 && this.obstacleGroup.countActive(true) === 0) {
                 // In case it was somehow destroyed early
                 this.tutorialPhase = 2.5;
+                this.trackStepDone();
                 this.hideInstruction();
                 this.time.delayedCall(1000, () => this.startPhase3());
             }
@@ -159,11 +169,13 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         if (this.tutorialPhase === 3 && this.mangoSpawned) {
             if (this.floatingItems.length === 0 && this.correctCollections > 0) {
                 this.tutorialPhase = 4;
+                this.trackStepDone();
                 this.hideInstruction();
                 this.finishTutorial();
             } else if (this.floatingItems.length === 0 && this.correctCollections === 0) {
                 // User missed the mango! Respawn it.
                 this.tutorialPhase = 3.5; // temporary state to prevent multiple respawns
+                this.stepWrongTries++;
                 this.showInstruction('อ้าว! เลยไปแล้ว\nลองเก็บมะม่วงใหม่นะ 🥭');
                 this.time.delayedCall(2000, () => this.startPhase3(true));
             }
@@ -180,11 +192,13 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
             ? 'ยินดีต้อนรับสู่ตลาดน้ำ!\nเอียงโทรศัพท์ซ้าย-ขวา\nเพื่อบังคับเรือดูสิ 🚤'
             : 'ยินดีต้อนรับสู่ตลาดน้ำ!\nกดซ้าย-ขวาที่หน้าจอ\nเพื่อบังคับเรือดูสิ 🚤';
 
+        this.trackStepShown(1, 'steer');
         this.showInstruction(msg);
     }
 
     private startPhase2() {
         this.tutorialPhase = 2;
+        this.trackStepShown(2, 'dodge');
         this.obstacleSpawned = false;
         this.showInstruction('ระวังสิ่งกีดขวาง! 🪵\nบังคับเรือหลบอย่าให้ชนนะ!');
 
@@ -221,6 +235,7 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
 
     private startPhase3(isRetry: boolean = false) {
         this.tutorialPhase = 3;
+        if (!isRetry) this.trackStepShown(3, 'collect');
         this.mangoSpawned = false;
         // Turn on banner for picking up to show them where instruction usually is
         if (this.ruleBannerBg) this.ruleBannerBg.setVisible(true);
@@ -286,11 +301,27 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         });
     }
 
+    private trackStepShown(step: number, stepKey: string) {
+        this.trackedStep = step;
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step, step_key: stepKey });
+    }
+
+    private trackStepDone() {
+        this.telemetry.action('tutorial_step_done', {
+            step: this.trackedStep,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
+        });
+    }
+
     private finishTutorial() {
         this.showInstruction('คุณเก่งมาก! 🎉\nพร้อมลุยตลาดน้ำของจริงแล้วล่ะ');
 
         // Allow user to leave
         this.time.delayedCall(2500, () => {
+            this.telemetry.levelEnded({ outcome: 'success' });
             const onTutorialComplete = this.registry.get('onTutorialComplete');
             if (onTutorialComplete) {
                 onTutorialComplete();
@@ -303,6 +334,7 @@ export class FloatingMarketTutorialScene extends FloatingMarketScene {
         // Just shake camera but don't deduct anything or cause game over.
         if (this.collisionCooldown > 0) return;
         this.collisionCooldown = 1.0;
+        this.stepWrongTries++;
 
         try { this.sound.play('collision'); } catch (e) { }
         this.cameras.main.shake(200, 0.02);

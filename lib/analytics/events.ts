@@ -100,6 +100,16 @@ export const GAME_EVENTS = [
   "path_shown",
   "life_lost",
   "objective_completed",
+  // 17 Floating Market
+  "control_mode_set",
+  "steer_started",
+  "steer_ended",
+  "item_spawned",
+  "item_collected",
+  "item_missed",
+  "rule_switched",
+  "collision",
+  "coin_collected",
 ] as const;
 
 export const EVENT_NAMES = [

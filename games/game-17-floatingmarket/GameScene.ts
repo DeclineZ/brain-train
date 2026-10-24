@@ -3,6 +3,7 @@ import { FLOATING_MARKET_LEVELS } from './levels';
 import type { FloatingMarketLevelConfig, MarketItem, ItemCategory, GameMode, LevelRule } from './types';
 import { AssetFactory } from './AssetFactory';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // ==================== ITEM DATABASE ====================
 
@@ -213,6 +214,15 @@ export class FloatingMarketScene extends Phaser.Scene {
     private tapOverlayEl: HTMLElement | null = null;
     private tapStyleEl: HTMLElement | null = null;
 
+    // Telemetry
+    protected telemetry!: GameTelemetry;
+    private tiltPermission: 'granted' | 'denied' | 'n/a' = 'n/a';
+    private loggedControl: string | null = null;
+    private pendingControl: { control: string; tilt_permission: string } | null = null;
+    private steerDirection: -1 | 0 | 1 = 0;
+    private steerStartedAt = 0;
+    private itemSpawnIndex = new WeakMap<FloatingItem, number>();
+
     constructor() {
         super({ key: 'FloatingMarketScene' });
     }
@@ -305,6 +315,10 @@ export class FloatingMarketScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-17-floatingmarket' });
+        this.loggedControl = null;
+        this.pendingControl = null;
+        this.steerDirection = 0;
         new AssetFactory(this).generateTextures();
         const { width, height } = this.scale;
 
@@ -434,13 +448,17 @@ export class FloatingMarketScene extends Phaser.Scene {
                 if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
                     DeviceOrientationEventTyped.requestPermission()
                         .then((state: string) => {
+                            this.tiltPermission = state === 'granted' ? 'granted' : 'denied';
                             if (state === 'granted') {
                                 this.enableTilt();
                             } else {
                                 this.enableTouchFallback(width, height);
                             }
                         })
-                        .catch(() => this.enableTouchFallback(width, height))
+                        .catch(() => {
+                            this.tiltPermission = 'denied';
+                            this.enableTouchFallback(width, height);
+                        })
                         .finally(() => {
                             this.startGame();
                         });
@@ -460,6 +478,24 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.gameStarted = true;
         this.gameStartTime = Date.now();
         const { width, height } = this.scale;
+
+        this.telemetry.levelStarted({
+            game_mode: this.levelConfig.mode,
+            rule_mode: this.activeMode,
+            shopping_list: this.activeRule.targetQuantities
+                ? { ...this.activeRule.targetQuantities }
+                : {
+                    collect: [...this.activeRule.collectFilter],
+                    avoid: [...(this.activeRule.avoidFilter ?? [])],
+                    negative_rule: !!this.activeRule.negativeRule,
+                },
+            items_to_spawn: this.levelConfig.itemCount,
+            memory_capacity: this.levelConfig.memoryCapacity ?? null,
+            time_limit_ms: this.levelConfig.timeLimitSeconds * 1000,
+            difficulty_multiplier: this.levelConfig.difficultyMultiplier,
+            seed: null,
+        });
+        this.flushControlMode();
 
         this.setupInput(width, height);
 
@@ -858,6 +894,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     enableTilt(isAbsolute: boolean = false) {
         this.useTilt = true;
         this.baseTiltGamma = null;
+        this.recordControlMode('tilt');
 
         const eventName = isAbsolute ? 'deviceorientationabsolute' : 'deviceorientation';
 
@@ -904,6 +941,7 @@ export class FloatingMarketScene extends Phaser.Scene {
     }
 
     enableTouchFallback(width: number, height: number) {
+        this.recordControlMode('touch');
         if (!this.alertShown) {
             this.alertShown = true;
             const isSecure = window.isSecureContext;
@@ -953,12 +991,58 @@ export class FloatingMarketScene extends Phaser.Scene {
         }
     }
 
+    /** control_mode_set fires once per change; before level_started it waits for startGame. */
+    private recordControlMode(control: 'tilt' | 'touch') {
+        if (this.loggedControl === control) return;
+        this.loggedControl = control;
+        const props = { control, tilt_permission: this.tiltPermission };
+        if (control === 'tilt') this.telemetry.setInputMethod('tilt');
+        if (this.telemetry.isActive) this.telemetry.action('control_mode_set', props);
+        else this.pendingControl = props;
+    }
+
+    private flushControlMode() {
+        if (!this.pendingControl) return;
+        this.telemetry.action('control_mode_set', this.pendingControl);
+        this.pendingControl = null;
+    }
+
+    /** Logs steer_started / steer_ended when the derived direction changes, never per frame. */
+    protected trackSteering() {
+        let dir: -1 | 0 | 1 = 0;
+        if (this.touchRight) dir = 1;
+        else if (this.touchLeft) dir = -1;
+        else if (this.useTilt) {
+            // Hysteresis so sensor jitter around the game's 3° dead zone doesn't spam events
+            const threshold = this.steerDirection === 0 ? 6 : 3;
+            if (this.tiltGamma > threshold) dir = 1;
+            else if (this.tiltGamma < -threshold) dir = -1;
+        }
+        if (dir === this.steerDirection) return;
+        const now = performance.now();
+        if (this.steerDirection !== 0) {
+            this.telemetry.action('steer_ended', {
+                direction: this.steerDirection < 0 ? 'left' : 'right',
+                held_ms: Math.round(now - this.steerStartedAt),
+            });
+        }
+        this.steerDirection = dir;
+        this.steerStartedAt = now;
+        if (dir !== 0) {
+            this.telemetry.action('steer_started', {
+                direction: dir < 0 ? 'left' : 'right',
+                source: this.touchLeft || this.touchRight ? 'press' : 'tilt',
+            });
+        }
+    }
+
     // ==================== UPDATE LOOP ====================
 
     update(_time: number, delta: number) {
         if (!this.gameStarted || this.gameOver) return;
         const dt = delta / 1000;
 
+        this.trackSteering();
         this.moveBoat(dt);
 
         this.scrollY += this.scrollSpeed * dt;
@@ -1019,6 +1103,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         // Time limit
         const elapsed = (Date.now() - this.gameStartTime) / 1000;
         if (elapsed >= this.levelConfig.timeLimitSeconds) {
+            if (!this.gameOver) this.telemetry.action('time_up', {});
             this.endGame(this.levelConfig.noFailState || false);
         }
     }
@@ -1026,6 +1111,11 @@ export class FloatingMarketScene extends Phaser.Scene {
     // ==================== HYBRID SWITCH ====================
 
     private switchToModeB() {
+        this.telemetry.action('rule_switched', {
+            trial_index: this.totalItemsSpawned,
+            from_mode: this.activeMode,
+            to_mode: 'modeB',
+        });
         this.activeMode = 'modeB';
         if (this.levelConfig.switchToRule) {
             this.activeRule = { ...this.levelConfig.switchToRule };
@@ -1272,7 +1362,21 @@ export class FloatingMarketScene extends Phaser.Scene {
         const driftSpeed = this.levelConfig.itemDrift
             ? Phaser.Math.Between(-30, 30) : 0;
 
-        this.floatingItems.push({ sprite: container, body, item, collected: false, driftSpeed });
+        const fi: FloatingItem = { sprite: container, body, item, collected: false, driftSpeed };
+        this.floatingItems.push(fi);
+
+        let isWanted: boolean;
+        if (this.activeMode === 'modeB') isWanted = !this.basketItems.has(item.id);
+        else if (this.activeMode === 'quantityMode') isWanted = (this.collectedQuantities[item.id] ?? Infinity) < (this.targetQuantities[item.id] ?? 0);
+        else isWanted = this.isCollectible(item);
+        this.itemSpawnIndex.set(fi, this.totalItemsSpawned);
+        this.telemetry.action('item_spawned', {
+            item_id: item.id,
+            spawn_index: this.totalItemsSpawned,
+            lane_x_pct: Math.round(((x - this.riverLeft) / this.riverWidth) * 100) / 100,
+            is_wanted: isWanted,
+        });
+        this.telemetry.stimulus(`item_${this.totalItemsSpawned}`);
 
         // Gentle bob animation — slightly more pronounced
         this.tweens.add({
@@ -1325,6 +1429,7 @@ export class FloatingMarketScene extends Phaser.Scene {
                 // Missed item — count if it was collectible
                 if (!fi.collected && this.isCollectible(fi.item)) {
                     this.missedItems++;
+                    this.telemetry.action('item_missed', { item_id: fi.item.id, spawn_index: this.itemSpawnIndex.get(fi) ?? null });
                 }
                 fi.sprite.destroy();
                 this.floatingItems.splice(i, 1);
@@ -1392,6 +1497,10 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.lastItemContactTime = Date.now();
         if (reactionTime < 10000) this.reactionTimes.push(reactionTime);
 
+        const correctBefore = this.correctCollections;
+        const duplicatesBefore = this.duplicatePickups;
+        const modeAtCollect = this.activeMode;
+
         if (this.activeMode === 'modeB') {
             this.handleModeBCollection(fi, item);
         } else if (this.activeMode === 'quantityMode') {
@@ -1399,6 +1508,19 @@ export class FloatingMarketScene extends Phaser.Scene {
         } else {
             this.handleModeACollection(fi, item);
         }
+
+        const spawnIndex = this.itemSpawnIndex.get(fi);
+        let basketCountAfter = this.correctCollections;
+        if (modeAtCollect === 'modeB') basketCountAfter = this.basketCount;
+        else if (modeAtCollect === 'quantityMode') basketCountAfter = Object.values(this.collectedQuantities).reduce((a, b) => a + b, 0);
+        this.telemetry.action('item_collected', {
+            item_id: item.id,
+            correct: this.correctCollections > correctBefore,
+            game_mode: modeAtCollect,
+            basket_count_after: basketCountAfter,
+            is_duplicate: this.duplicatePickups > duplicatesBefore,
+            rt_ms: spawnIndex === undefined ? null : this.telemetry.rtFrom(`item_${spawnIndex}`),
+        });
     }
 
     private handleQuantityModeCollection(fi: FloatingItem, item: MarketItem) {
@@ -1665,6 +1787,13 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.totalCollisions++;
         this.incorrectCollections++; // Crash counts as an accuracy penalty
 
+        this.telemetry.action('collision', {
+            kind: 'obstacle',
+            obstacle_type: this.obstacles.find(o => o.sprite === _obstacle)?.type ?? null,
+            health_left: this.playerHealth - 1,
+            correct: false,
+        });
+
         this.playerHealth--;
         this.updateHealthUI();
 
@@ -1684,6 +1813,8 @@ export class FloatingMarketScene extends Phaser.Scene {
         this.collisionCooldown = 0.5;
         this.totalCollisions++;
         this.incorrectCollections++; // Bank crash counts as an accuracy penalty
+
+        this.telemetry.action('collision', { kind: 'bank', health_left: this.playerHealth - 1, correct: false });
 
         this.playerHealth--;
         this.updateHealthUI();
@@ -1705,6 +1836,7 @@ export class FloatingMarketScene extends Phaser.Scene {
         if (coin.collected) return;
         coin.collected = true;
         this.bonusCoins++;
+        this.telemetry.action('coin_collected', { coins: this.bonusCoins });
         this.coinCountText.setText(`🪙 ${this.bonusCoins}`);
         this.tweens.add({
             targets: coin.sprite, y: coin.sprite.y - 30, alpha: 0,
@@ -1794,6 +1926,21 @@ export class FloatingMarketScene extends Phaser.Scene {
 
         const totalTimeMs = Date.now() - this.gameStartTime;
         const stars = this.calculateStars();
+
+        if (this.steerDirection !== 0) {
+            this.telemetry.action('steer_ended', {
+                direction: this.steerDirection < 0 ? 'left' : 'right',
+                held_ms: Math.round(performance.now() - this.steerStartedAt),
+            });
+            this.steerDirection = 0;
+        }
+        const timedOut = totalTimeMs >= this.levelConfig.timeLimitSeconds * 1000;
+        this.telemetry.levelEnded({
+            outcome: success ? 'success' : timedOut ? 'timeout' : 'fail',
+            score: null,
+            stars,
+            health_left: this.playerHealth,
+        });
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
