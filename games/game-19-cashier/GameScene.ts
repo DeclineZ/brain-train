@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CASHIER_LEVELS, type CashierLevelConfig } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 const SHOP_ITEMS = [
     { id: 'apple', name: 'แอปเปิล', key: 'item-apple', basePrice: 2 },
@@ -73,6 +74,10 @@ export class CashierGameScene extends Phaser.Scene {
     // Background Image
     private bgImage!: Phaser.GameObjects.Image;
 
+    // Telemetry
+    private telemetry!: GameTelemetry;
+    private changePieces = 0;
+
     constructor() { super({ key: 'CashierGameScene' }); }
 
     init(data: { level?: number }) {
@@ -127,6 +132,8 @@ export class CashierGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-19-cashier' });
+
         // Hold reference to background to scale it later and place it furthest back
         this.bgImage = this.add.image(400, 600, 'game-bg').setDepth(-3);
         this.bgImage.setTint(0xcccccc); // Darken slightly so foreground pops
@@ -315,11 +322,14 @@ export class CashierGameScene extends Phaser.Scene {
             this.showSpeechBubble("แถวเริ่มยาวแล้วนะจ๊ะ...");
         } else if (pct <= 0.25 && pct > 0 && this.currentBubbleStage < 2) {
             this.currentBubbleStage = 2;
+            this.telemetry.action('time_warning', { remaining_ms: Math.round(this.currentPatience) });
             this.showSpeechBubble("มีคนรอคิวอีกนิดหน่อยจ้า...");
         }
     }
 
     private triggerPatiencePenalty() {
+        this.telemetry.action('time_up', {});
+        this.telemetry.action('patience_penalty', { phase: this.phaseName() });
         this.currentBubbleStage = 3;
         this.showSpeechBubble("คิวเริ่มยาวมากแล้วจ้า...", true);
 
@@ -556,6 +566,7 @@ export class CashierGameScene extends Phaser.Scene {
         const hitArea = this.add.rectangle(bx, by, hw, hh, 0x000000, 0).setInteractive({ useHandCursor: true });
         this.cashDrawerGroup.add(hitArea);
 
+        hitArea.setName(`currency_${denom.val}`);
         hitArea.on('pointerdown', () => {
             this.sound.play('sfx-pop', { volume: 0.5 });
             this.dispenseChangeAnim(denom.key, sizeMult, visualTint, topObj, denom.type, denom.val);
@@ -572,7 +583,16 @@ export class CashierGameScene extends Phaser.Scene {
             this.phase3_start_time = this.time.now;
         }
 
+        this.changePieces++;
+        this.telemetry.action('currency_added', {
+            denomination: val,
+            change_total_after: this.changeGivenSoFar,
+            change_expected: this.changeTarget,
+            overshoot: this.changeGivenSoFar > this.changeTarget,
+        });
+
         if (this.changeGivenSoFar > this.changeTarget) {
+            this.changePieces = 0;
             if (this.config.deceptiveCurrency) this.deceptive_errors++;
             else this.operator_errors++;
 
@@ -688,6 +708,7 @@ export class CashierGameScene extends Phaser.Scene {
         }
 
         let voidItemsStr = "";
+        const trackedItems: { item_id: string; price: number; qty: number; is_distractor: boolean; is_limit_rule: boolean }[] = [];
 
         for (let i = 0; i < numItems; i++) {
             const item = availableItems[i];
@@ -710,6 +731,8 @@ export class CashierGameScene extends Phaser.Scene {
                 this.validTotal += price;
             }
 
+            trackedItems.push({ item_id: item.id, price, qty: itemVisualQty, is_distractor: isDistractor && !isLimitTrick, is_limit_rule: isLimitTrick });
+
             // Draw items visually on conveyor belt
             for (let j = 0; j < itemVisualQty; j++) {
                 const py = currentBeltY + Phaser.Math.RND.between(-10, 10); // Slight variance
@@ -726,6 +749,7 @@ export class CashierGameScene extends Phaser.Scene {
                     hitAreaCallback: Phaser.Geom.Circle.Contains,
                     useHandCursor: true
                 });
+                itemImg.setName(`item_${item.id}`);
 
                 // Add simple box shadow
                 const shadow = this.add.image(currentBeltX + 5, py + 5, item.key).setOrigin(0.5).setTintFill(0x000000).setAlpha(0.3).setScale(1.8);
@@ -756,6 +780,13 @@ export class CashierGameScene extends Phaser.Scene {
                     // Dynamically render this item's price on the monitor (regardless of distractor status)
                     const effectiveQty = isLimitTrick ? 3 : 1;
                     const effectivePrice = isLimitTrick ? price * 3 : price;
+
+                    this.telemetry.action('item_tapped', {
+                        item_id: item.id,
+                        price: effectivePrice,
+                        qty: effectiveQty,
+                        is_distractor: isDistractor && !isLimitTrick,
+                    });
                     this.drawPhase1MonitorRow(monitorCenterX, monitorCenterY, item.key, effectiveQty, effectivePrice);
 
                     // Removed the explicit warning text/animation for Limit Rule here per user request
@@ -776,6 +807,31 @@ export class CashierGameScene extends Phaser.Scene {
         if (deskNoteStr.length > 0) {
             this.createDeskStickyNote(deskNoteStr);
         }
+
+        this.telemetry.levelStarted({
+            items: trackedItems,
+            rules: {
+                tally_limit_rule: !!this.config.tallyLimitRule,
+                tally_distractors: this.config.tallyDistractors,
+                round_numbers: !!this.config.roundNumbers,
+                payment_mixed: !!this.config.paymentMixed,
+                payment_disguised: !!this.config.paymentDisguised,
+                deceptive_currency: !!this.config.deceptiveCurrency,
+                inverted_visuals: !!this.config.invertedVisuals,
+            },
+            expected_total: this.validTotal,
+            paid_amount: null,
+            time_limit_ms: this.maxPatience,
+            seed: null,
+        });
+        this.telemetry.stimulus('phase');
+    }
+
+    private phaseName(): 'tally' | 'payment' | 'change' | null {
+        if (this.state === GameState.PHASE1_TALLY) return 'tally';
+        if (this.state === GameState.PHASE2_PAYMENT) return 'payment';
+        if (this.state === GameState.PHASE3_CHANGE) return 'change';
+        return null;
     }
 
     private drawPhase1MonitorRow(cx: number, cy: number, itemKey: string, qty: number, totalPrice: number) {
@@ -854,7 +910,20 @@ export class CashierGameScene extends Phaser.Scene {
     }
 
     private handleNumpadInput(key: string) {
-        if (this.state !== GameState.PHASE1_TALLY && this.state !== GameState.PHASE2_PAYMENT) return;
+        if (this.state !== GameState.PHASE1_TALLY && this.state !== GameState.PHASE2_PAYMENT) {
+            if (this.telemetry.isActive) this.telemetry.action('input_ignored', { reason: 'invalid_target', target: `numpad_${key}` });
+            return;
+        }
+
+        if (key !== 'ENTER') {
+            const before = this.displayedInput;
+            let after = before;
+            if (key === 'CLEAR') after = "";
+            else if (before.length < 4) after = (before === "0" || before === "") ? key : before + key;
+            this.telemetry.action('numpad_pressed', { key, value_after: after, phase: this.phaseName() });
+        } else {
+            this.telemetry.action('numpad_pressed', { key, value_after: this.displayedInput, phase: this.phaseName() });
+        }
 
         if (key === 'CLEAR') {
             this.displayedInput = "";
@@ -888,6 +957,16 @@ export class CashierGameScene extends Phaser.Scene {
 
     private checkTallyPhase() {
         const guess = parseInt(this.displayedInput || "0");
+        const tallyCorrect = guess === this.validTotal;
+        this.telemetry.action('tally_submitted', {
+            phase: 'tally',
+            entered: guess,
+            expected: this.validTotal,
+            correct: tallyCorrect,
+            error_type: tallyCorrect ? null
+                : (this.config.tallyLimitRule && guess > this.validTotal) ? 'forgot_rule' : 'other',
+            rt_ms: this.telemetry.rtFrom('phase'),
+        });
         if (guess === this.validTotal) {
             this.showFloatingFeedback("ยอดรวมถูกต้อง!", 0x00ff00);
             this.isBeltMoving = false;
@@ -974,10 +1053,27 @@ export class CashierGameScene extends Phaser.Scene {
         this.paymentTargetBalance = Math.max(0, this.paymentTargetBalance);
 
         this.posMonitorText.setText(p2MonitorText);
+
+        this.telemetry.action('phase_changed', {
+            phase: 'payment',
+            additions,
+            subtractions,
+            expected: this.paymentTargetBalance,
+        });
+        this.telemetry.stimulus('phase');
     }
 
     private checkPaymentPhase() {
         const guess = parseInt(this.displayedInput || "0");
+        const paymentCorrect = guess === this.paymentTargetBalance;
+        this.telemetry.action('tally_submitted', {
+            phase: 'payment',
+            entered: guess,
+            expected: this.paymentTargetBalance,
+            correct: paymentCorrect,
+            error_type: paymentCorrect ? null : 'operator',
+            rt_ms: this.telemetry.rtFrom('phase'),
+        });
         if (guess === this.paymentTargetBalance) {
             this.showFloatingFeedback("ยอดสุทธิถูกต้อง!", 0x00ff00);
             this.time.delayedCall(1200, () => {
@@ -1040,6 +1136,14 @@ export class CashierGameScene extends Phaser.Scene {
         this.phase3_start_time = this.time.now;
 
         this.updatePOSForPhase3();
+
+        this.changePieces = 0;
+        this.telemetry.action('phase_changed', {
+            phase: 'change',
+            paid_amount: this.customerGivenAmount,
+            expected: this.changeTarget,
+        });
+        this.telemetry.stimulus('phase');
     }
 
     private redrawPhase3Hand() {
@@ -1075,6 +1179,14 @@ export class CashierGameScene extends Phaser.Scene {
     }
 
     private checkPhase3() {
+        this.telemetry.action('change_submitted', {
+            given: this.changeGivenSoFar,
+            expected: this.changeTarget,
+            correct: this.changeGivenSoFar === this.changeTarget,
+            pieces_used: this.changePieces,
+            rt_ms: this.telemetry.rtFrom('phase'),
+        });
+        if (this.changeGivenSoFar !== this.changeTarget) this.changePieces = 0;
         if (this.changeGivenSoFar === this.changeTarget) {
             this.showFloatingFeedback("เงินทอนถูกต้อง!", 0x00ff00);
             this.time.delayedCall(1500, () => this.endGame());
@@ -1113,6 +1225,8 @@ export class CashierGameScene extends Phaser.Scene {
             stat_planning: null,
             stat_emotion: null
         };
+
+        this.telemetry.levelEnded({ outcome: 'success', score: this.score, stars: this.stars });
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {

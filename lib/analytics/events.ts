@@ -72,6 +72,13 @@ export const GAME_EVENTS = [
   "question_shown",
   "answer_selected",
   "question_timeout",
+  // 19 Cashier
+  "item_tapped",
+  "numpad_pressed",
+  "tally_submitted",
+  "currency_added",
+  "change_submitted",
+  "patience_penalty",
 ] as const;
 
 export const EVENT_NAMES = [
