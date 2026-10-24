@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { CUBE_COLORS, type Block3D, type Puzzle3D } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // ─── Thai-safe text style helper ───
 const FONT_FAMILY = GAME_FONT_FAMILY;
@@ -51,6 +52,11 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
     private optionButtons: Phaser.GameObjects.Container[] = [];
     private isInputLocked = false;
 
+    private telemetry!: GameTelemetry;
+    private stepNumber = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
+
     constructor() {
         super('BoxCountingTutorialScene');
     }
@@ -74,10 +80,15 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         this.currentPuzzleIndex = 0;
         this.isInputLocked = false;
 
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-20-boxcounting', mode: 'tutorial' });
+        this.stepNumber = 0;
+        this.telemetry.levelStarted({ total_questions: TUTORIAL_PUZZLES.length, time_limit_ms: null, seed: null });
+
         // Load and start BGM lazily (non-blocking)
         this.loadAndPlayBGM();
 
         this.showWelcome();
+        this.trackStepShown('welcome');
     }
 
     private loadAndPlayBGM() {
@@ -179,6 +190,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         btnContainer.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
         btnContainer.on('pointerdown', () => {
+            this.trackStepDone();
             this.showQuestionStep(0);
         });
     }
@@ -239,6 +251,23 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
 
         // Progress dots
         this.drawProgressDots(w, h, puzzleIndex);
+
+        this.trackStepShown(`question_${puzzleIndex + 1}`);
+    }
+
+    private trackStepShown(stepKey: string) {
+        this.stepNumber++;
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step: this.stepNumber, step_key: stepKey });
+    }
+
+    private trackStepDone() {
+        this.telemetry.action('tutorial_step_done', {
+            step: this.stepNumber,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
+        });
     }
 
     // ==========================================
@@ -485,6 +514,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
         const isCorrect = value === this.currentAnswer;
 
         if (!isCorrect) {
+            this.stepWrongTries++;
             // Shake the button, DON'T lock input — let them try again
             try { this.sound.play('bc-wrong', { volume: 0.5 }); } catch (e) { /* */ }
 
@@ -501,6 +531,7 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
 
         // Correct!
         this.isInputLocked = true;
+        this.trackStepDone();
         try { this.sound.play('bc-correct', { volume: 0.5 }); } catch (e) { /* */ }
 
         // Show feedback
@@ -571,6 +602,8 @@ export class BoxCountingTutorialScene extends Phaser.Scene {
 
         // Stop all sounds
         this.sound.stopAll();
+
+        this.telemetry.levelEnded({ outcome: 'success' });
 
         const onTutorialComplete = this.game.registry.get('onTutorialComplete');
         if (onTutorialComplete) {

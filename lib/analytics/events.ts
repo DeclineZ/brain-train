@@ -68,6 +68,10 @@ export const GAME_EVENTS = [
   "reference_opened",
   "reference_closed",
   "reference_page_changed",
+  // 20 Box Counting
+  "question_shown",
+  "answer_selected",
+  "question_timeout",
 ] as const;
 
 export const EVENT_NAMES = [

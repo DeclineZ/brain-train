@@ -8,6 +8,7 @@ import {
     type Puzzle2D,
 } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // --- Constants ---
 const FONT_FAMILY = GAME_FONT_FAMILY;
@@ -47,6 +48,10 @@ export class BoxCountingGameScene extends Phaser.Scene {
     private soundComplete?: Phaser.Sound.BaseSound;
     private backgroundMusic?: Phaser.Sound.BaseSound;
 
+    // Telemetry
+    private telemetry!: GameTelemetry;
+    private timeWarningSent = false;
+
     constructor() {
         super('BoxCountingGameScene');
     }
@@ -77,6 +82,8 @@ export class BoxCountingGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-20-boxcounting' });
+
         try {
             this.soundCorrect = this.sound.add('bc-correct', { volume: 0.5 });
             this.soundWrong = this.sound.add('bc-wrong', { volume: 0.5 });
@@ -130,6 +137,43 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
         this.renderScene();
         this.startTimer();
+
+        this.trackQuestionShown(puzzle);
+    }
+
+    private trackQuestionShown(puzzle: Puzzle3D | Puzzle2D) {
+        const timeLimitMs = this.levelConfig.timeLimitSeconds * 1000;
+        if (this.currentQuestionIndex === 0 && !this.telemetry.isActive) {
+            this.telemetry.levelStarted({
+                total_questions: this.totalQuestions,
+                time_per_question_ms: timeLimitMs,
+                view_mode: this.levelConfig.mode,
+                time_limit_ms: timeLimitMs,
+                seed: null,
+            });
+        }
+
+        // Boxes whose three visible faces (top, +x, +y) are all covered by neighbours.
+        let hiddenBoxes: number | null = null;
+        if (this.levelConfig.mode === '3d') {
+            const blocks = (puzzle as Puzzle3D).blocks;
+            const filled = new Set(blocks.map(b => `${b.x},${b.y},${b.z}`));
+            hiddenBoxes = blocks.filter(b =>
+                filled.has(`${b.x},${b.y},${b.z + 1}`) &&
+                filled.has(`${b.x + 1},${b.y},${b.z}`) &&
+                filled.has(`${b.x},${b.y + 1},${b.z}`)
+            ).length;
+        }
+
+        this.timeWarningSent = false;
+        this.telemetry.action('question_shown', {
+            question_index: this.currentQuestionIndex,
+            correct_count: this.currentAnswer,
+            hidden_boxes: hiddenBoxes,
+            options: [...this.currentOptions],
+            view_mode: this.levelConfig.mode,
+        });
+        this.telemetry.stimulus('question');
     }
 
     // ==========================================
@@ -554,9 +598,12 @@ export class BoxCountingGameScene extends Phaser.Scene {
             const hitArea = new Phaser.Geom.Rectangle(-buttonW / 2, -buttonH / 2, buttonW, buttonH);
             container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
+            container.setName(`option_${index}`);
             container.on('pointerdown', () => {
                 if (!this.isInputLocked) {
                     this.handleAnswer(value, options);
+                } else if (this.telemetry.isActive) {
+                    this.telemetry.action('input_ignored', { reason: 'locked', target: `option_${index}` });
                 }
             });
 
@@ -683,6 +730,12 @@ export class BoxCountingGameScene extends Phaser.Scene {
                 this.timeRemaining -= 0.1;
                 this.updateTimerBar();
 
+                // Same threshold where the bar turns red
+                if (!this.timeWarningSent && this.timeTotal > 0 && this.timeRemaining / this.timeTotal < 0.25) {
+                    this.timeWarningSent = true;
+                    this.telemetry.action('time_warning', { remaining_ms: Math.max(0, Math.round(this.timeRemaining * 1000)) });
+                }
+
                 if (this.timeRemaining <= 0) {
                     this.timeRemaining = 0;
                     this.handleTimeout();
@@ -710,6 +763,16 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
         const isCorrect = value === this.currentAnswer;
 
+        this.telemetry.action('answer_selected', {
+            question_index: this.currentQuestionIndex,
+            value,
+            correct: isCorrect,
+            error_size: value - this.currentAnswer,
+            option_position: options.indexOf(value),
+            rt_ms: this.telemetry.rtFrom('question'),
+            time_remaining_ms: Math.max(0, Math.round(this.timeRemaining * 1000)),
+        });
+
         if (isCorrect) {
             this.correctCount++;
             this.score += 100 + Math.round(this.timeRemaining * 10);
@@ -735,6 +798,8 @@ export class BoxCountingGameScene extends Phaser.Scene {
         if (this.isInputLocked) return;
         this.isInputLocked = true;
         this.stopTimer();
+
+        this.telemetry.action('question_timeout', { question_index: this.currentQuestionIndex, correct: false });
 
         try { this.soundWrong?.play(); } catch (e) { /* ignore */ }
 
@@ -826,6 +891,8 @@ export class BoxCountingGameScene extends Phaser.Scene {
 
         const stars = this.calculateStars();
         try { this.soundComplete?.play(); } catch (e) { /* ignore */ }
+
+        this.telemetry.levelEnded({ outcome: 'success', score: this.score, stars });
 
         this.time.delayedCall(500, () => {
             const onGameOver = this.game.registry.get('onGameOver');
