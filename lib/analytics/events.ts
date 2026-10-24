@@ -51,7 +51,13 @@ export const GAME_COMMON_EVENTS = [
 ] as const;
 
 // Per-game events (handoff section 5) go here.
-export const GAME_EVENTS = [] as const;
+export const GAME_EVENTS = [
+  // 13 Box Pattern
+  "sequence_shown",
+  "orb_tapped",
+  "round_ended",
+  "phase_changed",
+] as const;
 
 export const EVENT_NAMES = [
   ...CANONICAL_EVENTS,
