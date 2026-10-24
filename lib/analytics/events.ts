@@ -110,6 +110,15 @@ export const GAME_EVENTS = [
   "rule_switched",
   "collision",
   "coin_collected",
+  // 18 Run For Your Life
+  "move_started",
+  "move_ended",
+  "gun_fired",
+  "obstacle_spawned",
+  "pickup_collected",
+  "powerup_popup_shown",
+  "powerup_popup_closed",
+  "sector_changed",
 ] as const;
 
 export const EVENT_NAMES = [

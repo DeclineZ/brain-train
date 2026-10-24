@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Player } from './Player';
 import { ObstacleManager } from './ObstacleManager';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 const ASSET_BASE = '/assets/game-18-runforyourlife/';
 
@@ -58,6 +59,16 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private gunAmmo: number = 1; // Start with 1
     private gunAmmoText!: Phaser.GameObjects.Text;
     private gunBtn!: Phaser.GameObjects.Rectangle;
+
+    // Telemetry: the in-scene tutorial is its own attempt (mode 'tutorial')
+    private telemetry!: GameTelemetry;
+    private tutorialTelemetry!: GameTelemetry;
+    private moveDir: -1 | 0 | 1 = 0;
+    private moveStartedAt = 0;
+    private moveFromLane = 0;
+    private waveIndex = 0;
+    private tutorialStepStartedAt = 0;
+    private tutorialStepWrongTries = 0;
 
     constructor() {
         super({ key: 'RunForYourLifeGameScene' });
@@ -205,6 +216,21 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             canvasH: this.CANVAS_H,
         });
 
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-18-runforyourlife', mode: 'normal' });
+        this.tutorialTelemetry = GameTelemetry.forScene(this, { gameId: 'game-18-runforyourlife', mode: 'tutorial' });
+        this.moveDir = 0;
+        this.waveIndex = 0;
+        this.obstacleManager.onWaveSpawned = (wave) => {
+            this.waveIndex++;
+            this.tracker.action('obstacle_spawned', {
+                wave_index: this.waveIndex,
+                lanes_blocked: wave.lanes,
+                obstacle_types: wave.types,
+                sector: wave.sector,
+                speed: Math.round(wave.speed),
+            });
+        };
+
         // Create controls (buttons)
         this.createControls();
 
@@ -217,6 +243,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             if (!this.sound.get('bgm')) {
                 this.sound.add('bgm', { loop: true, volume: 0.4 }).play();
             }
+            this.telemetry.levelStarted({ sector: this.currentSector, lanes: this.LANE_COUNT, time_limit_ms: null, seed: null });
         }
 
         // Collisions
@@ -364,11 +391,17 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.add.text(rightBtnX, btnY, '▶', createGameTextStyle({ fontSize: '36px', color: '#FFFFFF' }))
             .setOrigin(0.5).setDepth(61);
 
+        leftBtn.setName('move_left_button');
+        rightBtn.setName('move_right_button');
+        this.gunBtn.setName('gun_button');
+
         // Movement handlers
         leftBtn.on('pointerdown', () => {
             if (!this.controlsLocked) {
                 this.player.startMoveLeft();
                 this.handleTutorialInput();
+            } else {
+                this.tracker.action('input_ignored', { reason: 'locked', target: 'move_left_button' });
             }
         });
         leftBtn.on('pointerup', () => this.player.stopMove());
@@ -377,6 +410,8 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             if (!this.controlsLocked) {
                 this.player.startMoveRight();
                 this.handleTutorialInput();
+            } else {
+                this.tracker.action('input_ignored', { reason: 'locked', target: 'move_right_button' });
             }
         });
         rightBtn.on('pointerup', () => this.player.stopMove());
@@ -386,9 +421,58 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.gunBtn.on('pointerdown', () => this.fireGun());
     }
 
+    /** Telemetry for whichever attempt is running: the tutorial, or the game after it. */
+    private get tracker(): GameTelemetry {
+        return this.isTutorial ? this.tutorialTelemetry : this.telemetry;
+    }
+
+    private playerLane(): number {
+        return Phaser.Math.Clamp(Math.floor((this.player.x - this.TRACK_LEFT) / this.LANE_WIDTH), 0, this.LANE_COUNT - 1);
+    }
+
+    /** move_started / move_ended when the steering intent changes (buttons or arrow keys), never per frame. */
+    private trackMovement() {
+        const dir = this.player.getMoveIntent();
+        if (dir === this.moveDir) return;
+        this.endTrackedMove();
+        if (dir !== 0) {
+            this.moveDir = dir;
+            this.moveStartedAt = performance.now();
+            this.moveFromLane = this.playerLane();
+            this.tracker.action('move_started', { direction: dir < 0 ? 'left' : 'right', from_lane: this.moveFromLane });
+        }
+    }
+
+    private endTrackedMove() {
+        if (this.moveDir === 0) return;
+        this.tracker.action('move_ended', {
+            direction: this.moveDir < 0 ? 'left' : 'right',
+            from_lane: this.moveFromLane,
+            to_lane: this.playerLane(),
+            held_ms: Math.round(performance.now() - this.moveStartedAt),
+        });
+        this.moveDir = 0;
+    }
+
+    private trackTutorialStepShown(step: number, stepKey: string) {
+        this.tutorialStepStartedAt = performance.now();
+        this.tutorialStepWrongTries = 0;
+        this.tutorialTelemetry.action('tutorial_step_shown', { step, step_key: stepKey });
+    }
+
+    private trackTutorialStepDone(step: number) {
+        this.tutorialTelemetry.action('tutorial_step_done', {
+            step,
+            duration_ms: Math.round(performance.now() - this.tutorialStepStartedAt),
+            wrong_tries: this.tutorialStepWrongTries,
+        });
+    }
+
     private runTutorial() {
         this.tutorialPhase = 1;
         this.tutorialInputReceived = false;
+        this.tutorialTelemetry.levelStarted({ sector: this.currentSector, lanes: this.LANE_COUNT, time_limit_ms: null, seed: null });
+        this.trackTutorialStepShown(1, 'move');
         // Removed speed override to match normal mode
 
         // Phase 1: Movement
@@ -411,6 +495,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private handleTutorialInput() {
         if (this.isTutorial && this.tutorialPhase === 1 && !this.tutorialInputReceived) {
             this.tutorialInputReceived = true;
+            this.trackTutorialStepDone(1);
 
             // Stop pulsing
             this.tweens.killTweensOf([this.leftBtn, this.rightBtn]);
@@ -425,6 +510,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
                     stroke: '#000000', strokeThickness: 4,
                     fontStyle: 'bold'
                 })).setOrigin(0.5).setDepth(100);
+                this.trackTutorialStepShown(2, 'dodge');
 
                 // Spawn 2 wrecked ships
                 this.obstacleManager.spawnWreckedShip(1); // Lane 1
@@ -442,6 +528,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private tutorialText?: Phaser.GameObjects.Text;
 
     private startShootingTutorial() {
+        this.trackTutorialStepDone(2);
         this.tutorialPhase = 2;
 
         // Move to center and lock
@@ -462,6 +549,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private lockControlsForShooting() {
         this.controlsLocked = true;
         this.player.stopMove();
+        this.trackTutorialStepShown(3, 'shoot');
 
         const text3 = this.add.text(this.CANVAS_W / 2, this.CANVAS_H / 2 - 100, 'ยิงเพื่อทำลาย!', createGameTextStyle({
             fontSize: '24px', color: '#FFFF00',
@@ -492,7 +580,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     }
 
     private endTutorial() {
+        this.endTrackedMove();
+        this.trackTutorialStepDone(3);
+        this.tutorialTelemetry.levelEnded({ outcome: 'success', score: Math.floor(this.score), stars: 0 });
         this.isTutorial = false;
+        this.telemetry.levelStarted({ sector: this.currentSector, lanes: this.LANE_COUNT, after_tutorial: true, time_limit_ms: null, seed: null });
         this.controlsLocked = false;
         this.obstacleManager.setTutorialMode(false);
         this.tweens.killTweensOf(this.gunBtn);
@@ -514,8 +606,14 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     }
 
     private fireGun() {
-        if (this.isGameOver || this.isPaused) return;
-        if (this.gunAmmo <= 0) return;
+        if (this.isGameOver || this.isPaused) {
+            if (this.isPaused) this.tracker.action('input_ignored', { reason: 'paused', target: 'gun_button' });
+            return;
+        }
+        if (this.gunAmmo <= 0) {
+            this.tracker.action('input_ignored', { reason: 'out_of_moves', target: 'gun_button' });
+            return;
+        }
 
         // In tutorial phase 2, check if we hit the target
         if (this.isTutorial && this.tutorialPhase === 2) {
@@ -570,6 +668,16 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
             onComplete: () => bullet.destroy(),
         });
 
+        // Logged before the loop: hitting the tutorial target ends the tutorial attempt.
+        if (this.isTutorial && this.tutorialPhase === 2 && toDestroy.length === 0) this.tutorialStepWrongTries++;
+        this.tracker.action('gun_fired', {
+            ammo_left: this.gunAmmo,
+            hit: toDestroy.length > 0,
+            targets_destroyed: toDestroy.length,
+            target_type: toDestroy.length > 0 ? toDestroy[0].getData('type') : null,
+            lane: playerLane,
+        });
+
         // Destroy obstacles with explosion effect
         for (const sprite of toDestroy) {
             this.spawnExplosionEffect(sprite.x, sprite.y);
@@ -597,6 +705,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         if (toDestroy.length > 0) {
             this.scoreText.setText(String(Math.floor(this.score)));
         }
+
     }
 
     private spawnExplosionEffect(x: number, y: number) {
@@ -647,6 +756,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     update(time: number, delta: number) {
         if (this.isGameOver || this.isPaused) return;
 
+        this.trackMovement();
         this.player.update();
         this.obstacleManager.update(time, delta);
 
@@ -701,6 +811,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         else if (s >= 500) newSector = 2;
 
         if (newSector > this.currentSector) {
+            this.tracker.action('sector_changed', { from: this.currentSector, to: newSector, distance: s });
             this.currentSector = newSector;
             this.sectorText.setText('SECTOR ' + this.currentSector);
             this.obstacleManager.setSector(this.currentSector);
@@ -729,6 +840,9 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private showTutorialPopup(title: string, body: string) {
         this.isPaused = true;
         this.physics.pause();
+        const popupTracker = this.tracker;
+        const pausedAt = performance.now();
+        popupTracker.action('level_paused', { reason: 'tutorial_popup', sector: this.currentSector });
         const cx = this.CANVAS_W / 2;
         const cy = this.CANVAS_H / 2;
 
@@ -756,6 +870,11 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         })).setOrigin(0.5).setDepth(93);
 
         okBtn.on('pointerdown', () => {
+            popupTracker.action('level_resumed', {
+                reason: 'tutorial_popup',
+                paused_ms: Math.round(performance.now() - pausedAt),
+                penalty: false,
+            });
             [overlay, popupBg, titleText, bodyText, okBtn, okText].forEach(o => o.destroy());
             this.isPaused = false;
             this.physics.resume();
@@ -776,6 +895,17 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         const obstacleType = obstacle.getData('type');
 
         if (obstacleType === 'OBSTACLE' || obstacleType === 'LASER') {
+            // Ghost lets the overlap repeat every frame; log each obstacle once.
+            if (!obstacle.getData('telemetryHit')) {
+                obstacle.setData('telemetryHit', true);
+                this.tracker.action('collision', {
+                    obstacle_type: obstacleType === 'LASER' ? 'laser' : obstacle.getData('isShooter') ? 'shooter' : 'wrecked',
+                    lane: this.playerLane(),
+                    sector: this.currentSector,
+                    had_ghost: this.ghostActive,
+                    correct: this.ghostActive ? null : false,
+                });
+            }
             this.doGameOver();
         } else if (obstacleType === 'COIN') {
             this.collectCoin(obstacle);
@@ -791,6 +921,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         this.coins++;
         this.score += 50;
         this.coinText.setText(String(this.coins));
+        this.tracker.action('pickup_collected', { kind: 'coin', powerup_type: null, coins: this.coins });
         this.sound.play('sfx-coin', { volume: 0.5 });
     }
 
@@ -803,10 +934,12 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         }
         if (this.gunAmmoText) this.gunAmmoText.setText(String(this.gunAmmo));
         this.updateGunButtonVisual();
+        this.tracker.action('pickup_collected', { kind: 'ammo', powerup_type: null, ammo_after: this.gunAmmo });
     }
 
     private collectPowerup(powerup: any) {
         const type = powerup.getData('powerupType');
+        this.tracker.action('pickup_collected', { kind: 'powerup', powerup_type: type });
         (powerup as Phaser.Physics.Arcade.Sprite).disableBody(true, true);
         this.sound.play('sfx-powerup', { volume: 0.5 });
 
@@ -857,6 +990,10 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
     private showPowerupTutorial(type: string, onComplete: () => void) {
         this.isPaused = true;
         this.physics.pause();
+        const popupTracker = this.tracker;
+        const shownAt = performance.now();
+        popupTracker.action('powerup_popup_shown', { powerup_type: type });
+        popupTracker.action('level_paused', { reason: 'powerup_popup' });
         const cx = this.CANVAS_W / 2;
         const cy = this.CANVAS_H / 2;
 
@@ -916,6 +1053,9 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         })).setOrigin(0.5).setDepth(93);
 
         const closePopup = () => {
+            const readMs = Math.round(performance.now() - shownAt);
+            popupTracker.action('powerup_popup_closed', { powerup_type: type, read_ms: readMs });
+            popupTracker.action('level_resumed', { reason: 'powerup_popup', paused_ms: readMs, penalty: false });
             [overlay, popupBg, titleText, img, bodyText, okBtn, okText].forEach(o => o.destroy());
             this.isPaused = false;
             this.physics.resume();
@@ -979,6 +1119,15 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
         const stat_focus = Math.round(Math.min(100, sectorScore + coinBonus));
 
         console.log(`RunForYourLife Stats — Speed: ${stat_speed}, Focus: ${stat_focus}, Score: ${finalScore}, Sector: ${this.currentSector}, Coins: ${this.coins}`);
+
+        this.endTrackedMove();
+        this.tracker.levelEnded({
+            outcome: 'game_over',
+            score: finalScore,
+            stars: 0,
+            sector: this.currentSector,
+            coins: this.coins,
+        });
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {

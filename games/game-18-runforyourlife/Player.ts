@@ -82,6 +82,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
+    /** Steering the player is asking for right now (buttons first, then arrow keys), for telemetry. */
+    public getMoveIntent(): -1 | 0 | 1 {
+        if (this.moveDirection !== 0) return this.moveDirection < 0 ? -1 : 1;
+        if (this.cursors?.left.isDown) return -1;
+        if (this.cursors?.right.isDown) return 1;
+        return 0;
+    }
+
     public startMoveLeft() { this.moveDirection = -1; }
     public startMoveRight() { this.moveDirection = 1; }
     public stopMove() { this.moveDirection = 0; }
