@@ -79,6 +79,15 @@ export const GAME_EVENTS = [
   "currency_added",
   "change_submitted",
   "patience_penalty",
+  // 21 Parking Jam
+  "car_selected",
+  "car_deselected",
+  "move_attempted",
+  "car_exited",
+  "undo_pressed",
+  "reset_pressed",
+  "direction_guide_shown",
+  "direction_guide_closed",
 ] as const;
 
 export const EVENT_NAMES = [

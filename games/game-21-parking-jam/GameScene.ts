@@ -4,6 +4,7 @@ import { calculateParkingJamLevelScore } from "@/lib/scoring/engine/levelScoreMa
 import { getParkingJamLevel } from "./levels";
 import { canParkingJamCarExit } from "./solver";
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 import {
     PARKING_JAM_SESSION_MS,
     type ParkingJamCarConfig,
@@ -163,6 +164,11 @@ export class ParkingJamGameScene extends Phaser.Scene {
     private levelFailSfx?: Phaser.Sound.BaseSound;
     private bgMusic?: Phaser.Sound.BaseSound;
 
+    private tracker!: GameTelemetry;
+    private guideShownAt = 0;
+    private guideOpen = false;
+    private timeWarningSent = false;
+
     constructor() {
         super({ key: "ParkingJamGameScene" });
     }
@@ -198,6 +204,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.cameras.main.setBackgroundColor(COLORS.bg);
         this.reduceMotion = this.readReduceMotion();
         this.setupAudio();
+        this.tracker = GameTelemetry.forScene(this, { gameId: "game-21-parking-jam" });
 
         this.resetTelemetry();
         this.effectiveLimitMs = Math.min(
@@ -216,6 +223,20 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.layoutScene();
 
         this.levelStartMs = Date.now();
+
+        this.timeWarningSent = false;
+        this.tracker.levelStarted({
+            cars: this.level.cars.length,
+            grid_w: this.level.gridSize,
+            grid_h: this.level.gridSize,
+            min_moves: null,
+            par_moves: this.level.parMoves,
+            par_time_ms: this.level.parTimeMs,
+            objective_type: this.level.objectiveType,
+            difficulty: this.level.difficulty,
+            time_limit_ms: this.effectiveLimitMs,
+            seed: null,
+        });
 
         this.input.on("pointerdown", this.onScenePointerDown, this);
         this.scale.on("resize", this.handleResize, this);
@@ -236,7 +257,14 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.remainingMs = Math.max(0, this.remainingMs - delta);
         this.drawTimerDial();
 
+        // Same threshold where the dial turns red
+        if (!this.timeWarningSent && this.remainingMs > 0 && this.remainingMs / this.effectiveLimitMs <= 0.25) {
+            this.timeWarningSent = true;
+            this.tracker.action("time_warning", { remaining_ms: Math.round(this.remainingMs) });
+        }
+
         if (this.remainingMs <= 0) {
+            this.tracker.action("time_up", {});
             this.endGame(false);
         }
     }
@@ -1840,6 +1868,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
         this.markInput();
         const zone = this.getTapZoneForPointer(car, point);
         if (zone === "center") {
+            this.tracker.action("input_ignored", { reason: "invalid_target", target: `car_${car.config.id}_center` });
             this.toast(
                 car.config.axis === "h"
                     ? "แตะครึ่งซ้ายหรือขวาเพื่อเลือกทิศ"
@@ -1875,9 +1904,22 @@ export class ParkingJamGameScene extends Phaser.Scene {
         const distance =
             sign < 0 ? Math.abs(slideRange.minOffset) : slideRange.maxOffset;
         const canMove = distance >= 1;
+        const trackMove = (result: string, cellsMoved: number, extra: Record<string, unknown> = {}) => {
+            this.tracker.action("move_attempted", {
+                car_id: car.config.id,
+                direction,
+                result,
+                correct: result === "moved" || result === "exited",
+                cells_moved: cellsMoved,
+                from_selected: fromSelected,
+                rt_ms: fromSelected ? this.tracker.rtFrom("select") : null,
+                ...extra,
+            });
+        };
 
         // Cars on an open edge can exit immediately even with zero slide distance.
         if (this.canExitByDirection(car, direction)) {
+            trackMove("exited", 0);
             this.pushUndoSnapshot();
             this.playSfx(this.moveSfx);
             this.moveCount += 1;
@@ -1890,8 +1932,18 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
         if (!canMove) {
             this.invalidMoveCount += 1;
+            const repeatedBefore = this.repeatedErrorCount;
             this.trackRepeatedError(car.config.id, direction);
             this.playSfx(this.blockedSfx);
+
+            const isRepeatedError = this.repeatedErrorCount > repeatedBefore;
+            if (this.isFrontCollision(car, direction)) {
+                trackMove("collision", 0, { is_repeated_error: isRepeatedError });
+            } else if (this.isBlockedExitAttempt(car, direction)) {
+                trackMove("blocked", 0, { is_repeated_error: isRepeatedError, blocked_reason: "gate_closed" });
+            } else {
+                trackMove("blocked", 0, { is_repeated_error: isRepeatedError, blocked_reason: "no_space" });
+            }
 
             if (this.isFrontCollision(car, direction)) {
                 this.collisionCount += 1;
@@ -1928,9 +1980,11 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
         // If this movement reaches an open edge gate, dash out immediately.
         if (this.canExitByDirection(car, direction)) {
+            trackMove("exited", distance);
             this.animateExit(car, direction);
             return;
         }
+        trackMove("moved", distance);
 
         const tweenMs = this.reduceMotion ? 70 : 140;
         this.tweens.add({
@@ -1958,6 +2012,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     private handleUndo() {
         if (this.sceneState !== "playing") return;
+        this.tracker.action("undo_pressed", { moves_so_far: this.moveCount, applied: this.undoStack.length > 0 });
         if (this.undoStack.length === 0) {
             this.toast("ไม่มีการเคลื่อนไหวให้ย้อน", true);
             return;
@@ -1985,6 +2040,7 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     private handleReset() {
         if (this.sceneState !== "playing") return;
+        this.tracker.action("reset_pressed", { moves_so_far: this.moveCount });
         this.markInput();
         this.restartCount += 1;
         this.undoStack = [];
@@ -2146,6 +2202,10 @@ export class ParkingJamGameScene extends Phaser.Scene {
         }
         car.runtime.removed = true;
         this.playSfx(this.exitSfx);
+        this.tracker.action("car_exited", {
+            car_id: car.config.id,
+            cars_left: [...this.cars.values()].filter((c) => !c.runtime.removed).length,
+        });
 
         const distance = this.cellSize * 1.4;
         let x = car.container.x;
@@ -2287,6 +2347,13 @@ export class ParkingJamGameScene extends Phaser.Scene {
         const stars = this.calculateStars(result, levelAttempt);
         const score = this.calculateScore(result, levelAttempt);
         const starHint = this.getStarHint(result, levelAttempt, stars);
+
+        this.tracker.levelEnded({
+            outcome: result.solved ? "success" : result.failedTimeout ? "timeout" : "fail",
+            score,
+            stars,
+            moves: this.moveCount,
+        });
 
         const payload: ParkingJamOnGameOverPayload = {
             ...sessionStats,
@@ -2452,10 +2519,15 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     private selectCar(carId: string) {
         this.selectedCarId = carId;
+        this.tracker.action("car_selected", { car_id: carId });
+        this.tracker.stimulus("select");
         this.refreshSelectionOverlay();
     }
 
     private clearSelectedCar() {
+        if (this.selectedCarId) {
+            this.tracker.action("car_deselected", { car_id: this.selectedCarId });
+        }
         this.selectedCarId = undefined;
         this.selectionGraphics?.clear();
     }
@@ -2821,6 +2893,13 @@ export class ParkingJamGameScene extends Phaser.Scene {
 
     private showDirectionGuidePopup() {
         this.sceneState = "paused";
+        // handleResize rebuilds an open guide; only log the first show.
+        if (!this.guideOpen) {
+            this.guideOpen = true;
+            this.guideShownAt = performance.now();
+            this.tracker.action("direction_guide_shown", {});
+            this.tracker.action("level_paused", { reason: "hint" });
+        }
         const { width, height } = this.scale;
 
         const overlay = this.add.container(0, 0).setDepth(120);
@@ -2898,6 +2977,12 @@ export class ParkingJamGameScene extends Phaser.Scene {
             .setAlpha(0.96);
 
         const close = () => {
+            if (this.guideOpen) {
+                this.guideOpen = false;
+                const shownMs = Math.round(performance.now() - this.guideShownAt);
+                this.tracker.action("direction_guide_closed", { shown_ms: shownMs });
+                this.tracker.action("level_resumed", { reason: "hint", paused_ms: shownMs, penalty: false });
+            }
             overlay.destroy();
             this.noArrowGuideOverlay = undefined;
             if (this.sceneState !== "complete") {
