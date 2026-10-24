@@ -8,6 +8,9 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
     private instructionText!: Phaser.GameObjects.Text;
     private overlay!: Phaser.GameObjects.Rectangle;
     private currentTween: Phaser.Tweens.Tween | null = null;
+    private stepNumber = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
 
     constructor() {
         super('DoorGuardianTutorialScene'); // Key is set in super or we can override init
@@ -86,6 +89,14 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
         this.isPlaying = true; // Enable input generally
         this.currentVisitorIndex = 0;
 
+        this.stepNumber = 0;
+        this.telemetry.levelStarted({
+            visitors_total: this.visitors.length,
+            reference_count: this.allowedCharacterIds.length,
+            time_limit_ms: null,
+            seed: null,
+        });
+
         // Hide standard UI initially if needed, or highlight specific parts
         this.startIntroStep();
     }
@@ -93,6 +104,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
     private startIntroStep() {
         this.tutorialStep = 'INTRO';
         this.isInputLocked = false; // Allow opening the reference list
+        this.trackStepShown('open_reference');
 
         this.setInstruction('กดปุ่ม "ดูรายชื่อเข้าได้" ที่ด้านขวาล่าง\nเพื่อเช็คว่าวันนี้ใครเข้าได้บ้าง');
         this.pulseObject(this.cardPanelContainer);
@@ -108,6 +120,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
     protected closeReferenceModal() {
         super.closeReferenceModal();
         if (this.tutorialStep === 'INTRO') {
+            this.trackStepDone();
             this.setInstruction('เก่งมาก! และคอยสังเกต "สิ่งผิดปกติ" ให้ดีนะ');
             this.time.delayedCall(2500, () => {
                 this.stopPulse();
@@ -118,6 +131,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
 
     private startAllowPractice() {
         this.tutorialStep = 'ALLOW_PRACTICE';
+        this.trackStepShown('allow_practice');
         // HandCursor removed
 
         // Show first visitor (Man Normal)
@@ -141,6 +155,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
 
     private startRejectPractice() {
         this.tutorialStep = 'REJECT_PRACTICE';
+        this.trackStepShown('reject_practice');
         this.currentVisitorIndex = 1;
         this.showNextVisitor(); // Man Abnormal
 
@@ -165,6 +180,7 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
 
     private startFinalTest() {
         this.tutorialStep = 'FINAL_TEST';
+        this.trackStepShown('final_test');
         this.currentVisitorIndex = 2;
         this.showNextVisitor(); // Woman Normal
 
@@ -193,9 +209,11 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
                 this.correctCount++;
                 if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
                 this.showFeedback(true);
+                this.trackStepDone();
                 this.time.delayedCall(1000, () => this.startRejectPractice());
             } else {
                 // Wrong - Shake head or ignore
+                this.stepWrongTries++;
                 this.cameras.main.shake(200, 0.01);
             }
             return;
@@ -209,9 +227,11 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
                 this.correctCount++;
                 if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
                 this.showFeedback(true);
+                this.trackStepDone();
                 this.time.delayedCall(1000, () => this.startFinalTest());
             } else {
                 // Wrong
+                this.stepWrongTries++;
                 this.cameras.main.shake(200, 0.01);
             }
             return;
@@ -228,9 +248,11 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
                 this.correctCount++;
                 if (this.soundSuccess) try { this.soundSuccess.play(); } catch (e) { /* ignore */ }
                 this.showFeedback(true);
+                this.trackStepDone();
                 this.time.delayedCall(1000, () => this.finishTutorial());
             } else {
                 // Wrong - DO NOT end game, just shake and warn
+                this.stepWrongTries++;
                 this.cameras.main.shake(200, 0.02);
                 this.setInstruction('ผิดครับ! ลองสังเกตใหม่นะ');
                 try { this.sound.play('match-fail'); } catch (e) { /* ignore */ }
@@ -249,8 +271,24 @@ export class DoorGuardianTutorialScene extends DoorGuardianGameScene {
         this.stopPulse();
 
         this.time.delayedCall(2000, () => {
+            this.telemetry.levelEnded({ outcome: 'success', score: this.score, stars: 0 });
             const onTutorialComplete = this.game.registry.get('onTutorialComplete');
             if (onTutorialComplete) onTutorialComplete();
+        });
+    }
+
+    private trackStepShown(stepKey: string) {
+        this.stepNumber++;
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step: this.stepNumber, step_key: stepKey });
+    }
+
+    private trackStepDone() {
+        this.telemetry.action('tutorial_step_done', {
+            step: this.stepNumber,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
         });
     }
 

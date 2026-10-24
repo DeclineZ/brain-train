@@ -61,6 +61,13 @@ export const GAME_EVENTS = [
   "item_shown",
   "response_given",
   "response_timeout",
+  // 16 Door Guardian
+  "visitor_shown",
+  "decision_made",
+  "decision_timeout",
+  "reference_opened",
+  "reference_closed",
+  "reference_page_changed",
 ] as const;
 
 export const EVENT_NAMES = [
