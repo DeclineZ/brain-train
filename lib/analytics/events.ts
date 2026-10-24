@@ -57,6 +57,10 @@ export const GAME_EVENTS = [
   "orb_tapped",
   "round_ended",
   "phase_changed",
+  // 14 Word Recognize
+  "item_shown",
+  "response_given",
+  "response_timeout",
 ] as const;
 
 export const EVENT_NAMES = [

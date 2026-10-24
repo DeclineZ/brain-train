@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class WordRecognizeGameScene extends Phaser.Scene {
     // --- State ---
@@ -25,6 +26,12 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     protected totalRounds = 0;
     protected currentStreak = 0;
     protected maxStreak = 0;
+
+    // --- Telemetry ---
+    protected telemetry!: GameTelemetry;
+    private trial = 0;
+    private trackedPhase: number | null = null;
+    private itemHistory = new Map<string, { count: number; lastTrial: number }>();
 
     // --- Configuration ---
     private readonly PHASE_ROUNDS = {
@@ -116,6 +123,8 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-14-wordrecognize' });
+
         // 1. Audio Setup
         this.soundSuccess = this.sound.add('match-success', { volume: 0.4 });
         this.soundFail = this.sound.add('match-fail', { volume: 0.6 });
@@ -439,6 +448,11 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         const startPhase = Math.min(Math.max(registryLevel, 1), 6);
         this.phase = startPhase;
 
+        this.trial = 0;
+        this.trackedPhase = null;
+        this.itemHistory.clear();
+        this.telemetry.levelStarted({ phase: startPhase, time_limit_ms: null, seed: null });
+
         this.updateScoreUI();
         this.startPhase(startPhase);
     }
@@ -446,6 +460,12 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         this.phase = phase;
         this.seenItems.clear(); // Reset memory for new phase (Endless starts fresh)
         this.roundsInPhase = 0;
+
+        if (this.trackedPhase !== null && this.trackedPhase !== phase) {
+            this.telemetry.action('phase_changed', { from_phase: this.trackedPhase, phase });
+        }
+        this.trackedPhase = phase;
+        this.itemHistory.clear();
 
         // Set total rounds for this phase
         // Set total rounds for this phase
@@ -525,6 +545,7 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         }
 
         this.itemStartTime = Date.now();
+        this.trackItemShown();
 
         // Animate card pop-in
         this.cardContainer.setScale(0.8);
@@ -536,6 +557,27 @@ export class WordRecognizeGameScene extends Phaser.Scene {
             duration: 200,
             ease: 'Back.out'
         });
+    }
+
+    private trackItemShown() {
+        this.trial++;
+        const prev = this.itemHistory.get(this.currentItem);
+        const itemKind = this.currentItemType === 'color' ? 'color'
+            : this.currentItemType === 'image' ? 'face'
+                : /^\d+$/.test(this.currentItem) ? 'number' : 'word';
+        this.telemetry.action('item_shown', {
+            trial: this.trial,
+            phase: this.phase,
+            item: this.currentItem,
+            item_kind: itemKind,
+            item_length: this.currentItemType === 'text' ? this.currentItem.length : null,
+            is_repeat: !this.isNewItem,
+            times_seen_before: prev?.count ?? 0,
+            trials_since_last_seen: prev ? this.trial - prev.lastTrial : null,
+            time_limit_ms: this.timeLimit,
+        });
+        this.itemHistory.set(this.currentItem, { count: (prev?.count ?? 0) + 1, lastTrial: this.trial });
+        this.telemetry.stimulus('item');
     }
 
     private generateItem() {
@@ -666,13 +708,28 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     }
 
     protected handleInput(saidSeen: boolean) {
-        if (this.isInputLocked || !this.gameActive) return;
+        if (this.isInputLocked || !this.gameActive) {
+            if (this.gameActive && this.telemetry.isActive) {
+                this.telemetry.action('input_ignored', { reason: 'locked', target: saidSeen ? 'seen_button' : 'new_button' });
+            }
+            return;
+        }
         this.isInputLocked = true;
 
         // Check correctness
         // saidSeen = true means player said "เคยเห็น"
         // isNewItem = true means it's actually new
         const isCorrect = (saidSeen && !this.isNewItem) || (!saidSeen && this.isNewItem);
+
+        this.telemetry.action('response_given', {
+            trial: this.trial,
+            said_seen: saidSeen,
+            correct: isCorrect,
+            response_class: this.isNewItem
+                ? (saidSeen ? 'false_alarm' : 'correct_rejection')
+                : (saidSeen ? 'hit' : 'miss'),
+            rt_ms: this.telemetry.rtFrom('item'),
+        });
 
         if (isCorrect) {
             this.handleCorrect();
@@ -745,6 +802,8 @@ export class WordRecognizeGameScene extends Phaser.Scene {
     private handleTimeout() {
         this.soundFail.play();
         this.isInputLocked = true;
+
+        this.telemetry.action('response_timeout', { trial: this.trial, is_repeat: !this.isNewItem, correct: false });
 
         if (this.phase === 1) {
             this.onGameOver();
@@ -858,6 +917,8 @@ export class WordRecognizeGameScene extends Phaser.Scene {
         const accuracy = this.totalRounds > 0 ? this.correctCount / this.totalRounds : 0;
         const statMemory = Math.round(accuracy * 100); // 0-100
         const statFocus = Math.round(Math.min(100, (this.maxStreak / Math.max(1, this.totalRounds)) * 150)); // streak-based
+
+        this.telemetry.levelEnded({ outcome: 'game_over', score: this.score, stars: 0 });
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
