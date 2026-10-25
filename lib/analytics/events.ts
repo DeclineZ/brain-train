@@ -87,6 +87,13 @@ export const GAME_EVENTS = [
   "equation_overshot",
   "thief_appeared",
   "thief_decision",
+
+  // Game 05 - Worm Train
+  "junction_switched",
+  "worm_spawned",
+  "worm_arrived",
+  "trap_hit",
+  "mistake_registered",
 ] as const;
 
 export const EVENT_NAMES = [

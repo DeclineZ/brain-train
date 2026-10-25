@@ -63,10 +63,12 @@ export class JunctionVisual {
             // Track graphics - will show the curved/straight path inside
             const trackGraphics = this.scene.add.graphics();
 
+            btnContainer.setName(`junction_${j.id}`);
             btnContainer.add([borderCircle, bgCircle, trackGraphics]);
 
             // Hit area for clicking
             const hitArea = this.scene.add.circle(0, 0, 32, 0x000000, 0);
+            hitArea.setName(`junction_${j.id}`);
             hitArea.setInteractive({ useHandCursor: true });
             hitArea.on('pointerdown', () => {
                 // TUTORIAL RESTRICTION: Only allow click if highlighted

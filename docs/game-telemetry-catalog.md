@@ -12,23 +12,23 @@
 | 02 | `game-02-sensorlock` | Sensor Lock (จับทิศทางลูกศร) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 03 | `game-03-billiards-math` | Billiards Math (สนุ๊กเกอร์คณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 04 | `game-04-floating-ball-math` | Floating Ball Math (ลอยบอลคณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 05 | `game-05-spot-shadow` | Spot Shadow | ⏳ รอทำ | |
-| 06 | `game-06-traffic-control` | Traffic Control | ⏳ รอทำ | |
-| 07 | `game-07-color-tap` | Color Tap | ⏳ รอทำ | |
-| 08 | `game-08-mystery-sound` | Mystery Sound | ⏳ รอทำ | |
-| 09 | `game-09-food-drop` | Food Drop | ⏳ รอทำ | |
-| 10 | `game-10-miner` | Miner | ⏳ รอทำ | |
-| 11 | `game-11-pipe-patch` | Pipe Patch | ⏳ รอทำ | |
-| 12 | `game-12-run-for-your-life` | Run for Your Life | ⏳ รอทำ | |
-| 13 | `game-13-color-match` | Color Match | ⏳ รอทำ | |
-| 14 | `game-14-symbol-touch` | Symbol Touch | ⏳ รอทำ | |
-| 15 | `game-15-visual-tracking` | Visual Tracking | ⏳ รอทำ | |
-| 16 | `game-16-maze-escape` | Maze Escape | ⏳ รอทำ | |
-| 17 | `game-17-memory-cards` | Memory Cards | ⏳ รอทำ | |
-| 18 | `game-18-target-aim` | Target Aim | ⏳ รอทำ | |
-| 19 | `game-19-pattern-repeat` | Pattern Repeat | ⏳ รอทำ | |
-| 20 | `game-20-balance-beam` | Balance Beam | ⏳ รอทำ | |
-| 21 | `game-21-parking-jam` | Parking Jam | ⏳ รอทำ | |
+| 05 | `game-05-wormtrain` | Worm Train (รถไฟหนอน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene (In-scene Tutorial) |
+| 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ⏳ รอทำ | |
+| 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ⏳ รอทำ | |
+| 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ⏳ รอทำ | |
+| 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ⏳ รอทำ | |
+| 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ⏳ รอทำ | |
+| 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ⏳ รอทำ | |
+| 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ⏳ รอทำ | |
+| 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ⏳ รอทำ | |
+| 14 | `game-14-wordrecognize` | Word Recognize (จดจำคำศัพท์) | ⏳ รอทำ | |
+| 15 | `game-15-taxidriver` | Taxi Driver (คนขับแท็กซี่) | ⏳ รอทำ | |
+| 16 | `game-16-doorguardian` | Door Guardian (ผู้พิทักษ์ประตู) | ⏳ รอทำ | |
+| 17 | `game-17-floatingmarket` | Floating Market (ตลาดน้ำ) | ⏳ รอทำ | |
+| 18 | `game-18-runforyourlife` | Run for Your Life (วิ่งสู้ฟัด) | ⏳ รอทำ | |
+| 19 | `game-19-cashier` | Cashier (แคชเชียร์คิดเงิน) | ⏳ รอทำ | |
+| 20 | `game-20-boxcounting` | Box Counting (นับกล่อง 3 มิติ) | ⏳ รอทำ | |
+| 21 | `game-21-parking-jam` | Parking Jam (เลื่อนรถออกจากลาน) | ⏳ รอทำ | |
 
 ---
 
@@ -160,3 +160,20 @@
 - `btn_block`: ปุ่ม "หยุดโจร" (Block Button)
 - `btn_next`: ปุ่มถัดไป (ในโหมดสอนเล่น)
 - `btn_back`: ปุ่มย้อนกลับ (ในโหมดสอนเล่น)
+
+---
+
+### 05 · Worm Train (`game-05-wormtrain`)
+> **ทักษะที่วัด:** การวางแผนล่วงหน้า (Strategic Planning), การคิดเชิงมิติสัมพันธ์และสับราง (Spatial & Route Switching), ความแม่นยำในการจับคู่สี/ขนาด และการรับมือสิ่งรบกวน (Traps & Earthquakes)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `junction_switched` | `switchJunction()` | `junction_id: string`<br>`source: 'user' \| 'earthquake'`<br>`new_index: number`<br>`nearest_worm_distance: number \| null`<br>`worms_on_board: number` | สับรางทางแยก บันทึกที่มา (ผู้เล่นกด หรือ แผ่นดินไหวสลับเอง), ระยะห่างหนอนตัวที่ใกล้ที่สุด, และจำนวนหนอนบนกระดาน |
+| `worm_spawned` | `spawnWorm()` | `worm_id: string`<br>`color: string`<br>`size: 'S' \| 'M' \| 'L'` | หนอนตัวใหม่เริ่มปล่อยตัวออกจากจุดเกิด |
+| `worm_arrived` | `handleNodeArrival()` | `worm_id: string`<br>`worm_color: string`<br>`hole_color: string`<br>`correct: boolean`<br>`travel_ms: number \| null` | หนอนเดินทางถึงหลุมปลายทาง บันทึกว่าถูกหลุมหรือไม่ พร้อมเวลาเดินทาง (`travel_ms`) |
+| `trap_hit` | `handleNodeArrival()` | `worm_id: string`<br>`trap_id: string`<br>`trap_type: string` | หนอนเดินผ่านหรือชนกับดัก (เช่น ใยแมงมุม `SPIDER`) |
+| `mistake_registered` | `registerMistake()` | `{ type: string }` | เกิดข้อผิดพลาดในเกม เช่น `WRONG_HOLE`, `WRONG_SIZE`, `DEAD_END`, `SIZE_MISMATCH_JAM` |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `junction_<id>`: จุดทางแยกสับรางบนแผนที่ เช่น `junction_j1`, `junction_j2`

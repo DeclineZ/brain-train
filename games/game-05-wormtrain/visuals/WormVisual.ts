@@ -430,4 +430,11 @@ export class WormVisual {
 
         return null;
     }
+
+    public getWormHeadPosition(wormId: string): Point | null {
+        const data = this.visualDataMap.get(wormId);
+        if (!data || data.segments.length === 0) return null;
+        const head = data.segments[0] as Phaser.GameObjects.Container;
+        return { x: head.x, y: head.y };
+    }
 }

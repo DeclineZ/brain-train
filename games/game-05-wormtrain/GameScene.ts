@@ -8,6 +8,7 @@ import { ScoringSystem } from './systems/ScoringSystem';
 import { WormSystem } from './systems/WormSystem';
 import { WormGameConstants } from './config';
 import { createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 import { WormVisual } from './visuals/WormVisual';
 import { JunctionVisual } from './visuals/JunctionVisual';
@@ -17,6 +18,9 @@ import { TrapVisual } from './visuals/TrapVisual';
 
 
 export default class GameScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
+  private tutorialStep = 0;
+
   // Systems
   public levelLoader!: LevelLoader;
   public graphSystem!: GraphSystem;
@@ -82,6 +86,12 @@ export default class GameScene extends Phaser.Scene {
     this.currentLevel = this.game.registry.get('level') ?? 1;
     console.log('Worm Train Game Started - Level', this.currentLevel);
 
+    const isTutorial = this.currentLevel === 0;
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-05-wormtrain',
+      mode: isTutorial ? 'tutorial' : 'normal',
+    });
+
     // Add tiled dirt background for earthy look
     if (this.textures.exists('bgdirt')) {
       const bgTile = this.add.tileSprite(0, 0, 4000, 4000, 'bgdirt');
@@ -128,15 +138,49 @@ export default class GameScene extends Phaser.Scene {
     const bgMusic = this.sound.add('bg-music', { loop: true, volume: 0.2 }); // Lowered BGM
     bgMusic.play();
 
+    let hasStartedLevel = false;
+    const triggerLevelStart = () => {
+      if (hasStartedLevel) return;
+      hasStartedLevel = true;
+      this.telemetry.levelStarted({
+        level: this.currentLevel,
+        mode: isTutorial ? 'tutorial' : 'normal',
+        junctions: levelData.junctions.length,
+        holes: levelData.nodes.filter((n: any) => n.type === 'HOLE').length,
+        worms_total: levelData.worms.length,
+        traps: levelData.traps.length,
+      });
+    };
+
     // Check for Level Intro/Tutorial
     if (levelData.intro) {
       // Emit event for React UI to show popup
       this.game.events.emit('SHOW_INTRO', levelData.intro);
+      this.game.events.once('START_LEVEL', () => {
+        triggerLevelStart();
+        this.wormSystem.startSpawning();
+      });
+    } else {
+      triggerLevelStart();
+      this.game.events.on('START_LEVEL', () => {
+        this.wormSystem.startSpawning();
+      });
     }
 
-    // Listen for Start Level (from React Intro Popup)
-    this.game.events.on('START_LEVEL', () => {
-      this.wormSystem.startSpawning();
+    // In-scene tutorial events (Level 0)
+    this.events.on('SHOW_TUTORIAL_HINT', ({ junctionId }: { junctionId: string }) => {
+      this.telemetry.action('tutorial_step_shown', {
+        step: this.tutorialStep,
+        step_key: junctionId,
+      });
+    });
+
+    this.events.on('HIDE_TUTORIAL_HINT', ({ junctionId }: { junctionId: string }) => {
+      this.telemetry.action('tutorial_step_done', {
+        step: this.tutorialStep,
+        step_key: junctionId,
+      });
+      this.tutorialStep++;
     });
 
     // Sound Event Listeners
