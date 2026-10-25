@@ -7,6 +7,7 @@ import {
     type DoorGuardianLevelConfig,
 } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // --- Visitor data for each round ---
 interface Visitor {
@@ -77,6 +78,12 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     // --- Character sprites (loaded images, fallback to procedural) ---
     protected charImageKeys: Set<string> = new Set();
 
+    // --- Telemetry ---
+    protected telemetry!: GameTelemetry;
+    private lookedAtReference = false;
+    private refOpenedAt = 0;
+    private refPagesViewed = new Set<number>();
+
     constructor(key: string = 'DoorGuardianGameScene') {
         super({ key });
     }
@@ -135,6 +142,8 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         // Clean up any lingering tweens/timers from previous run
         this.tweens?.killAll();
         this.time?.removeAllEvents();
+
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-16-doorguardian' });
 
         const { width, height } = this.scale;
 
@@ -963,6 +972,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
         container.add(hitArea);
 
+        hitArea.setName(isAccept ? 'allow_button' : 'deny_button');
         hitArea.on('pointerdown', () => {
             this.tweens.add({
                 targets: faceGroup, y: lip, duration: 50, ease: 'Quad.easeOut',
@@ -1016,11 +1026,20 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
         this.cardPanelContainer.add(hitArea);
 
+        hitArea.setName('reference_button');
         hitArea.on('pointerdown', () => {
-            if (this.isRefModalOpen || this.isInputLocked) return;
+            if (this.isRefModalOpen || this.isInputLocked) {
+                if (!this.isRefModalOpen && this.isPlaying && this.telemetry.isActive) {
+                    this.telemetry.action('input_ignored', { reason: 'locked', target: 'reference_button' });
+                }
+                return;
+            }
 
             const maxViews = this.levelConfig.maxRefViews;
             if (maxViews !== undefined && this.refViewsUsed >= maxViews) {
+                if (this.telemetry.isActive) {
+                    this.telemetry.action('input_ignored', { reason: 'out_of_moves', target: 'reference_button' });
+                }
                 // Shake if locked
                 this.tweens.add({
                     targets: this.cardPanelContainer, x: panelX + 5, duration: 50, yoyo: true, repeat: 3
@@ -1106,6 +1125,11 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         if (newIndex === this.currentRefIndex || this.isRefTransitioning) return;
         this.isRefTransitioning = true;
 
+        this.refPagesViewed.add(newIndex);
+        if (this.telemetry.isActive) {
+            this.telemetry.action('reference_page_changed', { page: newIndex, direction });
+        }
+
         const maxChars = this.allowedCharacterIds.length;
         const slideDistance = 250; // Distance to slide out/in
 
@@ -1167,6 +1191,17 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.isRefTransitioning = false;
         this.currentRefIndex = 0;
         this.refModalDots = [];
+
+        this.lookedAtReference = true;
+        this.refOpenedAt = performance.now();
+        this.refPagesViewed = new Set([0]);
+        if (this.telemetry.isActive) {
+            this.telemetry.action('reference_opened', {
+                visitor_index: this.currentVisitorIndex,
+                views_used: this.refViewsUsed,
+                max_views: this.levelConfig.maxRefViews ?? null,
+            });
+        }
 
         const { width, height } = this.scale;
 
@@ -1359,6 +1394,13 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     }
 
     protected closeReferenceModal() {
+        if (this.telemetry.isActive) {
+            this.telemetry.action('reference_closed', {
+                visitor_index: this.currentVisitorIndex,
+                open_ms: Math.round(performance.now() - this.refOpenedAt),
+                pages_viewed: this.refPagesViewed.size,
+            });
+        }
         this.tweens.add({
             targets: this.refModalContainer, scale: 0, duration: 200, ease: 'Back.in',
             onComplete: () => {
@@ -1514,6 +1556,14 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.isPlaying = true;
         this.currentVisitorIndex = 0;
 
+        this.telemetry.levelStarted({
+            visitors_total: this.visitors.length,
+            reference_count: this.allowedCharacterIds.length,
+            max_ref_views: this.levelConfig.maxRefViews ?? null,
+            time_limit_ms: this.timePerVisitor > 0 ? this.timePerVisitor * 1000 : null,
+            seed: null,
+        });
+
         // Start BGM
         if (this.bgm) {
             try {
@@ -1545,6 +1595,7 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.isInputLocked = true;
         this.isAnimating = false;
         this.timerActive = false;
+        this.lookedAtReference = false;
 
         const visitor = this.visitors[this.currentVisitorIndex];
 
@@ -1585,6 +1636,20 @@ export class DoorGuardianGameScene extends Phaser.Scene {
         this.time.delayedCall(500, () => {
             this.isInputLocked = false;
 
+            const differing: string[] = [];
+            if (visitor.isAbnormal) differing.push('abnormal_appearance');
+            if (!this.allowedCharacterIds.includes(visitor.character.id)) differing.push('not_on_list');
+            if (this.telemetry.isActive) {
+                this.telemetry.action('visitor_shown', {
+                    visitor_index: this.currentVisitorIndex,
+                    character_id: visitor.character.id,
+                    is_abnormal: visitor.isAbnormal,
+                    should_allow: visitor.isAllowed,
+                    differing_features: differing,
+                });
+            }
+            this.telemetry.stimulus('visitor');
+
             // Start timer if applicable
             if (this.timePerVisitor > 0) {
                 this.timerActive = true;
@@ -1596,12 +1661,28 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     }
 
     protected handleDecision(allowIn: boolean) {
-        if (this.isInputLocked || this.isAnimating || !this.isPlaying) return;
+        if (this.isInputLocked || this.isAnimating || !this.isPlaying) {
+            if (this.isPlaying && this.telemetry.isActive) {
+                this.telemetry.action('input_ignored', {
+                    reason: this.isAnimating ? 'animating' : 'locked',
+                    target: allowIn ? 'allow_button' : 'deny_button',
+                });
+            }
+            return;
+        }
         this.isInputLocked = true;
         this.timerActive = false;
 
         const visitor = this.visitors[this.currentVisitorIndex];
         const isCorrect = allowIn === visitor.isAllowed;
+
+        this.telemetry.action('decision_made', {
+            visitor_index: this.currentVisitorIndex,
+            allowed: allowIn,
+            correct: isCorrect,
+            rt_ms: this.telemetry.rtFrom('visitor'),
+            looked_at_reference: this.lookedAtReference,
+        });
 
         if (isCorrect) {
             this.handleCorrect();
@@ -1672,6 +1753,8 @@ export class DoorGuardianGameScene extends Phaser.Scene {
     }
 
     private handleTimeout() {
+        this.telemetry.action('decision_timeout', { visitor_index: this.currentVisitorIndex, correct: false });
+
         // Treating timeout as wrong
         this.lives--;
         this.updateHeartsUI();
@@ -1780,6 +1863,8 @@ export class DoorGuardianGameScene extends Phaser.Scene {
 
         console.log(`DoorGuardian Stats — Focus: ${stat_focus}, Visual: ${stat_visual}, Correct: ${this.correctCount}/${totalDecisions}, Abnormal: ${this.abnormalCorrect}/${this.abnormalTotal}`);
 
+        this.telemetry.levelEnded({ outcome: 'success', score: this.score, stars });
+
         // Emit game over data to system
         this.time.delayedCall(500, () => {
             // Stop BGM to prevent hanging
@@ -1825,6 +1910,8 @@ export class DoorGuardianGameScene extends Phaser.Scene {
             : 100;
 
         console.log(`DoorGuardian Stats (fail) — Focus: ${stat_focus}, Visual: ${stat_visual}, Correct: ${this.correctCount}/${totalDecisions}, Abnormal: ${this.abnormalCorrect}/${this.abnormalTotal}`);
+
+        this.telemetry.levelEnded({ outcome: 'fail', score: this.score, stars: 0 });
 
         this.time.delayedCall(500, () => {
             // Stop BGM to prevent hanging

@@ -165,6 +165,76 @@ export const GAME_EVENTS = [
   "phase_modal_closed",
   "grid_shuffled",
   "combo_milestone",
+
+  // Game 13 - Box Pattern
+  "sequence_shown",
+  "orb_tapped",
+  "round_ended",
+
+  // Game 14 - Word Recognize
+  "item_shown",
+
+  // Game 15 - Taxi Driver
+  "intersection_approaching",
+  "direction_pressed",
+  "turn_resolved",
+  "brake_stop_shown",
+  "brake_resolved",
+  "road_closed",
+  "controls_swapped",
+  "path_faded",
+  "path_shown",
+  "life_lost",
+
+  // Game 16 - Door Guardian
+  "visitor_shown",
+  "decision_made",
+  "decision_timeout",
+  "reference_opened",
+  "reference_closed",
+  "reference_page_changed",
+
+  // Game 17 - Floating Market
+  "control_mode_set",
+  "steer_started",
+  "steer_ended",
+  "item_spawned",
+  "item_missed",
+  "rule_switched",
+  "collision",
+  "coin_collected",
+
+  // Game 18 - Run For Your Life
+  "move_started",
+  "move_ended",
+  "gun_fired",
+  "obstacle_spawned",
+  "pickup_collected",
+  "powerup_popup_shown",
+  "powerup_popup_closed",
+  "sector_changed",
+
+  // Game 19 - Cashier
+  "item_tapped",
+  "numpad_pressed",
+  "tally_submitted",
+  "currency_added",
+  "change_submitted",
+  "patience_penalty",
+
+  // Game 20 - Box Counting
+  "question_shown",
+  "answer_selected",
+  "question_timeout",
+
+  // Game 21 - Parking Jam
+  "car_selected",
+  "car_deselected",
+  "move_attempted",
+  "car_exited",
+  "reset_pressed",
+  "direction_guide_shown",
+  "direction_guide_closed",
 ] as const;
 
 export const EVENT_NAMES = [

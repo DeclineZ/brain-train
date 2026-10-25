@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 /**
  * Tutorial Scene for Game-19 Cashier
@@ -95,6 +96,12 @@ export class CashierTutorialScene extends Phaser.Scene {
     // ─── Belt animation ───
     private isBeltMoving: boolean = false;
 
+    // ─── Telemetry ───
+    private telemetry!: GameTelemetry;
+    private stepNumber = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
+
     constructor() {
         super({ key: 'CashierTutorialScene' });
     }
@@ -138,6 +145,9 @@ export class CashierTutorialScene extends Phaser.Scene {
     // ════════════════════════════════════════════════════════════
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-19-cashier', mode: 'tutorial' });
+        this.stepNumber = 0;
+
         // Background
         this.bgImage = this.add.image(400, 600, 'game-bg').setDepth(-3);
         this.bgImage.setTint(0xcccccc);
@@ -170,6 +180,7 @@ export class CashierTutorialScene extends Phaser.Scene {
         this.resizeCallback(this.scale.gameSize);
 
         // Start tutorial
+        this.telemetry.levelStarted({ time_limit_ms: null, seed: null });
         this.startWelcome();
     }
 
@@ -416,6 +427,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
             this.sound.play('sfx-pop', { volume: 0.5 });
             this.changeGiven += denom.val;
+            if (this.changeGiven > this.changeTarget) this.stepWrongTries++;
 
             // Fly animation to belt
             const flyingObj = this.add.image(bx, by, denom.key);
@@ -641,6 +653,7 @@ export class CashierTutorialScene extends Phaser.Scene {
     // ── Step 0: Welcome ──
     private startWelcome() {
         this.tutorialStep = 0;
+        this.trackStepShown('welcome');
 
         this.posMonitorText.setText('');
 
@@ -656,6 +669,8 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     // ── Phase 1 Intro: Explain tally ──
     private startPhase1Intro() {
+        this.trackStepDone();
+        this.trackStepShown('tap_items');
         this.tutorialStep = 10;
         this.removeNextButton();
         this.removeArrow();
@@ -708,6 +723,7 @@ export class CashierTutorialScene extends Phaser.Scene {
                 this.drawMonitorItem(400, 220, capturedItemKey, 1, price);
 
                 this.itemsTapped++;
+                if (this.itemsTapped === items.length) this.trackStepDone();
                 if (this.itemsTapped >= items.length) {
                     // Player has tapped all items — advance
                     this.time.delayedCall(1000, () => {
@@ -728,6 +744,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     // ── Phase 1 Entry: Type the total ──
     private startPhase1Entry() {
+        this.trackStepShown('enter_total');
         this.tutorialStep = 12;
         this.isWaitingInput = true;
         this.displayedInput = '';
@@ -748,6 +765,8 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     private checkPhase1Answer() {
         const guess = parseInt(this.displayedInput || '0');
+        if (guess === this.phase1Total) this.trackStepDone();
+        else this.stepWrongTries++;
         if (guess === this.phase1Total) {
             this.isWaitingInput = false;
             this.removeArrow();
@@ -776,6 +795,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     // ── Phase 2 Intro: Adjustments ──
     private startPhase2Intro() {
+        this.trackStepShown('apply_coupon');
         this.tutorialStep = 20;
         this.removeArrow();
         this.numpadGroup.setVisible(true);
@@ -817,6 +837,8 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     private checkPhase2Answer() {
         const guess = parseInt(this.displayedInput || '0');
+        if (guess === this.phase2Target) this.trackStepDone();
+        else this.stepWrongTries++;
         if (guess === this.phase2Target) {
             this.isWaitingInput = false;
             this.removeArrow();
@@ -846,6 +868,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
     // ── Phase 3 Intro: Making change ──
     private startPhase3Intro() {
+        this.trackStepShown('give_change');
         this.tutorialStep = 50;
         this.removeArrow();
 
@@ -911,6 +934,8 @@ export class CashierTutorialScene extends Phaser.Scene {
     }
 
     private checkChangeSubmit() {
+        if (this.changeGiven === this.changeTarget) this.trackStepDone();
+        else this.stepWrongTries++;
         if (this.changeGiven === this.changeTarget) {
             this.isWaitingInput = false;
             this.removeArrow();
@@ -938,6 +963,21 @@ export class CashierTutorialScene extends Phaser.Scene {
         }
     }
 
+    private trackStepShown(stepKey: string) {
+        this.stepNumber++;
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step: this.stepNumber, step_key: stepKey });
+    }
+
+    private trackStepDone() {
+        this.telemetry.action('tutorial_step_done', {
+            step: this.stepNumber,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
+        });
+    }
+
     // ── Finish ──
     private finishTutorial() {
         this.tutorialStep = 99;
@@ -954,6 +994,7 @@ export class CashierTutorialScene extends Phaser.Scene {
 
         this.time.delayedCall(2500, () => {
             this.sound.play('sfx-pass', { volume: 0.7 });
+            this.telemetry.levelEnded({ outcome: 'success' });
             const onTutorialComplete = this.registry.get('onTutorialComplete');
             if (onTutorialComplete) {
                 onTutorialComplete();

@@ -9,6 +9,8 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
     private instructionText!: Phaser.GameObjects.Text;
     private handIcon!: Phaser.GameObjects.Text;
     private targetOrbIndex = -1;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
 
     constructor() {
         super('BoxPatternTutorialScene');
@@ -56,6 +58,8 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
         this.orbs = [];
         this.generateGrid(2); // Force 2x2
 
+        this.telemetry.levelStarted({ grid_size: 2, time_limit_ms: null, seed: null });
+
         this.startTutorialRound();
     }
 
@@ -97,6 +101,13 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
 
         // Show hand pointing to the FIRST orb in sequence
         this.showHandIcon(this.sequence[0]);
+
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', {
+            step: this.tutorialRound + 1,
+            step_key: `repeat_sequence_${this.sequence.length}`,
+        });
 
         // Unlock input for player
         this.isInputLocked = false;
@@ -149,6 +160,7 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
 
     // Override handleMistake to not Game Over, just retry
     protected handleMistake() {
+        this.stepWrongTries++;
         this.soundFail.play();
         if (this.instructionText) {
             this.instructionText.setText("ผิดครับ ลองใหม่อีกครั้งนะ");
@@ -179,6 +191,11 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
         this.isInputLocked = true;
         this.hideHandIcon();
         this.soundSuccess.play();
+        this.telemetry.action('tutorial_step_done', {
+            step: this.tutorialRound + 1,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
+        });
         this.tutorialRound++;
 
         if (this.tutorialRound >= this.maxTutorialRounds) {
@@ -204,6 +221,8 @@ export class BoxPatternTutorialScene extends BoxPatternGameScene {
             this.instructionText.setText("ยอดเยี่ยม! พร้อมสำหรับของจริงแล้ว");
         }
         this.time.delayedCall(1500, () => {
+            this.telemetry.levelEnded({ outcome: 'success' });
+
             // Emit Tutorial Complete Event
             const onTutorialComplete = this.registry.get('onTutorialComplete');
             if (onTutorialComplete) {
