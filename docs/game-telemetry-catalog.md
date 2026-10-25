@@ -18,7 +18,7 @@
 | 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ⏳ รอทำ | |
+| 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ⏳ รอทำ | |
 | 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ⏳ รอทำ | |
 | 14 | `game-14-wordrecognize` | Word Recognize (จดจำคำศัพท์) | ⏳ รอทำ | |
@@ -283,6 +283,43 @@
 - `info_panel`: แผงข้อมูลคะแนนและเป้าหมายแร่
 - `timer_bar`: แถบวงกลมเวลานับถอยหลัง
 - `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
+---
+
+### 11 · Pipe Patch (`game-11-pipe-patch`)
+> **ทักษะที่วัด:** การวางแผนเชิงพื้นที่และการแก้ปัญหาเชิงตรรกะ (Spatial Planning & Logical Problem Solving / `stat_planning`), มิติสัมพันธ์และการหมุนจัดวางทิศทาง (Spatial Relations & Flow Mask Alignment / `stat_visual`), สมาธิและการยับยั้งชั่งใจ (Focus & Inhibitory Control / `stat_focus`: หลีกเลี่ยงสิ่งกีดขวางและประตูกันย้อน One-way Gate), และประสิทธิภาพในการต่อท่อโดยลดการลองผิดลองถูก (Action Efficiency & Mind-Change Reduction: Undo / Reset Minimization)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `session_start` | `init()` / `create()` | `{ levelCount: number }` | เริ่มต้นเซสชันเกม Pipe Patch |
+| `level_start` | `startLevel()` | `{ levelId: number }` | เริ่มต้นเล่นด่านใหม่ |
+| `tray_piece_selected` | `spawnPieceVisual()` (dragstart) | `pieceId: string`<br>`pieceType: PipePieceType` | ผู้เล่นแตะหยิบท่อน้ำชิ้นแรกจากถาด (Tray) เพื่อเริ่มลาก |
+| `drag_start` | `spawnPieceVisual()` (dragstart) | `pieceId: string`<br>`from: 'board' \| 'tray'` | เริ่มต้นลากชิ้นท่อ โดยระบุว่าลากมาจากถาดหรือย้ายตำแหน่งจากบนกระดาน |
+| `drag_end` | `spawnPieceVisual()` (dragend) | `pieceId: string`<br>`dropTarget: 'board' \| 'tray' \| 'none'` | ปล่อยชิ้นท่อลงตำแหน่งเป้าหมาย |
+| `piece_placed` | `handleDrop()` | `pieceId: string`<br>`pieceType: PipePieceType`<br>`x: number`<br>`y: number`<br>`beneficial: boolean` | วางท่อลงบนช่องว่างในกระดานสำเร็จ พร้อมประเมินว่าการวางนี้มีประโยชน์ต่อการเชื่อมต่อ (`beneficial`) หรือไม่ |
+| `piece_swapped` | `handleDrop()` | `placedPieceId: string`<br>`replacedPieceId: string`<br>`x: number`<br>`y: number`<br>`beneficial: boolean` | วางท่อทับช่องที่มีท่อเดิมอยู่ เกิดการสลับชิ้นท่อกลับคืนถาด |
+| `piece_rejected` | `handleDrop()` | `pieceId: string`<br>`reason: 'blocked' \| 'occupied' \| 'out_of_bounds' \| 'inactive_endpoint'` | การวางท่อถูกปฏิเสธ (เช่น วางทับสิ่งกีดขวาง, วางทับท่อที่ไม่ตรงทิศทางของ endpoint, หรืออยู่นอกกระดาน) |
+| `piece_removed` | `handleDrop()` | `pieceId: string`<br>`fromCellKey: string` | ลากชิ้นส่วนจากบนกระดานกลับไปทิ้งที่ถาดหรือพื้นที่ว่างเพื่อนำออก |
+| `obstacle_interaction_attempt` | `handleDrop()` | `obstacleType: 'blocked' \| 'locked' \| 'gate' \| 'endpoint'`<br>`x: number`<br>`y: number` | ผู้เล่นพยายามวางทับสิ่งกีดขวาง ช่องที่ล็อก หรือประตูกันย้อน |
+| `board_state_eval` | `runBoardEval()` | `isSolved: boolean`<br>`isConnected: boolean`<br>`openEndsCount: number`<br>`leakCount: number`<br>`endpointSatisfiedCount: number`<br>`endpointUnsatisfiedCount: number` | ประเมินสภาพกระดานหลังการวางทุกครั้ง วัดจำนวนปลายเปิด รอยรั่ว และจุดเชื่อมต่อที่สำเร็จ |
+| `color_path_check` | `runBoardEval()` | `colorId: ColorId`<br>`complete: boolean`<br>`connectedLength: number` | ตรวจสอบเส้นทางท่อของแต่ละกลุ่มสี ว่าเชื่อมต่อจากจุดเริ่มถึงจุดสิ้นสุดสมบูรณ์หรือไม่ |
+| `one_way_gate_path_fail` | `runBoardEval()` | `x: number`<br>`y: number`<br>`reason: 'wrong_entry_direction' \| 'flow_reversal'` | ท่อน้ำเชื่อมผ่านประตูกันย้อน (One-way Gate) ผิดทิศทาง |
+| `undo_pressed` | `undoAction()` | `{ levelId: number }` | ผู้เล่นกดปุ่มย้อนกลับการกระทำ (Undo) |
+| `reset_level_pressed` | `resetLevel()` | `{ levelId: number }` | ผู้เล่นกดปุ่มรีเซ็ตกระดานเริ่มใหม่ทั้งหมด |
+| `tray_page_changed` | `createTrayPagerControls()` | `page: number`<br>`total_pages: number` | ผู้เล่นกดเปลี่ยนหน้าถาดชิ้นส่วน (Pagination) |
+| `level_complete` | `runBoardEval()` | `levelId: number`<br>`solveTimeMs: number`<br>`totalDragAttempts: number`<br>`undoCount: number`<br>`resetCount: number` | ผู้เล่นเชื่อมท่อครบทุกสีอย่างถูกต้อง ด่านเสร็จสมบูรณ์ |
+| `session_end` | `completeSession()` | `levelsAttempted: number`<br>`levelsSolved: number` | จบเซสชันการเล่นเกมทั้งหมด |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `timer_dial`: กราฟิกหน้าปัดจับเวลา
+- `cell_<x>_<y>`: ช่องบนตารางกระดานแต่ละช่อง เช่น `cell_0_0`, `cell_1_2`
+- `<pieceId>`: ชิ้นส่วนท่อน้ำที่ลากได้ เช่น `tray-straight_h`, `placed_straight_h_1`
+- `tray_pager_label`: ข้อความแสดงหน้าถาดชิ้นส่วน
+- `btn_tray_prev`: ปุ่มเลื่อนหน้าถาดไปทางซ้าย
+- `btn_tray_next`: ปุ่มเลื่อนหน้าถาดไปทางขวา
+- `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
 
 
 

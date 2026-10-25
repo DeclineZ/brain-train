@@ -135,6 +135,26 @@ export const GAME_EVENTS = [
   "hazard_triggered",
   "dynamic_event_triggered",
   "objective_completed",
+
+  // Game 11 - Pipe Patch
+  "session_start",
+  "level_start",
+  "tray_piece_selected",
+  "drag_start",
+  "drag_end",
+  "piece_placed",
+  "piece_swapped",
+  "piece_rejected",
+  "piece_removed",
+  "obstacle_interaction_attempt",
+  "board_state_eval",
+  "color_path_check",
+  "one_way_gate_path_fail",
+  "undo_pressed",
+  "reset_level_pressed",
+  "level_complete",
+  "session_end",
+  "tray_page_changed",
 ] as const;
 
 export const EVENT_NAMES = [
