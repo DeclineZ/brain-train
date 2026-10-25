@@ -1,4 +1,5 @@
 import { PinkCupGameScene } from './GameScene';
+import { PinkCupTutorialScene } from './TutorialScene';
 
 export const PinkCupGameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const PinkCupGameConfig: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [PinkCupGameScene]
+  scene: [PinkCupGameScene, PinkCupTutorialScene]
 };

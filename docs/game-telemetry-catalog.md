@@ -14,7 +14,7 @@
 | 04 | `game-04-floating-ball-math` | Floating Ball Math (ลอยบอลคณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 05 | `game-05-wormtrain` | Worm Train (รถไฟหนอน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene (In-scene Tutorial) |
 | 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ⏳ รอทำ | |
+| 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ⏳ รอทำ | |
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ⏳ รอทำ | |
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ⏳ รอทำ | |
@@ -199,4 +199,25 @@
 - `btn_left`: ปุ่มกดลูกศรซ้าย
 - `btn_right`: ปุ่มกดลูกศรขวา
 - `tutorial_overlay`: พื้นหลังโมดอลคำแนะนำในเกม
+
+---
+
+### 07 · Pink Cup (`game-07-pinkcup`)
+> **ทักษะที่วัด:** การวางแผนล่วงหน้า (Spatial Planning / Sliding Puzzle), ความจำขณะทำงาน (Working Memory: จำตำแหน่งตัวเลขใต้แผ่นกระเบื้อง), ความเร็วในการตอบสนอง และการรับรู้ทางมิติสัมพันธ์ (Spatial Cognition & Probe Retrieval)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `cup_moved` | `executeMove()` / Tutorial `handleCupClick()` | `is_pink: boolean`<br>`from: { x: number, y: number }`<br>`to: { x: number, y: number }`<br>`distance_to_target: number`<br>`is_good_move: boolean`<br>`backtracked: boolean`<br>`move_number: number`<br>`correct: boolean` | ผู้เล่นเลื่อนแก้ว (ชมพูหรือน้ำเงิน) ไปยังช่องว่าง บันทึกพิกัดก่อน/หลัง ระยะห่างถึงเป้าหมาย การเดินถอยกลับ (backtrack) และเป็นก้าวที่ดีขึ้นหรือไม่ |
+| `numbers_revealed` | `revealNumbers()` / Tutorial `showTutorialNumbers()` | `reveal_duration_ms: number`<br>`numbered_count: number` | เปิดเผยตัวเลขที่ซ่อนอยู่ใต้แผ่นกระเบื้อง (เริ่มช่วง Memory Phase) |
+| `numbers_hidden` | `hideNumbers()` / Tutorial `hideTutorialNumbers()` | `duration_ms: number` | สิ้นสุดช่วงเวลาเปิดเผยตัวเลข ซ่อนตัวเลขกลับคืนเพื่อเข้าสู่ช่วงเลื่อนแก้ว |
+| `target_reached` | `handleWin()` | `moves_taken: number`<br>`time_taken_ms: number` | ถ้วยสีชมพูเดินทางมาถึงช่องเป้าหมายสำเร็จ |
+| `probe_shown` | `showProbeQuestion()` / Tutorial `startMemoryProbe()` | `probe_index: number`<br>`total_probes: number`<br>`target_cell: { x: number, y: number }`<br>`target_number: number` | แสดงคำถามทดสอบความจำ (Memory Probe เช่น "เลขที่ X อยู่ที่ช่องไหน?") พร้อมเริ่มวัดปฏิกิริยาตอบสนอง (Stimulus marker) |
+| `probe_answered` | `handleTileClick()` / Tutorial `handleProbeAnswer()` | `probe_index: number`<br>`selected_cell: { x: number, y: number }`<br>`selected_number: number \| null`<br>`expected_cell: { x: number, y: number }`<br>`expected_number: number`<br>`correct: boolean`<br>`rt_ms: number` | ผู้เล่นแตะเลือกช่องเพื่อตอบคำถามความจำ บันทึกความถูกต้องและเวลา Reaction Time (`rt_ms`) |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `tile_<x>_<y>`: แผ่นกระเบื้องแต่ละช่อง เช่น `tile_0_0`, `tile_1_2`
+- `cup_pink`: แก้วสีชมพูเป้าหมาย
+- `cup_<index>`: แก้วสีน้ำเงินแต่ละใบ เช่น `cup_1`, `cup_2`
+
 

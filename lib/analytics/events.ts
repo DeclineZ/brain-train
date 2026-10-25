@@ -102,6 +102,14 @@ export const GAME_EVENTS = [
   "hold_completed",
   "ingame_tutorial_shown",
   "ingame_tutorial_completed",
+
+  // Game 07 - Pink Cup
+  "cup_moved",
+  "numbers_revealed",
+  "numbers_hidden",
+  "target_reached",
+  "probe_shown",
+  "probe_answered",
 ] as const;
 
 export const EVENT_NAMES = [
