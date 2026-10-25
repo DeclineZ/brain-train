@@ -117,6 +117,14 @@ export const GAME_EVENTS = [
   "sound_replayed",
   "option_toggled",
   "answer_submitted",
+
+  // Game 09 - Tube Sort
+  "tube_selected",
+  "tube_deselected",
+  "ball_poured",
+  "pour_failed",
+  "tube_completed",
+  "balls_frozen",
 ] as const;
 
 export const EVENT_NAMES = [

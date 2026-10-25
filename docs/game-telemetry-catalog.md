@@ -16,7 +16,7 @@
 | 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ⏳ รอทำ | |
+| 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ⏳ รอทำ | |
 | 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ⏳ รอทำ | |
 | 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ⏳ รอทำ | |
@@ -238,6 +238,26 @@
 - `speaker_icon`: ไอคอนลำโพงสำหรับฟังเสียงซ้ำ
 - `opt_<id>`: ตัวเลือกแต่ละภาพ เช่น `opt_dog`, `opt_cat`, `opt_pig`
 - `btn_confirm`: ปุ่มยืนยันคำตอบในโหมดตอบหลายตัว (Multi-select)
+
+---
+
+### 09 · Tube Sort (`game-09-tube-sort`)
+> **ทักษะที่วัด:** การวางแผนล่วงหน้าและการแก้ปัญหาเชิงตรรกะ (Strategic Planning & Logical Sorting), ความยืดหยุ่นทางความคิดและการรับมือสิ่งรบกวน (Cognitive Flexibility & Inhibitory Control: รับมือลูกบอลแช่แข็ง Freeze และข้อจำกัดจำนวนครั้งการย้าย Move Limits), และประสิทธิภาพของการเคลื่อนที่ (Move Efficiency & Redundancy Minimization)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `tube_selected` | `handleTubeTap()` / Tutorial `handleTubeTap()` | `tube_index: number`<br>`color?: number`<br>`ball_id?: number` | ผู้เล่นแตะเลือกหลอดต้นทางเพื่อเตรียมเทลูกบอล |
+| `tube_deselected` | `handleTubeTap()` | `tube_index: number` | ผู้เล่นแตะซ้ำที่หลอดเดิมเพื่อยกเลิกการเลือก |
+| `ball_poured` | `handleTubeTap()` / Tutorial `handleTubeTap()` | `from_tube: number`<br>`to_tube: number`<br>`color: number`<br>`move_number: number`<br>`is_redundant: boolean`<br>`remaining_moves_on_ball: number \| null` | เทลูกบอลสำเร็จจากหลอดหนึ่งไปยังอีกหลอดหนึ่ง พร้อมบันทึกสี, ลำดับตาเดิน, เป็นการเดินย้อนไปมาซ้ำซ้อนหรือไม่ (`is_redundant`), และโควตาการย้ายที่เหลือของบอลลูกนั้น |
+| `pour_failed` | `handleTubeTap()` | `from_tube: number`<br>`to_tube: number`<br>`reason: 'empty' \| 'frozen' \| 'exhausted' \| 'full' \| 'illegal'` | การเทไม่สำเร็จ บันทึกสาเหตุ (หลอดว่าง, ลูกบอลติดแช่แข็ง, โควตาการย้ายหมด, หลอดปลายทางเต็ม, หรือสีไม่ตรงกัน) |
+| `tube_completed` | `handleTubeCompletion()` / Tutorial `celebrateTube()` | `tube_index: number`<br>`color: number`<br>`tubes_completed: number`<br>`total_tubes: number` | หลอดทดลองจัดเรียงสีเดียวกันเต็มหลอดสำเร็จ (เกิดแสงประกายฉลอง) |
+| `balls_frozen` | `triggerFreeze()` / Tutorial `showFreezeDemo()` | `frozen_count: number`<br>`duration_ms: number` | พ่อมดน้ำแข็งร่ายเวทแช่แข็งลูกบอลบนกระดานชั่วคราว |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `tube_<index>`: หลอดทดลองแต่ละหลอด เช่น `tube_0`, `tube_1`
+- `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
 
 
 

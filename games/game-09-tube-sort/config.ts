@@ -1,5 +1,6 @@
 import { Types } from 'phaser';
 import { TubeSortGameScene } from './GameScene';
+import { TubeSortTutorialScene } from './TutorialScene';
 
 export const TubeSortGameConfig: Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const TubeSortGameConfig: Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [TubeSortGameScene]
+  scene: [TubeSortGameScene, TubeSortTutorialScene]
 };
