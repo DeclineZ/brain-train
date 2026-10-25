@@ -125,6 +125,16 @@ export const GAME_EVENTS = [
   "pour_failed",
   "tube_completed",
   "balls_frozen",
+
+  // Game 10 - Miner
+  "hook_dropped",
+  "hook_missed",
+  "object_grabbed",
+  "object_cracked",
+  "item_collected",
+  "hazard_triggered",
+  "dynamic_event_triggered",
+  "objective_completed",
 ] as const;
 
 export const EVENT_NAMES = [

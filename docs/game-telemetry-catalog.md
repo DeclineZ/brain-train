@@ -17,7 +17,7 @@
 | 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ⏳ รอทำ | |
+| 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ⏳ รอทำ | |
 | 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ⏳ รอทำ | |
 | 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ⏳ รอทำ | |
@@ -257,6 +257,33 @@
 #### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
 - `tube_<index>`: หลอดทดลองแต่ละหลอด เช่น `tube_0`, `tube_1`
 - `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
+---
+
+### 10 · Miner (`game-10-miner`)
+> **ทักษะที่วัด:** การวางแผนล่วงหน้า (Strategic Planning / `stat_planning`), การรับรู้ทางสายตาและการคัดเลือกเป้าหมายคุ้มค่า (Visual Discrimination & Target Efficiency / `stat_visual`), สมาธิและการยับยั้งชั่งใจต่อสิ่งกีดขวาง/ระเบิด (Focus & Hazard Avoidance / `stat_focus`), และความเร็วในการตัดสินใจปล่อยตะขอ (Decision Speed / `stat_speed`)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `hook_dropped` | `releaseHook()` / Tutorial `releaseHook()` | `angle_deg: number`<br>`decision_time_ms?: number`<br>`free_hooks_remaining: number`<br>`fee_applied: boolean`<br>`hook_cost: number`<br>`total_value: number`<br>`attempt_number?: number` | ผู้เล่นแตะปล่อยตะขอเหวี่ยงลงสู่ใต้ดิน บันทึกมุมองศา, เวลาในการเล็งตัดสินใจ (`decision_time_ms`), จำนวนสิทธิ์ฟรีที่เหลือ, สถานะการหักค่าปล่อยตะขอ, และคะแนนรวม |
+| `hook_missed` | `resolveGrab()` / Tutorial `finishPull()` | `locked_angle_deg: number`<br>`max_distance: number`<br>`fee_deducted: number`<br>`total_value: number` | ตะขอเหวี่ยงยืดจนสุดระยะความยาวเชือกโดยไม่โดนแร่ใด ๆ (คว้าน้ำเหลว) |
+| `object_cracked` | `handleGrabResult()` / Tutorial `checkDropGrabSegment()` | `object_type: string`<br>`durability_remaining: number`<br>`is_broken: boolean`<br>`hits_required: number` | ตะขอกระทบแร่ก้อนใหญ่ที่มีเศษหินปกคลุม (Crackable Ore) ซึ่งต้องกะเทาะให้แตกก่อน |
+| `object_grabbed` | `handleGrabResult()` / Tutorial `checkDropGrabSegment()` | `object_type: string`<br>`value: number`<br>`weight: number`<br>`is_hazard: boolean`<br>`is_decoy: boolean`<br>`is_crackable: boolean`<br>`distance: number` | ตะขอจับยึดวัตถุสำเร็จและเริ่มดึงรอกกลับ โดยความเร็วในการดึงขึ้นอยู่กับน้ำหนัก (`weight`) |
+| `hazard_triggered` | `handleGrabResult()` / Tutorial `checkDropGrabSegment()` | `hazard_type: string`<br>`penalty_type: string`<br>`penalty_value?: number` | วัตถุอันตรายส่งผลกระทบ เช่น ระเบิดทำให้ดึงรอกช้าลง 20 วินาที (`slow_pull`), ไอเท็มต้องสาปหักเวลา 5 วินาที (`time_penalty`), หินตัดแต้ม (`score_penalty`), หรือเพชรปลอมเสียจังหวะ (`decoy_time_waste`) |
+| `item_collected` | `finishPull()` / Tutorial `finishPull()` | `object_type: string`<br>`net_value: number`<br>`total_value: number`<br>`is_objective: boolean`<br>`is_decoy: boolean`<br>`is_hazard: boolean`<br>`objective_progress?: string` | วัตถุถูกดึงขึ้นมาถึงผิวดินสำเร็จ บันทึกคะแนนสุทธิหลังหักค่าธรรมเนียม, สถานะตรงตามเป้าหมายของด่านหรือไม่, และความคืบหน้าเป้าหมาย |
+| `objective_completed` | `registerObjectiveProgress()` / Tutorial `finishPull()` | `target_type: string`<br>`required_count: number`<br>`total_collected?: number` | ผู้เล่นเก็บแร่เป้าหมายพิเศษประจำด่านครบตามจำนวนที่กำหนด |
+| `dynamic_event_triggered` | `triggerDynamicEvent()` | `event_type: 'shift_layer' \| 'move_vein' \| 'roll_pattern' \| 'cursed_spawn'`<br>`time_sec: number`<br>`index: number` | เกิดเหตุการณ์พลวัตใต้ดิน เช่น แผ่นดินไหวชั้นดินเลื่อน (`shift_layer`), สายแร่ทองเคลื่อนที่ (`move_vein`), เพชรกลิ้ง (`roll_pattern`), หรือไอเท็มต้องสาปโผล่ (`cursed_spawn`) |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `hook_pivot`: จุดหมุนของตะขอ
+- `hook_head`: หัวตะขอหนีบแร่
+- `miner_obj_<type>_<id>`: แร่/สิ่งกีดขวางแต่ละชิ้นใต้ดิน เช่น `miner_obj_gold_large_1`, `miner_obj_gem_2`, `miner_obj_rock_3`
+- `goal_bar`: แถบเป้าหมายคะแนน
+- `info_panel`: แผงข้อมูลคะแนนและเป้าหมายแร่
+- `timer_bar`: แถบวงกลมเวลานับถอยหลัง
+- `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
 
 
 
