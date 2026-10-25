@@ -20,15 +20,15 @@
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ⏳ รอทำ | |
-| 14 | `game-14-wordrecognize` | Word Recognize (จดจำคำศัพท์) | ⏳ รอทำ | |
-| 15 | `game-15-taxidriver` | Taxi Driver (คนขับแท็กซี่) | ⏳ รอทำ | |
-| 16 | `game-16-doorguardian` | Door Guardian (ผู้พิทักษ์ประตู) | ⏳ รอทำ | |
-| 17 | `game-17-floatingmarket` | Floating Market (ตลาดน้ำ) | ⏳ รอทำ | |
-| 18 | `game-18-runforyourlife` | Run for Your Life (วิ่งสู้ฟัด) | ⏳ รอทำ | |
-| 19 | `game-19-cashier` | Cashier (แคชเชียร์คิดเงิน) | ⏳ รอทำ | |
-| 20 | `game-20-boxcounting` | Box Counting (นับกล่อง 3 มิติ) | ⏳ รอทำ | |
-| 21 | `game-21-parking-jam` | Parking Jam (เลื่อนรถออกจากลาน) | ⏳ รอทำ | |
+| 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 14 | `game-14-wordrecognize` | Word Recognize (จดจำคำศัพท์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 15 | `game-15-taxidriver` | Taxi Driver (คนขับแท็กซี่) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 16 | `game-16-doorguardian` | Door Guardian (ผู้พิทักษ์ประตู) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 17 | `game-17-floatingmarket` | Floating Market (ตลาดน้ำ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 18 | `game-18-runforyourlife` | Run for Your Life (วิ่งสู้ฟัด) | ✅ เสร็จสิ้น | ติดตั้ง GameScene |
+| 19 | `game-19-cashier` | Cashier (แคชเชียร์คิดเงิน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 20 | `game-20-boxcounting` | Box Counting (นับกล่อง 3 มิติ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
+| 21 | `game-21-parking-jam` | Parking Jam (เลื่อนรถออกจากลาน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 
 ---
 
