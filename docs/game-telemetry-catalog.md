@@ -11,7 +11,7 @@
 | 01 | `game-01-cardmatch` | Card Match (จับคู่การ์ด) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 02 | `game-02-sensorlock` | Sensor Lock (จับทิศทางลูกศร) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 03 | `game-03-billiards-math` | Billiards Math (สนุ๊กเกอร์คณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 04 | `game-04-floating-ball-math` | Floating Ball Math | ⏳ รอทำ | |
+| 04 | `game-04-floating-ball-math` | Floating Ball Math (ลอยบอลคณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 05 | `game-05-spot-shadow` | Spot Shadow | ⏳ รอทำ | |
 | 06 | `game-06-traffic-control` | Traffic Control | ⏳ รอทำ | |
 | 07 | `game-07-color-tap` | Color Tap | ⏳ รอทำ | |
@@ -137,3 +137,26 @@
 - `ball_<value>`: ลูกบอลหมายเลข เช่น `ball_1`, `ball_2`, `ball_99` (กับดัก)
 - `slot_<index>`: ช่องว่างสำหรับใส่สมการ เช่น `slot_0`, `slot_1`
 - `btn_revert`: ปุ่มย้อนกลับ (Undo)
+
+---
+
+### 04 · Floating Ball Math (`game-04-floating-ball-math`)
+> **ทักษะที่วัด:** การคำนวณเลขคณิตแบบเรียลไทม์ (Mental Math), การตัดสินใจภายใต้เวลาจำกัด (Decision Making under Time Pressure), การยับยั้งชั่งใจและการปรับตัวต่อสิ่งรบกวน (Inhibitory Control & Cognitive Adaptability)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `lane_changed` | `moveBoatToLane()` | `from_lane: 0 \| 1 \| 2`<br>`to_lane: 0 \| 1 \| 2`<br>`method: 'drag' \| 'keyboard' \| 'arrow'` | ผู้เล่นขยับเรือเปลี่ยนเลน พร้อมระบุวิธีควบคุม |
+| `ball_collected` | `collectBall()` | `ball_kind: 'operation' \| 'number'`<br>`value: number`<br>`operation: '+' \| '-' \| '*' \| '/'`<br>`total_before: number`<br>`total_after: number`<br>`target: number` | เรือชนเก็บลูกบอลคณิตศาสตร์ บันทึกคะแนนก่อน/หลังและเป้าหมาย |
+| `bomb_hit` | `collectBall()` | `{ total_before: number }` | เรือชนลูกระเบิด |
+| `equation_completed` | `handleSuccess()` | `equation_index: number`<br>`rt_ms: number \| null` | คำนวณได้ตรงเป้าหมายสมการสำเร็จ พร้อมเวลา `rt_ms` นับตั้งแต่เริ่มสมการนั้น |
+| `equation_overshot` | `handleOvershoot()` | `total: number`<br>`target: number` | ผลลัพธ์สมการเกินเป้าหมายหรือติดลบ |
+| `thief_appeared` | `spawnThiefEvent()` | `thief_index: number`<br>`ball_value: number`<br>`decision_window_ms: number`<br>`best_decision: 'block' \| 'adapt'` | มือโจรโผล่มาจะขโมย/สลับเลนลูกบอล (ตั้ง Stimulus marker เพื่อวัด Reaction Time) |
+| `thief_decision` | `handleBlockDecision()` / `executeAdapt()` | `thief_index: number`<br>`decision: 'block' \| 'adapt' \| 'none'`<br>`correct: boolean`<br>`rt_ms: number \| null`<br>`was_late: boolean`<br>`panic_streak: number` | ผลการตัดสินใจของผู้เล่นต่อเหตุการณ์โจร (กดบล็อก, ยอมปรับตัวตาม, หรือหมดเวลา timeout) |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `ball_<operator>_<value>`: ลูกบอลคณิตศาสตร์ เช่น `ball_+_5`, `ball_-_3`
+- `ball_bomb`: ลูกระเบิด
+- `btn_block`: ปุ่ม "หยุดโจร" (Block Button)
+- `btn_next`: ปุ่มถัดไป (ในโหมดสอนเล่น)
+- `btn_back`: ปุ่มย้อนกลับ (ในโหมดสอนเล่น)

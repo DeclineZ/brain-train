@@ -78,6 +78,15 @@ export const GAME_EVENTS = [
   "mine_hit",
   "obstacle_hit",
   "out_of_shots",
+
+  // Game 04 - Floating Ball Math
+  "lane_changed",
+  "ball_collected",
+  "bomb_hit",
+  "equation_completed",
+  "equation_overshot",
+  "thief_appeared",
+  "thief_decision",
 ] as const;
 
 export const EVENT_NAMES = [
