@@ -19,7 +19,7 @@
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ⏳ รอทำ | |
+| 12 | `game-12-gridhunter` | Grid Hunter (ล่าเป้าหมายตาราง) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 13 | `game-13-boxpattern` | Box Pattern (จำรูปแบบกล่อง) | ⏳ รอทำ | |
 | 14 | `game-14-wordrecognize` | Word Recognize (จดจำคำศัพท์) | ⏳ รอทำ | |
 | 15 | `game-15-taxidriver` | Taxi Driver (คนขับแท็กซี่) | ⏳ รอทำ | |
@@ -319,6 +319,38 @@
 - `btn_tray_prev`: ปุ่มเลื่อนหน้าถาดไปทางซ้าย
 - `btn_tray_next`: ปุ่มเลื่อนหน้าถาดไปทางขวา
 - `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
+---
+
+### 12 · Grid Hunter (`game-12-gridhunter`)
+> **ทักษะที่วัด:** การประมวลผลทางสายตาและการค้นหาเป้าหมาย (Visual Scanning & Target Identification / `stat_visual`), สมาธิและการยับยั้งชั่งใจต่อกับดักบัตรสีแดง (Focus & Inhibitory Control / `stat_focus`: หลีกเลี่ยงกับดักบัตรแดง Trap Cards), ความยืดหยุ่นทางความคิดเมื่อเปลี่ยนกฎหรือสับเปลี่ยนกระดาน (Cognitive Flexibility & Rule Switching / `stat_planning`: กฎเลขคู่น้อยสุด, เลขคี่น้อยสุด, เลขคี่มากสุด และการสลับกระดาน Shuffle), และความเร็วในการตัดสินใจ (Processing Speed / `stat_speed`: Reaction Time)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `target_selected` | `handleTileTap()` | `index: number`<br>`value: number`<br>`is_correct: boolean`<br>`is_trap: boolean`<br>`target_rule: 'lowest' \| 'lowest_even' \| 'lowest_odd' \| 'highest_odd'`<br>`target_value: number`<br>`reaction_time_ms: number`<br>`combo: number`<br>`score: number`<br>`current_phase: number` | ผู้เล่นแตะเลือกการ์ดตัวเลขบนตาราง บันทึกค่าตัวเลข, กฎที่กำลังใช้อยู่, ค่าเป้าหมายที่ถูกต้อง, ความถูกต้อง, Reaction Time, คอมโบ, และคะแนน |
+| `trap_hit` | `handleTrapHit()` / Tutorial `handleTileTap()` | `index: number`<br>`value?: number`<br>`score_penalty?: number`<br>`time_penalty_ms?: number`<br>`current_phase?: number`<br>`is_tutorial?: boolean`<br>`step?: number` | ผู้เล่นเผลอกดโดนกับดักบัตรสีแดง บันทึกบทลงโทษหักคะแนนและหักเวลา |
+| `trap_spawned` | `maybeSpawnTrap()` | `index: number`<br>`value: number`<br>`duration_turns: number`<br>`current_phase: number` | ระบบสุ่มสร้างกับดักบัตรสีแดงขึ้นบนกระดาน |
+| `trap_alert_shown` | `showTrapAlert()` | `alert_count: number`<br>`message: string`<br>`current_phase: number` | แสดงแถบข้อความเตือนให้ระวังกับดักบัตรสีแดง |
+| `trap_expired` | `updateTraps()` | `index: number`<br>`turns_survived: number`<br>`current_phase: number` | กับดักบัตรสีแดงหมดอายุโดยผู้เล่นไม่ได้เผลอกด (หลบเลี่ยงสำเร็จ) |
+| `combo_milestone` | `handleCorrectTap()` | `combo: number`<br>`multiplier: number`<br>`points_awarded: number` | ผู้เล่นทำคอมโบต่อเนื่องถึงระดับสำคัญ ($\ge 3$) |
+| `phase_transition` | `transitionToPhase()` | `phase: number`<br>`threshold_score: number`<br>`grid_size: number`<br>`rule: string` | ผู้เล่นทำคะแนนถึงเกณฑ์และเลื่อนขึ้นสู่ระดับถัดไป (เปิดหน้าต่างแจ้งกฎใหม่) |
+| `phase_modal_closed` | `transitionToPhase()` (resumeGame) | `phase: number` | ผู้เล่นกดปุ่ม 'ไปต่อ >' เพื่อปิดหน้าต่างแจ้งกฎและเริ่มเล่นต่อ |
+| `grid_shuffled` | `shuffleGrid()` | `shuffle_count: number`<br>`phase: number` | ตัวเลขบนตารางสลับตำแหน่ง (ใน Phase 3, 4, 7) |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `timer_bar`: แถบเวลานับถอยหลังต่อใบ
+- `score_text`: ข้อความแสดงคะแนนปัจจุบัน
+- `combo_text`: ข้อความแสดงคอมโบ
+- `instruction_text`: ป้ายข้อความบอกกฎเป้าหมาย
+- `tile_<index>`: พื้นที่แตะของแต่ละช่องบนตาราง เช่น `tile_0`, `tile_1`
+- `tile_text_<index>`: ตัวเลขบนแต่ละช่อง
+- `tile_container_<index>`: คอนเทนเนอร์ของช่องตัวเลข
+- `btn_phase_continue`: ปุ่ม 'ไปต่อ >' ในหน้าต่างเลื่อนระดับ
+- `tut_tile_<index>`: ช่องการ์ดตัวเลขในโหมดสอนเล่น
+- `btn_next`: ปุ่ม 'ถัดไป' ในโหมดสอนเล่น
+- `btn_skip`: ปุ่มข้ามโหมดสอนเล่น
+
 
 
 

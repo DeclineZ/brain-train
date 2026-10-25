@@ -1,7 +1,9 @@
 import * as Phaser from 'phaser';
+import { GameTelemetry } from '@/games/engine/telemetry';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class GridHunterGameScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
     // Game State
     private isPlaying = false;
     private score = 0;
@@ -78,6 +80,10 @@ export class GridHunterGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-12-gridhunter',
+        });
+
         // 1. Background
         this.createBackground();
 
@@ -242,6 +248,7 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // Score (below instruction, centered)
         const scoreContainer = this.add.container(width / 2, 85);
+        scoreContainer.setName('score_container');
 
         // Score bubble background
         const scoreBg = this.add.graphics();
@@ -256,6 +263,7 @@ export class GridHunterGameScene extends Phaser.Scene {
             fontStyle: 'bold',
             color: '#B5838D'
         })).setOrigin(0.5, 0.5);
+        this.scoreText.setName('score_text');
         scoreContainer.add(this.scoreText);
         scoreContainer.setDepth(100);
 
@@ -267,9 +275,11 @@ export class GridHunterGameScene extends Phaser.Scene {
             stroke: '#ffffff',
             strokeThickness: 4
         })).setOrigin(0.5).setAlpha(0).setDepth(100);
+        this.comboText.setName('combo_text');
 
         // Timer bar
         this.timerBar = this.add.graphics().setDepth(100);
+        this.timerBar.setName('timer_bar');
     }
 
     private instructionText!: Phaser.GameObjects.Text;
@@ -280,6 +290,7 @@ export class GridHunterGameScene extends Phaser.Scene {
 
         // Instruction container - centered at top
         this.instructionBg = this.add.container(width / 2, 35);
+        this.instructionBg.setName('instruction_container');
 
         // Calculate pill size (wider for larger text)
         const pillWidth = 280;
@@ -298,6 +309,7 @@ export class GridHunterGameScene extends Phaser.Scene {
             fontStyle: 'bold',
             color: '#ffffff'
         })).setOrigin(0.5);
+        this.instructionText.setName('instruction_text');
         this.instructionBg.add(this.instructionText);
 
         this.instructionBg.setDepth(100);
@@ -448,6 +460,12 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.initGrid();
         this.cardStartTime = Date.now();
         this.lastTapTime = Date.now();
+
+        this.telemetry?.levelStarted({
+            phase: this.currentPhase,
+            grid_size: this.gridSize,
+            target_rule: 'lowest',
+        });
     }
 
     // =====================
@@ -520,6 +538,7 @@ export class GridHunterGameScene extends Phaser.Scene {
 
     createTile(x: number, y: number, size: number, num: number, index: number): Phaser.GameObjects.Container {
         const container = this.add.container(x, y);
+        container.setName(`tile_container_${index}`);
 
         const isTrap = this.trapIndices.has(index);
 
@@ -555,6 +574,7 @@ export class GridHunterGameScene extends Phaser.Scene {
             fontStyle: 'bold',
             color: isTrap ? '#ffffff' : '#2d3436'
         })).setOrigin(0.5);
+        text.setName(`tile_text_${index}`);
         container.add(text);
 
         // Trap glow animation
@@ -572,6 +592,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         // Hit area
         const hitArea = this.add.rectangle(0, 0, size, size, 0x000000, 0)
             .setInteractive({ useHandCursor: true });
+        hitArea.setName(`tile_${index}`);
         container.add(hitArea);
 
         hitArea.on('pointerdown', () => this.handleTileTap(index));
@@ -608,6 +629,26 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.reactionCount++;
         this.lastTapTime = now;
 
+        const targetRule = this.targetEven
+            ? 'lowest_even'
+            : this.targetOdd
+            ? (this.targetHighest ? 'highest_odd' : 'lowest_odd')
+            : 'lowest';
+        const isCorrect = !isTrap && tappedNumber === target;
+
+        this.telemetry?.action('target_selected', {
+            index,
+            value: tappedNumber,
+            is_correct: isCorrect,
+            is_trap: isTrap,
+            target_rule: targetRule,
+            target_value: target,
+            reaction_time_ms: reactionTime,
+            combo: this.combo,
+            score: this.score,
+            current_phase: this.currentPhase,
+        });
+
         if (isTrap) {
             // Tapped a trap! Penalty
             this.handleTrapHit(index);
@@ -640,6 +681,11 @@ export class GridHunterGameScene extends Phaser.Scene {
         // Show combo
         if (this.combo >= 3) {
             this.showComboText();
+            this.telemetry?.action('combo_milestone', {
+                combo: this.combo,
+                multiplier: Math.min(this.combo, 10),
+                points_awarded: points,
+            });
         }
 
         // Replace the tile with new high number
@@ -688,10 +734,19 @@ export class GridHunterGameScene extends Phaser.Scene {
     }
 
     handleTrapHit(index: number) {
+        const tappedNumber = this.numbers[index];
         this.trapHit++;
         this.combo = 0;
         this.score = Math.max(0, this.score - 500);
         this.updateScoreDisplay();
+
+        this.telemetry?.action('trap_hit', {
+            index,
+            value: tappedNumber,
+            score_penalty: 500,
+            time_penalty_ms: 2000,
+            current_phase: this.currentPhase,
+        });
 
         // Big shake
         this.cameras.main.shake(200, 0.02);
@@ -769,6 +824,13 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.trapLives.set(chosen.i, 3); // Lasts for 3 correct selections
         this.trapAvoided++; // Will decrement if hit
 
+        this.telemetry?.action('trap_spawned', {
+            index: chosen.i,
+            value: chosen.n,
+            duration_turns: 3,
+            current_phase: this.currentPhase,
+        });
+
         this.rebuildGrid();
 
         // Show a reminder alert for the first 3 trap spawns
@@ -783,6 +845,11 @@ export class GridHunterGameScene extends Phaser.Scene {
         for (const [index, lives] of Array.from(this.trapLives.entries())) {
             if (lives <= 1) {
                 // Expire
+                this.telemetry?.action('trap_expired', {
+                    index,
+                    turns_survived: 3,
+                    current_phase: this.currentPhase,
+                });
                 this.trapLives.delete(index);
                 this.trapIndices.delete(index);
                 changed = true;
@@ -811,6 +878,12 @@ export class GridHunterGameScene extends Phaser.Scene {
             'ระวังบัตรแดง! เลือกเลขอื่นแทน'
         ];
         const msg = msgs[Math.min(this.trapAlertCount - 1, msgs.length - 1)];
+
+        this.telemetry?.action('trap_alert_shown', {
+            alert_count: this.trapAlertCount,
+            message: msg,
+            current_phase: this.currentPhase,
+        });
 
         const text = this.add.text(0, 0, msg, createGameTextStyle({
             fontSize: '20px',
@@ -913,6 +986,13 @@ export class GridHunterGameScene extends Phaser.Scene {
                 descText = 'สู้ๆ นะ!';
         }
 
+        this.telemetry?.action('phase_transition', {
+            phase,
+            threshold_score: this.score,
+            grid_size: phase >= 2 ? 4 : 3,
+            rule: descText,
+        });
+
         const container = this.add.container(width / 2, height / 2).setDepth(200).setAlpha(0).setScale(0.8);
 
         // Title
@@ -941,6 +1021,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         const btnHeight = 50;
 
         const btnContainer = this.add.container(0, btnY);
+        btnContainer.setName('btn_phase_continue');
 
         const btnBg = this.add.graphics();
         btnBg.fillStyle(0x58CC02, 1); // Green button
@@ -965,6 +1046,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         // Interactive Button Area
         const hitArea = this.add.rectangle(0, btnY, btnWidth, btnHeight, 0xffffff, 0)
             .setInteractive({ useHandCursor: true });
+        hitArea.setName('btn_phase_continue');
         container.add(hitArea);
 
         // Animate in
@@ -980,6 +1062,7 @@ export class GridHunterGameScene extends Phaser.Scene {
         const resumeGame = () => {
             // Disable input
             hitArea.disableInteractive();
+            this.telemetry?.action('phase_modal_closed', { phase });
 
             this.tweens.add({
                 targets: [container, overlay],
@@ -1079,6 +1162,11 @@ export class GridHunterGameScene extends Phaser.Scene {
     }
 
     shuffleGrid() {
+        this.telemetry?.action('grid_shuffled', {
+            shuffle_count: this.shuffleCount,
+            phase: this.currentPhase,
+        });
+
         // Shuffle positions (not numbers)
         for (let i = this.numbers.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1324,6 +1412,23 @@ export class GridHunterGameScene extends Phaser.Scene {
         this.sound.stopAll();
         this.soundPhaseUp.play();
 
+        this.telemetry?.action('time_up', {});
+        this.telemetry?.levelEnded({
+            outcome: 'completed',
+            score: this.score,
+            stars: 0,
+            metrics: {
+                max_combo: this.maxCombo,
+                total_correct: this.correctTaps,
+                total_attempts: this.totalTaps,
+                accuracy: this.totalTaps > 0 ? this.correctTaps / this.totalTaps : 0,
+                reaction_time_avg: this.reactionCount > 0 ? this.totalReactionTime / this.reactionCount : 0,
+                trap_avoided: this.trapAvoided - this.trapHit,
+                trap_hit: this.trapHit,
+                phase_reached: this.currentPhase,
+            }
+        });
+
         // Emit Game Over
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
@@ -1337,7 +1442,8 @@ export class GridHunterGameScene extends Phaser.Scene {
                 trapAvoided: this.trapAvoided - this.trapHit,
                 trapHit: this.trapHit,
                 phaseReached: this.currentPhase,
-                stars: 0 // Endless mode, no stars
+                stars: 0, // Endless mode, no stars
+                attempt_id: this.telemetry?.attemptId ?? undefined,
             });
         }
     }

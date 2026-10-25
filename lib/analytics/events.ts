@@ -155,6 +155,16 @@ export const GAME_EVENTS = [
   "level_complete",
   "session_end",
   "tray_page_changed",
+
+  // Game 12 - Grid Hunter
+  "target_selected",
+  "trap_spawned",
+  "trap_alert_shown",
+  "trap_expired",
+  "phase_transition",
+  "phase_modal_closed",
+  "grid_shuffled",
+  "combo_milestone",
 ] as const;
 
 export const EVENT_NAMES = [
