@@ -1,4 +1,5 @@
 import { MysterySoundScene } from './GameScene';
+import { TutorialScene } from './TutorialScene';
 
 export const MysterySoundGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const MysterySoundGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false,
         },
     },
-    scene: [MysterySoundScene],
+    scene: [MysterySoundScene, TutorialScene],
 };

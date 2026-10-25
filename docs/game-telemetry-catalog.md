@@ -15,7 +15,7 @@
 | 05 | `game-05-wormtrain` | Worm Train (รถไฟหนอน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene (In-scene Tutorial) |
 | 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
-| 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ⏳ รอทำ | |
+| 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ⏳ รอทำ | |
 | 10 | `game-10-miner` | Miner (นักขุดเหมือง) | ⏳ รอทำ | |
 | 11 | `game-11-pipe-patch` | Pipe Patch (ต่อท่อประปา) | ⏳ รอทำ | |
@@ -219,5 +219,25 @@
 - `tile_<x>_<y>`: แผ่นกระเบื้องแต่ละช่อง เช่น `tile_0_0`, `tile_1_2`
 - `cup_pink`: แก้วสีชมพูเป้าหมาย
 - `cup_<index>`: แก้วสีน้ำเงินแต่ละใบ เช่น `cup_1`, `cup_2`
+
+---
+
+### 08 · Mystery Sound (`game-08-mysterysound`)
+> **ทักษะที่วัด:** ภาษาและการนึกคำ (Auditory Discrimination & Verbal Recall / `stat_emotion`), การแยกแยะเสียงผสม (Auditory Focus: Distinguishing Mixed/Hybrid Sounds / `stat_focus`), และความเร็วในการตอบสนอง (Processing Speed / `stat_speed`)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `sound_played` | `playSoundWithAnimation()` | `question_index: number`<br>`sounds: string[]`<br>`is_replay: boolean`<br>`replays_remaining?: number` | เล่นเสียงสัตว์/สิ่งแวดล้อมประจำข้อ (พร้อมตั้ง Stimulus marker เพื่อเริ่มจับ Reaction Time) |
+| `choices_shown` | `showChoices()` | `question_index: number`<br>`options: string[]`<br>`required_selections: number` | ตัวเลือกภาพ/คำตอบปรากฏขึ้นบนหน้าจอ พร้อมระบุจำนวนตัวเลือกที่ต้องเลือก |
+| `sound_replayed` | `replaySound()` / Tutorial `handleSpeakerClick()` | `question_index: number`<br>`replays_remaining?: number`<br>`total_replays_used?: number`<br>`tutorial_phase?: number` | ผู้เล่นแตะไอคอนลำโพงเพื่อฟังเสียงซ้ำ บันทึกโควตา replay ที่เหลือและจำนวนครั้งที่ใช้ทั้งหมด |
+| `option_toggled` | `handleOptionClick()` (Multi-select) | `question_index: number`<br>`option_id: string`<br>`selected: boolean`<br>`current_selections: string[]` | แตะเลือกหรือยกเลิกการเลือกภาพคำตอบในโหมดตอบหลายตัว (Multi-select) |
+| `answer_submitted` | `checkSingleSelectAnswer()` / `checkMultiSelectAnswer()` / Tutorial `handleOptionClick()` | `question_index: number`<br>`sounds: string[]`<br>`selected_answers: string[]`<br>`correct_answers: string[]`<br>`correct: boolean`<br>`is_multi_select: boolean`<br>`rt_ms: number`<br>`replays_used: number` | ตรวจคำตอบที่เลือก บันทึกความถูกต้อง เวลา Reaction Time (`rt_ms`) และจำนวนครั้งที่ฟังซ้ำ |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `speaker_icon`: ไอคอนลำโพงสำหรับฟังเสียงซ้ำ
+- `opt_<id>`: ตัวเลือกแต่ละภาพ เช่น `opt_dog`, `opt_cat`, `opt_pig`
+- `btn_confirm`: ปุ่มยืนยันคำตอบในโหมดตอบหลายตัว (Multi-select)
+
 
 

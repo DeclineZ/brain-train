@@ -110,6 +110,13 @@ export const GAME_EVENTS = [
   "target_reached",
   "probe_shown",
   "probe_answered",
+
+  // Game 08 - Mystery Sound
+  "sound_played",
+  "choices_shown",
+  "sound_replayed",
+  "option_toggled",
+  "answer_submitted",
 ] as const;
 
 export const EVENT_NAMES = [

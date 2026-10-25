@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 // Tutorial-specific questions (different from Level 1 which uses cat/dog)
 const TUTORIAL_QUESTIONS = [
@@ -26,6 +27,8 @@ const TUTORIAL_QUESTIONS = [
 ];
 
 export class TutorialScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
+
     // Game state
     private currentQuestionIndex: number = 0;
     private hasAnswered: boolean = false;
@@ -73,6 +76,12 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-08-mysterysound',
+            mode: 'tutorial',
+        });
+        this.telemetry.levelStarted({ level: 0, total_questions: TUTORIAL_QUESTIONS.length });
+
         // Create colorful gradient background
         this.createBackground();
 
@@ -112,6 +121,7 @@ export class TutorialScene extends Phaser.Scene {
     private startPhase1() {
         this.tutorialPhase = 1;
         this.currentQuestionIndex = 0;
+        this.telemetry?.action('tutorial_step_shown', { step: 1, name: 'listen_and_choose' });
 
         const { width, height } = this.scale;
 
@@ -156,6 +166,7 @@ export class TutorialScene extends Phaser.Scene {
         this.currentQuestionIndex = 1;
         this.hasReplayedInPhase2 = false;
         this.hasAnswered = false;
+        this.telemetry?.action('tutorial_step_shown', { step: 2, name: 'learn_replay' });
 
         // Clear old UI
         this.clearQuestionUI();
@@ -250,6 +261,7 @@ export class TutorialScene extends Phaser.Scene {
         const centerY = height * 0.30;
 
         this.speakerContainer = this.add.container(centerX, centerY);
+        this.speakerContainer.setName('speaker_icon');
 
         const circleBg = this.add.circle(0, 0, 60, 0xffffff, 0.95);
         circleBg.setStrokeStyle(3, 0xe0e7ff);
@@ -393,6 +405,11 @@ export class TutorialScene extends Phaser.Scene {
     private handleSpeakerClick() {
         if (this.hasAnswered) return;
 
+        this.telemetry?.action('sound_replayed', {
+            question_index: this.currentQuestionIndex,
+            tutorial_phase: this.tutorialPhase,
+        });
+
         // Phase 2: Must replay before answering
         if (this.tutorialPhase === 2 && !this.hasReplayedInPhase2) {
             this.hasReplayedInPhase2 = true;
@@ -424,6 +441,13 @@ export class TutorialScene extends Phaser.Scene {
         this.animateSoundWaves();
 
         const currentQuestion = TUTORIAL_QUESTIONS[this.currentQuestionIndex];
+        this.telemetry?.stimulus(`question_${this.currentQuestionIndex}`);
+        this.telemetry?.action('sound_played', {
+            question_index: this.currentQuestionIndex,
+            sounds: currentQuestion.sounds,
+            is_replay: this.hasReplayedInPhase2 || (this.tutorialPhase === 1 && this.choicesVisible),
+        });
+
         currentQuestion.sounds.forEach((soundId, index) => {
             try {
                 if (this.cache.audio.exists(`sound-${soundId}`)) {
@@ -529,11 +553,18 @@ export class TutorialScene extends Phaser.Scene {
                 ease: 'Back.easeOut',
             });
         });
+
+        this.telemetry?.action('choices_shown', {
+            question_index: this.currentQuestionIndex,
+            options: options.map(o => o.id),
+            required_selections: 1,
+        });
     }
 
     private createOptionButton(x: number, y: number, option: { id: string; label: string }, size: number, enabled: boolean = true): Phaser.GameObjects.Container {
         const container = this.add.container(x, y);
         const id = option.id;
+        container.setName(`opt_${id}`);
         const label = option.label;
 
         const shadow = this.add.graphics();
@@ -642,6 +673,19 @@ export class TutorialScene extends Phaser.Scene {
         this.hasAnswered = true;
         const currentQuestion = TUTORIAL_QUESTIONS[this.currentQuestionIndex];
         const isCorrect = currentQuestion.correctAnswers.includes(id);
+
+        const rtMs = this.telemetry?.rtFrom(`question_${this.currentQuestionIndex}`) ?? 0;
+        this.telemetry?.action('answer_submitted', {
+            question_index: this.currentQuestionIndex,
+            sounds: currentQuestion.sounds,
+            selected_answers: [id],
+            correct_answers: currentQuestion.correctAnswers,
+            correct: isCorrect,
+            is_multi_select: false,
+            rt_ms: rtMs,
+            replays_used: this.hasReplayedInPhase2 ? 1 : 0,
+        });
+        this.telemetry?.action('tutorial_step_done', { step: this.tutorialPhase });
 
         this.optionButtons.forEach(btn => btn.disableInteractive());
         this.speakerContainer.disableInteractive();
@@ -756,9 +800,18 @@ export class TutorialScene extends Phaser.Scene {
             this.sound.play('level-complete', { volume: 0.7 });
         } catch (e) { }
 
+        this.telemetry?.levelEnded({
+            outcome: 'completed',
+            score: 100,
+            stars: 3,
+            total_questions: TUTORIAL_QUESTIONS.length,
+        });
+
         const onTutorialComplete = this.registry.get('onTutorialComplete');
         if (onTutorialComplete) {
-            onTutorialComplete();
+            onTutorialComplete({
+                attempt_id: this.telemetry?.attemptId ?? undefined,
+            });
         }
     }
 
