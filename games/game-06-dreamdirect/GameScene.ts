@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { DreamDirectConstants, Direction, ArrowType } from './config';
 import { DREAMDIRECT_LEVELS, DreamDirectLevelConfig } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 interface Arrow {
     container: Phaser.GameObjects.Container;
@@ -32,6 +33,7 @@ interface ArrowStats {
 }
 
 export class DreamDirectGameScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
     private currentLevelConfig!: DreamDirectLevelConfig;
 
     // Audio
@@ -230,6 +232,12 @@ export class DreamDirectGameScene extends Phaser.Scene {
     }
 
     create() {
+        const isTutorial = (this.currentLevelConfig?.level === 0) || (this.registry.get('mode') === 'tutorial');
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-06-dreamdirect',
+            mode: isTutorial ? 'tutorial' : 'normal',
+        });
+
         const { width, height } = this.scale;
 
         // Calculate safe Hit Zone Y
@@ -625,8 +633,10 @@ export class DreamDirectGameScene extends Phaser.Scene {
             container.add([bg, arrowGraphic]);
             container.setSize(buttonSize, buttonSize);
             container.setDepth(200);
+            container.setName(`btn_${dir}`);
 
             // Make interactive (multi-touch aware)
+            bg.setName(`btn_${dir}`);
             bg.setInteractive({ useHandCursor: true });
             // Track which pointers are actively pressing this button
             bg.setData('activePointers', new Set<number>());
@@ -702,7 +712,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 this.completeHold(arrow);
             } else {
                 // Fail - Released Early
-                this.handleMiss(arrow); /* "Released Too Early!" */
+                this.handleMiss(arrow, 'released_early'); /* "Released Too Early!" */
             }
         });
     }
@@ -763,6 +773,19 @@ export class DreamDirectGameScene extends Phaser.Scene {
             // Unmatched input in hit window: reset combo without destroying upcoming arrows
             this.combo = 0;
             this.updateComboDisplay();
+
+            const candidate = candidates[0];
+            if (candidate) {
+                this.telemetry.action('arrow_missed', {
+                    arrow_type: candidate.type,
+                    display_direction: candidate.direction,
+                    target_direction: candidate.targetDirection,
+                    input_direction: dir,
+                    lane: candidate.lane,
+                    reason: 'wrong_direction',
+                    correct: false,
+                });
+            }
         }
     }
 
@@ -776,6 +799,15 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         this.sound.play('sfx-correct', { rate: 1.2 });
         this.emitParticles(arrow.container.x, arrow.container.y, 0xFFD700); // Gold
+
+        this.telemetry.action('hold_completed', {
+            arrow_type: arrow.type,
+            target_direction: arrow.targetDirection,
+            duration: arrow.duration,
+            score_awarded: DreamDirectConstants.SCORE.PERFECT,
+            lane: arrow.lane,
+            correct: true,
+        });
 
         arrow.resolved = true;
         this.destroyArrow(arrow);
@@ -801,6 +833,13 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         this.musicStartTime = Date.now();
         this.isPlaying = true;
+
+        this.telemetry.levelStarted({
+            level: this.currentLevelConfig.level,
+            bpm: this.currentLevelConfig.bpm,
+            arrow_count: this.currentLevelConfig.arrowCount,
+            arrow_types: this.currentLevelConfig.arrowTypes,
+        });
     }
 
     getBGMKey(): string {
@@ -830,6 +869,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
         // Overlay
         const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+        overlay.setName('tutorial_overlay');
         overlay.setInteractive(); // Block clicks below (game world)
         this.tutorialContainer.add(overlay);
 
@@ -840,6 +880,9 @@ export class DreamDirectGameScene extends Phaser.Scene {
             this.endInGameTutorial(type);
             return;
         }
+
+        this.telemetry.action('level_paused', { reason: 'ingame_tutorial', arrow_type: type });
+        this.telemetry.action('ingame_tutorial_shown', { arrow_type: type, title: info.title });
 
         const titleText = this.add.text(width / 2, height * 0.15, info.title, createGameTextStyle({
             fontSize: '32px', // Smaller to fit mobile
@@ -1201,6 +1244,9 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 this.isTutorialResolving = false;
                 this.bgMusic.resume();
 
+                this.telemetry.action('ingame_tutorial_completed', { arrow_type: this.currentTutorialType });
+                this.telemetry.action('level_resumed', { reason: 'ingame_tutorial' });
+
                 // Adjust Time Tracking
                 const pauseDuration = Date.now() - this.pauseStartTime;
                 this.musicStartTime += pauseDuration;
@@ -1454,6 +1500,17 @@ export class DreamDirectGameScene extends Phaser.Scene {
 
             this.arrows.push(arrowObj);
             this.arrowsSpawned++;
+
+            this.telemetry.action('arrow_spawned', {
+                arrow_type: arrowType,
+                display_direction: visualDirection,
+                target_direction: targetDirection,
+                lane,
+                spawn_beat: this.nextArrowBeat,
+                target_beat: arrowObj.targetBeatTime,
+                duration: arrowObj.duration,
+                is_chord: numberOfArrows === 2,
+            });
         }
 
         // Increment beat for next arrow
@@ -1775,7 +1832,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
             }
 
             if (currentBeatFloat > deadline) {
-                this.handleMiss(arrow);
+                this.handleMiss(arrow, 'timeout');
             }
         });
     }
@@ -1804,6 +1861,20 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 this.showTimingFeedback(arrow.container.x, arrow.container.y, 'อีกครั้ง!', true);
                 this.tweens.add({ targets: arrow.container, scale: 0.8, duration: 50, yoyo: true });
                 this.flashButton(inputDir);
+                this.telemetry.action('arrow_hit', {
+                    arrow_type: arrow.type,
+                    display_direction: arrow.direction,
+                    target_direction: arrow.targetDirection,
+                    input_direction: inputDir,
+                    timing_offset_ms: Math.round(timingOffset),
+                    grade: 'อีกครั้ง!',
+                    score_awarded: 0,
+                    combo: this.combo,
+                    lane: arrow.lane,
+                    is_hold: false,
+                    hits_remaining: arrow.hitsRequired,
+                    correct: true,
+                });
                 return;
             }
 
@@ -1821,15 +1892,30 @@ export class DreamDirectGameScene extends Phaser.Scene {
             this.emitParticles(arrow.container.x, arrow.container.y, 0x44ff44); // Green particles
             this.pulseHitZone();
 
+            const isHold = arrow.type === 'hold_solid' || arrow.type === 'hold_hollow';
+            this.telemetry.action('arrow_hit', {
+                arrow_type: arrow.type,
+                display_direction: arrow.direction,
+                target_direction: arrow.targetDirection,
+                input_direction: inputDir,
+                timing_offset_ms: Math.round(timingOffset),
+                grade: timing.grade,
+                score_awarded: timing.score,
+                combo: this.combo,
+                lane: arrow.lane,
+                is_hold: isHold,
+                correct: true,
+            });
+
             // HOLD ARROW LOGIC
-            if (arrow.type === 'hold_solid' || arrow.type === 'hold_hollow') {
+            if (isHold) {
                 arrow.isBeingHeld = true;
                 // Do NOT destroy. Return early.
                 return;
             }
 
         } else {
-            this.handleMiss(arrow);
+            this.handleMiss(arrow, 'wrong_direction');
         }
 
         // Mark as resolved (if not double arrow hit 1)
@@ -1856,7 +1942,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
         return { grade: 'พลาด!', score: 0 };
     }
 
-    handleMiss(arrow: Arrow) {
+    handleMiss(arrow: Arrow, reason: 'timeout' | 'released_early' | 'wrong_direction' = 'timeout') {
         if (arrow.resolved) return;
 
         arrow.resolved = true;
@@ -1867,6 +1953,15 @@ export class DreamDirectGameScene extends Phaser.Scene {
         this.sound.play('sfx-wrong', { volume: 0.5 });
         this.cameras.main.shake(200, 0.01); // Screen shake on miss
         this.destroyArrow(arrow);
+
+        this.telemetry.action('arrow_missed', {
+            arrow_type: arrow.type,
+            display_direction: arrow.direction,
+            target_direction: arrow.targetDirection,
+            lane: arrow.lane,
+            reason,
+            correct: false,
+        });
     }
 
     updateStats(type: ArrowType, correct: boolean) {
@@ -2020,6 +2115,19 @@ export class DreamDirectGameScene extends Phaser.Scene {
             ? this.timingOffsets.reduce((a, b) => a + b, 0) / this.timingOffsets.length
             : 300;
 
+        const stars = this.calculateStars();
+        const outcome = stars > 0 ? 'success' : 'fail';
+
+        this.telemetry.levelEnded({
+            outcome,
+            score: this.score,
+            max_score: this.maxScore,
+            stars,
+            avg_timing_offset_ms: Math.round(avgTiming),
+            max_combo: this.maxCombo,
+            rule_switch_errors: this.ruleSwitchErrors,
+        });
+
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
@@ -2028,7 +2136,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
                 score: this.score,
                 maxScore: this.maxScore,
-                stars: this.calculateStars(),
+                stars,
                 starHint: this.getStarHint(),
 
                 // Raw stats for scoring calculation
@@ -2053,6 +2161,7 @@ export class DreamDirectGameScene extends Phaser.Scene {
                 maxCombo: this.maxCombo,
 
                 continuedAfterTimeout: false,
+                attempt_id: this.telemetry?.attemptId ?? undefined,
             });
         }
     }

@@ -13,7 +13,7 @@
 | 03 | `game-03-billiards-math` | Billiards Math (สนุ๊กเกอร์คณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 04 | `game-04-floating-ball-math` | Floating Ball Math (ลอยบอลคณิตศาสตร์) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 05 | `game-05-wormtrain` | Worm Train (รถไฟหนอน) | ✅ เสร็จสิ้น | ติดตั้ง GameScene (In-scene Tutorial) |
-| 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ⏳ รอทำ | |
+| 06 | `game-06-dreamdirect` | Dream Direct (ลูกศรตามจังหวะ) | ✅ เสร็จสิ้น | ติดตั้ง GameScene + TutorialScene |
 | 07 | `game-07-pinkcup` | Pink Cup (แก้วสีชมพู) | ⏳ รอทำ | |
 | 08 | `game-08-mysterysound` | Mystery Sound (เสียงปริศนา) | ⏳ รอทำ | |
 | 09 | `game-09-tube-sort` | Tube Sort (แยกหลอดทดลอง) | ⏳ รอทำ | |
@@ -177,3 +177,26 @@
 
 #### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
 - `junction_<id>`: จุดทางแยกสับรางบนแผนที่ เช่น `junction_j1`, `junction_j2`
+
+---
+
+### 06 · Dream Direct (`game-06-dreamdirect`)
+> **ทักษะที่วัด:** การยับยั้งชั่งใจและการสลับกฎความคิด (Inhibition & Cognitive Flexibility / Rule-Switching: Ghost↔Anchor), การติดตามทางสายตา (Visual Tracking: Spinner, Fade), ความจำใช้งาน (Working Memory: Shadow/Fade, Double), และความแม่นยำทางจังหวะเวลา (Processing Speed & Timing Precision)
+
+#### รายการ Event เฉพาะเกม:
+| Event | จุดที่ยิงในโค้ด | Props Payload | คำอธิบาย |
+|---|---|---|---|
+| `arrow_spawned` | `spawnArrow()` | `arrow_type: ArrowType`<br>`display_direction: Direction`<br>`target_direction: Direction`<br>`lane: 0 \| 1`<br>`spawn_beat: number`<br>`target_beat: number`<br>`duration?: number`<br>`is_chord: boolean` | ลูกศรเริ่มเกิดและลอยลงมาตามเลน บันทึกประเภทลูกศร, ทิศทางที่แสดง, ทิศทางที่ต้องกดจริง, จังหวะตกกระทบ และการเกิดแบบคอร์ดพร้อมกัน 2 ตัว |
+| `arrow_hit` | `processArrowHit()` | `arrow_type: ArrowType`<br>`display_direction: Direction`<br>`target_direction: Direction`<br>`input_direction: Direction`<br>`timing_offset_ms: number`<br>`grade: string`<br>`score_awarded: number`<br>`combo: number`<br>`lane: 0 \| 1`<br>`is_hold: boolean`<br>`hits_remaining?: number`<br>`correct: true` | ผู้เล่นกดปุ่มทิศทางได้ถูกต้องตรงตามลูกศร บันทึกค่าความคลาดเคลื่อนทางเวลา (`timing_offset_ms`), เกรดจังหวะ ('ยอดเยี่ยม!', 'ดีมาก!', 'ดี!', 'อีกครั้ง!'), คอมโบ และคะแนนที่ได้ |
+| `arrow_missed` | `handleMiss()` / `handleInput()` | `arrow_type: ArrowType`<br>`display_direction: Direction`<br>`target_direction: Direction`<br>`input_direction?: Direction`<br>`lane: 0 \| 1`<br>`reason: 'timeout' \| 'released_early' \| 'wrong_direction'`<br>`correct: false` | ผู้เล่นทำผิดพลาด บันทึกสาเหตุ (กดผิดทิศทาง, ปล่อยปุ่มค้างเร็วเกินไป, หรือปล่อยลูกศรเลยเส้นจนหมดเวลา) |
+| `hold_completed` | `completeHold()` | `arrow_type: ArrowType`<br>`target_direction: Direction`<br>`duration?: number`<br>`score_awarded: number`<br>`lane: 0 \| 1`<br>`correct: true` | ผู้เล่นกดปุ่มค้าง (Hold Arrow) ครบตามเวลาที่กำหนดจนสำเร็จ |
+| `ingame_tutorial_shown` | `startInGameTutorial()` | `arrow_type: ArrowType`<br>`title: string` | ป๊อปอัปสอนลูกศรชนิดใหม่ปรากฏขึ้นกลางเกม (เช่น Level 6 สอน Ghost, Level 11 สอน Fade, Level 16 สอน Wiggler เป็นต้น) พร้อมสั่ง `level_paused` |
+| `ingame_tutorial_completed` | `endInGameTutorial()` | `arrow_type: ArrowType` | ผู้เล่นฝึกปฏิบัติตามคำสอนของลูกศรชนิดใหม่สำเร็จ ปิดป๊อปอัปและสั่ง `level_resumed` |
+
+#### วัตถุที่ตั้ง `.setName(...)` สำหรับ `input_raw`:
+- `btn_up`: ปุ่มกดลูกศรขึ้น
+- `btn_down`: ปุ่มกดลูกศรลง
+- `btn_left`: ปุ่มกดลูกศรซ้าย
+- `btn_right`: ปุ่มกดลูกศรขวา
+- `tutorial_overlay`: พื้นหลังโมดอลคำแนะนำในเกม
+

@@ -94,6 +94,14 @@ export const GAME_EVENTS = [
   "worm_arrived",
   "trap_hit",
   "mistake_registered",
+
+  // Game 06 - Dream Direct
+  "arrow_spawned",
+  "arrow_hit",
+  "arrow_missed",
+  "hold_completed",
+  "ingame_tutorial_shown",
+  "ingame_tutorial_completed",
 ] as const;
 
 export const EVENT_NAMES = [
