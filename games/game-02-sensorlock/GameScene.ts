@@ -1,7 +1,14 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle, THAI_TEXT_PADDING, EMOJI_TEXT_PADDING } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class SensorLockGameScene extends Phaser.Scene {
+    // Telemetry
+    private telemetry!: GameTelemetry;
+    private trialsSinceSwap = 0;
+    private currentCardColor: string | null = null;
+    private currentCardDirection: string | null = null;
+
     // Game State
     private isPlaying = false;
     private score = 0;
@@ -89,6 +96,8 @@ export class SensorLockGameScene extends Phaser.Scene {
     constructor() { super({ key: 'SensorLockGameScene' }); }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-02-sensorlock' });
+        this.trialsSinceSwap = 0;
         const { width, height } = this.scale;
 
         // 1. Background
@@ -652,6 +661,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             // 4. Hit Area (Covers the whole potential area)
             const hitArea = this.add.rectangle(0, lipDepth / 2, btnWidth, btnHeight + lipDepth, 0x000000, 0)
                 .setInteractive({ useHandCursor: true });
+            hitArea.setName(isYes ? 'btn_match' : 'btn_no_match');
             container.add(hitArea);
 
             // 5. Interaction (Juicy "Press" Animation)
@@ -716,6 +726,10 @@ export class SensorLockGameScene extends Phaser.Scene {
     // Button Swap Animation (triggers on 5-combo)
     swapButtons() {
         this.swapCount++;
+        this.trialsSinceSwap = 0;
+        this.telemetry.action('buttons_swapped', {
+            trial: this.attempts,
+        });
         const { width, height } = this.scale;
 
         // For first 5 swaps, show warning popup first
@@ -964,6 +978,13 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         this.currentPhase = 1;
         this.isTutorialMode = false; // Reset
+        this.trialsSinceSwap = 0;
+        this.telemetry.levelStarted({
+            phase: this.currentPhase,
+            difficulty_multiplier: this.difficultyMultiplier,
+            time_limit_ms: null,
+            seed: null,
+        });
         this.nextCard(true);
     }
 
@@ -1033,6 +1054,18 @@ export class SensorLockGameScene extends Phaser.Scene {
         if (resetTimer) {
             this.cardStartTime = Date.now();
         }
+
+        this.telemetry.stimulus('card_shown');
+        this.telemetry.action('stimulus_shown', {
+            trial: this.attempts + 1,
+            phase: this.currentPhase,
+            card_color: this.currentCardColor,
+            card_direction: this.currentCardDirection,
+            is_mismatch: !this.isMatch,
+            has_not_badge: this.isNegated,
+            buttons_swapped: this.buttonsSwapped,
+            response_window_ms: this.timeLimitPerCard,
+        });
     }
 
     setupPhase1() {
@@ -1065,6 +1098,8 @@ export class SensorLockGameScene extends Phaser.Scene {
 
         this.drawArrow(this.currentArrowDir, 0x0984E3); // Default Blue
         this.labelText.setText(this.currentLabelText);
+        this.currentCardColor = 'BLUE';
+        this.currentCardDirection = this.currentArrowDir;
 
         // NOT Operator (after 15k points)
         this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
@@ -1104,6 +1139,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = targetColor.label;
             this.labelText.setColor(this.colorToHex(targetColor.hex));
+            this.currentCardColor = targetColor.key;
             this.isMatch = true;
         } else {
             // Ink mismatch
@@ -1115,6 +1151,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             // @ts-expect-error - ignore phaser dynamic type mismatch
             this.currentLabelText = targetColor.label; // Meaning says "Red"
             this.labelText.setColor(this.colorToHex(otherInk.hex)); // Ink is "Blue"
+            this.currentCardColor = otherInk.key;
 
             // User matches "Ink Color" vs "Text Meaning"?
             // Wait, Standard Stroop: "Say the color of the word".
@@ -1124,6 +1161,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.isMatch = false;
         }
 
+        this.currentCardDirection = null;
         this.labelText.setText(this.currentLabelText);
 
         // NOT Operator (after 15k points)
@@ -1213,6 +1251,8 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.labelText.setColor(this.colorToHex(textInk.hex));
 
         this.drawArrow(arrowDir, arrowColor.hex);
+        this.currentCardColor = arrowColor.key;
+        this.currentCardDirection = arrowDir;
 
         // NOT Operator (after 15k points)
         this.isNegated = (this.score >= this.NOT_THRESHOLD && Math.random() < this.NOT_CHANCE);
@@ -1231,7 +1271,10 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     handleInput(saidMatch: boolean) {
         if (!this.isPlaying) return;
-        if (this.isInputLocked) return;
+        if (this.isInputLocked) {
+            this.telemetry.action('input_ignored', { reason: 'locked' });
+            return;
+        }
 
         const now = Date.now();
         this.inputHistory.push(now);
@@ -1248,6 +1291,7 @@ export class SensorLockGameScene extends Phaser.Scene {
             // 180ms threshold (~5.5 clicks/sec) is very fast for this game type
             if (avgDiff < 180) {
                 // SPAM DETECTED
+                this.telemetry.action('input_ignored', { reason: 'spam_lockout' });
                 this.isInputLocked = true;
                 this.soundMatchFail.play();
                 this.cameras.main.shake(500, 0.05); // Heavy shake
@@ -1301,6 +1345,7 @@ export class SensorLockGameScene extends Phaser.Scene {
         // Tutorial Logic: Retry on fail, proceed on success
         if (this.isTutorialMode) {
             if (!isCorrect) {
+                this.telemetry.action('input_ignored', { reason: 'tutorial_retry' });
                 this.sound.play('match-fail');
                 this.cameras.main.shake(100, 0.01);
                 return; // Don't advance, don't penalize
@@ -1315,6 +1360,20 @@ export class SensorLockGameScene extends Phaser.Scene {
             this.mismatchAttempts++;
             if (isCorrect) this.mismatchCorrect++;
         }
+
+        const rtMs = this.telemetry.rtFrom('card_shown') ?? reactionTime;
+        const buttonSide = (saidMatch === this.buttonsSwapped) ? 'left' : 'right';
+
+        this.telemetry.action('response_given', {
+            trial: this.attempts,
+            said_match: saidMatch,
+            correct: isCorrect,
+            rt_ms: rtMs,
+            streak: isCorrect ? this.currentStreak + 1 : 0,
+            button_side: buttonSide,
+            trials_since_swap: this.trialsSinceSwap,
+        });
+        this.trialsSinceSwap++;
 
         if (isCorrect) {
             // CORRECT
@@ -1393,6 +1452,14 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.sound.stopAll(); // Stop BGM
         this.sound.play('level-pass'); // Positive feedback even on end
 
+        const timedOutTrial = this.attempts + 1;
+        const streakLost = this.currentStreak;
+
+        this.telemetry.action('response_timeout', {
+            trial: timedOutTrial,
+            streak_lost: streakLost,
+        });
+
         // TIMEOUT IS A REACTION too (Just a very slow one)
         // If we don't count this, users who do nothing get 0 reaction time avg -> 100% speed score.
         // We add the full time limit as the "reaction time" for this failed attempt.
@@ -1400,6 +1467,16 @@ export class SensorLockGameScene extends Phaser.Scene {
         this.reactionCount++;
         this.attempts++;
         // Note: We do NOT increment match/mismatch correct since it was a fail.
+
+        if (this.telemetry.isActive) {
+            this.telemetry.levelEnded({
+                outcome: 'timeout',
+                score: this.score,
+                stars: 0,
+                actions: this.attempts,
+                errors: this.attempts - this.correctCount,
+            });
+        }
 
         // Emit Game Over
         const onGameOver = this.registry.get('onGameOver');
@@ -1421,7 +1498,8 @@ export class SensorLockGameScene extends Phaser.Scene {
                 mismatchAttempts: this.mismatchAttempts,
 
                 // Also pass stars=0 to prevent errors if wrapper expects it
-                stars: 0
+                stars: 0,
+                attempt_id: this.telemetry.attemptId ?? undefined,
             });
         }
     }
@@ -1518,9 +1596,17 @@ export class SensorLockGameScene extends Phaser.Scene {
 
     showPhaseTransition(nextPhase: number) {
         this.isPlaying = false; // Pause Game
+        const fromPhase = this.currentPhase;
         this.currentPhase = nextPhase;
         this.sound.stopAll();
         this.soundLevelPass.play();
+
+        this.telemetry.action('phase_changed', {
+            from_phase: fromPhase,
+            to_phase: nextPhase,
+            score: this.score,
+        });
+        this.telemetry.action('level_paused', { reason: 'phase_transition' });
 
         // 1. Fade OUT Game Elements
         // Include Timer (Bar + Icon)
@@ -1635,6 +1721,7 @@ export class SensorLockGameScene extends Phaser.Scene {
     }
 
     resumeGameAfterTransition() {
+        this.telemetry.action('level_resumed', { reason: 'phase_transition' });
         // Restore Visibility
         // Don't show the old card! Destroy it.
         if (this.arrowContainer) this.arrowContainer.destroy();

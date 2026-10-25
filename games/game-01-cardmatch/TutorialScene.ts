@@ -1,7 +1,9 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class TutorialScene extends Phaser.Scene {
+    private telemetry!: GameTelemetry;
     // Assets
     private emojiToAsset: { [key: string]: string } = {
         "🐙": "octopus",
@@ -46,6 +48,7 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-01-cardmatch', mode: 'tutorial' });
         const { width, height } = this.scale;
 
         // 1. Background
@@ -125,6 +128,18 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     startMemorizationPhase() {
+        this.telemetry.levelStarted({
+            total_pairs: this.totalPairs,
+            grid_rows: 2,
+            grid_cols: 3,
+            preview_ms: 0,
+            par_time_ms: 0,
+            difficulty_multiplier: 1.0,
+            time_limit_ms: null,
+            seed: null,
+        });
+        this.telemetry.action('preview_started', { preview_ms: 0 });
+
         this.messageText.setText("จำตำแหน่งให้ดีนะ...");
         this.messageText.setVisible(true);
         this.messageText.setScale(0);
@@ -166,6 +181,7 @@ export class TutorialScene extends Phaser.Scene {
         this.time.delayedCall(this.cards.length * 50 + 500, () => {
             this.isLocked = false;
             this.tutorialStep = 1;
+            this.telemetry.stimulus('turn_start');
             this.flashTutorialStep();
         });
     }
@@ -201,8 +217,34 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     handleCardClick(card: any) {
-        if (this.isLocked) return;
-        if (card.isFlipped || card.isMatched) return;
+        if (this.isLocked) {
+            this.telemetry.action('input_ignored', { reason: 'locked', card_index: card.id });
+            return;
+        }
+        if (card.isFlipped) {
+            this.telemetry.action('input_ignored', { reason: 'already_selected', card_index: card.id });
+            return;
+        }
+        if (card.isMatched) {
+            this.telemetry.action('input_ignored', { reason: 'already_matched', card_index: card.id });
+            return;
+        }
+
+        const isFirstCard = this.openedCards.length === 0;
+        const rtMs = isFirstCard
+            ? this.telemetry.rtFrom('turn_start')
+            : this.telemetry.rtFrom('first_card_flip');
+
+        this.telemetry.action('card_flipped', {
+            card_index: card.id,
+            pair_id: card.emoji,
+            flip_in_turn: isFirstCard ? 1 : 2,
+            rt_ms: rtMs,
+        });
+
+        if (isFirstCard) {
+            this.telemetry.stimulus('first_card_flip');
+        }
 
         // Flip
         this.flipCard(card, true, true);
@@ -217,6 +259,16 @@ export class TutorialScene extends Phaser.Scene {
     checkForMatch() {
         const [c1, c2] = this.openedCards;
         const match = c1.emoji === c2.emoji;
+        const pairsRemaining = this.totalPairs - (this.matchedPairs + (match ? 1 : 0));
+        const rtMs = this.telemetry.rtFrom('first_card_flip');
+
+        this.telemetry.action('pair_checked', {
+            card_a_index: c1.id,
+            card_b_index: c2.id,
+            correct: match,
+            pairs_remaining: pairsRemaining,
+            rt_ms: rtMs,
+        });
 
         if (match) {
             this.sound.play('match-success');
@@ -234,6 +286,7 @@ export class TutorialScene extends Phaser.Scene {
                 this.time.delayedCall(500, () => {
                     this.openedCards = [];
                     this.isLocked = false;
+                    this.telemetry.stimulus('turn_start');
                 });
             }
         } else {
@@ -251,6 +304,7 @@ export class TutorialScene extends Phaser.Scene {
                         this.flipCard(c2, false, false);
                         this.openedCards = [];
                         this.isLocked = false;
+                        this.telemetry.stimulus('turn_start');
                     });
                 }
             });
@@ -259,6 +313,11 @@ export class TutorialScene extends Phaser.Scene {
 
     endTutorial() {
         this.sound.play('level-pass');
+        this.telemetry.levelEnded({
+            outcome: 'success',
+            score: 1,
+            stars: null,
+        });
         const onTutorialComplete = this.registry.get('onTutorialComplete');
         if (onTutorialComplete) {
             onTutorialComplete();
@@ -387,6 +446,7 @@ export class TutorialScene extends Phaser.Scene {
         icon.scaleX = 0; // Starts zero width for flip
 
         const hitZone = this.add.rectangle(0, 0, w, h, 0x000000, 0).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        hitZone.setName(`card_${id}`);
 
         container.add([shadow, back, face, icon, hitZone]);
 

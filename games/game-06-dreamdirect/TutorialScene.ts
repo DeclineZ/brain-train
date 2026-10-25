@@ -1,12 +1,14 @@
 import * as Phaser from 'phaser';
 import { DreamDirectConstants, Direction } from './config';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 /**
  * Tutorial Scene for Dream Direct
  * Teaches the basic Anchor arrow mechanic (SAME direction)
  */
 export class TutorialScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
     private currentPhase: number = 0;
     private instructionText!: Phaser.GameObjects.Text;
     private demoArrow!: Phaser.GameObjects.Container;
@@ -45,6 +47,12 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-06-dreamdirect',
+            mode: 'tutorial',
+        });
+        this.telemetry.levelStarted({ level: 0 });
+
         const { width, height } = this.scale;
 
         // Consistent layout with GameScene (Safe Zone)
@@ -247,8 +255,10 @@ export class TutorialScene extends Phaser.Scene {
             container.add([bg, arrowGraphic]);
             container.setSize(buttonSize, buttonSize);
             container.setDepth(200);
+            container.setName(`btn_${dir}`);
 
             // Make interactive
+            bg.setName(`btn_${dir}`);
             bg.setInteractive({ useHandCursor: true });
             bg.on('pointerdown', () => this.handleInput(dir));
             // Add slight feedback on click
@@ -280,6 +290,7 @@ export class TutorialScene extends Phaser.Scene {
 
     startPhase1() {
         this.currentPhase = 1;
+        this.telemetry.action('tutorial_step_shown', { step: 1, total_steps: 4, name: 'welcome' });
         const { width, height } = this.scale;
 
         // Dark panel for text
@@ -322,6 +333,7 @@ export class TutorialScene extends Phaser.Scene {
             });
 
             this.time.delayedCall(4000, () => {
+                this.telemetry.action('tutorial_step_done', { step: 1 });
                 this.startPhase2();
             });
         });
@@ -329,6 +341,7 @@ export class TutorialScene extends Phaser.Scene {
 
     startPhase2() {
         this.currentPhase = 2;
+        this.telemetry.action('tutorial_step_shown', { step: 2, total_steps: 4, name: 'anchor_intro' });
         this.instructionText.setText('ลูกศรสีแดง "หนา" (Anchor)');
 
         // Show demo arrow
@@ -338,9 +351,11 @@ export class TutorialScene extends Phaser.Scene {
             this.instructionText.setText('มันคือตัวปักหลัก!\n\nถ้าเห็น "ขึ้น" ... ก็กด "ขึ้น"!');
 
             this.time.delayedCall(4000, () => {
+                this.telemetry.action('tutorial_step_done', { step: 2 });
                 this.instructionText.setText('ลองกด "ขึ้น" ดูสิ!');
                 // Enable Input Check
                 this.currentPhase = 3; // Input Phase
+                this.telemetry.action('tutorial_step_shown', { step: 3, total_steps: 4, name: 'practice_input' });
             });
         });
     }
@@ -416,12 +431,37 @@ export class TutorialScene extends Phaser.Scene {
             // Hide Arrow
             this.demoArrow.setVisible(false);
 
+            this.telemetry.action('tutorial_step_done', { step: 3, correct: true, input: inputDirection });
+            this.telemetry.action('arrow_hit', {
+                arrow_type: 'anchor',
+                display_direction: 'up',
+                target_direction: 'up',
+                input_direction: inputDirection,
+                timing_offset_ms: 0,
+                grade: 'ถูกต้อง!',
+                score_awarded: 100,
+                combo: 1,
+                lane: 0,
+                is_hold: false,
+                correct: true,
+            });
+
             if (this.correctInputs >= 1) { // Just 1 for initial demo
                 this.completeTutorial();
             }
         } else {
             this.sound.play('sfx-wrong', { volume: 0.5 });
             this.showFeedback('ผิด! ต้องกด "เหมือนกัน"', '#ff4444');
+
+            this.telemetry.action('arrow_missed', {
+                arrow_type: 'anchor',
+                display_direction: 'up',
+                target_direction: 'up',
+                input_direction: inputDirection,
+                reason: 'wrong_direction',
+                lane: 0,
+                correct: false,
+            });
 
             // Flash red on arrow
             this.tweens.add({
@@ -459,12 +499,22 @@ export class TutorialScene extends Phaser.Scene {
         this.currentPhase = 4;
         this.instructionText.setText('เก่งมาก!\nจำไว้ว่า "แดงหนา" = "ทิศเดียวกัน"');
 
+        this.telemetry.action('tutorial_step_shown', { step: 4, total_steps: 4, name: 'completed' });
+        this.telemetry.action('tutorial_step_done', { step: 4, correct: true });
+        this.telemetry.levelEnded({
+            outcome: 'completed',
+            score: 100,
+            stars: 3,
+        });
+
         // Notify tutorial complete
         const onTutorialComplete = this.registry.get('onTutorialComplete');
 
         this.time.delayedCall(3000, () => {
             if (onTutorialComplete) {
-                onTutorialComplete();
+                onTutorialComplete({
+                    attempt_id: this.telemetry?.attemptId ?? undefined,
+                });
             } else {
                 // Return to menu logic if standalone
                 this.scene.start('DreamDirectGameScene');

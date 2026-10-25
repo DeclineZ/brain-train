@@ -1,4 +1,5 @@
 import { GridHunterGameScene } from './GameScene';
+import { TutorialScene } from './TutorialScene';
 
 export const GridHunterGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const GridHunterGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [GridHunterGameScene]
+    scene: [GridHunterGameScene, TutorialScene]
 };

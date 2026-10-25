@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type TutorialTargetType = 'gold_large' | 'gem' | 'rock';
 type HookState = 'swing' | 'dropping' | 'pulling';
@@ -42,6 +43,8 @@ const COLORS = {
 };
 
 export class MinerTutorialScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
+  private skipButton!: Phaser.GameObjects.Text;
   private hookCenterX = 0;
   private hookBaseY = 0;
   private hookAngle = Phaser.Math.DegToRad(-28);
@@ -111,6 +114,11 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   create() {
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-10-miner',
+    });
+    this.telemetry.levelStarted();
+
     const { width, height } = this.scale;
     this.hookCenterX = width / 2;
     this.hookBaseY = Math.max(120, height * 0.21);
@@ -122,6 +130,25 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.createHook();
     this.createTutorialObjects();
     this.createTutorialUI();
+
+    this.skipButton = this.add.text(width - 24, 20, 'ข้าม', createGameTextStyle({
+      fontSize: '18px',
+      color: '#FFFFFF',
+      backgroundColor: '#F97316',
+      padding: { left: 14, right: 14, top: 8, bottom: 8 }
+    })).setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(210);
+    this.skipButton.setName('btn_skip');
+    this.skipButton.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event?: Phaser.Types.Input.EventData) => {
+      event?.stopPropagation();
+      this.completeTutorial();
+    });
+
+    this.scale.on('resize', () => {
+      this.skipButton?.setPosition(this.scale.width - 24, 20);
+    });
+
     this.createTutorialSteps();
     this.showTutorialStep(0);
 
@@ -305,9 +332,11 @@ export class MinerTutorialScene extends Phaser.Scene {
   private createHook() {
     this.ropeGraphics = this.add.graphics().setDepth(11);
     this.hookPivot = this.add.circle(this.hookCenterX, this.hookBaseY, 8, 0x4e4e4e, 0.9).setDepth(12);
+    this.hookPivot.setName('hook_pivot');
     this.hookPivot.setStrokeStyle(2, 0x1f1f1f, 0.8);
 
     this.hookContainer = this.add.container(0, 0).setDepth(13);
+    this.hookContainer.setName('hook_head');
     const ring = this.add.circle(0, -12, 7, 0x6a6a6a, 0.95);
     ring.setStrokeStyle(2, 0x2a2a2a, 0.8);
     const ringPin = this.add.circle(0, -12, 2.5, 0x1f1f1f, 0.9);
@@ -362,6 +391,7 @@ export class MinerTutorialScene extends Phaser.Scene {
 
     this.minerObjects = objects.map((obj, index) => {
       const rendered = this.createMinerObjectSprite(obj);
+      rendered.sprite.setName(`miner_obj_${obj.type}_${index + 1}`);
       return {
         ...obj,
         id: index + 1,
@@ -575,6 +605,12 @@ export class MinerTutorialScene extends Phaser.Scene {
     this.currentStepIndex = Phaser.Math.Clamp(index, 0, this.tutorialSteps.length - 1);
     const step = this.tutorialSteps[this.currentStepIndex];
 
+    this.telemetry?.action('tutorial_step_shown', {
+      step: this.currentStepIndex + 1,
+      total_steps: this.tutorialSteps.length,
+      instruction: step.instruction
+    });
+
     this.clearGuidance();
     this.tutorialHelperText.setText('');
     this.tutorialStepText.setText(`ขั้นตอน ${this.currentStepIndex + 1}/${this.tutorialSteps.length}`);
@@ -624,6 +660,10 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   private handleStepInteraction(pointer: Phaser.Input.Pointer) {
+    if (this.skipButton && this.skipButton.getBounds().contains(pointer.x, pointer.y)) {
+      return;
+    }
+
     const step = this.tutorialSteps[this.currentStepIndex];
 
     if (!step.interactive) {
@@ -687,6 +727,13 @@ export class MinerTutorialScene extends Phaser.Scene {
     }
     this.updateHookCostText();
     this.updateHookVisual(this.hookDropDistance, this.hookLockedAngle);
+    this.telemetry?.action('hook_dropped', {
+      angle_deg: Math.round(Phaser.Math.RadToDeg(this.hookAngle) * 10) / 10,
+      free_hooks_remaining: this.freeHooksRemaining,
+      fee_applied: this.hookFeePending,
+      hook_cost: this.hookDropCost,
+      total_value: this.score
+    });
   }
 
   private startPull() {
@@ -716,8 +763,19 @@ export class MinerTutorialScene extends Phaser.Scene {
         if (grabbedTarget.type === 'gold_large') {
           this.objectiveCollected = 1;
           this.updateObjectiveHUD();
+          this.telemetry?.action('objective_completed', {
+            target_type: 'gold_large',
+            required_count: 1
+          });
         }
       }
+      this.telemetry?.action('item_collected', {
+        object_type: grabbedTarget.type,
+        net_value: netValue,
+        total_value: this.score,
+        is_objective: grabbedTarget.type === 'gold_large' && !grabbedTarget.isHazard,
+        is_hazard: !!grabbedTarget.isHazard
+      });
     } else {
       const feeOnlyValue = this.applyHookFee(0);
       if (feeOnlyValue < 0) {
@@ -725,6 +783,11 @@ export class MinerTutorialScene extends Phaser.Scene {
         this.hudScoreText.setText(`${this.score}/${this.goal}`);
         this.spawnScorePopup(this.hookCenterX, this.hookBaseY + 140, feeOnlyValue);
       }
+      this.telemetry?.action('hook_missed', {
+        locked_angle_deg: Math.round(Phaser.Math.RadToDeg(this.hookLockedAngle) * 10) / 10,
+        fee_deducted: this.hookFeePending ? this.hookDropCost : 0,
+        total_value: this.score
+      });
     }
 
     if (this.pendingStepAdvanceAfterPull) {
@@ -806,6 +869,12 @@ export class MinerTutorialScene extends Phaser.Scene {
         this.animateHookOpen(0.1, 140);
         this.playSafeSound('miner-grab-hazard', 0.45);
         this.setHelperText(closest.isBroken ? 'ดีมาก! ยิงอีกครั้งเพื่อเก็บจริง' : 'แร่ก้อนใหญ่ต้องกะเทาะก่อน');
+        this.telemetry?.action('object_cracked', {
+          object_type: closest.type,
+          durability_remaining: closest.durabilityRemaining,
+          is_broken: closest.isBroken,
+          hits_required: 1
+        });
         this.startPull();
         return;
       }
@@ -813,6 +882,22 @@ export class MinerTutorialScene extends Phaser.Scene {
       closest.grabbed = true;
       this.hookTarget = closest;
       this.animateHookOpen(0.1, 140);
+      this.telemetry?.action('object_grabbed', {
+        object_type: closest.type,
+        value: closest.value,
+        weight: closest.weight,
+        is_hazard: !!closest.isHazard,
+        is_decoy: false,
+        is_crackable: false,
+        distance: Math.round(Phaser.Math.Distance.Between(this.hookCenterX, this.hookBaseY, closest.x, closest.y))
+      });
+      if (closest.isHazard) {
+        this.telemetry?.action('hazard_triggered', {
+          hazard_type: closest.type,
+          penalty_type: 'score_penalty',
+          penalty_value: Math.abs(closest.value)
+        });
+      }
       this.startPull();
     }
   }
@@ -843,6 +928,10 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   private nextTutorialStep() {
+    this.telemetry?.action('tutorial_step_done', {
+      step: this.currentStepIndex + 1,
+      action: this.tutorialSteps[this.currentStepIndex]?.action ?? 'read'
+    });
     const next = this.currentStepIndex + 1;
     if (next >= this.tutorialSteps.length) {
       this.completeTutorial();
@@ -852,8 +941,13 @@ export class MinerTutorialScene extends Phaser.Scene {
   }
 
   private completeTutorial() {
+    this.telemetry?.levelEnded({
+      outcome: 'completed',
+      score: 100,
+      stars: 3
+    });
     const onTutorialComplete = this.registry.get('onTutorialComplete');
-    if (onTutorialComplete) onTutorialComplete();
+    if (onTutorialComplete) onTutorialComplete({ attempt_id: this.telemetry?.attemptId ?? undefined });
     else this.scene.start('MinerGameScene', { level: this.registry.get('level') || 1 });
   }
 

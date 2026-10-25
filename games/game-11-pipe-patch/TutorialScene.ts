@@ -139,6 +139,7 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
   private tutorialDescription?: Phaser.GameObjects.Text;
   private tutorialProgress?: Phaser.GameObjects.Text;
   private warningText?: Phaser.GameObjects.Text;
+  private skipButton?: Phaser.GameObjects.Text;
 
   constructor() {
     super();
@@ -164,6 +165,9 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
   }
 
   private handleResize() {
+    if (this.skipButton) {
+      this.skipButton.setPosition(this.cameras.main.width - 24, 20);
+    }
     if (!this.tutorialOpen) return;
     this.renderTutorialStep();
   }
@@ -215,6 +219,22 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
       this.tutorialProgress,
       this.warningText,
     ]);
+
+    const width = this.cameras.main.width;
+    this.skipButton = this.add.text(width - 24, 20, 'ข้าม', createGameTextStyle({
+      fontSize: '18px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+      backgroundColor: '#F97316',
+      padding: { left: 14, right: 14, top: 8, bottom: 8 },
+    })).setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(4000);
+    this.skipButton.setName('btn_skip');
+    this.skipButton.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event?: Phaser.Types.Input.EventData) => {
+      event?.stopPropagation();
+      this.emitLevelSolvedGameOver();
+    });
   }
 
   private handlePlayerAction() {
@@ -225,6 +245,10 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
     if (!step) return;
 
     if (step.action === 'info') {
+      this.gameTelemetry?.action('tutorial_step_done', {
+        step: this.tutorialIndex + 1,
+        action: step.action,
+      });
       this.tutorialIndex += 1;
       this.lastAdvanceAtMs = Date.now();
       if (this.tutorialIndex >= TUTORIAL_STEPS.length) {
@@ -243,6 +267,12 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
 
     if (this.isCurrentPlacementSatisfied()) {
       this.showWarning('ถูกต้อง ไปขั้นถัดไป', true);
+      this.gameTelemetry?.action('tutorial_step_done', {
+        step: this.tutorialIndex + 1,
+        action: step.action,
+        pieceType: step.targetPieceType,
+        targetCell: step.targetCell,
+      });
       this.tutorialIndex += 1;
       this.lastAdvanceAtMs = Date.now();
       if (this.tutorialIndex >= TUTORIAL_STEPS.length) {
@@ -255,6 +285,7 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
 
   private closeTutorial() {
     this.tutorialOpen = false;
+    this.skipButton?.setVisible(false);
     this.tutorialDimmer?.setVisible(false);
     this.tutorialFocus?.setVisible(false);
     this.tutorialArrow?.setVisible(false);
@@ -315,6 +346,12 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
     this.tutorialTitle.setText(step.title);
     this.tutorialDescription.setText(step.description);
     this.tutorialProgress.setText(`ขั้นตอน ${this.tutorialIndex + 1}/${TUTORIAL_STEPS.length}`);
+    this.gameTelemetry?.action('tutorial_step_shown', {
+      step: this.tutorialIndex + 1,
+      total_steps: TUTORIAL_STEPS.length,
+      title: step.title,
+      instruction: step.description,
+    });
 
     if (step.action === 'place' && step.targetPieceType) {
       this.applyPieceRestriction(step.targetPieceType);
@@ -741,9 +778,17 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
     this.sceneState = 'session_complete';
     this.cleanupAudio();
 
+    this.gameTelemetry?.levelEnded({
+      outcome: 'completed',
+      score: 100,
+      stars: 3,
+    });
+
     const onTutorialComplete = this.registry.get('onTutorialComplete');
     if (onTutorialComplete) {
-      onTutorialComplete();
+      onTutorialComplete({
+        attempt_id: this.gameTelemetry?.attemptId ?? undefined,
+      });
       return;
     }
 
@@ -759,6 +804,7 @@ export class PipePatchTutorialScene extends PipePatchGameScene {
         score: 0,
         stars: 3,
         userTimeMs: 0,
+        attempt_id: this.gameTelemetry?.attemptId ?? undefined,
       });
     }
   }

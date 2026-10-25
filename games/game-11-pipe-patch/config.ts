@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { PipePatchGameScene } from './GameScene';
+import { PipePatchTutorialScene } from './TutorialScene';
 
 export const PipePatchGameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -18,5 +19,5 @@ export const PipePatchGameConfig: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [PipePatchGameScene],
+  scene: [PipePatchGameScene, PipePatchTutorialScene],
 };

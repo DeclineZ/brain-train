@@ -40,6 +40,34 @@ export class SwitchSystem {
             nextIndex,
             source
         });
+
+        const junctionNode = this.scene.graphSystem.getNode(junctionId);
+        let nearestDist: number | null = null;
+        let wormsOnBoard = 0;
+
+        const worms = this.scene.wormSystem.getWorms();
+        worms.forEach(w => {
+            if (w.state !== 'DEAD' && w.state !== 'ARRIVED') {
+                wormsOnBoard++;
+                if (junctionNode && this.scene.wormVisual) {
+                    const pos = this.scene.wormVisual.getWormHeadPosition(w.id);
+                    if (pos) {
+                        const dist = Math.hypot(pos.x - junctionNode.x, pos.y - junctionNode.y);
+                        if (nearestDist === null || dist < nearestDist) {
+                            nearestDist = Math.round(dist);
+                        }
+                    }
+                }
+            }
+        });
+
+        this.scene.telemetry.action('junction_switched', {
+            junction_id: junctionId,
+            source: source.toLowerCase(),
+            new_index: nextIndex,
+            nearest_worm_distance: nearestDist,
+            worms_on_board: wormsOnBoard,
+        });
     }
 
     public getActiveIndex(junctionId: string): number {

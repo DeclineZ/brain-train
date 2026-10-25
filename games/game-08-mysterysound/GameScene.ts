@@ -2,8 +2,10 @@ import * as Phaser from 'phaser';
 import { MYSTERY_SOUND_LEVELS } from './levels';
 import type { MysterySoundLevelConfig, MysterySoundQuestion, MysterySoundOption } from '@/types';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class MysterySoundScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
     private currentLevelConfig!: MysterySoundLevelConfig;
     private level: number = 1;
 
@@ -102,6 +104,19 @@ export class MysterySoundScene extends Phaser.Scene {
 
     create() {
         this.startTime = Date.now();
+
+        const isTutorial = (this.level === 0) || (this.registry.get('mode') === 'tutorial');
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-08-mysterysound',
+            mode: isTutorial ? 'tutorial' : 'normal',
+        });
+        this.telemetry.levelStarted({
+            level: this.level,
+            total_questions: this.currentLevelConfig.questions.length,
+            max_replays: this.currentLevelConfig.maxReplays,
+            time_limit_ms: this.currentLevelConfig.timeLimitSeconds * 1000,
+            difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier,
+        });
 
         // Create colorful gradient background
         this.createBackground();
@@ -227,6 +242,7 @@ export class MysterySoundScene extends Phaser.Scene {
         const centerY = Math.max(height * 0.28, 230);
 
         this.speakerContainer = this.add.container(centerX, centerY);
+        this.speakerContainer.setName('speaker_icon');
 
         const circleBg = this.add.circle(0, 0, 60, 0xffffff, 0.95);
         circleBg.setStrokeStyle(3, 0xe0e7ff);
@@ -320,6 +336,12 @@ export class MysterySoundScene extends Phaser.Scene {
         this.createOptionButtons();
         this.createSelectionHint();
 
+        this.telemetry?.action('choices_shown', {
+            question_index: this.currentQuestionIndex,
+            options: this.currentQuestion.options.map(o => o.id),
+            required_selections: this.requiredSelections,
+        });
+
         // Show confirm button if multi-select
         if (this.requiredSelections > 1) {
             this.createConfirmButton();
@@ -348,6 +370,7 @@ export class MysterySoundScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         this.confirmButton = this.add.container(width / 2, height * 0.92);
+        this.confirmButton.setName('btn_confirm');
 
         const btnBg = this.add.graphics();
         btnBg.fillStyle(0x22c55e, 1);
@@ -478,6 +501,7 @@ export class MysterySoundScene extends Phaser.Scene {
     private createOptionButton(x: number, y: number, option: MysterySoundOption, size: number): Phaser.GameObjects.Container {
         const container = this.add.container(x, y);
         const id = option.id;
+        container.setName(`opt_${id}`);
         const label = option.label;
 
         // Show label for learning levels:
@@ -621,12 +645,24 @@ export class MysterySoundScene extends Phaser.Scene {
             button.setData('selected', false);
             selectionHighlight.setAlpha(0);
             this.selectedAnswers = this.selectedAnswers.filter(a => a !== id);
+            this.telemetry?.action('option_toggled', {
+                question_index: this.currentQuestionIndex,
+                option_id: id,
+                selected: false,
+                current_selections: [...this.selectedAnswers],
+            });
         } else {
             // Select (if haven't reached max)
             if (this.selectedAnswers.length < this.requiredSelections) {
                 button.setData('selected', true);
                 selectionHighlight.setAlpha(1);
                 this.selectedAnswers.push(id);
+                this.telemetry?.action('option_toggled', {
+                    question_index: this.currentQuestionIndex,
+                    option_id: id,
+                    selected: true,
+                    current_selections: [...this.selectedAnswers],
+                });
             }
         }
 
@@ -636,6 +672,18 @@ export class MysterySoundScene extends Phaser.Scene {
     private checkSingleSelectAnswer(button: Phaser.GameObjects.Container) {
         this.hasAnswered = true;
         const isCorrect = this.currentQuestion.correctAnswers.includes(this.selectedAnswers[0]);
+
+        const rtMs = this.telemetry?.rtFrom(`question_${this.currentQuestionIndex}`) ?? 0;
+        this.telemetry?.action('answer_submitted', {
+            question_index: this.currentQuestionIndex,
+            sounds: this.currentQuestion.sounds,
+            selected_answers: [...this.selectedAnswers],
+            correct_answers: this.currentQuestion.correctAnswers,
+            correct: isCorrect,
+            is_multi_select: false,
+            rt_ms: rtMs,
+            replays_used: this.currentLevelConfig.maxReplays - this.replaysRemaining,
+        });
 
         this.optionButtons.forEach(btn => btn.disableInteractive());
         this.speakerContainer.disableInteractive();
@@ -657,6 +705,18 @@ export class MysterySoundScene extends Phaser.Scene {
         const selectedSet = new Set(this.selectedAnswers);
         const isCorrect = this.selectedAnswers.every(a => correctSet.has(a)) &&
             this.selectedAnswers.length === this.currentQuestion.correctAnswers.length;
+
+        const rtMs = this.telemetry?.rtFrom(`question_${this.currentQuestionIndex}`) ?? 0;
+        this.telemetry?.action('answer_submitted', {
+            question_index: this.currentQuestionIndex,
+            sounds: this.currentQuestion.sounds,
+            selected_answers: [...this.selectedAnswers],
+            correct_answers: this.currentQuestion.correctAnswers,
+            correct: isCorrect,
+            is_multi_select: true,
+            rt_ms: rtMs,
+            replays_used: this.currentLevelConfig.maxReplays - this.replaysRemaining,
+        });
 
         this.optionButtons.forEach(btn => btn.disableInteractive());
         this.speakerContainer.disableInteractive();
@@ -732,6 +792,14 @@ export class MysterySoundScene extends Phaser.Scene {
     private playSoundWithAnimation() {
         this.animateSoundWaves();
 
+        this.telemetry?.stimulus(`question_${this.currentQuestionIndex}`);
+        this.telemetry?.action('sound_played', {
+            question_index: this.currentQuestionIndex,
+            sounds: this.currentQuestion.sounds,
+            is_replay: this.replaysRemaining < this.currentLevelConfig.maxReplays,
+            replays_remaining: this.replaysRemaining,
+        });
+
         // Play all sounds for this question
         this.currentQuestion.sounds.forEach((soundId, index) => {
             try {
@@ -775,6 +843,12 @@ export class MysterySoundScene extends Phaser.Scene {
 
         this.replaysRemaining--;
         this.totalReplaysUsed++;
+
+        this.telemetry?.action('sound_replayed', {
+            question_index: this.currentQuestionIndex,
+            replays_remaining: this.replaysRemaining,
+            total_replays_used: this.totalReplaysUsed,
+        });
 
         this.tweens.add({
             targets: this.speakerContainer,
@@ -990,6 +1064,17 @@ export class MysterySoundScene extends Phaser.Scene {
         const speedRatio = Math.max(0, 1 - (responseTimeMs / timeLimitMs));
         const stat_speed = 50 + speedRatio * 50;
 
+        const outcome = stars > 0 ? 'completed' : 'failed';
+        this.telemetry?.levelEnded({
+            outcome,
+            score,
+            stars,
+            questions_correct: this.questionsCorrect,
+            total_questions: totalQuestions,
+            replays_used: this.totalReplaysUsed,
+            response_time_ms: responseTimeMs,
+        });
+
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {
             onGameOver({
@@ -1007,7 +1092,8 @@ export class MysterySoundScene extends Phaser.Scene {
                 responseTimeMs,
                 timeLimitMs,
                 difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
-                starHint: stars < 3 ? 'ลองฟังให้ดีและตอบให้ถูกมากขึ้น' : null
+                starHint: stars < 3 ? 'ลองฟังให้ดีและตอบให้ถูกมากขึ้น' : null,
+                attempt_id: this.telemetry?.attemptId ?? undefined,
             });
         }
     }

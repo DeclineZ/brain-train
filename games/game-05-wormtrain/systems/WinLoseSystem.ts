@@ -107,12 +107,21 @@ export class WinLoseSystem {
         this.scene.events.emit('GAME_WIN', { arrived: this.arrivedCount, lost: this.lostCount, success: isSuccess });
 
         const onGameOver = this.scene.game.registry.get('onGameOver');
-        if (onGameOver) {
-            const regLevel = this.scene.game.registry.get('level');
-            const level = typeof regLevel === 'number' ? regLevel : 1;
-            const isTutorial = level === 0;
+        const regLevel = this.scene.game.registry.get('level');
+        const level = typeof regLevel === 'number' ? regLevel : 1;
+        const isTutorial = level === 0;
 
+        this.scene.telemetry.levelEnded({
+            outcome: isSuccess ? (isTutorial ? 'completed' : 'success') : 'fail',
+            score: isTutorial ? 0 : scoreResult.score,
+            stars: finalStars,
+            actions: this.arrivedCount + this.lostCount,
+            errors: this.lostCount,
+        });
+
+        if (onGameOver) {
             onGameOver({
+                attempt_id: this.scene.telemetry.attemptId ?? undefined,
                 success: isSuccess,
                 level,
                 current_played: level,

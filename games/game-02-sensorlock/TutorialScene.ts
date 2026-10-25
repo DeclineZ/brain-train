@@ -1,7 +1,10 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class TutorialScene extends Phaser.Scene {
+    private telemetry!: GameTelemetry;
+
     // UI Elements
     private arrowContainer!: Phaser.GameObjects.Container;
     private arrowGraphics!: Phaser.GameObjects.Graphics;
@@ -28,6 +31,7 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-02-sensorlock', mode: 'tutorial' });
         const { width, height } = this.scale;
 
         // 1. Background (Same as GameScene)
@@ -110,6 +114,7 @@ export class TutorialScene extends Phaser.Scene {
         const noBg = this.add.rectangle(0, 0, btnWidth, 80, 0xFF7675)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0xD63031);
+        noBg.setName('btn_no_match');
         const noText = this.add.text(0, 0, "ไม่ตรง", createGameTextStyle({
             fontSize: '40px',
             fontStyle: 'bold',
@@ -127,6 +132,7 @@ export class TutorialScene extends Phaser.Scene {
         const yesBg = this.add.rectangle(0, 0, btnWidth, 80, 0x55EFC4)
             .setInteractive({ useHandCursor: true })
             .setStrokeStyle(4, 0x00B894);
+        yesBg.setName('btn_match');
         const yesText = this.add.text(0, 0, "ตรง", createGameTextStyle({
             fontSize: '40px',
             fontStyle: 'bold',
@@ -161,10 +167,13 @@ export class TutorialScene extends Phaser.Scene {
     // --- LOGIC ---
 
     startTutorial() {
+        this.telemetry.levelStarted({ mode: 'tutorial' });
+        this.telemetry.action('tutorial_step_shown', { step: 0, name: 'intro' });
         // Step 0: Intro
         this.time.delayedCall(1000, () => {
             this.messageText.setText("เปรียบเทียบ 'ทิศลูกศร'\nกับ 'คำที่เขียน'");
             this.time.delayedCall(5000, () => {
+                this.telemetry.action('tutorial_step_done', { step: 0 });
                 this.startStep1();
             });
         });
@@ -173,6 +182,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep1() {
         // Step 1: MATCH Example
         this.step = 1;
+        this.telemetry.action('tutorial_step_shown', { step: 1, name: 'match_example' });
         this.messageText.setText("ถ้าตรงกัน ให้กดปุ่ม 'ตรง'");
 
         // Show Controls
@@ -204,6 +214,7 @@ export class TutorialScene extends Phaser.Scene {
         // Hide old stimulus momentarily
         this.arrowContainer.setVisible(false);
         this.time.delayedCall(500, () => {
+            this.telemetry.action('tutorial_step_shown', { step: 2, name: 'mismatch_example' });
             this.arrowContainer.setVisible(true);
             this.drawArrow('LEFT', 0x0984E3);
             this.labelText.setText('ขวา'); // MISMATCH (Left vs Right)
@@ -222,7 +233,10 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     handleInput(saidMatch: boolean) {
-        if (!this.isWaitingInput) return;
+        if (!this.isWaitingInput) {
+            this.telemetry.action('input_ignored', { reason: 'not_waiting_input' });
+            return;
+        }
 
         // Validation based on step
         let correct = false;
@@ -230,6 +244,7 @@ export class TutorialScene extends Phaser.Scene {
         if (this.step === 2 && !saidMatch) correct = true;  // Expect Mismatch
 
         if (correct) {
+            this.telemetry.action('tutorial_step_done', { step: this.step });
             this.sound.play('match-success');
             this.isWaitingInput = false;
 
@@ -255,6 +270,7 @@ export class TutorialScene extends Phaser.Scene {
             }
         } else {
             // Wrong input during tutorial -> Shake and feedback
+            this.telemetry.action('input_ignored', { reason: 'tutorial_retry' });
             this.sound.play('match-fail');
             this.cameras.main.shake(200, 0.01);
             this.messageText.setText("ลองใหม่อีกครั้งนะ");
@@ -263,6 +279,7 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     endTutorial() {
+        this.telemetry.levelEnded({ outcome: 'completed' });
         this.sound.play('level-pass');
         const onTutorialComplete = this.registry.get('onTutorialComplete');
         if (onTutorialComplete) {

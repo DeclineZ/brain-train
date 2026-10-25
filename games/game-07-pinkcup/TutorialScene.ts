@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type CupInfo = {
   container: Phaser.GameObjects.Container;
@@ -13,6 +14,7 @@ type CupInfo = {
  * Interactive tutorial with elder-friendly guidance.
  */
 export class PinkCupTutorialScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
   private tutorialStep = 0;
   private tutorialText!: Phaser.GameObjects.Text;
   private highlightOverlay!: Phaser.GameObjects.Rectangle;
@@ -65,6 +67,12 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   }
 
   create() {
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-07-pinkcup',
+      mode: 'tutorial',
+    });
+    this.telemetry.levelStarted({ level: 0 });
+
     const { width, height } = this.scale;
 
     // Background (same as GameScene)
@@ -105,9 +113,16 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   }
 
   private completeTutorial() {
+    this.telemetry.levelEnded({
+      outcome: 'completed',
+      score: 100,
+      stars: 3,
+    });
     const onTutorialComplete = this.registry.get('onTutorialComplete');
     if (onTutorialComplete) {
-      onTutorialComplete();
+      onTutorialComplete({
+        attempt_id: this.telemetry?.attemptId ?? undefined,
+      });
     }
   }
 
@@ -124,6 +139,7 @@ export class PinkCupTutorialScene extends Phaser.Scene {
         const color = isTarget ? 0xFFB6C1 : 0xE8E8E8;
 
         const rectangle = this.add.rectangle(0, 0, this.cellSize, this.cellSize, color).setOrigin(0.5);
+        rectangle.setName(`tile_${x}_${y}`);
         rectangle.setDepth(0);
 
         const numberText = this.add.text(0, 0, `${y * this.gridCols + x + 1}`, createGameTextStyle({
@@ -258,6 +274,7 @@ export class PinkCupTutorialScene extends Phaser.Scene {
 
   private createCup(isPink: boolean, gridX: number, gridY: number): CupInfo {
     const container = this.add.container(0, 0);
+    container.setName(isPink ? 'cup_pink' : `cup_${gridX}_${gridY}`);
 
     // Shadow
     const shadow = this.add.arc(4, 4, 45, 0, Math.PI * 2).setOrigin(0.5);
@@ -340,6 +357,13 @@ export class PinkCupTutorialScene extends Phaser.Scene {
 
     this.animateMove(cup, to, () => {
       this.layoutGrid();
+      this.telemetry.action('cup_moved', {
+        is_pink: cup.isPink,
+        from,
+        to,
+        move_number: 1,
+        correct: true,
+      });
       if (this.tutorialStep === 2) {
         const pinkCup = this.tutorialCups.find(c => c.isPink);
         if (pinkCup && pinkCup.gridPos.x === this.targetCell.x && pinkCup.gridPos.y === this.targetCell.y) {
@@ -517,6 +541,12 @@ export class PinkCupTutorialScene extends Phaser.Scene {
 
     this.tutorialText.setText(messages[this.tutorialStep]);
 
+    this.telemetry.action('tutorial_step_shown', {
+      step: this.tutorialStep + 1,
+      total_steps: messages.length,
+      message: messages[this.tutorialStep],
+    });
+
     this.pinkCupHighlight.setVisible(false);
     this.targetTileHighlight.setVisible(false);
     this.tutorialCups.forEach(cup => this.tweens.killTweensOf(cup.container));
@@ -596,6 +626,7 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   }
 
   private nextTutorialStep() {
+    this.telemetry.action('tutorial_step_done', { step: this.tutorialStep + 1 });
     this.tutorialStep++;
     this.showTutorialStep();
   }
@@ -619,6 +650,11 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   private showTutorialNumbers() {
     if (this.isNumbersRevealed) return;
     this.isNumbersRevealed = true;
+
+    this.telemetry.action('numbers_revealed', {
+      reveal_duration_ms: 3000,
+      numbered_count: 2,
+    });
 
     const numberPositions = [
       { x: 0, y: 0, value: 1 },
@@ -647,6 +683,12 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   }
 
   private hideTutorialNumbers(instant = false) {
+    if (this.isNumbersRevealed && !instant) {
+      this.telemetry.action('numbers_hidden', {
+        duration_ms: 3000,
+      });
+    }
+
     this.numberTexts.forEach(text => {
       this.tweens.killTweensOf(text);
       if (instant) {
@@ -677,6 +719,14 @@ export class PinkCupTutorialScene extends Phaser.Scene {
     const randomIndex = Phaser.Math.Between(0, probeOptions.length - 1);
     this.probeTarget = { x: probeOptions[randomIndex].x, y: probeOptions[randomIndex].y };
     this.probeAnswer = probeOptions[randomIndex].value;
+
+    this.telemetry.stimulus('tutorial_probe');
+    this.telemetry.action('probe_shown', {
+      probe_index: 0,
+      total_probes: 1,
+      target_cell: this.probeTarget,
+      target_number: this.probeAnswer,
+    });
 
     this.tutorialText.setText(`เลข ${this.probeAnswer} อยู่ช่องไหน?\nแตะช่องที่จำได้`);
 
@@ -723,6 +773,20 @@ export class PinkCupTutorialScene extends Phaser.Scene {
   }
 
   private handleProbeAnswer(tile: Phaser.GameObjects.Rectangle, isCorrect: boolean) {
+    const tileIndex = this.tutorialTiles.indexOf(tile);
+    const col = tileIndex !== -1 ? tileIndex % this.gridCols : 0;
+    const row = tileIndex !== -1 ? Math.floor(tileIndex / this.gridCols) : 0;
+    const rtMs = this.telemetry.rtFrom('tutorial_probe');
+
+    this.telemetry.action('probe_answered', {
+      probe_index: 0,
+      selected_cell: { x: col, y: row },
+      expected_cell: this.probeTarget,
+      expected_number: this.probeAnswer,
+      correct: isCorrect,
+      rt_ms: rtMs,
+    });
+
     this.tutorialTiles.forEach(t => {
       t.disableInteractive();
       this.tweens.killTweensOf(t);
@@ -748,7 +812,6 @@ export class PinkCupTutorialScene extends Phaser.Scene {
       this.sound.play(this.soundKeys.error, { volume: 0.7 });
     }
 
-    const tileIndex = this.tutorialTiles.indexOf(tile);
     if (tileIndex !== -1 && this.numberTexts[tileIndex]) {
       const numberText = this.numberTexts[tileIndex];
       numberText.setVisible(true);

@@ -52,6 +52,7 @@ export class BallSpawner {
     // Hit area is 60% larger than visual ball for easier tapping
     const hitAreaRadius = ballRadius * 1.6;
     container.setSize(ballRadius * 2, ballRadius * 2);
+    container.setName(`ball_${operator}_${value}`);
     container.setInteractive({
       useHandCursor: true,
       hitArea: new Phaser.Geom.Circle(0, 0, hitAreaRadius),
@@ -282,6 +283,7 @@ export class BallSpawner {
     // Set interactive
     const hitAreaRadius = ballRadius * 1.6;
     container.setSize(ballRadius * 2, ballRadius * 2);
+    container.setName('ball_bomb');
     container.setInteractive({
       useHandCursor: true,
       hitArea: new Phaser.Geom.Circle(0, 0, hitAreaRadius),
