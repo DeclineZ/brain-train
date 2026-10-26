@@ -134,9 +134,23 @@ export class TutorialScene extends Phaser.Scene {
 
         this.setupAimingControls();
         this.events.on("update", this.update, this);
-        this.scale.on("resize", () => this.scene.restart());
+        // Scale manager and scene events outlive a restart, so drop these on shutdown
+        // or each restart stacks another copy of both handlers.
+        this.scale.on("resize", this.handleResize, this);
+        this.events.once("shutdown", () => {
+            this.scale.off("resize", this.handleResize, this);
+            this.events.off("update", this.update, this);
+        });
 
         this.startStep(0);
+    }
+
+    private resizeTimer?: Phaser.Time.TimerEvent;
+
+    // Mobile browsers fire bursts of resize events (address bar, rotation), so wait for them to settle.
+    private handleResize() {
+        this.resizeTimer?.remove();
+        this.resizeTimer = this.time.delayedCall(250, () => this.scene.restart());
     }
 
     startStep(stepIndex: number) {
