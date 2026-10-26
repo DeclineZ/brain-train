@@ -1,7 +1,11 @@
 import * as Phaser from 'phaser';
+import { GameTelemetry } from '@/games/engine/telemetry';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
 
 export class TutorialScene extends Phaser.Scene {
+    public telemetry!: GameTelemetry;
+    private skipButton?: Phaser.GameObjects.Text;
+
     // UI Elements
     private messageText!: Phaser.GameObjects.Text;
     private gridContainer!: Phaser.GameObjects.Container;
@@ -32,7 +36,28 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, {
+            gameId: 'game-12-gridhunter',
+        });
+        this.telemetry.levelStarted({ mode: 'tutorial' });
+
         const { width, height } = this.scale;
+
+        // Skip Button
+        this.skipButton = this.add.text(width - 24, 20, 'ข้าม', createGameTextStyle({
+            fontSize: '18px',
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+            backgroundColor: '#F97316',
+            padding: { left: 14, right: 14, top: 8, bottom: 8 }
+        })).setOrigin(1, 0)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(200);
+        this.skipButton.setName('btn_skip');
+        this.skipButton.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event?: Phaser.Types.Input.EventData) => {
+            event?.stopPropagation();
+            this.endTutorial();
+        });
 
         // 1. Background (Same coral theme as GameScene)
         this.createBackground();
@@ -142,6 +167,7 @@ export class TutorialScene extends Phaser.Scene {
 
         // Interactive
         const hitArea = this.add.rectangle(0, 0, size, size, 0xffffff, 0).setInteractive({ useHandCursor: true });
+        hitArea.setName(`tut_tile_${index}`);
         container.add(hitArea);
 
         hitArea.on('pointerdown', () => this.handleTileTap(index));
@@ -266,6 +292,7 @@ export class TutorialScene extends Phaser.Scene {
         const btnY = height * 0.85;
 
         this.nextButton = this.add.container(btnX, btnY);
+        this.nextButton.setName('btn_next');
         this.nextButton.setDepth(50);
 
         // Button background — warm accent rounded rect
@@ -292,6 +319,7 @@ export class TutorialScene extends Phaser.Scene {
         // Hit area
         const hitArea = this.add.rectangle(0, 0, btnW, btnH, 0xffffff, 0)
             .setInteractive({ useHandCursor: true });
+        hitArea.setName('btn_next');
 
         hitArea.on('pointerover', () => {
             this.tweens.add({ targets: this.nextButton, scale: 1.05, duration: 80 });
@@ -340,6 +368,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep1() {
         // Step 1: Basic tap the smallest number
         this.step = 1;
+        this.telemetry?.action('tutorial_step_shown', { step: 1, name: 'tap_smallest' });
         this.messageText.setText("หาเลขที่น้อยที่สุดแล้วแตะ!");
 
         // Create grid with clear smallest number
@@ -354,6 +383,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep2() {
         // Step 2: Show that number gets replaced
         this.step = 2;
+        this.telemetry?.action('tutorial_step_shown', { step: 2, name: 'tile_replaced' });
         this.messageText.setText("เยี่ยม! เลขจะถูกแทนที่ด้วยเลขใหม่");
 
         // Show the replacement effect
@@ -394,6 +424,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep3() {
         // Step 3: Practice again
         this.step = 3;
+        this.telemetry?.action('tutorial_step_shown', { step: 3, name: 'practice_smallest' });
         this.messageText.setText("ลองอีกครั้ง! หาเลขน้อยที่สุด");
 
         // Now smallest is 7 (index 4)
@@ -409,6 +440,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep4a() {
         // Step 4a: Show the grid with a trap and EXPLAIN what the red card is
         this.step = 4;
+        this.telemetry?.action('tutorial_step_shown', { step: 4, name: 'trap_intro' });
         this.isWaitingInput = false;
 
         // Clear old grid
@@ -440,6 +472,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep4b() {
         // Step 4b: Now explain what to do instead — pick the smallest SAFE number
         this.removeArrow();
+        this.telemetry?.action('tutorial_step_shown', { step: 5, name: 'trap_avoidance' });
 
         this.messageText.setText("ให้เลือกเลขน้อยสุดที่ไม่ใช่สีแดงแทน\nนั่นคือเลข 5");
 
@@ -455,6 +488,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep4_5() {
         // Step 4.5: Second trap practice with a different layout
         this.step = 45; // use 45 to distinguish from step 4
+        this.telemetry?.action('tutorial_step_shown', { step: 6, name: 'trap_practice_2' });
         this.isWaitingInput = false;
         this.stopHighlight();
         this.removeArrow();
@@ -495,6 +529,7 @@ export class TutorialScene extends Phaser.Scene {
     startStep5() {
         // Step 5: Completion
         this.step = 5;
+        this.telemetry?.action('tutorial_step_shown', { step: 7, name: 'completion' });
         this.stopHighlight();
         this.removeArrow();
         this.removeNextButton();
@@ -522,6 +557,7 @@ export class TutorialScene extends Phaser.Scene {
         if (index === this.trapTileIndex) {
             this.sound.play('wrong');
             this.cameras.main.shake(200, 0.01);
+            this.telemetry?.action('trap_hit', { index, is_tutorial: true, step: this.step });
 
             if (this.step === 4) {
                 this.messageText.setText("สีแดงคือกับดัก!\nเลือกเลข 5 แทนนะ");
@@ -537,6 +573,7 @@ export class TutorialScene extends Phaser.Scene {
             this.isWaitingInput = false;
             this.stopHighlight();
             this.removeArrow();
+            this.telemetry?.action('tutorial_step_done', { step: this.step });
 
             // Tile pop effect
             const tile = this.tiles[index];
@@ -571,9 +608,16 @@ export class TutorialScene extends Phaser.Scene {
 
     endTutorial() {
         this.sound.play('level-pass');
+        this.telemetry?.levelEnded({
+            outcome: 'completed',
+            score: 100,
+            stars: 3,
+        });
         const onTutorialComplete = this.registry.get('onTutorialComplete');
         if (onTutorialComplete) {
-            onTutorialComplete();
+            onTutorialComplete({
+                attempt_id: this.telemetry?.attemptId ?? undefined,
+            });
         }
     }
 }

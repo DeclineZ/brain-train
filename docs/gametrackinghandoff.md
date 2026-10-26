@@ -593,9 +593,9 @@ Hooks: item `pointerdown` (around line 737), `handleNumpadInput()`, submit butto
 | ⭐ `level_started` | after customer setup | `items`, `rules` (e.g. discounts), `paid_amount` |
 | ⭐ `item_tapped` | item handler | `item_id`, `price`, `is_distractor` |
 | ⭐ `numpad_pressed` | `handleNumpadInput()` | `key`, `value_after` |
-| ⭐ `tally_submitted` | `checkTallyPhase()` | `entered`, `expected`, `correct`, `error_type` (`operator`/`forgot_rule`/`other`/null), `rt_ms` (since phase start) |
+| ⭐ `tally_submitted` | `checkTallyPhase()`, `checkPaymentPhase()` | `phase` (`tally`/`payment`), `entered`, `expected`, `correct`, `error_type` (`operator`/`forgot_rule`/`other`/null), `rt_ms` (since phase start) |
 | ⭐ `currency_added` / `currency_removed` | drawer handlers | `denomination`, `change_total_after` |
-| ⭐ `change_submitted` | `checkPaymentPhase()` | `given`, `expected`, `correct`, `pieces_used`, `rt_ms` |
+| ⭐ `change_submitted` | `checkPhase3()` | `given`, `expected`, `correct`, `pieces_used`, `rt_ms` |
 | ⭐ `patience_penalty` | `triggerPatiencePenalty()` | `phase` |
 
 ---

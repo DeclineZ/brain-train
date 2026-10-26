@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { TUBE_SORT_COLORS } from './levels';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type TubeData = {
   container: Phaser.GameObjects.Container;
@@ -47,6 +48,7 @@ type TubeLayoutMetrics = {
 };
 
 export class TubeSortTutorialScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
   private tubes: TubeData[] = [];
   private tubeState: number[][] = [];
   private selectedTubeIndex: number | null = null;
@@ -140,6 +142,12 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     const regLevel = this.registry.get('level');
     this.level = data.level || regLevel || 1;
 
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-09-tube-sort',
+      mode: 'tutorial',
+    });
+    this.telemetry.levelStarted({ level: 0, total_steps: this.tutorialSteps.length });
+
     this.createBackground();
     this.createParticleTexture();
     this.createTutorialUI();
@@ -209,6 +217,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     })).setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
       .setDepth(210);
+    this.skipButton.setName('btn_skip');
 
     this.skipButton.on('pointerdown', () => this.endTutorial());
 
@@ -339,6 +348,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
       };
 
       container.setSize(90, 240);
+      container.setName(`tube_${i}`);
       container.setInteractive({ useHandCursor: true });
       container.on('pointerdown', () => this.handleTubeTap(i));
       this.tubes.push(tube);
@@ -489,11 +499,13 @@ export class TubeSortTutorialScene extends Phaser.Scene {
         return;
       }
       this.selectedTubeIndex = index;
+      this.telemetry?.action('tube_selected', { tube_index: index });
       this.renderTubes();
       this.pulseTube(index);
       this.isInteractiveStep = false;
       this.canAdvance = false;
       this.time.delayedCall(600, () => {
+        this.telemetry?.action('tutorial_step_done', { step: 2 });
         this.tutorialStep = 2;
         this.showTutorialStep();
       });
@@ -512,12 +524,21 @@ export class TubeSortTutorialScene extends Phaser.Scene {
       this.tubeState = result.state;
       this.tubeBallIds = result.ids;
       this.selectedTubeIndex = null;
+      this.telemetry?.action('ball_poured', {
+        from_tube: from,
+        to_tube: index,
+        color: prevState[from][prevState[from].length - 1],
+        move_number: 1,
+        is_redundant: false,
+        remaining_moves_on_ball: null,
+      });
       this.renderTubes();
       this.animatePour(from, index, prevState, result.state, true);
       this.updateProgressUI();
       this.isInteractiveStep = false;
       this.canAdvance = false;
       this.time.delayedCall(600, () => {
+        this.telemetry?.action('tutorial_step_done', { step: 3 });
         this.tutorialStep = 3;
         this.showTutorialStep();
       });
@@ -759,6 +780,10 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   private showTutorialStep() {
     this.tutorialText.setText(this.tutorialSteps[this.tutorialStep] ?? '');
     this.stepText.setText(`ขั้นตอน ${this.tutorialStep + 1}/${this.tutorialSteps.length}`);
+    this.telemetry?.action('tutorial_step_shown', {
+      step: this.tutorialStep + 1,
+      name: this.tutorialSteps[this.tutorialStep]?.split('\n')[0] ?? '',
+    });
     this.arrowGraphic.clear();
     this.clearTubeHighlight();
     this.ballHighlight?.clear();
@@ -804,6 +829,12 @@ export class TubeSortTutorialScene extends Phaser.Scene {
       this.continueText.setText('แตะเพื่อไปต่อ');
       this.highlightTube(1, 0xFACC15);
       this.celebrateTube(1, this.tubeState[1]?.[0]);
+      this.telemetry?.action('tube_completed', {
+        tube_index: 1,
+        color: this.tubeState[1]?.[0],
+        tubes_completed: 1,
+        total_tubes: 4,
+      });
       return;
     }
 
@@ -816,6 +847,10 @@ export class TubeSortTutorialScene extends Phaser.Scene {
     if (this.tutorialStep === 6) {
       this.continueText.setText('แตะเพื่อไปต่อ');
       this.showFreezeDemo();
+      this.telemetry?.action('balls_frozen', {
+        frozen_count: 1,
+        duration_ms: 3000,
+      });
       return;
     }
 
@@ -847,6 +882,7 @@ export class TubeSortTutorialScene extends Phaser.Scene {
   }
 
   private nextTutorialStep() {
+    this.telemetry?.action('tutorial_step_done', { step: this.tutorialStep + 1 });
     if (this.tutorialStep >= this.tutorialSteps.length - 1) {
       this.startGame();
       return;
@@ -1233,9 +1269,16 @@ export class TubeSortTutorialScene extends Phaser.Scene {
 
   private endTutorial() {
     this.sound.play(this.soundKeys.levelPass);
+    this.telemetry?.levelEnded({
+      outcome: 'completed',
+      score: 100,
+      stars: 3,
+    });
     const onTutorialComplete = this.registry.get('onTutorialComplete');
     if (onTutorialComplete) {
-      onTutorialComplete();
+      onTutorialComplete({
+        attempt_id: this.telemetry?.attemptId ?? undefined,
+      });
     }
   }
 

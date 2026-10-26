@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GameTelemetry } from '@/games/engine/telemetry';
 import { PIPE_PATCH_LEVELS, getPipePatchLevel } from './levels';
 import { calculatePipePatchLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { calculateUnifiedLevelScore, mapDifficultyFromScale } from '@/lib/scoring/engine/unifiedLevelScore';
@@ -124,6 +125,7 @@ const COLORS = {
 const DIRS = [DIR.UP, DIR.RIGHT, DIR.DOWN, DIR.LEFT];
 
 export class PipePatchGameScene extends Phaser.Scene {
+  public gameTelemetry!: GameTelemetry;
   protected sceneState: SceneState = 'boot';
   private reduceMotion = false;
   private bgMusic?: Phaser.Sound.BaseSound;
@@ -247,6 +249,9 @@ export class PipePatchGameScene extends Phaser.Scene {
   }
 
   create() {
+    this.gameTelemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-11-pipe-patch',
+    });
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.input.dragDistanceThreshold = 4;
     this.input.dragTimeThreshold = 90;
@@ -321,6 +326,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
     const timerX = this.scale.width - 44;
     this.timerDial = this.add.graphics();
+    this.timerDial.setName('timer_dial');
     this.timerDialText = this.add.text(timerX, 29, '90', createGameTextStyle({ fontSize: '15px', color: '#f5f5f5', fontStyle: '700' })).setOrigin(0.5);
 
     this.statusText = this.add.text(18, 18, '', createGameTextStyle({ fontSize: '15px', color: '#86efac' })).setOrigin(0, 0);
@@ -387,6 +393,13 @@ export class PipePatchGameScene extends Phaser.Scene {
   private startLevel(levelIndex: number) {
     this.clearLevelVisuals();
     this.level = getPipePatchLevel(levelIndex);
+    this.gameTelemetry?.levelStarted({
+      level_index: this.level.id,
+      grid_size: this.level.gridSize,
+      difficulty_weight: this.level.difficultyWeight,
+      required_pieces: this.level.requiredPieceCount,
+      decoy_pieces: this.level.decoyPieceCount,
+    });
     this.logEvent('level_start', { levelId: this.level.id });
 
     this.levelMetrics = {
@@ -493,6 +506,7 @@ export class PipePatchGameScene extends Phaser.Scene {
         const py = this.boardOrigin.y + y * this.cellSize;
         const isAltCell = ((x + y) % 2) === 0;
         const rect = this.add.rectangle(px + this.cellSize / 2, py + this.cellSize / 2, this.cellSize - 3, this.cellSize - 3, isAltCell ? COLORS.cell : COLORS.cellAlt, 0.92);
+        rect.setName(`cell_${x}_${y}`);
         const border = this.add.rectangle(px + this.cellSize / 2, py + this.cellSize / 2, this.cellSize - 3, this.cellSize - 3, 0x000000, 0).setStrokeStyle(1, COLORS.cellStroke, 0.95);
         const cv: CellVisual = { x, y, rect, border };
         this.cellVisuals.set(key, cv);
@@ -824,6 +838,7 @@ export class PipePatchGameScene extends Phaser.Scene {
         color: '#e2e8f0',
       })
       .setOrigin(0.5);
+    label.setName('tray_pager_label');
     this.trayUiObjects.push(label);
 
     this.createTrayNavButton(
@@ -833,8 +848,10 @@ export class PipePatchGameScene extends Phaser.Scene {
       this.trayPage > 0,
       () => {
         this.trayPage -= 1;
+        this.logEvent('tray_page_changed', { page: this.trayPage + 1, total_pages: totalPages });
         this.drawTray();
-      }
+      },
+      'btn_tray_prev'
     );
     this.createTrayNavButton(
       this.scale.width / 2 + 56,
@@ -843,15 +860,18 @@ export class PipePatchGameScene extends Phaser.Scene {
       this.trayPage < totalPages - 1,
       () => {
         this.trayPage += 1;
+        this.logEvent('tray_page_changed', { page: this.trayPage + 1, total_pages: totalPages });
         this.drawTray();
-      }
+      },
+      'btn_tray_next'
     );
   }
 
-  private createTrayNavButton(x: number, y: number, label: string, enabled: boolean, onClick: () => void) {
+  private createTrayNavButton(x: number, y: number, label: string, enabled: boolean, onClick: () => void, name?: string) {
     const bg = this.add
       .rectangle(x, y, 32, 26, enabled ? 0x0f2f31 : 0x243638, 0.95)
       .setStrokeStyle(1, enabled ? 0x9dd7db : 0x4f6a6d, 0.9);
+    if (name) bg.setName(name);
     const text = this.add
       .text(x, y - 1, label, {
         fontSize: '18px',
@@ -859,6 +879,7 @@ export class PipePatchGameScene extends Phaser.Scene {
         color: enabled ? '#f8fafc' : '#7b8a8c',
       })
       .setOrigin(0.5);
+    if (name) text.setName(`${name}_label`);
     if (enabled) {
       bg.setInteractive({ useHandCursor: true });
       bg.on('pointerdown', onClick);
@@ -868,6 +889,7 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private spawnPieceVisual(pieceId: string, pieceType: PipePieceType, x: number, y: number, isFromTray: boolean, size: number) {
     const container = this.add.container(x, y);
+    container.setName(pieceId);
     const touchHitSize = Math.max(size, size + 14);
     const bgShadow = this.add.rectangle(1, 2, size, size, 0x000000, 0.26).setStrokeStyle(0);
     const bg = this.add.rectangle(0, 0, size, size, COLORS.trayCard, 0.9).setStrokeStyle(1, COLORS.traySlotStroke, 0.9);
@@ -1162,6 +1184,23 @@ export class PipePatchGameScene extends Phaser.Scene {
       telemetryEvents: this.telemetry,
     };
 
+    this.gameTelemetry?.levelEnded({
+      outcome: 'completed',
+      score: levelScore,
+      stars,
+      metrics: {
+        solve_time_ms: current.solveTimeMs,
+        active_time_ms: current.activeTimeMs,
+        total_drag_attempts: current.totalDragAttempts,
+        valid_placements: current.validPlacementsCount,
+        incorrect_placements: current.incorrectPlacementCount,
+        undo_count: current.undoCount,
+        reset_count: current.resetCount,
+        beneficial_actions: current.beneficialActionCount,
+        non_beneficial_actions: current.nonBeneficialActionCount,
+      }
+    });
+
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({
@@ -1173,6 +1212,7 @@ export class PipePatchGameScene extends Phaser.Scene {
         stars,
         starHint,
         success: true,
+        attempt_id: this.gameTelemetry?.attemptId ?? undefined,
       });
     }
   }
@@ -1589,22 +1629,35 @@ export class PipePatchGameScene extends Phaser.Scene {
     };
     this.logEvent('session_end', { levelsAttempted: summary.levelsAttempted, levelsSolved: summary.levelsSolved });
 
+    const success = reason !== 'timeout';
+    const rawCore = summary.levelsSolved / Math.max(1, summary.levelsAttempted);
+    const score = calculateUnifiedLevelScore({
+      rawCore,
+      level: this.levelIndex,
+      maxLevel: 30,
+      difficultyMultiplier: mapDifficultyFromScale(this.level.difficultyWeight, 1, 10),
+      success,
+    });
+
+    this.gameTelemetry?.levelEnded({
+      outcome: success ? 'completed' : 'failed',
+      score,
+      stars: 0,
+      metrics: {
+        levels_attempted: summary.levelsAttempted,
+        levels_solved: summary.levelsSolved,
+        level_timeout_skips: summary.levelTimeoutSkips,
+      }
+    });
+
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
-      const success = reason !== 'timeout';
-      const rawCore = summary.levelsSolved / Math.max(1, summary.levelsAttempted);
-      const score = calculateUnifiedLevelScore({
-        rawCore,
-        level: this.levelIndex,
-        maxLevel: 30,
-        difficultyMultiplier: mapDifficultyFromScale(this.level.difficultyWeight, 1, 10),
-        success,
-      });
       onGameOver({
         ...summary,
         score,
         stars: 0,
         success,
+        attempt_id: this.gameTelemetry?.attemptId ?? undefined,
       });
     }
   }
@@ -2371,5 +2424,6 @@ export class PipePatchGameScene extends Phaser.Scene {
 
   private logEvent(type: string, payload?: Record<string, unknown>) {
     this.telemetry.push({ type, atMs: Date.now() - this.sessionStartedAt, payload });
+    this.gameTelemetry?.action(type as any, payload ?? {});
   }
 }

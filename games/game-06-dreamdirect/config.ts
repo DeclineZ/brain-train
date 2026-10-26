@@ -1,4 +1,5 @@
 import { DreamDirectGameScene } from './GameScene';
+import { TutorialScene } from './TutorialScene';
 
 export const DreamDirectGameConfig: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -19,7 +20,7 @@ export const DreamDirectGameConfig: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [DreamDirectGameScene]
+    scene: [DreamDirectGameScene, TutorialScene]
 };
 
 // Game Constants

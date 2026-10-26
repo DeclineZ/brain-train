@@ -21,6 +21,7 @@ export interface WormEntity {
 
     // Tutorial tracking
     visitedJunctions?: Set<string>;
+    spawnedAt?: number;
 }
 
 export class WormSystem {
@@ -132,10 +133,17 @@ export class WormSystem {
             state: 'MOVING',
             currentEdgeId: nextEdge.id,
             distanceOnEdge: 0,
-            speed: config.speed
+            speed: config.speed,
+            spawnedAt: Date.now(),
         };
 
         this.worms.set(worm.id, worm);
+
+        this.scene.telemetry.action('worm_spawned', {
+            worm_id: config.id,
+            color: config.color,
+            size: config.size || 'M',
+        });
 
         // Emit Spawn Event
         this.scene.events.emit('WORM_SPAWN', { worm });
@@ -189,6 +197,11 @@ export class WormSystem {
         const traps = this.scene.trapSystem.getTrapsAtNode(nodeId);
         for (const trap of traps) {
             if (this.scene.trapSystem.isTrapActive(trap.id)) {
+                this.scene.telemetry.action('trap_hit', {
+                    worm_id: worm.config.id,
+                    trap_id: trap.id,
+                    trap_type: trap.type,
+                });
                 if (trap.type === 'SPIDER') {
                     // Spider is purely visual - worms pass through without blocking
                     // Just emit event for visual feedback if needed
@@ -212,6 +225,15 @@ export class WormSystem {
                 node.size
             );
             this.setWormState(worm, success ? 'ARRIVED' : 'DEAD');
+
+            const travelMs = worm.spawnedAt ? Date.now() - worm.spawnedAt : null;
+            this.scene.telemetry.action('worm_arrived', {
+                worm_id: worm.config.id,
+                worm_color: worm.config.color,
+                hole_color: node.color || '',
+                correct: success,
+                travel_ms: travelMs,
+            });
 
             this.scene.events.emit('WORM_RESOLVED', {
                 x: node.x,

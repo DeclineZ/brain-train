@@ -6,6 +6,7 @@ import {
   type ParkingJamDirection,
 } from './types';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type TutorialAction = 'info' | 'select_car' | 'confirm_side' | 'move_one_way';
 type TapZone = ParkingJamDirection | 'center';
@@ -149,6 +150,11 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
 
   private completed = false;
 
+  private telemetry!: GameTelemetry;
+  private trackedStepIndex = -1;
+  private stepStartedAt = 0;
+  private stepWrongTries = 0;
+
   constructor() {
     super({ key: 'ParkingJamTutorialScene' });
   }
@@ -174,6 +180,16 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.setupAudio();
+
+    this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-21-parking-jam', mode: 'tutorial' });
+    this.trackedStepIndex = -1;
+    this.telemetry.levelStarted({
+      cars: this.level.cars.length,
+      grid_w: this.level.gridSize,
+      grid_h: this.level.gridSize,
+      time_limit_ms: null,
+      seed: null,
+    });
 
     this.boardGraphics = this.add.graphics();
     this.highlightGraphics = this.add.graphics().setDepth(25);
@@ -794,6 +810,24 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
   private renderTutorialStep() {
     if (!this.tutorialOpen) return;
 
+    // layout() re-renders the current step on resize; only log step changes.
+    if (this.trackedStepIndex !== this.tutorialIndex) {
+      if (this.trackedStepIndex >= 0) {
+        this.telemetry.action('tutorial_step_done', {
+          step: this.trackedStepIndex + 1,
+          duration_ms: Math.round(performance.now() - this.stepStartedAt),
+          wrong_tries: this.stepWrongTries,
+        });
+      }
+      this.trackedStepIndex = this.tutorialIndex;
+      this.stepStartedAt = performance.now();
+      this.stepWrongTries = 0;
+      const nextStep = TUTORIAL_STEPS[this.tutorialIndex];
+      if (nextStep) {
+        this.telemetry.action('tutorial_step_shown', { step: this.tutorialIndex + 1, step_key: nextStep.id });
+      }
+    }
+
     const step = TUTORIAL_STEPS[this.tutorialIndex];
     if (!step) {
       this.completeTutorial();
@@ -1202,6 +1236,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
   }
 
   private flashHint(car: TutorialCar, correctDirection?: ParkingJamDirection) {
+    this.stepWrongTries++;
     this.playSfx(this.blockedSfx);
     if (correctDirection) {
       this.showSelectionFeedback(car, correctDirection, false);
@@ -1223,6 +1258,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     const distance = sign < 0 ? Math.abs(slideRange.minOffset) : slideRange.maxOffset;
 
     if (distance < 1 && !this.canExitByDirection(car, direction)) {
+      this.stepWrongTries++;
       this.playSfx(this.blockedSfx);
       this.showSelectionFeedback(car, direction, false);
       return;
@@ -1386,6 +1422,7 @@ export class ParkingJamTutorialScene extends Phaser.Scene {
     this.progressText.setText('');
 
     this.time.delayedCall(1200, () => {
+      this.telemetry.levelEnded({ outcome: 'success' });
       const onTutorialComplete = this.registry.get('onTutorialComplete');
       if (onTutorialComplete) {
         onTutorialComplete();

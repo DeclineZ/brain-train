@@ -3,6 +3,8 @@ import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography
 
 export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
     private tutorialStep = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
     private instructionText!: Phaser.GameObjects.Text;
     private pulseTween: Phaser.Tweens.Tween | null = null;
     private readonly TUTORIAL_SCRIPT = [
@@ -46,6 +48,8 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
         this.gameActive = true;
         this.seenItems.clear();
         this.itemStartTime = 0;
+
+        this.telemetry.levelStarted({ phase: 0, time_limit_ms: null, seed: null });
 
         this.runTutorialStep();
     }
@@ -107,6 +111,10 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
             this.enableButton(this.newHit);
         }
 
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step: this.tutorialStep + 1, step_key: `press_${step.correctBtn}` });
+
         // Unlock input
         this.isInputLocked = false;
     }
@@ -164,6 +172,11 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
             this.enableButton(this.seenHit);
             this.enableButton(this.newHit);
 
+            this.telemetry.action('tutorial_step_done', {
+                step: this.tutorialStep + 1,
+                duration_ms: Math.round(performance.now() - this.stepStartedAt),
+                wrong_tries: this.stepWrongTries,
+            });
             this.tutorialStep++;
 
             this.time.delayedCall(1200, () => {
@@ -172,6 +185,7 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
         } else {
             // Wrong button (shouldn't normally happen since wrong is disabled,
             // but as safeguard)
+            this.stepWrongTries++;
             this.soundFail.play();
             this.cameras.main.shake(200, 0.01);
             this.isInputLocked = false;
@@ -195,6 +209,7 @@ export class WordRecognizeTutorialScene extends WordRecognizeGameScene {
         this.instructionText.setText('เยี่ยมมาก! พร้อมเล่นจริงแล้ว 🎊');
 
         this.time.delayedCall(1800, () => {
+            this.telemetry.levelEnded({ outcome: 'success' });
             const onTutorialComplete = this.registry.get('onTutorialComplete');
             if (onTutorialComplete) {
                 onTutorialComplete();

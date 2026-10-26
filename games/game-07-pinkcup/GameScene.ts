@@ -4,6 +4,7 @@ import { upsertLevelStars } from '@/lib/stars';
 import { createSeededRandom, shuffleWithSeed, SeededRandom } from '@/lib/seededRandom';
 import { calculatePinkCupLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 import type { 
   PinkCupLevelConfig, 
   CupData, 
@@ -30,6 +31,7 @@ type PinkCupLevelPlan = {
  * Numbers stay in grid cells, not on cups
  */
 export class PinkCupGameScene extends Phaser.Scene {
+  public gameTelemetry!: GameTelemetry;
   private currentLevelConfig!: PinkCupLevelConfig;
   private isTutorialComplete = false;
 
@@ -174,6 +176,12 @@ export class PinkCupGameScene extends Phaser.Scene {
   }
 
   create() {
+    const isTutorial = (this.currentLevelConfig?.level === 0) || (this.registry.get('mode') === 'tutorial');
+    this.gameTelemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-07-pinkcup',
+      mode: isTutorial ? 'tutorial' : 'normal',
+    });
+
     const { width, height } = this.scale;
 
     // Background
@@ -409,6 +417,7 @@ export class PinkCupGameScene extends Phaser.Scene {
         const color = isTarget ? 0xFFB6C1 : 0xE8E8E8;
         
         const rectangle = this.add.rectangle(0, 0, 100, 100, color);
+        rectangle.setName(`tile_${x}_${y}`);
         rectangle.setOrigin(0.5);
         rectangle.setDepth(0);
         
@@ -543,6 +552,7 @@ export class PinkCupGameScene extends Phaser.Scene {
 
     // Make ALL cups interactive for sliding puzzle
     container.setSize(100, 100);
+    container.setName(isPink ? 'cup_pink' : `cup_${index}`);
     container.setInteractive({ useHandCursor: true });
 
     const cupData: CupData = {
@@ -795,6 +805,16 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.startTime = Date.now();
     this.telemetry.t_start = this.startTime;
     this.startTimer();
+
+    this.gameTelemetry.levelStarted({
+      level: this.currentLevelConfig.level,
+      grid_cols: this.currentLevelConfig.gridCols,
+      grid_rows: this.currentLevelConfig.gridRows,
+      numbered_tiles: this.currentLevelConfig.numberedTilesCount,
+      time_limit_seconds: this.currentLevelConfig.timeLimitSeconds,
+      par_time_seconds: this.currentLevelConfig.parTimeSeconds,
+      probe_count: this.currentLevelConfig.probeCount,
+    });
   }
 
   startTimer() {
@@ -975,6 +995,17 @@ export class PinkCupGameScene extends Phaser.Scene {
       this.telemetry.moves.push(move);
       this.updateMoveStarGuide();
 
+      this.gameTelemetry?.action('cup_moved', {
+        is_pink: cup.isPink,
+        from,
+        to,
+        distance_to_target: distanceAfter,
+        is_good_move: distanceAfter < distanceBefore,
+        backtracked,
+        move_number: this.telemetry.moves.length,
+        correct: true,
+      });
+
       // Check if first move
       if (!this.hasMovedFirst) {
         this.hasMovedFirst = true;
@@ -1045,6 +1076,11 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.numbersRevealedAt = Date.now();
     this.telemetry.reveal.start = this.numbersRevealedAt;
 
+    this.gameTelemetry?.action('numbers_revealed', {
+      reveal_duration_ms: this.currentLevelConfig.revealDurationMs,
+      numbered_count: Object.keys(this.levelPlan.cellNumbers).length,
+    });
+
     // Change background color to indicate memory phase
     this.tweens.add({
       targets: this.backgroundRect,
@@ -1077,6 +1113,10 @@ export class PinkCupGameScene extends Phaser.Scene {
 
   hideNumbers() {
     this.telemetry.reveal.end = Date.now();
+
+    this.gameTelemetry?.action('numbers_hidden', {
+      duration_ms: Date.now() - this.numbersRevealedAt,
+    });
 
     // Revert background color
     this.tweens.add({
@@ -1111,6 +1151,11 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.telemetry.t_end = Date.now();
     this.hideMoveStarGuide();
 
+    this.gameTelemetry?.action('target_reached', {
+      moves_taken: this.telemetry.moves.length,
+      time_taken_ms: Date.now() - this.startTime,
+    });
+
     this.sound.play('success');
     this.showMessage('เยี่ยมมาก!');
 
@@ -1133,6 +1178,8 @@ export class PinkCupGameScene extends Phaser.Scene {
     this.isLocked = true;
     this.telemetry.t_end = Date.now();
     this.hideMoveStarGuide();
+
+    this.gameTelemetry?.action('time_up');
 
     if (this.timerEvent) this.timerEvent.remove();
     if (this.customTimerBar) this.customTimerBar.setVisible(false);
@@ -1297,6 +1344,14 @@ export class PinkCupGameScene extends Phaser.Scene {
       correctAnswer
     };
     this.telemetry.probes.push(probeRecord);
+
+    this.gameTelemetry?.stimulus(`probe_${this.currentProbeIndex}`);
+    this.gameTelemetry?.action('probe_shown', {
+      probe_index: this.currentProbeIndex,
+      total_probes: this.totalProbes,
+      target_cell: question,
+      target_number: correctAnswer,
+    });
   }
 
   createProbeUI(title: string, subtitle: string, instruction: string) {
@@ -1485,6 +1540,17 @@ export class PinkCupGameScene extends Phaser.Scene {
       this.probeCorrectCount++;
     }
 
+    const rtMs = this.gameTelemetry?.rtFrom(`probe_${this.currentProbeIndex}`) ?? 0;
+    this.gameTelemetry?.action('probe_answered', {
+      probe_index: this.currentProbeIndex,
+      selected_cell: tile.position,
+      selected_number: tile.numberValue,
+      expected_cell: question,
+      expected_number: probeRecord.correctAnswer,
+      correct: isCorrect,
+      rt_ms: rtMs,
+    });
+
     // Move to next question after delay
     this.time.delayedCall(1000, () => {
       this.resetTileVisuals();
@@ -1562,6 +1628,16 @@ export class PinkCupGameScene extends Phaser.Scene {
     // Save stars to database
     this.saveStars(stars);
 
+    const outcome = success ? 'completed' : 'failed';
+    this.gameTelemetry?.levelEnded({
+      outcome,
+      score,
+      stars,
+      moves_taken: this.telemetry.moves.length,
+      probes_total: this.totalProbes,
+      probes_correct: this.probeCorrectCount,
+    });
+
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({
@@ -1571,7 +1647,8 @@ export class PinkCupGameScene extends Phaser.Scene {
         level: this.currentLevelConfig.level,
         difficultyMultiplier: this.currentLevelConfig.difficultyMultiplier,
         stars,
-        starHint
+        starHint,
+        attempt_id: this.gameTelemetry?.attemptId ?? undefined,
       });
     }
 

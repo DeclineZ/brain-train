@@ -36,6 +36,9 @@ export class ObstacleManager {
     private lastOccupiedLanes: Set<number> = new Set();
     private isTutorial: boolean = false;
 
+    // Telemetry hook, set by GameScene
+    public onWaveSpawned?: (wave: { lanes: number[]; types: string[]; sector: number; speed: number }) => void;
+
     constructor(scene: Phaser.Scene, config: TrackConfig) {
         this.scene = scene;
         this.TRACK_LEFT = config.trackLeft;
@@ -131,15 +134,19 @@ export class ObstacleManager {
             availableLanes.splice(idx, 1);
         }
 
+        const chosenTypes: string[] = [];
         for (const lane of chosenLanes) {
             this.lastOccupiedLanes.add(lane);
 
             if (this.currentSector >= 2 && Phaser.Math.Between(0, 100) > 70) {
                 this.spawnShooterShip(lane);
+                chosenTypes.push('shooter');
             } else {
                 this.spawnWreckedShip(lane);
+                chosenTypes.push('wrecked');
             }
         }
+        this.onWaveSpawned?.({ lanes: chosenLanes, types: chosenTypes, sector: this.currentSector, speed: this.currentSpeed });
 
         // Spawn coins in an open lane
         if (Phaser.Math.Between(0, 100) > 35) {

@@ -39,6 +39,7 @@ export class ScoringSystem {
         this.mistakeCount++;
         console.log(`Mistake recorded: ${type}`);
         this.scene.events.emit('MISTAKE_OCCURRED', type);
+        this.scene.telemetry.action('mistake_registered', { type });
     }
 
     private onMistake() {

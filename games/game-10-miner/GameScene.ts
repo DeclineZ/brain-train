@@ -5,6 +5,7 @@ import { calculateMinerLevelScore } from '@/lib/scoring/engine/levelScoreMappers
 import type { MinerDynamicEvent, MinerLevelConfig, MinerObjectConfig, MinerObjectType } from './levels';
 import { createSeededRandom } from '@/lib/seededRandom';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type MinerObject = MinerObjectConfig & {
   id: number;
@@ -62,6 +63,7 @@ const COLORS = {
 };
 
 export class MinerGameScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
   private currentLevelConfig!: MinerLevelConfig;
   private minerObjects: MinerObject[] = [];
   private hookContainer!: Phaser.GameObjects.Container;
@@ -312,6 +314,11 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   create() {
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-10-miner',
+    });
+    this.telemetry.levelStarted();
+
     const { width, height } = this.scale;
     this.hookCenterX = width / 2;
     this.hookBaseY = Math.max(120, height * 0.21);
@@ -347,6 +354,7 @@ export class MinerGameScene extends Phaser.Scene {
     this.configureEventBannerLayout();
 
     this.goalBar = this.add.graphics().setDepth(6);
+    this.goalBar.setName('goal_bar');
 
     this.createHook();
     this.createMinerCharacter();
@@ -390,9 +398,11 @@ export class MinerGameScene extends Phaser.Scene {
 
     this.ropeGraphics = this.add.graphics().setDepth(8);
     this.hookPivot = this.add.circle(width / 2, this.hookBaseY, 8, 0x4e4e4e, 0.9).setDepth(12);
+    this.hookPivot.setName('hook_pivot');
     this.hookPivot.setStrokeStyle(2, 0x1f1f1f, 0.8);
 
     this.hookContainer = this.add.container(0, 0).setDepth(13);
+    this.hookContainer.setName('hook_head');
     const ring = this.add.circle(0, -12, 7, 0x6a6a6a, 0.95);
     ring.setStrokeStyle(2, 0x2a2a2a, 0.8);
     const shackle = this.add.rectangle(0, -4, 7, 14, 0x686868).setOrigin(0.5);
@@ -451,6 +461,7 @@ export class MinerGameScene extends Phaser.Scene {
     const sectionWidth = metrics.sectionWidth;
 
     const panel = this.add.container(width / 2, panelY).setDepth(6);
+    panel.setName('info_panel');
     const panelBg = this.add.graphics();
     panelBg.fillStyle(0xfff8ea, 0.92);
     panelBg.lineStyle(1.5, 0xdcc7a2, 0.7);
@@ -600,6 +611,7 @@ export class MinerGameScene extends Phaser.Scene {
         sprite.add(minerObject.crackOverlay);
       }
       this.updateDurabilityVisuals(minerObject);
+      minerObject.sprite.setName(`miner_obj_${config.type}_${minerObject.id}`);
       this.minerObjects.push(minerObject);
       return true;
     };
@@ -1078,6 +1090,7 @@ export class MinerGameScene extends Phaser.Scene {
     }
     if (!this.timerBar) {
       this.timerBar = this.add.graphics();
+      this.timerBar.setName('timer_bar');
       this.timerContainer.add(this.timerBar);
     }
     this.timerBar.setVisible(true);
@@ -1115,6 +1128,7 @@ export class MinerGameScene extends Phaser.Scene {
         }
 
         if (remainingMs <= 0) {
+          this.telemetry?.action('time_up');
           this.endLevel(false);
         }
       }
@@ -1161,6 +1175,9 @@ export class MinerGameScene extends Phaser.Scene {
   private triggerTimeWarning() {
     this.timeWarningTriggered = true;
     this.startTimerShake();
+    this.telemetry?.action('time_warning', {
+      remaining_sec: this.lastTimerSec
+    });
 
     try {
       this.sound.play('timer-warning', { volume: 0.6 });
@@ -1260,18 +1277,35 @@ export class MinerGameScene extends Phaser.Scene {
 
     const decisionTime = Date.now() - this.decisionStartTime;
     this.stats.decisionTimes.push(decisionTime);
+    this.telemetry?.action('hook_dropped', {
+      angle_deg: Math.round(Phaser.Math.RadToDeg(this.hookAngle) * 10) / 10,
+      decision_time_ms: decisionTime,
+      free_hooks_remaining: this.freeHooksRemaining,
+      fee_applied: this.hookFeePending,
+      hook_cost: this.hookDropCost,
+      total_value: this.totalValue,
+      attempt_number: this.stats.attempts
+    });
   }
 
   resolveGrab() {
     if (!this.hookTarget) {
       this.stats.mistakes += 1;
+      let feeDeducted = 0;
       if (this.hookFeePending) {
         const feeValue = -this.hookDropCost;
         this.totalValue += feeValue;
         this.stats.totalValue = this.totalValue;
         this.spawnScorePopup(this.hookCenterX, this.hookBaseY + this.hookRopeFullLength * 0.6, feeValue);
         this.hookFeePending = false;
+        feeDeducted = this.hookDropCost;
       }
+      this.telemetry?.action('hook_missed', {
+        locked_angle_deg: Math.round(Phaser.Math.RadToDeg(this.hookLockedAngle) * 10) / 10,
+        max_distance: Math.round(this.hookRopeFullLength),
+        fee_deducted: feeDeducted,
+        total_value: this.totalValue
+      });
     }
 
     this.hookDropping = false;
@@ -1300,8 +1334,9 @@ export class MinerGameScene extends Phaser.Scene {
     const target = this.hookTarget;
     if (target) {
       target.sprite.setVisible(false);
+      let netValue = 0;
       if (!target.isHazard) {
-        const netValue = this.applyHookFee(target.value);
+        netValue = this.applyHookFee(target.value);
         this.totalValue += netValue;
         this.stats.totalValue = this.totalValue;
         if (netValue !== 0) {
@@ -1316,7 +1351,7 @@ export class MinerGameScene extends Phaser.Scene {
           this.registerObjectiveProgress(target);
         }
       } else {
-        const netValue = this.applyHookFee(target.value);
+        netValue = this.applyHookFee(target.value);
         if (netValue !== 0) {
           this.totalValue += netValue;
           this.stats.totalValue = this.totalValue;
@@ -1324,6 +1359,15 @@ export class MinerGameScene extends Phaser.Scene {
         }
         this.dustEmitter?.explode(14, target.x, target.y);
       }
+      this.telemetry?.action('item_collected', {
+        object_type: target.type,
+        net_value: netValue,
+        total_value: this.totalValue,
+        is_objective: target.type === this.currentLevelConfig.objective.targetType && !target.isDecoy && !target.isHazard,
+        is_decoy: !!target.isDecoy,
+        is_hazard: !!target.isHazard,
+        objective_progress: `${this.objectiveCollectedCount}/${this.currentLevelConfig.objective.requiredCount}`
+      });
     }
 
     this.hookTarget = null;
@@ -1354,8 +1398,16 @@ export class MinerGameScene extends Phaser.Scene {
   private registerObjectiveProgress(target: MinerObject) {
     const objective = this.currentLevelConfig.objective;
     if (target.type !== objective.targetType || target.isDecoy || target.isHazard) return;
+    const previouslyComplete = this.objectiveComplete;
     this.objectiveCollectedCount = Math.min(objective.requiredCount, this.objectiveCollectedCount + 1);
     this.objectiveComplete = this.objectiveCollectedCount >= objective.requiredCount;
+    if (!previouslyComplete && this.objectiveComplete) {
+      this.telemetry?.action('objective_completed', {
+        target_type: objective.targetType,
+        required_count: objective.requiredCount,
+        total_collected: this.objectiveCollectedCount
+      });
+    }
   }
 
   private getStarHint(payload: {
@@ -1604,42 +1656,59 @@ export class MinerGameScene extends Phaser.Scene {
     this.sound.getAll('timer-warning').forEach(sound => sound.stop());
     this.stopBackgroundMusic();
 
-    const onGameOver = this.registry.get('onGameOver');
-    if (onGameOver) {
-      const avgDecisionTime = this.stats.decisionTimes.length
-        ? this.stats.decisionTimes.reduce((sum, t) => sum + t, 0) / this.stats.decisionTimes.length
-        : this.currentLevelConfig.target_decision_time_ms;
+    const avgDecisionTime = this.stats.decisionTimes.length
+      ? this.stats.decisionTimes.reduce((sum, t) => sum + t, 0) / this.stats.decisionTimes.length
+      : this.currentLevelConfig.target_decision_time_ms;
 
-      const payload = {
-        levelPlayed: this.currentLevelConfig.level,
+    const payload = {
+      levelPlayed: this.currentLevelConfig.level,
+      attempts: this.stats.attempts,
+      crack_attempts: this.stats.crackAttempts,
+      success_grabs: this.stats.successGrabs,
+      valuable_grabs: this.stats.valuableGrabs,
+      mistakes: this.stats.mistakes,
+      total_value: this.totalValue,
+      max_possible_value: this.currentLevelConfig.max_possible_value,
+      goal_amount: this.currentLevelConfig.money_goal,
+      avg_decision_time_ms: avgDecisionTime,
+      target_decision_time_ms: this.currentLevelConfig.target_decision_time_ms,
+      success
+    };
+
+    const forgivenRockMistakes = Math.min(this.rockMistakes, 2);
+    const adjustedMistakes = Math.max(0, payload.mistakes - forgivenRockMistakes);
+    const starPayload = {
+      ...payload,
+      mistakes: adjustedMistakes
+    };
+    const stars = success ? calculateMinerStars(starPayload) : 0;
+    const score = calculateMinerLevelScore(payload, success);
+    const starHint = stars < 3 ? this.getStarHint(starPayload) : null;
+
+    this.telemetry?.levelEnded({
+      outcome: success ? 'completed' : 'failed',
+      score,
+      stars,
+      metrics: {
+        total_value: this.totalValue,
+        goal_amount: this.currentLevelConfig.money_goal,
         attempts: this.stats.attempts,
         crack_attempts: this.stats.crackAttempts,
         success_grabs: this.stats.successGrabs,
         valuable_grabs: this.stats.valuableGrabs,
         mistakes: this.stats.mistakes,
-        total_value: this.totalValue,
-        max_possible_value: this.currentLevelConfig.max_possible_value,
-        goal_amount: this.currentLevelConfig.money_goal,
-        avg_decision_time_ms: avgDecisionTime,
-        target_decision_time_ms: this.currentLevelConfig.target_decision_time_ms,
-        success
-      };
+        avg_decision_time_ms: avgDecisionTime
+      }
+    });
 
-      const forgivenRockMistakes = Math.min(this.rockMistakes, 2);
-      const adjustedMistakes = Math.max(0, payload.mistakes - forgivenRockMistakes);
-      const starPayload = {
-        ...payload,
-        mistakes: adjustedMistakes
-      };
-      const stars = success ? calculateMinerStars(starPayload) : 0;
-      const score = calculateMinerLevelScore(payload, success);
-      const starHint = stars < 3 ? this.getStarHint(starPayload) : null;
-
+    const onGameOver = this.registry.get('onGameOver');
+    if (onGameOver) {
       onGameOver({
         ...payload,
         score,
         stars,
-        starHint
+        starHint,
+        attempt_id: this.telemetry?.attemptId ?? undefined
       });
     }
   }
@@ -1851,6 +1920,12 @@ export class MinerGameScene extends Phaser.Scene {
       this.animateHookOpen(0.1, 140);
       this.sound.play('miner-grab-hazard', { volume: 0.35 });
       this.showEventBanner(target.isBroken ? 'กะเทาะสำเร็จ! ยิงอีกครั้งเพื่อเก็บ' : 'แร่ก้อนใหญ่ต้องกะเทาะก่อน');
+      this.telemetry?.action('object_cracked', {
+        object_type: target.type,
+        durability_remaining: target.durabilityRemaining,
+        is_broken: target.isBroken,
+        hits_required: target.maxDurability
+      });
       return false;
     }
 
@@ -1860,6 +1935,16 @@ export class MinerGameScene extends Phaser.Scene {
     }
 
     this.animateHookOpen(0.1, 140);
+
+    this.telemetry?.action('object_grabbed', {
+      object_type: target.type,
+      value: target.value,
+      weight: target.weight,
+      is_hazard: !!target.isHazard,
+      is_decoy: !!target.isDecoy,
+      is_crackable: target.maxDurability > 0,
+      distance: Math.round(Phaser.Math.Distance.Between(this.hookCenterX, this.hookBaseY, target.x, target.y))
+    });
 
     if (target.isHazard) {
       this.stats.mistakes += 1;
@@ -1874,17 +1959,32 @@ export class MinerGameScene extends Phaser.Scene {
       } else {
         this.sound.play('miner-grab-hazard', { volume: 0.6 });
       }
+      this.telemetry?.action('hazard_triggered', {
+        hazard_type: target.type,
+        penalty_type: target.type.startsWith('bomb') ? 'slow_pull' : 'score_penalty',
+        penalty_value: target.type.startsWith('bomb') ? 20000 : Math.abs(target.value)
+      });
     }
 
     if (target.isDecoy) {
       this.stats.mistakes += 1;
       this.sound.play('miner-grab-hazard', { volume: 0.45 });
+      this.telemetry?.action('hazard_triggered', {
+        hazard_type: target.type,
+        penalty_type: 'decoy_time_waste',
+        penalty_value: 0
+      });
     }
 
     if (target.type === 'cursed' && this.currentLevelConfig.hazards.cursed_items_enabled) {
       this.stats.mistakes += 1;
       const penaltyMs = target.penaltyMs ?? 5000;
       this.levelStartTime -= penaltyMs;
+      this.telemetry?.action('hazard_triggered', {
+        hazard_type: 'cursed',
+        penalty_type: 'time_penalty',
+        penalty_value: penaltyMs
+      });
     }
 
     return true;
@@ -2505,6 +2605,12 @@ export class MinerGameScene extends Phaser.Scene {
   }
 
   private triggerDynamicEvent(event: MinerDynamicEvent, index: number) {
+    this.telemetry?.action('dynamic_event_triggered', {
+      event_type: event.type,
+      time_sec: event.timeSec,
+      index
+    });
+
     if (event.type === 'shift_layer') {
       const dx = event.payload?.dx ?? 0;
       const dy = event.payload?.dy ?? 0;
@@ -2768,7 +2874,7 @@ export class MinerGameScene extends Phaser.Scene {
       isBroken: true,
       isDecoy: false
     };
-
+    minerObject.sprite.setName(`miner_obj_${config.type}_${minerObject.id}`);
     this.minerObjects.push(minerObject);
   }
 

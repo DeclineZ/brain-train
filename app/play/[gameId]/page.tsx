@@ -126,8 +126,10 @@ export default function GamePage({ params }: PageProps) {
     const [highScore, setHighScore] = useState<number>(0);
 
     // Analytics: one attempt per GameCanvas mount (same key as the canvas below).
+    // Run For Your Life's level 0 includes the real run, so it counts as an activity.
+    const attemptMode = activeLevel === 0 && gameId !== "game-18-runforyourlife" ? "tutorial" : "normal";
     const attempt = useMemo(
-        () => new GameAttempt(gameId, activeLevel, activeLevel === 0 ? "tutorial" : "normal"),
+        () => new GameAttempt(gameId, activeLevel, attemptMode),
         // retryCount forces a new attempt on replay, matching the canvas remount.
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [gameId, activeLevel, retryCount]

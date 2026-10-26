@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import type { Equation, ComplexEquation, Ball } from "./types";
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from "@/games/engine/telemetry";
 
 // Physics constants (Matched to GameScene)
 const PHYSICS_CONFIG = {
@@ -34,6 +35,8 @@ interface SlotZone {
 }
 
 export class TutorialScene extends Phaser.Scene {
+    private telemetry!: GameTelemetry;
+
     // Game State
     private balls: PhysicsBall[] = [];
     private slots: SlotZone[] = [];
@@ -111,6 +114,9 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-03-billiards-math', mode: 'tutorial' });
+        this.telemetry.levelStarted({ mode: 'tutorial' });
+
         this.createPoolTable();
         this.createUI();
 
@@ -128,9 +134,27 @@ export class TutorialScene extends Phaser.Scene {
 
         this.setupAimingControls();
         this.events.on("update", this.update, this);
-        this.scale.on("resize", () => this.scene.restart());
+        // Scale manager and scene events outlive a restart, so drop these on shutdown
+        // or each restart stacks another copy of both handlers.
+        this.scale.on("resize", this.handleResize, this);
+        this.events.once("shutdown", () => {
+            this.scale.off("resize", this.handleResize, this);
+            this.events.off("update", this.update, this);
+            // Sounds live on the game-wide sound manager, so a restart would otherwise
+            // leave the old background music looping under the new one.
+            [this.bgMusic, this.soundBallClick, this.soundBallDrop, this.soundBallRattle, this.soundSuccess]
+                .forEach((s) => s?.destroy());
+        });
 
         this.startStep(0);
+    }
+
+    private resizeTimer?: Phaser.Time.TimerEvent;
+
+    // Mobile browsers fire bursts of resize events (address bar, rotation), so wait for them to settle.
+    private handleResize() {
+        this.resizeTimer?.remove();
+        this.resizeTimer = this.time.delayedCall(250, () => this.scene.restart());
     }
 
     startStep(stepIndex: number) {
@@ -140,6 +164,7 @@ export class TutorialScene extends Phaser.Scene {
         }
 
         this.curStep = stepIndex;
+        this.telemetry.action('tutorial_step_shown', { step: stepIndex, name: `step_${stepIndex}` });
         const config = this.steps[stepIndex];
         const { width, height } = this.scale;
 
@@ -449,11 +474,14 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     nextStep() {
+        this.telemetry.action('tutorial_step_done', { step: this.curStep });
         this.soundSuccess.play();
         this.time.delayedCall(1500, () => this.startStep(this.curStep + 1));
     }
 
     completeTutorial() {
+        this.telemetry.action('tutorial_step_done', { step: this.curStep });
+        this.telemetry.levelEnded({ outcome: 'completed' });
         this.messageText.setText("สมบูรณ์แบบ! 🎉\nพร้อมเล่นจริงแล้ว");
         this.game.events.emit('tutorial-show-next-btn', false);
         this.time.delayedCall(2000, () => {
@@ -571,6 +599,7 @@ export class TutorialScene extends Phaser.Scene {
         container.setSize(r * 2, r * 2);
         container.setInteractive({ useHandCursor: true });
         container.setDepth(20);
+        container.setName('cue_ball');
 
         return {
             id: 0, value: 0, x, y, container, originalX: x, originalY: y,
@@ -593,6 +622,7 @@ export class TutorialScene extends Phaser.Scene {
         container.setSize(r * 2, r * 2);
         container.setInteractive({ useHandCursor: true });
         container.setDepth(20);
+        container.setName(`ball_${value}`);
 
         return {
             id: value, value, x, y, originalX: x, originalY: y,
@@ -617,6 +647,7 @@ export class TutorialScene extends Phaser.Scene {
             const cx = startX + i * spacing;
             const c = this.add.container(cx, slotY);
             c.setDepth(10); // Slots at depth 10
+            c.setName(`slot_${i}`);
 
             // Visuals (Match GameScene)
             c.add(this.add.circle(0, 0, 33, 0x00ffff, 0.25)); // Glow

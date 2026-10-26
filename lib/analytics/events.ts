@@ -51,7 +51,191 @@ export const GAME_COMMON_EVENTS = [
 ] as const;
 
 // Per-game events (handoff section 5) go here.
-export const GAME_EVENTS = [] as const;
+export const GAME_EVENTS = [
+  // Game 01 - Card Match
+  "preview_started",
+  "card_flipped",
+  "pair_checked",
+  "hint_shown",
+  "hint_closed",
+
+  // Game 02 - Sensor Lock
+  "stimulus_shown",
+  "response_given",
+  "response_timeout",
+  "buttons_swapped",
+  "phase_changed",
+
+  // Game 03 - Billiards Math
+  "equation_shown",
+  "aim_started",
+  "ball_shot",
+  "ball_slotted",
+  "ball_ejected",
+  "revert_pressed",
+  "answer_checked",
+  "equation_timed_out",
+  "mine_hit",
+  "obstacle_hit",
+  "out_of_shots",
+
+  // Game 04 - Floating Ball Math
+  "lane_changed",
+  "ball_collected",
+  "bomb_hit",
+  "equation_completed",
+  "equation_overshot",
+  "thief_appeared",
+  "thief_decision",
+
+  // Game 05 - Worm Train
+  "junction_switched",
+  "worm_spawned",
+  "worm_arrived",
+  "trap_hit",
+  "mistake_registered",
+
+  // Game 06 - Dream Direct
+  "arrow_spawned",
+  "arrow_hit",
+  "arrow_missed",
+  "hold_completed",
+  "ingame_tutorial_shown",
+  "ingame_tutorial_completed",
+
+  // Game 07 - Pink Cup
+  "cup_moved",
+  "numbers_revealed",
+  "numbers_hidden",
+  "target_reached",
+  "probe_shown",
+  "probe_answered",
+
+  // Game 08 - Mystery Sound
+  "sound_played",
+  "choices_shown",
+  "sound_replayed",
+  "option_toggled",
+  "answer_submitted",
+
+  // Game 09 - Tube Sort
+  "tube_selected",
+  "tube_deselected",
+  "ball_poured",
+  "pour_failed",
+  "tube_completed",
+  "balls_frozen",
+
+  // Game 10 - Miner
+  "hook_dropped",
+  "hook_missed",
+  "object_grabbed",
+  "object_cracked",
+  "item_collected",
+  "hazard_triggered",
+  "dynamic_event_triggered",
+  "objective_completed",
+
+  // Game 11 - Pipe Patch
+  "session_start",
+  "level_start",
+  "tray_piece_selected",
+  "drag_start",
+  "drag_end",
+  "piece_placed",
+  "piece_swapped",
+  "piece_rejected",
+  "piece_removed",
+  "obstacle_interaction_attempt",
+  "board_state_eval",
+  "color_path_check",
+  "one_way_gate_path_fail",
+  "undo_pressed",
+  "reset_level_pressed",
+  "level_complete",
+  "session_end",
+  "tray_page_changed",
+
+  // Game 12 - Grid Hunter
+  "target_selected",
+  "trap_spawned",
+  "trap_alert_shown",
+  "trap_expired",
+  "phase_transition",
+  "phase_modal_closed",
+  "grid_shuffled",
+  "combo_milestone",
+
+  // Game 13 - Box Pattern
+  "sequence_shown",
+  "orb_tapped",
+  "round_ended",
+
+  // Game 14 - Word Recognize
+  "item_shown",
+
+  // Game 15 - Taxi Driver
+  "intersection_approaching",
+  "direction_pressed",
+  "turn_resolved",
+  "brake_stop_shown",
+  "brake_resolved",
+  "road_closed",
+  "controls_swapped",
+  "path_faded",
+  "path_shown",
+  "life_lost",
+
+  // Game 16 - Door Guardian
+  "visitor_shown",
+  "decision_made",
+  "decision_timeout",
+  "reference_opened",
+  "reference_closed",
+  "reference_page_changed",
+
+  // Game 17 - Floating Market
+  "control_mode_set",
+  "steer_started",
+  "steer_ended",
+  "item_spawned",
+  "item_missed",
+  "rule_switched",
+  "collision",
+  "coin_collected",
+
+  // Game 18 - Run For Your Life
+  "move_started",
+  "move_ended",
+  "gun_fired",
+  "obstacle_spawned",
+  "pickup_collected",
+  "powerup_popup_shown",
+  "powerup_popup_closed",
+  "sector_changed",
+
+  // Game 19 - Cashier
+  "item_tapped",
+  "numpad_pressed",
+  "tally_submitted",
+  "currency_added",
+  "change_submitted",
+  "patience_penalty",
+
+  // Game 20 - Box Counting
+  "question_shown",
+  "answer_selected",
+  "question_timeout",
+
+  // Game 21 - Parking Jam
+  "car_selected",
+  "car_deselected",
+  "move_attempted",
+  "car_exited",
+  "reset_pressed",
+  "direction_guide_shown",
+  "direction_guide_closed",
+] as const;
 
 export const EVENT_NAMES = [
   ...CANONICAL_EVENTS,

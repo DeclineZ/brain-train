@@ -4,6 +4,7 @@ import type { StaticLevelConfig, Equation, ComplexEquation, Ball, LayoutObstacle
 import type { BilliardsGameStats } from "@/types";
 import { calculateStars, getStarHint } from "@/lib/scoring/billiards";
 import { GAME_FONT_FAMILY, createGameTextStyle, THAI_TEXT_PADDING } from '@/games/engine/typography';
+import { GameTelemetry } from "@/games/engine/telemetry";
 
 // Physics constants for realistic billiards feel
 const PHYSICS_CONFIG = {
@@ -38,6 +39,8 @@ interface SlotZone {
 }
 
 export class BilliardsGameScene extends Phaser.Scene {
+    private telemetry!: GameTelemetry;
+    private hasPlayedLowTimeWarning = false;
     private currentLevelConfig!: StaticLevelConfig;
     private currentEquationIndex: number = 0;
 
@@ -161,6 +164,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shotsRemaining = 0;
         this.shotsTakenThisEquation = 0;
         this.equationTimeRemaining = 0;
+        this.hasPlayedLowTimeWarning = false;
     }
 
     cleanupBalls() {
@@ -230,6 +234,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-03-billiards-math' });
         const { width, height } = this.scale;
 
         console.log("[BilliardsGameScene] create() called", { width, height });
@@ -407,7 +412,8 @@ export class BilliardsGameScene extends Phaser.Scene {
         // Simple Circle-AABB collision resolution
         const radius = PHYSICS_CONFIG.ballRadius;
 
-        for (const body of this.obstacles.bodies) {
+        for (let i = 0; i < this.obstacles.bodies.length; i++) {
+            const body = this.obstacles.bodies[i];
             // Find closest point on rect to circle center
             const closestX = Phaser.Math.Clamp(ball.x, body.x, body.x + body.width);
             const closestY = Phaser.Math.Clamp(ball.y, body.y, body.y + body.height);
@@ -440,6 +446,8 @@ export class BilliardsGameScene extends Phaser.Scene {
                     ball.velocityY = (ball.velocityY - 2 * dot * ny) * PHYSICS_CONFIG.wallBounce;
 
                     if (this.soundBallRattle) this.soundBallRattle.play();
+                    const obsType = this.obstacles.list[i]?.getData('type') ?? 'wall';
+                    this.telemetry.action('obstacle_hit', { obstacle_type: obsType });
                 }
             }
         }
@@ -524,6 +532,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     handleMineExplosion() {
         console.log("BOOM! Mine Hit!");
+        this.telemetry.action('mine_hit', {});
         this.cameras.main.shake(500, 0.02);
         this.cameras.main.flash(500, 0xff0000);
         if (this.soundLevelFail) this.soundLevelFail.play();
@@ -665,12 +674,17 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         container.add([bg, label]);
 
+        container.setName('btn_revert');
+
         // Make interactive
         container.setInteractive(
             new Phaser.Geom.Rectangle(-44, -20, 88, 40),
             Phaser.Geom.Rectangle.Contains
         );
         container.on('pointerdown', () => {
+            this.telemetry.action('revert_pressed', {
+                slots_filled: this.slotFillOrder.length,
+            });
             if (this.slotFillOrder.length > 0) {
                 const lastSlot = this.slotFillOrder[this.slotFillOrder.length - 1];
                 this.ejectBallFromSlot(lastSlot);
@@ -715,6 +729,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             // Create slot visuals
             const slotContainer = this.add.container(slotX, slotY);
             slotContainer.setDepth(10);
+            slotContainer.setName(`slot_${i}`);
 
             // Glowing circle background
             const glowCircle = this.add.circle(0, 0, slotRadius + 8, 0x00ffff, 0.25);
@@ -894,6 +909,10 @@ export class BilliardsGameScene extends Phaser.Scene {
             if (dist < 45) {
                 this.aimingBall = this.cueBall;
                 this.aimStartPoint = new Phaser.Math.Vector2(pointer.x, pointer.y);
+                this.telemetry.stimulus('aim_started');
+                this.telemetry.action('aim_started', {
+                    ball_value: this.cueBall.value,
+                });
                 if (this.soundBallClick) this.soundBallClick.play();
 
                 // Highlight the cue ball
@@ -1034,6 +1053,16 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shotsTakenThisEquation++;
         this.updateShotCounter();
 
+        const angleDeg = Math.round(Phaser.Math.RadToDeg(Math.atan2(dirY, dirX)));
+        const aimMs = this.telemetry.rtFrom('aim_started');
+        this.telemetry.action('ball_shot', {
+            ball_value: this.aimingBall.value,
+            angle_deg: angleDeg,
+            power: Math.round(power * 100) / 100,
+            aim_ms: aimMs,
+            shots_left: this.shotsRemaining,
+        });
+
         if (this.soundBallDrop) this.soundBallDrop.play();
 
         console.log("[BilliardsGameScene] Ball shot", {
@@ -1053,6 +1082,9 @@ export class BilliardsGameScene extends Phaser.Scene {
 
     handleOutOfShots() {
         console.log("[BilliardsGameScene] Out of shots - resetting equation");
+        this.telemetry.action('out_of_shots', {
+            equation_index: this.currentEquationIndex,
+        });
 
         // Lock input during reset to prevent teleportation bugs
         this.isLocked = true;
@@ -1197,6 +1229,11 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.slotFillOrder.push(slot);
         this.updateRevertButtonVisibility();
 
+        this.telemetry.action('ball_slotted', {
+            slot_index: slot.index,
+            ball_value: ball.value,
+        });
+
         // Update equation display
         this.placedBalls.push(ball.value);
         this.updateEquationText();
@@ -1215,6 +1252,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         console.log("[BilliardsGameScene] Ejecting ball from slot", { slot: slot.index, value: slot.filledValue });
 
         const ball = slot.occupiedBall;
+        this.telemetry.action('ball_ejected', {
+            slot_index: slot.index,
+            ball_value: ball.value,
+        });
 
         // Remove ejection listener
         if (ball.container) {
@@ -1349,6 +1390,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         const isComplex = this.currentEquation.type === 'complex';
         let isCorrect: boolean = false;
+        let evaluatedResult: number | null = null;
 
         if (isComplex) {
             const complexEquation = this.currentEquation as ComplexEquation;
@@ -1367,6 +1409,7 @@ export class BilliardsGameScene extends Phaser.Scene {
                 // Safe evaluation for simple math
                  
                 const val = new Function('return ' + expression)();
+                evaluatedResult = val;
                 isCorrect = Math.abs(val - this.currentEquation.result) < 0.001;
             } catch (e) {
                 console.error("Error evaluating complex equation", e);
@@ -1380,6 +1423,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             if (this.placedBalls.length < this.slots.length) {
                 // Should not happen if checkAnswer called only on allFilled
                 isCorrect = false;
+                userAnswer = 0;
             } else {
                 if (op === "+") {
                     userAnswer = this.placedBalls[0] + this.placedBalls[1];
@@ -1392,7 +1436,18 @@ export class BilliardsGameScene extends Phaser.Scene {
                 }
                 isCorrect = userAnswer === simpleEquation.result;
             }
+            evaluatedResult = userAnswer;
         }
+
+        const rtMs = this.telemetry.rtFrom('equation_shown');
+        this.telemetry.action('answer_checked', {
+            equation_index: this.currentEquationIndex,
+            values: [...this.placedBalls],
+            result: evaluatedResult,
+            target: this.currentEquation.result,
+            correct: isCorrect,
+            rt_ms: rtMs,
+        });
 
         console.log("[BilliardsGameScene] Answer checked", { isCorrect, placedBalls: this.placedBalls });
 
@@ -1420,6 +1475,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             const rect = this.add.rectangle(absX, absY, obs.width, obs.height, 0x5c4033); // Dark wood color
             rect.setStrokeStyle(2, 0x3e2b22);
             rect.setDepth(18); // Below balls (20)
+            rect.setData('type', obs.type ?? 'wall');
 
             // Physics Body (Manual collision) - Center based coordinates
             const body = new Phaser.Geom.Rectangle(absX - obs.width / 2, absY - obs.height / 2, obs.width, obs.height);
@@ -1590,6 +1646,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         container.setSize(radius * 1.6, radius * 1.6);
         container.setDepth(25); // Slightly above other balls
         container.setInteractive({ useHandCursor: true });
+        container.setName('cue_ball');
 
         this.cueBall = {
             id: 0,
@@ -1664,6 +1721,7 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         container.setSize(radius * 2, radius * 2);
         container.setDepth(20); // Below aim line (100) but above table
+        container.setName(`ball_${value}`);
 
         // Make interactive
         container.setInteractive({ useHandCursor: true });
@@ -1690,6 +1748,15 @@ export class BilliardsGameScene extends Phaser.Scene {
         console.log("[BilliardsGameScene] Starting level");
         this.levelStartTime = Date.now();
         this.currentEquationIndex = 0;
+        this.hasPlayedLowTimeWarning = false;
+        this.telemetry.levelStarted({
+            level: this.currentLevelConfig.level,
+            total_equations: this.currentLevelConfig.equations.length,
+            shots_per_equation: this.currentLevelConfig.shotLimit,
+            difficulty_multiplier: 1.0,
+            time_limit_ms: (this.currentLevelConfig.timeLimitSeconds ?? 0) * 1000,
+            seed: null,
+        });
         this.generateNewEquation();
         this.isLocked = false;
         this.startTime = Date.now();
@@ -1722,6 +1789,18 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shotsRemaining = this.currentLevelConfig.shotLimit;
         this.shotsTakenThisEquation = 0;
         this.updateShotCounter();
+
+        const eq = this.currentEquation;
+        const operators = eq.type === 'complex' ? (eq as ComplexEquation).operators : [(eq as any).operator || '+'];
+        const slotCount = this.slots.length || (eq.type === 'complex' ? (eq as ComplexEquation).operands?.length : 2);
+        this.telemetry.stimulus('equation_shown');
+        this.telemetry.action('equation_shown', {
+            equation_index: this.currentEquationIndex,
+            target: eq.result,
+            operators,
+            slot_count: slotCount,
+            ball_values: this.balls.map(b => b.value),
+        });
     }
 
     startEquationTimer() {
@@ -1761,6 +1840,10 @@ export class BilliardsGameScene extends Phaser.Scene {
         }
 
         console.log("[BilliardsGameScene] Equation time expired - resetting equation");
+        this.telemetry.action('equation_timed_out', {
+            equation_index: this.currentEquationIndex,
+            slots_filled: this.slots.filter(s => s.filled).length,
+        });
 
         // Flash timer warning
         if (this.equationTimerText) {
@@ -1902,6 +1985,7 @@ export class BilliardsGameScene extends Phaser.Scene {
         this.shotsRemaining = this.currentLevelConfig.shotLimit;
         this.shotsTakenThisEquation = 0;
         this.updateShotCounter();
+        this.telemetry.stimulus('equation_shown');
     }
 
     nextEquation() {
@@ -2032,6 +2116,11 @@ export class BilliardsGameScene extends Phaser.Scene {
                 const pct = Math.max(0, (remainingMs / limitMs) * 100);
                 this.lastTimerPct = pct;
 
+                if (pct <= 25 && !this.hasPlayedLowTimeWarning) {
+                    this.hasPlayedLowTimeWarning = true;
+                    this.telemetry.action('time_warning', { remaining_ms: remainingMs });
+                }
+
                 this.game.events.emit("timer-update", {
                     remaining: Math.ceil(remainingMs / 1000),
                     total: this.currentLevelConfig.timeLimitSeconds,
@@ -2098,6 +2187,14 @@ export class BilliardsGameScene extends Phaser.Scene {
 
         console.log("[BilliardsGameScene] Level ended", { stars, totalTime, correctEquations: this.correctEquations });
 
+        this.telemetry.levelEnded({
+            outcome: stars >= 1 ? 'success' : 'fail',
+            score: this.correctEquations,
+            stars: stars,
+            actions: this.equationAttempts,
+            errors: this.wrongEquations,
+        });
+
         const onGameOver = this.registry.get("onGameOver");
 
         if (onGameOver) {
@@ -2116,6 +2213,7 @@ export class BilliardsGameScene extends Phaser.Scene {
             };
 
             const finalData = {
+                attempt_id: this.telemetry.attemptId ?? undefined,
                 success: true,
                 stars,
                 starHint,
@@ -2143,6 +2241,7 @@ export class BilliardsGameScene extends Phaser.Scene {
     }
 
     resumeGame(applyPenalty: boolean) {
+        this.telemetry.action('level_resumed', { reason: 'timeout_modal', penalty: applyPenalty });
         this.isPaused = false;
         this.input.enabled = true;
 

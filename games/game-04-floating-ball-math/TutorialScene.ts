@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 import { WaterPhysics } from "./utils/WaterPhysics";
 import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from "@/games/engine/telemetry";
 
 type Lane = 0 | 1 | 2;
 type Op = "+" | "-" | "*" | "/";
@@ -40,6 +41,8 @@ type TutorialStep = {
 };
 
 export class TutorialScene extends Phaser.Scene {
+  private telemetry!: GameTelemetry;
+
   // Lanes
   private lanes: { left: number; center: number; right: number } = {
     left: 0,
@@ -134,6 +137,12 @@ export class TutorialScene extends Phaser.Scene {
   }
 
   create() {
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: "game-04-floating-ball-math",
+      mode: "tutorial",
+    });
+    this.telemetry.levelStarted({ mode: "tutorial" });
+
     const { width, height } = this.scale;
 
     this.rng = createSeededRandom(4500);
@@ -517,6 +526,7 @@ export class TutorialScene extends Phaser.Scene {
 
     // BLOCK button
     this.blockBtn = this.makeButton("ห้ามโจร", 140, 54, 0xff5252);
+    this.blockBtn.setName("btn_block");
     this.blockBtn.setDepth(2000);
     this.blockBtn.setVisible(false);
     this.blockBtn.on("pointerdown", () => {
@@ -554,7 +564,9 @@ export class TutorialScene extends Phaser.Scene {
 
     // Buttons - only Back and Next (Skip removed)
     this.backBtn = this.makeButton("ย้อนกลับ", 100, 42, 0x90a4ae);
+    this.backBtn.setName("btn_back");
     this.nextBtn = this.makeButton("ถัดไป", 100, 42, 0x1976d2);
+    this.nextBtn.setName("btn_next");
     // Skip button removed - no longer needed with auto-advance
 
     // Position buttons: Back on left, Next on right (centered)
@@ -769,12 +781,24 @@ export class TutorialScene extends Phaser.Scene {
     const clamped = Phaser.Math.Clamp(index, 0, this.steps.length - 1);
     if (clamped === this.stepIndex && this.stepEntered) return;
 
+    if (this.stepEntered) {
+      this.telemetry.action("tutorial_step_done", {
+        step: this.stepIndex,
+        step_index: this.stepIndex,
+      });
+    }
+
     // Exit current
     const current = this.steps[this.stepIndex];
     current.exit?.();
 
     this.stepIndex = clamped;
     this.stepEntered = false;
+
+    this.telemetry.action("tutorial_step_shown", {
+      step: clamped,
+      step_index: clamped,
+    });
 
     this.refreshPanel();
   }
@@ -786,6 +810,12 @@ export class TutorialScene extends Phaser.Scene {
   }
 
   private finishTutorial() {
+    this.telemetry.action("tutorial_step_done", {
+      step: this.stepIndex,
+      step_index: this.stepIndex,
+    });
+    this.telemetry.levelEnded({ outcome: "completed" });
+
     // Stop background music before transitioning to game
     if (this.bgMusic && this.bgMusic.isPlaying) {
       this.bgMusic.stop();

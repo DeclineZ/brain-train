@@ -5,6 +5,7 @@ import { WaterPhysics } from "./utils/WaterPhysics";
 import { BallSpawner } from "./utils/BallSpawner";
 import { FloatboatController } from "./utils/Floatboat";
 import { GAME_FONT_FAMILY, createGameTextStyle, THAI_TEXT_PADDING } from '@/games/engine/typography';
+import { GameTelemetry } from "@/games/engine/telemetry";
 import { createSeededRandom, SeededRandom } from "@/lib/seededRandom";
 import { calculateFloatingBallMathLevelScore } from "@/lib/scoring/engine/levelScoreMappers";
 import type {
@@ -16,6 +17,8 @@ import type {
 import type { FloatingBallMathGameStats as GameStats } from "@/types";
 
 export class FloatingBallMathGameScene extends Phaser.Scene {
+    private telemetry!: GameTelemetry;
+    private hasPlayedLowTimeWarning = false;
     private currentLevelConfig!: FloatingBallMathLevelConfig;
     private equationGenerator!: EquationGenerator;
     private waterPhysics!: WaterPhysics;
@@ -195,6 +198,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             1: false,
         };
         this.hideWarningToast();
+        this.hasPlayedLowTimeWarning = false;
 
         // Stop all timers
         if (this.thiefSpawnTimer) {
@@ -324,6 +328,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     }
 
     create() {
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-04-floating-ball-math' });
         console.log("[FloatingBallMathGameScene] create called");
         const { width, height } = this.scale;
 
@@ -387,9 +392,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             "arrow-click",
             (data: { direction: "left" | "right" }) => {
                 if (data.direction === "left" && this.currentLane > 0) {
-                    this.moveBoatToLane((this.currentLane - 1) as 0 | 1 | 2);
+                    this.moveBoatToLane((this.currentLane - 1) as 0 | 1 | 2, "arrow");
                 } else if (data.direction === "right" && this.currentLane < 2) {
-                    this.moveBoatToLane((this.currentLane + 1) as 0 | 1 | 2);
+                    this.moveBoatToLane((this.currentLane + 1) as 0 | 1 | 2, "arrow");
                 }
             },
         );
@@ -550,7 +555,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         const nearest = distances[0];
 
         if (nearest.lane !== this.currentLane) {
-            this.moveBoatToLane(nearest.lane as 0 | 1 | 2);
+            this.moveBoatToLane(nearest.lane as 0 | 1 | 2, "drag");
         }
     }
 
@@ -870,6 +875,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
         // Set container size and enable interaction with hit area
         this.blockButton.setSize(120, 50);
+        this.blockButton.setName("btn_block");
         this.blockButton.setInteractive({ useHandCursor: true });
 
         this.blockButton.on("pointerdown", () => {
@@ -981,6 +987,14 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         console.log("[FloatingBallMathGameScene] startLevel called");
         this.levelStartTime = Date.now();
         this.equationGenerator.reset();
+        this.hasPlayedLowTimeWarning = false;
+        this.telemetry.levelStarted({
+            level: this.currentLevelConfig.level,
+            target: this.currentLevelConfig.totalEquations,
+            time_limit_ms: (this.currentLevelConfig.timeLimitSeconds ?? 0) * 1000,
+            difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier ?? 1.0,
+            seed: null,
+        });
 
         // Reset lane movement cooldown
         this.lastLaneMoveTime = 0;
@@ -1015,7 +1029,7 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     /**
      * Move boat to a specific lane
      */
-    private moveBoatToLane(lane: 0 | 1 | 2) {
+    private moveBoatToLane(lane: 0 | 1 | 2, method: "drag" | "keyboard" | "arrow" = "arrow") {
         if (this.isLocked || this.isPaused || this.currentLane === lane) return;
 
         // Add cooldown check to prevent rapid-fire lane changes
@@ -1026,6 +1040,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             );
             return;
         }
+
+        const fromLane = this.currentLane;
+        this.telemetry.action("lane_changed", {
+            from_lane: fromLane,
+            to_lane: lane,
+            method,
+        });
 
         const targetX = this.getLanePosition(lane);
         const floatboat = this.floatboatController.getFloatboat();
@@ -1377,8 +1398,17 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         const onGameOver = this.registry.get("onGameOver");
         const score = calculateFloatingBallMathLevelScore(gameStats, false);
 
+        this.telemetry.levelEnded({
+            outcome: "fail",
+            score,
+            stars: 0,
+            actions: this.totalEquations,
+            errors: this.wrongEquations,
+        });
+
         if (onGameOver) {
             const finalData = {
+                attempt_id: this.telemetry.attemptId ?? undefined,
                 success: false, // Failed - score dropped below 0
                 score,
                 stars: 0, // 0 stars for losing
@@ -1592,6 +1622,15 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
 
         this.thiefEvents++;
         this.lastThiefSpawnTime = Date.now();
+
+        const bestDecision = this.evaluateBlockDecision() ? "block" : "adapt";
+        this.telemetry.stimulus("thief_appeared");
+        this.telemetry.action("thief_appeared", {
+            thief_index: this.thiefEvents,
+            ball_value: targetBall.value,
+            decision_window_ms: 5000,
+            best_decision: bestDecision,
+        });
 
         // Show thief sprite
         this.thiefSprite.setVisible(true);
@@ -1833,6 +1872,16 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             }
         }
 
+        const rtMs = this.telemetry.rtFrom("thief_appeared");
+        this.telemetry.action("thief_decision", {
+            thief_index: this.thiefEvents,
+            decision: "block",
+            correct: wasCorrect,
+            rt_ms: rtMs,
+            was_late: !isOnTime,
+            panic_streak: this.consecutiveBlockErrors,
+        });
+
         // Clean up thief event
         this.cleanupThiefEvent();
     }
@@ -1848,19 +1897,24 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         this.lateDecisionCount++;
 
         // Execute adapt (which will call cleanupThiefEvent)
-        this.executeAdapt();
+        this.executeAdapt(true);
     }
 
     /**
      * Execute adapt decision (let thief change lane)
      */
-    executeAdapt() {
+    executeAdapt(isTimeout: boolean = false) {
         if (!this.activeThiefEvent) return;
 
         // Play adapt sound
         if (this.soundAdapt) {
             this.soundAdapt.play();
         }
+
+        const appearTime = this.activeThiefEvent.appearTime;
+        const decisionWindowMs = this.activeThiefEvent.decisionWindowMs;
+        const isOnTime = !isTimeout && (Date.now() - appearTime < decisionWindowMs);
+        const rtMs = this.telemetry.rtFrom("thief_appeared");
 
         // Find target ball
         const ball = this.balls.find(
@@ -1910,6 +1964,15 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
                 this.panicAdapt++;
             }
         }
+
+        this.telemetry.action("thief_decision", {
+            thief_index: this.thiefEvents,
+            decision: isTimeout ? "none" : "adapt",
+            correct: wasCorrect,
+            rt_ms: rtMs,
+            was_late: isTimeout || !isOnTime,
+            panic_streak: this.consecutiveAdaptErrors,
+        });
 
         // Clear thief event (will be set to null by cleanupThiefEvent)
         this.activeThiefEvent = null;
@@ -2149,9 +2212,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         if (!cursors) return;
 
         if (cursors.left.isDown && this.currentLane > 0) {
-            this.moveBoatToLane((this.currentLane - 1) as 0 | 1 | 2);
+            this.moveBoatToLane((this.currentLane - 1) as 0 | 1 | 2, "keyboard");
         } else if (cursors.right.isDown && this.currentLane < 2) {
-            this.moveBoatToLane((this.currentLane + 1) as 0 | 1 | 2);
+            this.moveBoatToLane((this.currentLane + 1) as 0 | 1 | 2, "keyboard");
         }
     }
 
@@ -2202,6 +2265,9 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         // Check if bomb
         if (ball.isBomb) {
             this.bombHits++;
+            this.telemetry.action("bomb_hit", {
+                total_before: this.currentScore,
+            });
             await this.handleBombCollision(ball);
             return;
         }
@@ -2217,8 +2283,19 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             this.soundBallCollect.play();
         }
 
+        const totalBefore = this.currentScore;
         // Apply operation
         this.applyOperation(ball);
+        const totalAfter = this.currentScore;
+
+        this.telemetry.action("ball_collected", {
+            ball_kind: ball.operator ? "operation" : "number",
+            value: ball.value,
+            operation: ball.operator,
+            total_before: totalBefore,
+            total_after: totalAfter,
+            target: this.currentEquation.target,
+        });
 
         // FEATURE 1: Spawn replacement solvable ball if this was a solvable ball
         if (ball.isSolvable) {
@@ -2323,6 +2400,15 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
             this.consecutiveErrors = this.currentErrorRun;
         }
 
+        const rtMs =
+            this.equationStartTime > 0
+                ? Date.now() - this.equationStartTime
+                : null;
+        this.telemetry.action("equation_completed", {
+            equation_index: this.correctEquations - 1,
+            rt_ms: rtMs,
+        });
+
         if (this.soundSuccess) {
             this.soundSuccess.play();
         }
@@ -2369,6 +2455,11 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         if (this.consecutiveErrors < this.currentErrorRun) {
             this.consecutiveErrors = this.currentErrorRun;
         }
+
+        this.telemetry.action("equation_overshot", {
+            total: this.currentScore,
+            target: this.currentEquation.target,
+        });
 
         if (this.soundError) {
             this.soundError.play();
@@ -2425,6 +2516,13 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
                 const remainingMs = Math.max(0, limitMs - elapsed);
                 const pct = Math.max(0, (remainingMs / limitMs) * 100);
                 this.lastTimerPct = pct;
+
+                if (pct <= 25 && !this.hasPlayedLowTimeWarning) {
+                    this.hasPlayedLowTimeWarning = true;
+                    this.telemetry.action("time_warning", {
+                        remaining_ms: remainingMs,
+                    });
+                }
 
                 // Update timer text display
                 this.updateTimerText(remainingMs);
@@ -2670,10 +2768,19 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
         );
         const score = calculateFloatingBallMathLevelScore(gameStats, true);
 
+        this.telemetry.levelEnded({
+            outcome: stars >= 1 ? "success" : "fail",
+            score,
+            stars,
+            actions: this.totalEquations,
+            errors: this.wrongEquations,
+        });
+
         if (onGameOver) {
             const starHint = this.generateStarHint(stars, totalTime);
 
             const finalData = {
+                attempt_id: this.telemetry.attemptId ?? undefined,
                 success: true,
                 score,
                 stars,
@@ -2745,6 +2852,10 @@ export class FloatingBallMathGameScene extends Phaser.Scene {
     resumeGame(applyPenalty: boolean) {
         this.isPaused = false;
         this.input.enabled = true;
+        this.telemetry.action("level_resumed", {
+            reason: "timeout_modal",
+            penalty: applyPenalty,
+        });
 
         if (applyPenalty) {
             this.continuedAfterTimeout = true;

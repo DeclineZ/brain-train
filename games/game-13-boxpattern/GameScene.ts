@@ -1,6 +1,7 @@
 
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 export class BoxPatternGameScene extends Phaser.Scene {
     // --- State ---
@@ -19,6 +20,10 @@ export class BoxPatternGameScene extends Phaser.Scene {
     protected totalRoundsPlayed = 0;
     protected longestSequence = 0;
     protected startTime = 0;
+
+    // --- Telemetry ---
+    protected telemetry!: GameTelemetry;
+    protected trackRound = 0;
 
     // --- Configuration ---
     // Rounds required per phase to advance
@@ -69,6 +74,7 @@ export class BoxPatternGameScene extends Phaser.Scene {
 
     create() {
         this.startTime = Date.now();
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-13-boxpattern' });
 
         // 1. Audio Setup
         this.soundBeep = this.sound.add('beep', { volume: 0.5 });
@@ -199,6 +205,9 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.mistakeCount = 0;
         this.totalRoundsPlayed = 0;
         this.longestSequence = 0;
+        this.trackRound = 0;
+
+        this.telemetry.levelStarted({ grid_size: 2, time_limit_ms: null, seed: null });
 
         this.updateScoreUI();
         this.startPhase(1);
@@ -225,6 +234,10 @@ export class BoxPatternGameScene extends Phaser.Scene {
 
         // Generate Grid
         this.generateGrid(this.gridSize);
+
+        if (phase > 1) {
+            this.telemetry.action('phase_changed', { phase, grid_size: this.gridSize });
+        }
 
         // Show Phase Message
         let title = `Level ${phase}`;
@@ -300,8 +313,14 @@ export class BoxPatternGameScene extends Phaser.Scene {
         const hitArea = new Phaser.Geom.Circle(0, 0, radius);
         container.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
+        container.setName(`orb_${index}`);
         container.on('pointerdown', () => {
-            if (this.isInputLocked || !this.gameActive) return;
+            if (this.isInputLocked || !this.gameActive) {
+                if (this.gameActive && this.telemetry.isActive) {
+                    this.telemetry.action('input_ignored', { reason: 'animating', target: `orb_${index}` });
+                }
+                return;
+            }
             this.handleInput(index);
         });
 
@@ -375,6 +394,7 @@ export class BoxPatternGameScene extends Phaser.Scene {
         const totalOrbs = this.gridSize * this.gridSize;
         const nextStep = Phaser.Math.Between(0, totalOrbs - 1);
         this.sequence.push(nextStep);
+        this.trackRound++;
 
         // Play sequence
         this.playSequence();
@@ -391,6 +411,7 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.playerIndex = 0;
 
         await this.delay(500); // Brief pause before starting
+        const showStart = performance.now();
 
         // Calculate delay based on phase and sequence length
         // In Endless Mode (phase 5), speed up as sequence gets longer
@@ -405,6 +426,15 @@ export class BoxPatternGameScene extends Phaser.Scene {
             await this.highlightOrb(orbIndex);
             await this.delay(gapDelay); // Gap between flashes
         }
+
+        this.telemetry.action('sequence_shown', {
+            round: this.trackRound,
+            phase: this.phase,
+            sequence: [...this.sequence],
+            length: this.sequence.length,
+            show_ms: Math.round(performance.now() - showStart),
+        });
+        this.telemetry.stimulus('last_tap');
 
         this.isInputLocked = false;
     }
@@ -444,6 +474,16 @@ export class BoxPatternGameScene extends Phaser.Scene {
         // Check Logic
         const expected = this.sequence[this.playerIndex];
 
+        this.telemetry.action('orb_tapped', {
+            round: this.trackRound,
+            orb_index: index,
+            position: this.playerIndex,
+            expected_index: expected,
+            correct: index === expected,
+            rt_ms: this.telemetry.rtFrom('last_tap'),
+        });
+        this.telemetry.stimulus('last_tap');
+
         if (index === expected) {
             // Correct
             this.playerIndex++;
@@ -461,6 +501,13 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.isInputLocked = true;
         this.roundsInPhase++; // Increment rounds completed
         this.totalRoundsPlayed++;
+
+        this.telemetry.action('round_ended', {
+            round: this.trackRound,
+            passed: true,
+            length: this.sequence.length,
+            taps: this.playerIndex,
+        });
 
         // Track longest sequence successfully completed
         if (this.sequence.length > this.longestSequence) {
@@ -499,6 +546,13 @@ export class BoxPatternGameScene extends Phaser.Scene {
         this.soundFail.play();
         this.mistakeCount++;
         this.totalRoundsPlayed++;
+
+        this.telemetry.action('round_ended', {
+            round: this.trackRound,
+            passed: false,
+            length: this.sequence.length,
+            taps: this.playerIndex + 1,
+        });
 
         if (this.phase === 1) {
             // Instant Death
@@ -562,6 +616,8 @@ export class BoxPatternGameScene extends Phaser.Scene {
         const stat_focus = Math.round(Math.max(0, 100 - mistakeRatio * 50));
 
         console.log(`BoxPattern Stats — Memory: ${stat_memory}, Focus: ${stat_focus}, Longest: ${this.longestSequence}, Mistakes: ${this.mistakeCount}/${this.totalRoundsPlayed}`);
+
+        this.telemetry.levelEnded({ outcome: 'game_over', score: this.score, stars: 0 });
 
         const onGameOver = this.registry.get('onGameOver');
         if (onGameOver) {

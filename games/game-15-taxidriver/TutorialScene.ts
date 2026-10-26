@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { GAME_FONT_FAMILY, createGameTextStyle, createEmojiTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 /**
  * Tutorial Scene for Taxi Driver
@@ -102,6 +103,12 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
     private totalTurnsInPractice = 0;
     private practiceHintShown = false;
 
+    // Telemetry
+    private telemetry!: GameTelemetry;
+    private trackedPhase = 0;
+    private stepStartedAt = 0;
+    private stepWrongTries = 0;
+
     constructor() {
         super({ key: 'TaxiDriverTutorialScene' });
     }
@@ -169,7 +176,32 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
         });
 
         // Start tutorial
+        this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-15-taxidriver', mode: 'tutorial' });
+        this.trackedPhase = 0;
+        this.telemetry.levelStarted({ grid_w: this.GRID_SIZE, grid_h: this.GRID_SIZE, time_limit_ms: null, seed: null });
         this.startPhase1();
+    }
+
+    /** Logs a step change; calling it again for the same phase is a retry. */
+    private trackPhase(phase: number, stepKey: string) {
+        if (this.trackedPhase === phase) {
+            this.stepWrongTries++;
+            return;
+        }
+        this.trackPhaseDone();
+        this.trackedPhase = phase;
+        this.stepStartedAt = performance.now();
+        this.stepWrongTries = 0;
+        this.telemetry.action('tutorial_step_shown', { step: phase, step_key: stepKey });
+    }
+
+    private trackPhaseDone() {
+        if (this.trackedPhase <= 0) return;
+        this.telemetry.action('tutorial_step_done', {
+            step: this.trackedPhase,
+            duration_ms: Math.round(performance.now() - this.stepStartedAt),
+            wrong_tries: this.stepWrongTries,
+        });
     }
 
     update(_time: number, delta: number) {
@@ -626,6 +658,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase1() {
         this.currentPhase = 1;
+        this.trackPhase(1, 'intro');
 
         // Generate and show a simple path for visual context
         this.generateTutorialPath([
@@ -664,6 +697,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase2() {
         this.currentPhase = 2;
+        this.trackPhase(2, 'buttons');
 
         this.showInstruction('ใช้ปุ่มด้านล่างเพื่อบังคับทิศทาง\nซ้าย  ·  START  ·  ขวา');
 
@@ -689,6 +723,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase3() {
         this.currentPhase = 3;
+        this.trackPhase(3, 'guided_turn');
 
         this.showInstruction('เมื่อเห็นเครื่องหมาย ❗ ปรากฏ\nให้กดทิศทางตามเส้นทาง ก่อนถึงทางแยก');
 
@@ -719,6 +754,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase4() {
         this.currentPhase = 4;
+        this.trackPhase(4, 'brake_stop');
         this.gameStarted = false;
         this.isMoving = false;
         this.targetPosition = null;
@@ -753,6 +789,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase5() {
         this.currentPhase = 5;
+        this.trackPhase(5, 'road_closure');
         this.gameStarted = false;
         this.isMoving = false;
         this.targetPosition = null;
@@ -782,6 +819,7 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
     private startPhase6() {
         this.currentPhase = 6;
+        this.trackPhase(6, 'control_swap');
         this.gameStarted = false;
         this.isMoving = false;
         this.targetPosition = null;
@@ -1671,6 +1709,9 @@ export class TaxiDriverTutorialScene extends Phaser.Scene {
 
         // Mark tutorial as complete in registry
         this.registry.set('taxidriver_tutorial_complete', true);
+
+        this.trackPhaseDone();
+        this.telemetry.levelEnded({ outcome: 'success' });
 
         // Notify React to show the success popup and transition properly
         const onTutorialComplete = this.registry.get('onTutorialComplete');

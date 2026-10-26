@@ -3,6 +3,7 @@ import { TUBE_SORT_LEVELS, getTubeSortLevel, TUBE_SORT_COLORS } from './levels';
 import { calculateTubeSortStars } from '@/lib/scoring/tubeSort';
 import { calculateTubeSortLevelScore } from '@/lib/scoring/engine/levelScoreMappers';
 import { GAME_FONT_FAMILY, createGameTextStyle } from '@/games/engine/typography';
+import { GameTelemetry } from '@/games/engine/telemetry';
 
 type TubeSortStats = {
   levelPlayed: number;
@@ -63,6 +64,7 @@ type TubeLayoutMetrics = {
 };
 
 export class TubeSortGameScene extends Phaser.Scene {
+  public telemetry!: GameTelemetry;
   private currentLevelConfig = TUBE_SORT_LEVELS[1];
   private tubes: TubeData[] = [];
   private tubeState: number[][] = [];
@@ -164,6 +166,20 @@ export class TubeSortGameScene extends Phaser.Scene {
 
   create() {
     this.startTime = Date.now();
+    const isTutorial = (this.currentLevelConfig.level === 0) || (this.registry.get('mode') === 'tutorial');
+    this.telemetry = GameTelemetry.forScene(this, {
+      gameId: 'game-09-tube-sort',
+      mode: isTutorial ? 'tutorial' : 'normal',
+    });
+    this.telemetry.levelStarted({
+      level: this.currentLevelConfig.level,
+      tube_count: this.currentLevelConfig.tubeCount,
+      tube_capacity: this.currentLevelConfig.tubeCapacity,
+      time_limit_ms: this.currentLevelConfig.targetTimeSeconds * 1000,
+      difficulty_multiplier: this.currentLevelConfig.difficultyMultiplier,
+      freeze_enabled: this.currentLevelConfig.freezeFeature.enabled,
+    });
+
     this.setupAudio();
     this.createBackground();
     this.createParticleTexture();
@@ -367,6 +383,7 @@ export class TubeSortGameScene extends Phaser.Scene {
       };
 
       container.setSize(90, 240);
+      container.setName(`tube_${i}`);
       container.setInteractive({ useHandCursor: true });
       container.on('pointerdown', () => this.handleTubeTap(i));
       this.tubes.push(tube);
@@ -716,21 +733,30 @@ export class TubeSortGameScene extends Phaser.Scene {
         this.illegalPourAttempts++;
         this.flashMessage('เลือกหลอดที่มีสี', true);
         this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
+        this.telemetry?.action('pour_failed', { from_tube: index, to_tube: index, reason: 'empty' });
         return;
       }
       if (this.isBallFrozen(selectedBallState)) {
         this.flashMessage('ลูกบอลถูกแช่แข็ง', true);
         this.shakeTube(index);
         this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
+        this.telemetry?.action('pour_failed', { from_tube: index, to_tube: index, reason: 'frozen' });
         return;
       }
       if (this.isBallExhausted(selectedBallState)) {
         this.flashMessage('บอลนี้หมดจำนวนครั้งแล้ว', true);
         this.shakeTube(index);
         this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
+        this.telemetry?.action('pour_failed', { from_tube: index, to_tube: index, reason: 'exhausted' });
         return;
       }
       this.selectedTubeIndex = index;
+      const topBall = this.tubeState[index][this.tubeState[index].length - 1];
+      this.telemetry?.action('tube_selected', {
+        tube_index: index,
+        color: topBall,
+        ball_id: selectedBallState?.id,
+      });
       this.renderTubes();
       this.pulseTube(index);
       return;
@@ -738,6 +764,7 @@ export class TubeSortGameScene extends Phaser.Scene {
 
     if (this.selectedTubeIndex === index) {
       this.selectedTubeIndex = null;
+      this.telemetry?.action('tube_deselected', { tube_index: index });
       this.renderTubes();
       return;
     }
@@ -748,12 +775,14 @@ export class TubeSortGameScene extends Phaser.Scene {
     const fromBallState = this.getTopBallState(from);
     if (this.isBallFrozen(fromBallState)) {
       this.flashMessage('ลูกบอลถูกแช่แข็ง', true);
+      this.telemetry?.action('pour_failed', { from_tube: from, to_tube: to, reason: 'frozen' });
       this.selectedTubeIndex = null;
       this.renderTubes();
       return;
     }
     if (this.isBallExhausted(fromBallState)) {
       this.flashMessage('บอลนี้หมดจำนวนครั้งแล้ว', true);
+      this.telemetry?.action('pour_failed', { from_tube: from, to_tube: to, reason: 'exhausted' });
       this.selectedTubeIndex = null;
       this.renderTubes();
       return;
@@ -773,6 +802,12 @@ export class TubeSortGameScene extends Phaser.Scene {
       this.flashMessage('ย้ายไม่ได้', true);
       this.shakeTube(index);
       this.sound.play(this.soundKeys.wrongMove, { volume: 0.6 });
+      const isFull = this.tubeState[to].length >= this.currentLevelConfig.tubeCapacity;
+      this.telemetry?.action('pour_failed', {
+        from_tube: from,
+        to_tube: to,
+        reason: isFull ? 'full' : 'illegal',
+      });
       this.selectedTubeIndex = null;
       this.renderTubes();
       return;
@@ -784,6 +819,17 @@ export class TubeSortGameScene extends Phaser.Scene {
     this.tubeBallIds = result.ids;
     const exhaustedMoveLimit = this.applyMoveLimit(result.movedBallId);
     this.trackRedundantMove(from, to, prevState);
+    const lastMoves = this.moveHistory.slice(-3);
+    const isRedundant = lastMoves.some(move => move.from === to && move.to === from);
+    const movedBallState = this.ballStates.get(result.movedBallId);
+    this.telemetry?.action('ball_poured', {
+      from_tube: from,
+      to_tube: to,
+      color: prevState[from][prevState[from].length - 1],
+      move_number: this.totalMoves,
+      is_redundant: isRedundant,
+      remaining_moves_on_ball: movedBallState?.remainingMoves ?? null,
+    });
     this.moveHistory.push({ from, to, fromState: prevState });
     this.selectedTubeIndex = null;
     this.updateMoveText();
@@ -909,6 +955,7 @@ export class TubeSortGameScene extends Phaser.Scene {
         }
 
         if (remainingMs <= 0 && !this.isGameOver) {
+          this.telemetry?.action('time_up');
           this.endGame(false);
         }
 
@@ -973,6 +1020,10 @@ export class TubeSortGameScene extends Phaser.Scene {
       }
     });
     this.sound.play(this.soundKeys.freeze, { volume: 0.65 });
+    this.telemetry?.action('balls_frozen', {
+      frozen_count: frozenIds.length,
+      duration_ms: this.freezeDurationMs,
+    });
     this.nextFreezeAt = now + this.freezeCooldownMs;
     this.showWizardPopup();
     this.renderTubes();
@@ -1434,6 +1485,11 @@ export class TubeSortGameScene extends Phaser.Scene {
   private triggerTimeWarning() {
     this.timeWarningTriggered = true;
     this.startTimerShake();
+    const limitMs = this.currentLevelConfig.targetTimeSeconds * 1000;
+    const elapsed = Date.now() - this.startTime;
+    this.telemetry?.action('time_warning', {
+      remaining_ms: Math.max(0, limitMs - elapsed),
+    });
     try {
       this.sound.play(this.soundKeys.timerWarning, { volume: 0.6 });
     } catch (error) {
@@ -1472,6 +1528,12 @@ export class TubeSortGameScene extends Phaser.Scene {
         newCompleted.add(index);
         if (!this.completedTubes.has(index)) {
           this.celebrateTube(index, tube[0]);
+          this.telemetry?.action('tube_completed', {
+            tube_index: index,
+            color: tube[0],
+            tubes_completed: newCompleted.size,
+            total_tubes: this.currentLevelConfig.tubeCount,
+          });
         }
       }
     });
@@ -1668,6 +1730,20 @@ export class TubeSortGameScene extends Phaser.Scene {
     const score = calculateTubeSortLevelScore(stats, success);
     const starHint = success ? this.getStarHint(stats, stars) : null;
 
+    const outcome = success ? 'completed' : 'failed';
+    this.telemetry?.levelEnded({
+      outcome,
+      score,
+      stars,
+      total_moves: this.totalMoves,
+      optimal_moves: stats.optimalMoves,
+      correct_pours: this.correctPours,
+      incorrect_pours: this.incorrectPours,
+      illegal_pours: this.illegalPourAttempts,
+      redundant_moves: this.redundantMoves,
+      completion_time_ms: completionTimeMs,
+    });
+
     const onGameOver = this.registry.get('onGameOver');
     if (onGameOver) {
       onGameOver({
@@ -1675,7 +1751,8 @@ export class TubeSortGameScene extends Phaser.Scene {
         score,
         stars,
         starHint,
-        success
+        success,
+        attempt_id: this.telemetry?.attemptId ?? undefined,
       });
     }
   }
