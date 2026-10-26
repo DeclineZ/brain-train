@@ -20,6 +20,9 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// Supabase session cookie, whole or one of its chunks.
+const isAuthCookie = (name: string) => /^sb-.+-auth-token(\.\d+)?$/.test(name);
+
 function failure(code: string, status: number, retryable = false) {
   return NextResponse.json(
     { error: code, retryable },
@@ -95,9 +98,12 @@ export async function POST(request: NextRequest) {
     // Stage cookies; do not deliver a partial or unverified session on failure.
     const staged: { name: string; value: string; options: CookieOptions }[] =
       [];
+    // Hide the browser's previous session from this client. Given an expired one,
+    // it refreshes that session and stages its cookies instead of the new one.
     const supabase = createServerClient(config.supabaseUrl, config.publicKey, {
       cookies: {
-        getAll: () => request.cookies.getAll(),
+        getAll: () =>
+          request.cookies.getAll().filter((c) => !isAuthCookie(c.name)),
         setAll(values) {
           for (const cookie of values)
             request.cookies.set(cookie.name, cookie.value);
@@ -167,6 +173,12 @@ export async function POST(request: NextRequest) {
     );
     for (const cookie of staged)
       response.cookies.set(cookie.name, cookie.value, cookie.options);
+    // The client never saw the previous session, so clear its leftover chunks here;
+    // an old unchunked cookie would otherwise win over new chunked ones.
+    const stagedNames = new Set(staged.map((c) => c.name));
+    for (const { name } of request.cookies.getAll())
+      if (isAuthCookie(name) && !stagedNames.has(name))
+        response.cookies.set(name, "", { path: "/", maxAge: 0 });
     if (journeyId) setJourneyCookie(response, journeyId);
     return response;
   } catch {
