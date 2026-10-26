@@ -253,9 +253,7 @@ export class RunForYourLifeGameScene extends Phaser.Scene {
 
         // Resize handler
         this.scale.on('resize', this.handleResize, this);
-
-        // Resize handler
-        this.scale.on('resize', this.handleResize, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.handleResize, this));
 
         // Start BGM
         if (!this.sound.get('bgm')) {

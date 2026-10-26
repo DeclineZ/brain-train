@@ -140,6 +140,10 @@ export class TutorialScene extends Phaser.Scene {
         this.events.once("shutdown", () => {
             this.scale.off("resize", this.handleResize, this);
             this.events.off("update", this.update, this);
+            // Sounds live on the game-wide sound manager, so a restart would otherwise
+            // leave the old background music looping under the new one.
+            [this.bgMusic, this.soundBallClick, this.soundBallDrop, this.soundBallRattle, this.soundSuccess]
+                .forEach((s) => s?.destroy());
         });
 
         this.startStep(0);
