@@ -52,7 +52,8 @@ export class TutorialScene extends Phaser.Scene {
     private powerIndicator: Phaser.GameObjects.Graphics | null = null;
     private tableBounds!: { left: number; right: number; top: number; bottom: number };
     private cueBall: PhysicsBall | null = null;
-    private lastMineExplosionTime: number = 0;
+    // Re-armed once the table is at rest, so one hit is one explosion.
+    private mineArmed = true;
 
     // UI
     private poolTable!: Phaser.GameObjects.Container;
@@ -114,6 +115,7 @@ export class TutorialScene extends Phaser.Scene {
     }
 
     create() {
+        this.mineArmed = true;
         this.telemetry = GameTelemetry.forScene(this, { gameId: 'game-03-billiards-math', mode: 'tutorial' });
         this.telemetry.levelStarted({ mode: 'tutorial' });
 
@@ -240,6 +242,7 @@ export class TutorialScene extends Phaser.Scene {
         });
 
         this.checkBallCollisions();
+        if (!this.mineArmed && allBalls.every((b) => !b.isMoving || b.isPlaced)) this.mineArmed = true;
     }
 
     checkBallCollisions() {
@@ -259,8 +262,9 @@ export class TutorialScene extends Phaser.Scene {
 
                 if (dist < minDist && dist > 0) {
                     if (b1.isHazard || b2.isHazard) {
-                        this.handleMineExplosion();
-                        return;
+                        const mine = b1.isHazard ? b1 : b2;
+                        this.bounceOffMine(mine, mine === b1 ? b2 : b1, dist);
+                        continue;
                     }
 
                     const nx = dx / dist; const ny = dy / dist;
@@ -290,17 +294,34 @@ export class TutorialScene extends Phaser.Scene {
 
     checkObstacleCollision(ball: PhysicsBall) { }
 
-    handleMineExplosion() {
-        if (Date.now() - this.lastMineExplosionTime < 1000) return;
-        this.lastMineExplosionTime = Date.now();
+    // The mine never moves: push the ball out of it and reflect its velocity.
+    bounceOffMine(mine: PhysicsBall, ball: PhysicsBall, dist: number) {
+        const minDist = PHYSICS_CONFIG.ballRadius * 2;
+        const nx = (ball.x - mine.x) / dist;
+        const ny = (ball.y - mine.y) / dist;
+        ball.x = mine.x + nx * minDist;
+        ball.y = mine.y + ny * minDist;
+        ball.container?.setPosition(ball.x, ball.y);
+        const vn = ball.velocityX * nx + ball.velocityY * ny;
+        if (vn < 0) {
+            ball.velocityX -= 2 * vn * nx;
+            ball.velocityY -= 2 * vn * ny;
+        }
+        if (this.mineArmed) this.handleMineExplosion(mine);
+    }
+
+    handleMineExplosion(mine: PhysicsBall) {
+        this.mineArmed = false;
         this.cameras.main.shake(200, 0.01);
         this.soundBallRattle.play();
+        // Blow balls away from the mine at about half a full-power shot.
+        const speed = (PHYSICS_CONFIG.maxShootPower / 60) * 0.6;
         [this.cueBall, ...this.balls].forEach(b => {
-            if (b?.container) {
-                b.velocityX = Phaser.Math.Between(-200, 200);
-                b.velocityY = Phaser.Math.Between(-200, 200);
-                b.isMoving = true;
-            }
+            if (!b?.container || b.isHazard || b.isPlaced) return;
+            const angle = Phaser.Math.Angle.Between(mine.x, mine.y, b.x, b.y);
+            b.velocityX = Math.cos(angle) * speed;
+            b.velocityY = Math.sin(angle) * speed;
+            b.isMoving = true;
         });
     }
 
