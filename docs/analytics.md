@@ -139,7 +139,8 @@ This writes `analytics/out/runjump-events-*.csv|json` (canonical columns) and `r
 
 ## Known gaps
 
-- `activity_started` for games with an in-scene countdown or in-scene tutorial (for example Run For Your Life) fires when the scene is created, before the countdown. Use in-game `level_started` for the exact moment once it ships.
+- `activity_started` for games with an in-scene countdown fires when the scene is created, before the countdown. Use in-game `level_started` for the exact moment.
+- Run For Your Life level 0 opens with a short in-scene tutorial that turns into the real endless run. The tutorial part is not an activity: `activity_started` fires when the run begins (`props.after_tutorial = true`), under the run's own `attempt_id`.
 - A Google/Facebook login that fails at the provider and never comes back to `/auth/callback` logs only `login_method_selected`.
 - If two first batches run at the same time (for example two tabs opened at once with no cookie), they can create two journeys.
 - **Switching browser after opening an OA link.** The developer spec (§6–7) binds each link to the browser that claims it first. It does not say which browser that must be: LINE's in-app browser and the phone's default browser are both valid. If a participant opens the link in LINE and then picks "Open in default browser", the default browser has neither the claim cookie nor the session.

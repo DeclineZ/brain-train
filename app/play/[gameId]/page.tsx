@@ -126,8 +126,11 @@ export default function GamePage({ params }: PageProps) {
     const [highScore, setHighScore] = useState<number>(0);
 
     // Analytics: one attempt per GameCanvas mount (same key as the canvas below).
-    // Run For Your Life's level 0 includes the real run, so it counts as an activity.
-    const attemptMode = activeLevel === 0 && gameId !== "game-18-runforyourlife" ? "tutorial" : "normal";
+    // Run For Your Life's level 0 is a short tutorial that turns into the real
+    // endless run in the same scene, so it is not a tutorial level for the page.
+    const hasIntroTutorial = activeLevel === 0 && gameId === "game-18-runforyourlife";
+    const isTutorialLevel = activeLevel === 0 && !hasIntroTutorial;
+    const attemptMode = hasIntroTutorial ? "intro" : isTutorialLevel ? "tutorial" : "normal";
     const attempt = useMemo(
         () => new GameAttempt(gameId, activeLevel, attemptMode),
         // retryCount forces a new attempt on replay, matching the canvas remount.
@@ -656,7 +659,7 @@ export default function GamePage({ params }: PageProps) {
                 onGameOver={handleGameOver}
                 onTimeout={handleTimeout}
                 onTutorialComplete={handleTutorialComplete}
-                mode={activeLevel === 0 ? "tutorial" : "normal"}
+                mode={isTutorialLevel ? "tutorial" : "normal"}
                 level={activeLevel}
                 stars={gameStars}
                 isMuted={isMuted}

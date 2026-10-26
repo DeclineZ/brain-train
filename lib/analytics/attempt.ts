@@ -8,7 +8,9 @@
 import type { ActivityEndReason, ActivityOutcome } from "./events";
 import { newId, track, type TrackContext } from "./track";
 
-export type AttemptMode = "normal" | "tutorial";
+// "intro": a tutorial that the scene turns into a real run in place (Run For Your
+// Life level 0). Not an activity until the scene issues the run's attempt id.
+export type AttemptMode = "normal" | "tutorial" | "intro";
 
 export class GameAttempt {
   id = newId();
@@ -18,7 +20,7 @@ export class GameAttempt {
   constructor(
     readonly gameId: string,
     readonly level: number,
-    readonly mode: AttemptMode,
+    public mode: AttemptMode,
   ) {}
 
   get isStarted() {
@@ -35,7 +37,7 @@ export class GameAttempt {
 
   /** Gameplay handed to the player. Tutorials are never an actual activity (PRD AC-15). */
   start(props: Record<string, unknown> = {}) {
-    if (this.mode === "tutorial" || this.startedAt !== null) return;
+    if (this.mode !== "normal" || this.startedAt !== null) return;
     this.startedAt = performance.now();
     track("activity_started", { ...props, phase: "actual", mode: this.mode }, this.ctx());
   }
@@ -63,6 +65,12 @@ export class GameAttempt {
    */
   rotate(nextId: string) {
     if (nextId === this.id) return;
+    if (this.mode === "intro") {
+      this.id = nextId;
+      this.mode = "normal";
+      this.start({ after_tutorial: true });
+      return;
+    }
     const wasStarted = this.isStarted;
     this.end("exited", "user_exit", { restarted: true });
     this.id = nextId;
