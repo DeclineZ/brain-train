@@ -19,7 +19,7 @@ lib/analytics/track.ts   app/api/analytics/route.ts   (service role)
   - `props` is at most 1 KB;
   - `occurred_at` is no more than 24 h in the past and no more than 5 min in the future.
 
-  It then adds `user_id`, `journey_id`, `participant_id` and `app_version` on the server.
+  It then adds `user_id`, `journey_id`, `participant_id`, `app_version` and `content_version` on the server (`lib/analytics/version.ts`).
 - Every event carries the `uid` it was created under. The server drops events whose `uid` doesn't match the current session, so events queued by participant A are never stored under participant B. Login, logout and the OA claim page call `flush()` before the session changes.
 - Clients have no access to the analytics tables. Only the route writes, using the service role.
 
@@ -34,14 +34,15 @@ Server-only helpers live in `lib/server/analytics/journey.ts`. Client helpers:
 
 ## Tables
 
-Migration: `supabase/migrations/20261017090000_analytics_events.sql`.
+Migrations: `supabase/migrations/20261017090000_analytics_events.sql`, `20261116090000_dashboard_api_v1.sql` (Dashboard API). Prod migration history does not match this folder: apply new files in the Supabase SQL editor, never with `supabase db push`.
 
 | Table | Purpose |
 |---|---|
-| `analytics_journeys` | One RunJump visit: `journey_id`, `user_id`, `participant_id`, `entry_source`, `started_at`, `last_seen_at` |
+| `analytics_journeys` | One RunJump visit: `journey_id`, `user_id`, `participant_id`, `entry_source`, `launch_id` (origin launch, null before 16 Nov 2026), `started_at`, `last_seen_at` |
 | `analytics_journey_launches` | OA `launch_id` → `journey_id`. The primary key on `launch_id` makes claim retries reuse one journey. |
-| `analytics_events` | Every event, web and in-game. `event_id` is unique. There is one `activity_started` and one `activity_ended` per attempt, and one `journey_started` per journey. |
-| `analytics_runjump_export` (view) | PRD canonical columns. Contains only PRD event names. |
+| `analytics_events` | Every event, web and in-game. `event_id` is unique. There is one `activity_started` and one `activity_ended` per attempt, one `journey_started` per journey and one `app_opened` per `launch_id`. `id` is the Dashboard `event_seq`. |
+| `analytics_runjump_export` (view) | CSV export (`npm run analytics:export`). PRD canonical columns, PRD event names except `app_opened`. Unchanged. |
+| `analytics_dashboard_events_v1` (view) | Dashboard API rows: exactly the 23 openapi `Event` keys. See [Dashboard API](#dashboard-api-v1). |
 
 ## participant_id and journeys
 
@@ -50,9 +51,10 @@ Migration: `supabase/migrations/20261017090000_analytics_events.sql`.
   1. an OA launch is claimed (`/auth/line-bot/claim` → `entry_source = line_oa`, with the launch attached);
   2. a batch arrives with no `rj_journey` cookie;
   3. the cookie's journey belongs to a different user (B after A on the same device);
-  4. the journey has had no events for 30 minutes.
+  4. the journey has had no events for 30 minutes. A `line_oa` journey is exempt: it lasts as long as its cookie (24 h after the last event), so a LINE visit keeps its `journey_id` and `launch_id` (Dashboard API Spec v1, RunJump).
 
-  Journeys from rules 2–4 get `entry_source = direct`, or `other` for VitalMind launches. A mapped participant returning without a new link keeps their `participant_id` but has no `launch_id`.
+  Journeys from rules 2–4 get `entry_source = direct`, or `other` for VitalMind launches, with one exception: when the user is a mapped participant whose latest OA launch is less than 24 h old (cookie lost, link opened in another browser), the new journey gets `entry_source = line_oa` and that launch in `analytics_journeys.launch_id`; its `journey_started` has `props.inherited_launch = true` and no `oa_entry` step. A mapped participant returning later without a new link keeps their `participant_id` but has no `launch_id`.
+- **`app_opened`.** `attachLaunch()` records one `app_opened` per launch when the claim attaches the redeemed link to the session (PRD 8.4, 13 Nov 2026): `launch_id`, `participant_id`, time, no `journey_id`. It is written before the journey and its `journey_started`. A unique index makes retries a no-op. There is no deletion rule for RunJump and no backfill of launches before this change.
 - A retried claim for the same launch returns the existing journey and does not log a second `journey_started`.
 
 ## Steps (`step_viewed.step_id`)
@@ -76,6 +78,7 @@ Migration: `supabase/migrations/20261017090000_analytics_events.sql`.
 
 | event | Trigger | Key fields |
 |---|---|---|
+| `app_opened` | OA launch attached to the session (server only, `journey_id` null) | `launch_id` |
 | `journey_started` | New journey (server only) | `props.entry_source` |
 | `step_viewed` | Step reached | `step_id`, sometimes `game_id` |
 | `activity_started` | Gameplay passes to the player: when the intro popup is closed, or when the first scene is created if the game has no intro. Never in tutorial mode. | `game_id`, `level`, `attempt_id`, `props.phase = actual`, `props.mode` |
@@ -136,6 +139,45 @@ npm run analytics:export -- --from 2026-10-15 --until 2026-10-16 --oa-only
 ```
 
 This writes `analytics/out/runjump-events-*.csv|json` (canonical columns) and `runjump-launches-*.csv` (every launch for each journey). The view adds two RunJump columns: `game_mode` (`normal` / `tutorial`) and `runjump_user_id`. The PRD columns that don't apply to RunJump (`consent_status`, `playback_position_ms`, `content_duration_ms`) are always null.
+
+## Dashboard API v1
+
+`GET /api/dashboard/v1/events` (`app/api/dashboard/v1/events/route.ts`, helpers in `lib/server/dashboard/events.ts`) lets the project Dashboard pull events. Contract: Dashboard API Spec v1 (13 Nov 2026) and its `openapi.yaml`; field names follow PRD v0.5 §8. RunJump implements `/events` only.
+
+- **Auth:** `Authorization: Bearer <DASHBOARD_API_KEY>` (server env, random, ≥ 32 characters, not the Bot or module key). Compared in constant time. Missing or wrong key, or an unset env var → `401 unauthorized`.
+- **Parameters:** `from` (required, ISO 8601 date-time with `Z` or an offset; encode `+` as `%2B`), `until` (optional, default now, must be later than `from`), `limit` (1–1000, default 1000), `cursor` (the previous `next_cursor`, sent with the same `from`/`until`). Anything else malformed → `400 invalid_parameter`. Windows longer than 31 days are not rejected: the spec only says the Dashboard won't ask for them.
+- **Response:** `{ "events": [...], "next_cursor": string | null }`, ordered by `occurred_at`, `event_seq`, `event_id`. Keyset pagination on (`occurred_at`, `event_seq`); `next_cursor` is null exactly when nothing is left (a full page is followed by a one-row probe, because PostgREST caps responses at its max-rows setting). Errors are `{ "error": { "code", "message" } }`; `500 internal` never includes details. Responses are `Cache-Control: no-store`; no CORS.
+- **Source:** view `analytics_dashboard_events_v1`, read with the service role. It contains `app_opened` and the canonical events whose `journey_id` is set. Signed-out events (for example `step_viewed login` before login) and raw web/in-game events are not returned, so compare the acceptance count with `count(*)` of this view, not of `analytics_events`.
+- **Acceptance:** `BASE_URL=https://<host> API_KEY=<key> node verify-dashboard-api.mjs runjump <YYYY-MM-DD>` (script from the spec). Test offline with `npm run test:dashboard`.
+
+### Field mapping (23 keys)
+
+| Key | Source | Null when |
+|---|---|---|
+| `app_id` | constant `runjump` | never |
+| `event_id` | `analytics_events.event_id` | never |
+| `event_seq` | `analytics_events.id` (identity) | never |
+| `occurred_at` | `analytics_events.occurred_at`, sent as UTC with milliseconds | never |
+| `event_name` | `analytics_events.event` | never |
+| `entry_source` | `line_oa` when a launch is known, else `analytics_journeys.entry_source` | never |
+| `participant_id` | event, else journey | not a mapped participant |
+| `launch_id` | event (`app_opened`), else `analytics_journeys.launch_id`, else the journey's first `analytics_journey_launches` row | not an OA journey |
+| `journey_id` | `analytics_events.journey_id` | `app_opened` only |
+| `step_id` | `analytics_events.step_id` | events without a step |
+| `consent_status` | — | always: RunJump has no consent step |
+| `activity_type` | `game` on activity start/end and on errors with an attempt | other events |
+| `activity_id` | `analytics_events.game_id` | events outside a game |
+| `activity_attempt_id` | `analytics_events.attempt_id` | events outside an attempt |
+| `phase` | `props.phase` (`instruction` / `practice` / `actual`) | not set |
+| `level_id` | `analytics_events.level` as text | events without a level |
+| `outcome`, `end_reason` | `props.outcome`, `props.end_reason` on `activity_ended` | every other event |
+| `error_code` | `props.error_code` | events other than `error_occurred` |
+| `duration_ms` | `props.duration_ms` of the same attempt's in-game `level_ended`, on `activity_ended` | no `level_ended` for the attempt (games without telemetry, exits before the level ended) and all other events |
+| `progress` | `props.score` (game score) on `activity_ended` | no numeric score (exits, some endless/level games) and all other events |
+| `app_version` | `analytics_events.app_version` (`package.json` version) | never; old server rows without it report `0.1.1` |
+| `content_version` | `analytics_events.content_version` (`CONTENT_VERSION` in `lib/analytics/version.ts`) | never; rows before 16 Nov 2026 report `games-2026.11` |
+
+`duration_ms` is the game's own timer (from `levelStarted()` to `levelEnded()`, pauses included unless the game reports active time). The Dashboard derives elapsed time from `occurred_at` itself.
 
 ## Known gaps
 
