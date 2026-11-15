@@ -2,8 +2,10 @@
 // Web journey events are documented in docs/analytics.md; in-game events in
 // docs/gametrackinghandoff.md section 5. Add new names here in the same commit.
 
-// Canonical PRD §8.4 events (exported through analytics_runjump_export).
+// Canonical PRD §8.4 events (exported through analytics_dashboard_events_v1 and,
+// except app_opened, analytics_runjump_export).
 export const CANONICAL_EVENTS = [
+  "app_opened",
   "journey_started",
   "step_viewed",
   "activity_started",
@@ -289,4 +291,4 @@ export type ActivityEndReason =
   | "app_error";
 
 // Events that only the server may create.
-export const SERVER_ONLY_EVENTS: ReadonlySet<string> = new Set(["journey_started"]);
+export const SERVER_ONLY_EVENTS: ReadonlySet<string> = new Set(["app_opened", "journey_started"]);

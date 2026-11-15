@@ -9,7 +9,7 @@ import {
   setJourneyCookie,
   type Journey,
 } from "@/lib/server/analytics/journey";
-import packageJson from "@/package.json";
+import { APP_VERSION, CONTENT_VERSION } from "@/lib/analytics/version";
 
 export const runtime = "nodejs";
 
@@ -126,7 +126,8 @@ export async function POST(request: NextRequest) {
         participant_id: journey?.participantId ?? null,
         journey_id: journey?.journeyId ?? null,
         session_id: sessionId,
-        app_version: packageJson.version,
+        app_version: APP_VERSION,
+        content_version: CONTENT_VERSION,
         device,
       })),
     });
